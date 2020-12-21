@@ -3,13 +3,13 @@
 
 CRISPRme is a web-based tool developed to perform genome-wide CRISPR/Cas predictive analysis and result assessment supporting genetic variant and personal genomes.
 
-![fig_pipeline_breve-1](https://user-images.githubusercontent.com/32717860/53018798-93e99700-3453-11e9-85a9-89eba18b18bb.png)
+<!--- ![fig_pipeline_breve-1](https://user-images.githubusercontent.com/32717860/53018798-93e99700-3453-11e9-85a9-89eba18b18bb.png) --->
 
 The search engine integrated in CRISPRme is based on CRISPRitz (Cancellieri, Samuele, et al. "CRISPRitz: rapid, high-throughput and variant-aware in silico off-target site identification for CRISPR genome editing." Bioinformatics 36.7 (2020): 2001-2008.) to exploit the powerful and fast search methods in the package, integrated with a user friendly and comprehensive GUI allowing the user to inspect and analyze results with ease.
 
-# CRISPRitz Installation and Usage
-The two fastest way to use CRISPRitz is through the installation of Docker or Conda.
-Here we summarize the steps to install CRISPRitz with Docker and Conda.
+# CRISPRme Installation and Usage
+The two fastest way to use CRISPRme is through the installation of Docker or Conda.
+Here we summarize the steps to install CRISPRme with Docker and Conda.
 
 ## Installation (Phase 1)
 **Conda installation (Linux and MacOS):**
