@@ -245,14 +245,10 @@ for nline, line in enumerate(inCrispritzResults):
         saveDict['fewest_mm+bulge_alignment(ref)'] = str(x[2])
         saveDict['fewest_mm+bulge_CFD_score(alt)'] = 'n'
 
-    foundEmpirical = sorted(empiricalTree[int(x[6])-3:int(x[6])+3])
-    # foundEmpirical = sorted(
-    #     empiricalTree[int(x[6])-int(x[9]):int(x[6])+int(x[9])])
-    # foundEmpirical = sorted(empiricalTree[int(x[6])])
+    foundEmpirical = sorted(empiricalTree[int(x[6])-4:int(x[6])+4])
 
     for found in range(0, len(foundEmpirical)):
         empirical = foundEmpirical[found].data
-        # if str(saveDict['chr']) == str(empirical[0]) and empirical[7] not in empiricalList:
         if str(saveDict['chr']) == str(empirical[0]):
             empiricalList.append(empirical[7])
             valueDict[str(empirical[5])] = empirical[6]

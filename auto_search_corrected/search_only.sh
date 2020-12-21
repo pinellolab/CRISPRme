@@ -70,6 +70,11 @@ if ! [ -d "$output_folder" ]; then
 fi
 cd "$output_folder/"
 
+
+if ! [ -d "$output_folder/crispritz_targets" ]; then
+	mkdir "$output_folder/crispritz_targets"
+fi
+
 fullseqpam=$(cut -f1 -d' ' "$pam_file")
 pos=$(cut -f2 -d' ' "$pam_file")
 if [ $pos -gt 0 ]; then
@@ -93,7 +98,7 @@ if [ "$vcf_name" != "_" ]; then
 fi
 
 if [ "$vcf_name" != "_" ]; then
-	if ! [ -d "fake_chrom_$vcf_name" ]; then
+	if ! [ -d "$output_folder/log_indels_$vcf_name" ]; then
 		echo "INDELs Start: "$(date +%F-%T) >> $output_folder/$log
 		echo "Generating fake chromosomes for indels"
 		mkdir "fake_chrom_$vcf_name"
@@ -109,7 +114,7 @@ if [ "$vcf_name" != "_" ]; then
 		# done
 	fi
 	
-	if ! [ -d "${ref_name}+${vcf_name}" ]; then
+	if ! [ -d "$output_folder/${ref_name}+${vcf_name}" ]; then
 		echo "Add-variants Start: "$(date +%F-%T) >> $output_folder/$log
 		echo "Adding variants"
 		crispritz.py add-variants "$vcf_folder/" "$ref_folder/"
@@ -125,6 +130,10 @@ while kill "-0" $pid_indels &>/dev/null; do
 	echo "Waiting for indels process"
 	sleep 600
 done
+
+if [ -d "$output_folder/fake_chrom_$vcf_name" ]; then
+	rm -r "$output_folder/fake_chrom_$vcf_name"
+fi
 
 if ! [ -d "genome_library/"$true_pam"_${bMax}_"$ref_name ]; then
 	echo "Index-genome Reference Start: "$(date +%F-%T) >> $output_folder/$log	
@@ -149,9 +158,6 @@ if [ "$vcf_name" != "_" ]; then
 	fi	
 fi
 
-if ! [ -d "$output_folder/crispritz_targets" ]; then
-	mkdir "$output_folder/crispritz_targets"
-fi
 
 if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 	echo "Search Reference Start: "$(date +%F-%T) >> $output_folder/$log	
@@ -188,7 +194,7 @@ while kill "-0" $pid_search_ref &>/dev/null; do
 	sleep 300
 done
 if [ -f "$output_folder/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
-	mv "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
+	mv "$output_folder/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 fi
 echo "Search Reference End: "$(date +%F-%T) >> $output_folder/$log	
 
@@ -198,10 +204,10 @@ while kill "-0" $pid_dicts &>/dev/null; do
 done
 
 
-if ! [ -d "$output_folder/crispritz_profiles" ]; then
-	mkdir $output_folder/crispritz_profiles
+if ! [ -d "$output_folder/crispritz_prof" ]; then
+	mkdir $output_folder/crispritz_prof
 fi
-mv $output_folder/*profile* $output_folder/crispritz_profiles/ > /dev/null 2>&1
+mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
 
 echo "Search End: "$(date +%F-%T) >> $output_folder/$log
 echo "SEARCH END"

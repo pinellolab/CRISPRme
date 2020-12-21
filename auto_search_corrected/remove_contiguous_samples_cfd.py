@@ -66,14 +66,9 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
         best_ref = list_ref[0]
         for ele_ref in list_ref[1:]:
             if float(ele_ref[cfd]) > float(best_ref[cfd]):
-                #fileOut_disc.write("\t".join(best_ref))
                 best_ref = ele_ref
-            #else:
-                #fileOut_disc.write("\t".join(ele_ref))
-        #fileOut.write("\t".join(best_ref))
         final_list.append(best_ref)
     elif len(list_ref) == 1:
-        #fileOut.write("\t".join(list_ref[0]))
         final_list.append(list_ref[0])
     
     for key in dict_var.keys():
@@ -83,41 +78,38 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
         if len(list_var) > 1:
             for ele_var in list_var[1:]:
                 if float(ele_var[cfd]) > float(best_var[cfd]):
-                    #fileOut_disc.write("\t".join(best_var))
                     best_var = ele_var
-                #else:
-                    #fileOut_disc.write("\t".join(ele_var))
-            #fileOut.write("\t".join(best_var))
             final_list.append(best_var)
         else:
-            #fileOut.write("\t".join(best_var)) 
             final_list.append(best_var)
     
     n_ele = len(final_list)
     if n_ele > 1:
         final_list.sort(key = lambda x : float(x[cfd]), reverse=True)
-        if final_list[0][cfd] == final_list[0][cfd] and final_list[1][cfd-2] != 'n':
+        if final_list[0][cfd] == final_list[1][cfd] and final_list[1][cfd-2] != 'n':
             final_list[1][cfd-1] = str(n_ele-1)
-            final_list[1][2*cfd-1] = str(n_ele-1)
+            final_list[1][2*cfd+1] = str(n_ele-1)
             fileOut.write("\t".join(final_list[1]))
             final_list.pop(1)
         else:
             final_list[0][cfd-1] = str(n_ele-1)
-            final_list[0][2*cfd-1] = str(n_ele-1)
+            final_list[0][2*cfd+1] = str(n_ele-1)
             fileOut.write("\t".join(final_list[0]))
             final_list.pop(0)
         for ele in final_list:
             ele[cfd-1] = str(n_ele-1)
+            ele[2*cfd+1] = str(n_ele-1)
             fileOut_disc.write("\t".join(ele))
-    elif len(final_list) == 1:
+    elif n_ele == 1:
         fileOut.write("\t".join(final_list[0]))
 
 tau = int(sys.argv[3])
 chrom = int(sys.argv[4])-1 
 pos = int(sys.argv[5])-1 
 total = int(sys.argv[6])-1
-snp_info = int(sys.argv[7])-1 
-cfd = int(sys.argv[8])-1
+true_guide = int(sys.argv[7])-1
+snp_info = int(sys.argv[8])-1 
+cfd = int(sys.argv[9])-1
 # -1 is to get the correct "python enumeration" from the bash script
 
 start = time.time()
@@ -129,16 +121,18 @@ with open(sys.argv[1], 'r') as fileIn:
             fileOut_disc.write(header)
             prev_pos = -(tau+1)
             best_row = ""
+            prev_guide = ""
             prev_chr = ""
             prev_snp = ""
             cluster = []
             for line in fileIn:
                 splitted = line.split("\t")
-                if prev_chr != splitted[chrom] or int(splitted[pos]) - prev_pos > tau:
+                if prev_guide != splitted[true_guide] or prev_chr != splitted[chrom] or int(splitted[pos]) - prev_pos > tau:
                     get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info)
                     cluster = [splitted]
                 else:
                     cluster.append(splitted)
+                prev_guide = splitted[true_guide]
                 prev_pos = int(splitted[pos])
                 prev_chr = splitted[chrom]
                 prev_snp = splitted[snp_info]

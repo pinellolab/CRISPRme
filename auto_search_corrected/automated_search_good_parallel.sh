@@ -252,12 +252,12 @@ fi
 cd "$starting_dir"
 echo "Adjusting final results - sorting"
 header=$(head -1 $final_res)
-tail -n +2 "$final_res" | LC_ALL=C sort -k5,5 -k7,7n -o "$final_res.sorted"
+tail -n +2 "$final_res" | LC_ALL=C sort -T $output_folder -k5,5 -k7,7n -o "$final_res.sorted"
 sed -i 1i"$header" "$final_res.sorted"
 mv "$final_res.sorted" "$final_res"
 if [ "$vcf_name" != "_" ]; then
 	header=$(head -1 $final_res_alt)
-	tail -n +2 "$final_res_alt" | LC_ALL=C sort -k5,5 -k7,7n -o "$final_res_alt.sorted"
+	tail -n +2 "$final_res_alt" | LC_ALL=C sort -T $output_folder -k5,5 -k7,7n -o "$final_res_alt.sorted"
 	sed -i 1i"$header" "$final_res_alt.sorted"
 	mv "$final_res_alt.sorted" "$final_res_alt"
 fi

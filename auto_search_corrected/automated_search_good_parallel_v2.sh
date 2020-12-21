@@ -29,10 +29,19 @@ guide_name=$(basename $3)
 pam_name=$(basename $4)
 annotation_name=$(basename $5)
 
+if ! [ -d "$output_folder" ]; then
+	mkdir "$output_folder"
+fi
+cd "$output_folder/"
+
 if [ "$vcf_name" != "_" ]; then
 	log="log_complete_search_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.txt"
 else
 	log="log_complete_search_${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.txt"
+fi
+
+if ! [ -d "$output_folder/crispritz_targets" ]; then
+	mkdir "$output_folder/crispritz_targets"
 fi
 
 touch $output_folder/$log
@@ -68,11 +77,6 @@ if [ "$vcf_name" != "_" ]; then
 	done
 fi
 
-if ! [ -d "$output_folder" ]; then
-	mkdir "$output_folder"
-fi
-cd "$output_folder/"
-
 fullseqpam=$(cut -f1 -d' ' "$pam_file")
 pos=$(cut -f2 -d' ' "$pam_file")
 if [ $pos -gt 0 ]; then
@@ -96,7 +100,7 @@ if [ "$vcf_name" != "_" ]; then
 fi
 
 if [ "$vcf_name" != "_" ]; then
-	if ! [ -d "fake_chrom_$vcf_name" ]; then
+	if ! [ -d "$output_folder/log_indels_$vcf_name" ]; then
 		echo "INDELs Start: "$(date +%F-%T) >> $output_folder/$log
 		echo "Generating fake chromosomes for indels"
 		mkdir "fake_chrom_$vcf_name"
@@ -112,7 +116,7 @@ if [ "$vcf_name" != "_" ]; then
 		# done
 	fi
 	
-	if ! [ -d "${ref_name}+${vcf_name}" ]; then
+	if ! [ -d "$output_folder/${ref_name}+${vcf_name}" ]; then
 		echo "Add-variants Start: "$(date +%F-%T) >> $output_folder/$log
 		echo "Adding variants"
 		crispritz.py add-variants "$vcf_folder/" "$ref_folder/"
@@ -128,11 +132,14 @@ while kill "-0" $pid_indels &>/dev/null; do
 	echo "Waiting for indels process"
 	sleep 600
 done
+if [ -d "$output_folder/fake_chrom_$vcf_name" ]; then
+	rm -r "$output_folder/fake_chrom_$vcf_name"
+fi
 
-if ! [ -d "genome_library/"$true_pam"_${bMax}_"$ref_name ]; then
+if ! [ -d "$output_folder/genome_library/"$true_pam"_${bMax}_"$ref_name ]; then
 	echo "Index-genome Reference Start: "$(date +%F-%T) >> $output_folder/$log	
 	echo "Indexing reference genome"
-	crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $(expr $ncpus - 2)
+	crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
 	pid_index_ref=$!
 	echo "Index-genome Reference End: "$(date +%F-%T) >> $output_folder/$log	
 else
@@ -141,10 +148,10 @@ fi
 
 
 if [ "$vcf_name" != "_" ]; then
-	if ! [ -d "genome_library/"$true_pam"_${bMax}_${ref_name}+${vcf_name}" ]; then
+	if ! [ -d "$output_folder/genome_library/"$true_pam"_${bMax}_${ref_name}+${vcf_name}" ]; then
 		echo "Index-genome Variant Start: "$(date +%F-%T) >> $output_folder/$log	
 		echo "Indexing variant genome"
-		crispritz.py index-genome "${ref_name}+${vcf_name}" "${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $(expr $ncpus - 2) #${ref_folder%/}+${vcf_name}/
+		crispritz.py index-genome "${ref_name}+${vcf_name}" "${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus #${ref_folder%/}+${vcf_name}/
 		pid_index_var=$!
 		echo "Index-genome Variant Start: "$(date +%F-%T) >> $output_folder/$log	
 	else
@@ -152,9 +159,6 @@ if [ "$vcf_name" != "_" ]; then
 	fi	
 fi
 
-if ! [ -d "$output_folder/crispritz_targets" ]; then
-	mkdir "$output_folder/crispritz_targets"
-fi
 
 if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 	echo "Search Reference Start: "$(date +%F-%T) >> $output_folder/$log	
@@ -192,12 +196,12 @@ while kill "-0" $pid_search_ref &>/dev/null; do
 	sleep 300
 done
 if [ -f "$output_folder/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
-	mv "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
+	mv "$output_folder/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 fi
-if ! [ -d "$output_folder/crispritz_profiles" ]; then
-	mkdir $output_folder/crispritz_profiles
+if ! [ -d "$output_folder/crispritz_prof" ]; then
+	mkdir $output_folder/crispritz_prof
 fi
-mv $output_folder/*profile* $output_folder/crispritz_profiles/ > /dev/null 2>&1
+mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
 
 echo "Search Reference End: "$(date +%F-%T) >> $output_folder/$log	
 
@@ -334,12 +338,12 @@ echo "Adjusting Results Start: "$(date +%F-%T) >> $output_folder/$log
 cd "$starting_dir"
 echo "Adjusting final results - sorting"
 header=$(head -1 $final_res)
-tail -n +2 "$final_res" | LC_ALL=C sort -k5,5 -k7,7n -o "$final_res.sorted"
+tail -n +2 "$final_res" | LC_ALL=C sort -T $output_folder -k5,5 -k7,7n -o "$final_res.sorted"
 sed -i 1i"$header" "$final_res.sorted"
 mv "$final_res.sorted" "$final_res"
 if [ "$vcf_name" != "_" ]; then
 	header=$(head -1 $final_res_alt)
-	tail -n +2 "$final_res_alt" | LC_ALL=C sort -k5,5 -k7,7n -o "$final_res_alt.sorted"
+	tail -n +2 "$final_res_alt" | LC_ALL=C sort -T $output_folder -k5,5 -k7,7n -o "$final_res_alt.sorted"
 	sed -i 1i"$header" "$final_res_alt.sorted"
 	mv "$final_res_alt.sorted" "$final_res_alt"
 fi

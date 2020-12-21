@@ -26,18 +26,15 @@ def post_analysis_only():
         print("\t--targetdir, used to specify the directory containing the results of the search step (also post-analysis results will be stored in this folder)")
         print("\t--genome, used to specify the reference genome folder")
         print("\t--vcf, used to specify the VCF folder [OPTIONAL!]")
-        print(
-            "\t--guide, used to specify the file that contains guides used for the search")
+        print("\t--guide, used to specify the file that contains guides used for the search")
         print("\t--pam, used to specify the file that contains the pam")
         print("\t--annotation, used to specify the file that contains some annotations of the reference genome")
-        print(
-            "\t--samplesID, used to specify the file that contains the information about samples present in VCF files [OPTIONAL!]")
+        print("\t--samplesID, used to specify the file that contains the information about samples present in VCF files [OPTIONAL!]")
         print("\t--bMax, used to specify the number of bulges for the indexing of the genome(s)")
-        print(
-            "\t--mm, used to specify the number of mismatches permitted in the search phase")
-        print("\t--bDNA, used to specify the number of DNA bulges permitted in the search phase")
-        print("\t--bRNA, used to specify the number of RNA bulges permitted in the search phase")
-        print("\t--merge, used to specify the threshold used to merge close targets")
+        print("\t--mm, used to specify the number of mismatches permitted in the search phase")
+        print("\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]")
+        print("\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
+        print("\t--merge, used to specify the threshold used to merge close targets [OPTIONAL!]")
         print("\t--thread, used to set the number of thread used in the process (default is ALL available minus 2)")
         # print("\t--output, used to specify the output folder for the results")
         exit(0)
@@ -194,8 +191,9 @@ def post_analysis_only():
             exit(1)
 
     if "--bDNA" not in input_args:
-        print("--bDNA must be contained in the input")
-        exit(1)
+        #print("--bDNA must be contained in the input")
+        #exit(1)
+        bDNA = 0
     else:
         try:
             bDNA = input_args[input_args.index("--bDNA")+1]
@@ -215,8 +213,9 @@ def post_analysis_only():
             exit(1)
 
     if "--bRNA" not in input_args:
-        print("--bRNA must be contained in the input")
-        exit(1)
+        #print("--bRNA must be contained in the input")
+        #exit(1)
+        bRNA = 0
     else:
         try:
             bRNA = input_args[input_args.index("--bRNA")+1]
@@ -236,8 +235,9 @@ def post_analysis_only():
             exit(1)
 
     if "--merge" not in input_args:
-        print("--merge must be contained in the input")
-        exit(1)
+        #print("--merge must be contained in the input")
+        #exit(1)
+        merge_t = 0
     else:
         try:
             merge_t = input_args[input_args.index("--merge")+1]
@@ -270,14 +270,12 @@ def search_only():
         print("These are the flags that must be used in order to run this function:")
         print("\t--genome, used to specify the reference genome folder")
         print("\t--vcf, used to specify the VCF folder [OPTIONAL!]")
-        print(
-            "\t--guide, used to specify the file that contains guides used for the search")
+        print("\t--guide, used to specify the file that contains guides used for the search")
         print("\t--pam, used to specify the file that contains the pam")
         print("\t--bMax, used to specify the number of bulges for the indexing of the genome(s)")
-        print(
-            "\t--mm, used to specify the number of mismatches permitted in the search phase")
-        print("\t--bDNA, used to specify the number of DNA bulges permitted in the search phase")
-        print("\t--bRNA, used to specify the number of RNA bulges permitted in the search phase")
+        print("\t--mm, used to specify the number of mismatches permitted in the search phase")
+        print("\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]")
+        print("\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
         print("\t--output, used to specify the output folder for the results")
         print("\t--thread, used to set the number of thread used in the process (default is ALL available minus 2)")
         exit(0)
@@ -389,8 +387,9 @@ def search_only():
             exit(1)
 
     if "--bDNA" not in input_args:
-        print("--bDNA must be contained in the input")
-        exit(1)
+        #print("--bDNA must be contained in the input")
+        #exit(1)
+        bDNA = 0
     else:
         try:
             bDNA = input_args[input_args.index("--bDNA")+1]
@@ -410,8 +409,9 @@ def search_only():
             exit(1)
 
     if "--bRNA" not in input_args:
-        print("--bRNA must be contained in the input")
-        exit(1)
+        #print("--bRNA must be contained in the input")
+        #exit(1)
+        bRNA = 0
     else:
         try:
             bRNA = input_args[input_args.index("--bRNA")+1]
@@ -460,19 +460,15 @@ def complete_search():
         print("These are the flags that must be used in order to run this function:")
         print("\t--genome, used to specify the reference genome folder")
         print("\t--vcf, used to specify the VCF folder [OPTIONAL!]")
-        print(
-            "\t--guide, used to specify the file that contains guides used for the search")
+        print("\t--guide, used to specify the file that contains guides used for the search")
         print("\t--pam, used to specify the file that contains the pam")
         print("\t--annotation, used to specify the file that contains some annotations of the reference genome")
-        print(
-            "\t--samplesID, used to specify the file that contains the information about samples present in VCF files [OPTIONAL!]")
+        print("\t--samplesID, used to specify the file that contains the information about samples present in VCF files [OPTIONAL!]")
         print("\t--bMax, used to specify the number of bulges for the indexing of the genome(s)")
-        print(
-            "\t--mm, used to specify the number of mismatches permitted in the search phase")
-        print("\t--bDNA, used to specify the number of DNA bulges permitted in the search phase")
-        print("\t--bRNA, used to specify the number of RNA bulges permitted in the search phase")
-        print(
-            "\t--merge, used to specify the threshold used to merge close targets (based on genetic position), use target with highest CFD as pivot [default 0 (ZERO)]")
+        print("\t--mm, used to specify the number of mismatches permitted in the search phase")
+        print("\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]")
+        print("\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
+        print("\t--merge, used to specify the threshold used to merge close targets (based on genetic position), use target with highest CFD as pivot [default 0 (ZERO)]")
         print("\t--output, used to specify the output folder for the results")
         print("\t--thread, used to set the number of thread used in the process (default is ALL available minus 2)")
         exit(0)
@@ -615,8 +611,9 @@ def complete_search():
             exit(1)
 
     if "--bDNA" not in input_args:
-        print("--bDNA must be contained in the input")
-        exit(1)
+        #print("--bDNA must be contained in the input")
+        #exit(1)
+        bDNA = 0
     else:
         try:
             bDNA = input_args[input_args.index("--bDNA")+1]
@@ -636,8 +633,9 @@ def complete_search():
             exit(1)
 
     if "--bRNA" not in input_args:
-        print("--bRNA must be contained in the input")
-        exit(1)
+        #print("--bRNA must be contained in the input")
+        #exit(1)
+        bRNA = 0
     else:
         try:
             bRNA = input_args[input_args.index("--bRNA")+1]
