@@ -1,18 +1,11 @@
-# CRISPRitz 
+# CRISPRme 
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/crispritz/README.html)
 
-CRISPRitz is a software package containing 5 different tools dedicated to perform predictive analysis and result assessement on CRISPR/Cas experiments.
+CRISPRme is a web-based tool developed to perform genome-wide CRISPR/Cas predictive analysis and result assessment supporting genetic variant and personal genomes.
 
 ![fig_pipeline_breve-1](https://user-images.githubusercontent.com/32717860/53018798-93e99700-3453-11e9-85a9-89eba18b18bb.png)
 
-With this aim in mind we created this package, containing the following software tools:
-
-- add-variants: Tool to encode genomic variants using the IUPAC code. The ouput is a set of files representing the genome enriched with variants in IUPAC notation form.
-- index-genome: Tool to find the candidate targets in a genome starting from a PAM. The ouput is a set of files, containing all the sequences of candidate targets extracted from the genome.
-- search: Tool to perform off-target search on a genome (with or without variants) or genome index (with or without variants). The ouput is a set of files, one is a list of all targets and off-targets found, the others are profile files containing detailed information for each guide , like bp/mismatches and on/off-targets count.
-- annotate-results: Tool to annotate results found during search with functional annotations (promoter, chromatin accessibility, insulator, etc). The output is a set of files, one is the list of on/off-targets with the annotation type, the others are files containing counts for each guide, the counts are the total on/off-targets found with the specific mismatch threshold and the specific annotation.
-- generate-report: Tool to generate a graphical report with annotated and overall mismatch and bulge profile for a given guide. The output is a graphical representation of the input guide behaviour.
-- process-data: Tool to process and compare the off-target results done on the reference and enriched genomes. Informations about samples from the 1000 genome project are also provided for each target, giving a multi-level insight on the guide behaviour at general, population and sample level.
+The search engine integrated in CRISPRme is based on CRISPRitz (Cancellieri, Samuele, et al. "CRISPRitz: rapid, high-throughput and variant-aware in silico off-target site identification for CRISPR genome editing." Bioinformatics 36.7 (2020): 2001-2008.) to exploit the powerful and fast search methods in the package, integrated with a user friendly and comprehensive GUI allowing the user to inspect and analyze results with ease.
 
 # CRISPRitz Installation and Usage
 The two fastest way to use CRISPRitz is through the installation of Docker or Conda.
