@@ -1,0 +1,797 @@
+'''
+CRISPRme performs predictive analysis and result assessment on population and individual specific CRISPR/Cas experiments. 
+CRISPRme enumerates on- and off-target accounting simultaneously for substitutions, DNA/RNA bulges and common genetic variants from the 1000 
+genomes project. CRISPRme is based on CRISPRitz (Cancellieri, Samuele, et al. "Crispritz: rapid, high-throughput, and variant-aware in silico off-target site identification for crispr genome editing." Bioinformatics (2019).) 
+a software tool for population target analyses. CRISPRme is devoted to individual specific on- and off-target analyses.
+
+Documentation updated up to 07/07/2020
+
+Launch crisprme:
+
++ python crisprme_off.py
++ gunicorn -b :8080 crisprme_off:app.server
+
+Generate docs:
+
++ pdoc crisprme_off.py -o docsCrisprme/ --force --html
+'''
+# IMPORT FROM ADDITIONAL PAGES AND GUI
+from GUI import UpdateDict
+from GUI import navbar_creation
+from GUI import GUImessage
+from GUI import get_genomes
+from GUI import creazione_dizionari
+from GUI import ChooseFiles
+from GUI import annotations
+from additional_pages import send_mail
+from additional_pages import results_page
+from additional_pages import load_page
+# from additional_pages import history_page
+from additional_pages import help_page
+# from additional_pages import get_results
+from additional_pages import get_genomes
+from additional_pages import genomes_page
+from additional_pages import contacts_page
+from app import app
+from app import URL
+from index import cache
+from os.path import isfile, isdir, join  # for getting directories
+import webbrowser as wb  # Open CRISPRme on browser
+import concurrent.futures  # For workers and queue
+import re  # For sort chr filter values
+from datetime import datetime  # For time when job submitted
+import collections  # For check if guides are the same in two results
+import filecmp  # check if Params files are equals
+import sys  # for sys.exit()
+import random  # for job id
+import string  # for job id
+# from flask_caching import Cache  # for cache of .targets or .scores
+
+import time  # measure time for loading df table
+import json  # for getting and saving report images list
+import pandas as pd  # for dash table
+import io  # for decoding upload content
+import base64  # for decoding upload content
+from os import listdir  # for getting directories
+from tkinter import filedialog, END, IntVar, messagebox
+from PostProcess import CFDGraph
+from PostProcess.supportFunctions.loadSample import associateSample
+import math
+from seq_script import extract_seq, convert_pam
+
+import os
+from os import getcwd
+import subprocess
+from dash.exceptions import PreventUpdate
+# IMPORT DASH
+import dash_table
+import dash_daq as daq
+import dash_html_components as html
+import dash_core_components as dcc
+import dash_bootstrap_components as dbc
+from dash.dependencies import Input, Output, State
+import dash
+import matplotlib
+matplotlib.use('Agg')
+try:
+    from GUI import GUImessage as Gmsg
+except ImportError:
+    pass
+
+try:
+    import Tkinter as tk
+except ImportError:
+    import tkinter as tk
+
+try:
+    import ttk
+    py3 = False
+except ImportError:
+    import tkinter.ttk as ttk
+    py3 = True
+
+# Warning symbol \u26A0
+app_location = os.path.realpath(__file__)
+print(app_location)
+app_main_directory = os.path.dirname(app_location) + '/'  # This for scripts
+current_working_directory = os.getcwd() + '/'  # This for files
+
+exeggutor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
+
+
+if ONLINE:
+    DISPLAY_OFFLINE = 'none'
+    DISPLAY_ONLINE = ''
+else:
+    DISPLAY_OFFLINE = ''
+    DISPLAY_ONLINE = 'none'
+
+
+# Populations 1000 gen proj
+# population_1000gp = {
+#     'EAS':['CHB', 'JPT', 'CHS', 'CDX', 'KHV'],
+#     'EUR':['CEU', 'TSI', 'FIN', 'GBR', 'IBS'],
+#     'AFR':['YRI', 'LWK', 'GWD', 'MSL', 'ESN', 'ASW', 'ACB'],
+#     'AMR':['MXL', 'PUR', 'CLM', 'PEL'],
+#     'SAS':['GIH', 'PJL', 'BEB', 'STU', 'ITU']
+# }
+# dict_pop_to_superpop = {'CHB':'EAS', 'JPT':'EAS', 'CHS':'EAS', 'CDX':'EAS', 'KHV':'EAS',
+#                     'CEU':'EUR', 'TSI':'EUR', 'FIN':'EUR', 'GBR':'EUR', 'IBS':'EUR',
+#                     'YRI':'AFR', 'LWK':'AFR', 'GWD':'AFR', 'MSL':'AFR', 'ESN':'AFR', 'ASW':'AFR', 'ACB':'AFR',
+#                     'MXL':'AMR', 'PUR':'AMR', 'CLM':'AMR', 'PEL':'AMR',
+#                     'GIH':'SAS', 'PJL':'SAS', 'BEB':'SAS', 'STU':'SAS', 'ITU':'SAS'
+# }
+# List of all samples
+# pop_file = pd.read_excel(os.path.dirname(os.path.realpath(__file__)) + '/PostProcess/20130606_sample_info.xlsx')
+# all_samples = pop_file.Sample.to_list()
+# all_pop = pop_file.Population.to_list()
+# dict_pop = dict()
+# dict_sample_to_pop = dict()
+# for  pos, i in enumerate(all_pop):
+# try:
+#     dict_pop[i].append(all_samples[pos])
+# except:
+#     dict_pop[i] = [all_samples[pos]]
+
+# dict_sample_to_pop[all_samples[pos]] = i
+# dropdown_all_samples = [{'label': sam, 'value' : sam} for sam in all_samples]
+# Dropdown available genomes
+
+
+# Dropdown available PAM
+
+
+# "https://images.plot.ly/logo/new-branding/plotly-logomark.png"
+
+
+# Test page, go to /test-page to see
+
+# test_page = html.Div(final_list, style = {'margin':'1%'})
+
+
+# TEST PAGE 2
+# final_list = []
+
+# test_page2 = html.Div(final_list, style={'margin': '1%'})
+
+# # TEST page3 for new result page
+# final_list = []
+
+# test_page3 = html.Div(final_list, style={'margin': '1%'})
+
+# # ABOUT PAGE
+
+# #about_page =  html.Div(help_page.helpPage(), style = {'margin':'1%'})
+# # Contacts page
+# final_list = []
+# contacts_page = html.Div(contacts_page.contactPage(), style={'margin': '1%'})
+
+
+##################################################CALLBACKS##################################################
+# Test callbacks
+
+
+# General function for selecting a Directory or a file
+# def openDialog(n, type_ask, start_dir='./'):
+#     if n is None:
+#         raise PreventUpdate
+#     root = tk.Tk()
+#     root.withdraw()
+#     if type_ask == 'D':
+#         selected = filedialog.askdirectory(
+#             initialdir=current_working_directory + start_dir)
+#     else:
+#         selected = filedialog.askopenfilename(
+#             initialdir=current_working_directory + start_dir)
+#     root.destroy()
+#     if selected == '' or selected == '()':
+#         selected = 'None'
+#     return str(selected)
+
+# Callbacks for generating filebrowser for addition of new genome
+
+
+# @app.callback(
+#     [Output('selected-referencegenome', 'children'),
+#      Output('full-path-refgen', 'children')],
+#     [Input('button-select-refgenome', 'n_clicks')]
+# )
+# def fileDialogRefGenome(n):
+#     dir_opened = openDialog(n, 'D', 'Genomes')
+#     if len(dir_opened) > 0:
+#         return 'Selected: ' + dir_opened.split('/')[-1], dir_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# @app.callback(
+#     [Output('selected-pamfile', 'children'),
+#      Output('full-path-pam', 'children')],
+#     [Input('button-select-pam', 'n_clicks')]
+# )
+# def fileDialogPam(n):
+#     file_opened = openDialog(n, 'F')
+#     if len(file_opened) > 0 and file_opened != "()":
+#         return 'Selected: ' + file_opened.split('/')[-1], file_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# @app.callback(
+#     [Output('selected-annotationfile', 'children'),
+#      Output('full-path-annotation', 'children')],
+#     [Input('button-select-annotation', 'n_clicks')]
+# )
+# def fileDialogAnnotation(n):
+#     file_opened = openDialog(n, 'F', 'annotations')
+#     if len(file_opened) > 0 and file_opened != "()":
+#         return 'Selected: ' + file_opened.split('/')[-1], file_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# @app.callback(
+#     [Output('selected-vcf', 'children'),
+#      Output('full-path-vcf', 'children')],
+#     [Input('button-select-vcf', 'n_clicks')]
+# )
+# def fileDialogVCF(n):
+#     dir_opened = openDialog(n, 'D')
+#     if len(dir_opened) > 0:
+#         return 'Selected: ' + dir_opened.split('/')[-1], dir_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# @app.callback(
+#     [Output('selected-vcf-dict', 'children'),
+#      Output('full-path-vcf-dict', 'children')],
+#     [Input('button-select-vcf-dict', 'n_clicks')]
+# )
+# def fileDialogVCF_dict(n):
+#     dir_opened = openDialog(n, 'D')
+#     if len(dir_opened) > 0:
+#         return 'Selected: ' + dir_opened.split('/')[-1], dir_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# @app.callback(
+#     [Output('selected-sampleIDfile', 'children'),
+#      Output('full-path-samples', 'children')],
+#     [Input('button-select-sampleID', 'n_clicks')]
+# )
+# def fileDialogSamplesID(n):
+#     file_opened = openDialog(n, 'F', 'samplesID')
+#     if len(file_opened) > 0 and file_opened != "()":
+#         return 'Selected: ' + file_opened.split('/')[-1], file_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# @app.callback(
+#     [Output('selected-samples-dict', 'children'),
+#      Output('full-path-samples-dict', 'children')],
+#     [Input('button-select-samples-dict', 'n_clicks')]
+# )
+# def fileDialogSamplesID_dict(n):
+#     file_opened = openDialog(n, 'F', 'samplesID')
+#     if len(file_opened) > 0 and file_opened != "()":
+#         return 'Selected: ' + file_opened.split('/')[-1], file_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# @app.callback(
+#     [Output('selected-dictionary', 'children'),
+#      Output('full-path-dictionary', 'children')],
+#     [Input('button-select-dictionary', 'n_clicks')]
+# )
+# def fileDialogDict(n):
+#     dir_opened = openDialog(n, 'D', 'dictionaries')
+#     if len(dir_opened) > 0 and dir_opened != "()":
+#         return 'Selected: ' + dir_opened.split('/')[-1], dir_opened
+#     else:
+#         return 'Selected: None', 'None'
+
+
+# Check input presence for updating dictionaries
+
+
+# Callback creazione nuovo genoma
+
+
+# Callback per aggiornare la barra progresso
+
+
+# # Insert/Delete example input
+
+
+# @app.callback(
+#     [Output('available-genome', 'value'),
+#      Output('available-pam', 'value'),
+#      Output('text-guides', 'value'),
+#      Output('mms', 'value'),
+#      Output('dna', 'value'),
+#      Output('rna', 'value'),
+#      Output('len-guide-sequence-ver', 'value'),
+#      Output('text-sequence', 'value')],
+#     [Input('example-parameters', 'n_clicks_timestamp'),
+#      Input('remove-parameters', 'n_clicks_timestamp')]
+# )
+# def inExample(nI, nR):
+#     '''
+#     Inserts an example value in all fields to show the user an example result, or reset the input fields. NOT available in OFFLINE version.
+
+#     ***Args***
+
+#     + [**nI**] **example-parameters** (*n_clicks_timestamp*): button that inserts the example values
+#     + [**nR**] **remove-parameters** (*n_clicks_timestamp*): button that removes the values and resets all the fields
+
+#     ***Returns***
+
+#     + **available-genome** (*value*): 'hg38 ref+hg38 1000genomeproject' as input example, or '' to reset the value
+#     + **available-pam** (*value*): '20bp-NGG-SpCas9' as input example, or '' to reset the value
+#     + **text-guides** (*value*): 'GAGTCCGAGCAGAAGAAGAA\\nCCATCGGTGGCCGTTTGCCC' as input example, or '' to reset the value
+#     + **mms** (*value*): '4' as input example, or '' to reset the value
+#     + **dna** (*value*): '1' as input example, or '' to reset the value
+#     + **rna** (*value*): '1' as input example, or '' to reset the value
+#     + **len-guide-sequence-ver** (*value*): '20' as input example, or '' to reset the value
+#     + **text-sequence** (*value*): '>sequence\\nTACCCCAAACGCGGAGGCGCCTCGGGAAGGCGAGGTGGGCAAGTTCAATGCCAAGCGTGACGGGGGA' as input example,
+#     or '' to reset the value
+#     '''
+
+#     if (nI is None) and (nR is None):
+#         raise PreventUpdate
+
+#     if nI is None:
+#         nI = 0
+
+#     if nR is None:
+#         nR = 0
+
+#     if nI > 0:
+#         if nI > nR:
+#             return 'hg38 ref+hg38 1000genomeproject', '20bp-NGG-SpCas9', 'GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC', '4', '1', '1', '20', '>sequence\nTACCCCAAACGCGGAGGCGCCTCGGGAAGGCGAGGTGGGCAAGTTCAATGCCAAGCGTGACGGGGGA'
+
+#     if nR > 0:
+#         if nR > nI:
+#             return '', '', '', '', '', '', '', ''
+
+# If selected genome has a '+', update advanced options comparison with reference
+
+
+# @app.callback(
+#     Output('checkbox-ref-comp', 'checked'),
+#     [Input('available-genome', 'value')]
+# )
+# def suggestComparison(value):
+#     '''
+#     Update to Checked the Option 'Compare your results with the corresponding reference genome' if an Enriched Genome is selected ('+' is in the
+#     name of the genome)
+
+#     ***Args***
+
+#     + [**value**] **available-genome** (*value*): the name of the genome selected by the user in the Dropdown
+
+#     ***Returns***
+
+#     + **checkbox-ref-comp** [*checked*]: True if an Enriched genome is selected
+#     '''
+#     if value is None:
+#         raise PreventUpdate
+#     if '+' in value:
+#         return True
+#     raise PreventUpdate
+
+
+# Fade in guide len dropdown for sequence tabs version
+
+
+# @app.callback(
+#     Output('fade-len-guide', 'is_in'),
+#     [Input('tabs', 'active_tab')],
+#     [State('fade-len-guide', 'is_in')]
+# )
+# def resetTab(current_tab, is_in):
+#     '''
+#     Manages the fading of the Dropdown for the guide length when the tab 'Sequence' is active.
+
+#     ***Args***
+
+#     + [**current_tab**] **tabs** (*active_tab*): string of the ID of the current active tab
+#     + [**is_in**] **fade-len-guide** (*is_in*): True if the Dropdown guide length element is displayed, False otherwise
+
+#     ***Returns***
+
+#     + **fade-len-guide** (*is_in*): True in order to show the Dropdown guide length element, False to hide it
+#     '''
+#     if current_tab is None:
+#         raise PreventUpdate
+
+#     if current_tab == 'guide-tab':
+#         return False
+#     return True
+
+
+'''
+@app.callback(
+    [Output('page-content', 'children'),
+    Output('job-link', 'children')],
+    [Input('url', 'href')],
+    [State('url','pathname'), 
+    State('url','search'),
+    State('url','hash')]
+    # [Input('url', 'href')],
+    # [State('url','pathname'), 
+    # State('url','search'),State('url','hash')]
+)
+'''
+# When url changed, load new page
+
+
+# #Callback to populate the tab, note that it's called when the result_page is loaded (dash implementation), so we do not use raise update to block this first callback
+# @app.callback(
+#     [Output('signal','children'),
+#     Output('result-table','page_current'),
+#     Output('result-table', "sort_by"),
+#     Output('result-table','filter_query')],
+#     [Input('url', 'pathname')],
+#     [State('url', 'search')]
+# )
+# def populateTable(pathname, search):
+#     print('pathname', pathname)
+#     if pathname != '/result':
+#         raise PreventUpdate
+
+#     job_id = search.split('=')[-1]
+#     job_directory = current_working_directory + 'Results/' + job_id + '/'
+#     print('job dir', job_directory)
+#     if(not isdir(job_directory)):
+#         return 'not_exists', 0, [], ''
+#     #global_store(job_id)
+#     print('ok')
+#     return job_id, 0, [], ''
+
+# Send the data when next or prev button is clicked on the result table
+
+
+'''
+,
+                tooltip_data=[
+                    {
+                        column: {'value': str(value), 'type': 'markdown'}
+                        for column, value in row.items()
+                    } for row in ans.to_dict('records')
+                ],
+                tooltip_duration=None
+                )
+'''
+
+
+# def callback_img():
+#     if (check_existance_sample):
+#         print("Todo")
+#     else:
+#         warning_no_res = dbc.Alert(
+#             "No results were found with the given parameters", color="warning")
+
+
+# def generate_table_position(dataframe, id_table, page, guide = '', job_id = '', max_rows = 10): #NOTE v1 della tabella posizioni
+#     '''
+#     Per generare una html table. NOTE è diversa da una dash dataTable
+#     '''
+#     rows_remaining = len(dataframe) - (page - 1) * max_rows
+
+#     return html.Table(
+#         # Header
+#         [html.Tr([html.Th(col) for col in dataframe.columns]) ] +
+#         # Body
+#         [html.Tr([
+#             html.Td(html.A(dataframe.iloc[i + (page - 1)*max_rows][col],  href = 'result?job=' + job_id + '#' + guide +'-Pos-' + str(dataframe.iloc[i + (page - 1)*max_rows]['Chromosome']) + '-' +  str(dataframe.iloc[i + (page - 1)*max_rows]['Position']) , target = '_blank' )) if col == '' else  html.Td(dataframe.iloc[i + (page - 1)*max_rows][col]) for col in dataframe.columns
+#         ]) for i in range(min(rows_remaining, max_rows))],
+#         style = {'display':'inline-block'},
+#         id = id_table
+#     )
+
+
+# NOTE v2 della tabella posizioni       #TODO modifica layout righe per allinearle
+
+
+'''
+#Callback to filter chr from Summary by Position table, and to show next/prev page
+@app.callback(
+    [Output('div-table-position', 'children'),
+    Output('div-current-page-table-position', 'children')],
+    [Input('prev-page-position','n_clicks_timestamp'),
+    Input('next-page-position', 'n_clicks_timestamp'),
+    Input('div-position-filter-query', 'children')],
+    [State('button-filter-position', 'n_clicks_timestamp'),
+    State('url', 'search'),
+    State('general-profile-table', 'selected_cells'),
+    State('general-profile-table', 'data'),
+    State('div-current-page-table-position', 'children'),
+    State('div-mms-bulges-position', 'children')]
+)
+def filterPositionTable(nPrev, nNext, filter_q, n, search, sel_cel, all_guides, current_page, mms_bulge):
+    if sel_cel is None:
+        raise PreventUpdate
+    if nPrev is None and nNext is None and n is None:
+        raise PreventUpdate
+    
+    if nPrev is None:
+        nPrev = 0
+    if nNext is None:
+        nNext = 0
+    if n is None:
+        n = 0
+
+    filter_q = filter_q.split(',')
+    chr = filter_q[0]
+    if chr == 'None':
+        chr = None
+    pos_begin = filter_q[1]
+    if pos_begin == 'None':
+        pos_begin = None
+    pos_end = filter_q[2]
+    if pos_end == 'None':
+        pos_end = None
+    
+    current_page = current_page.split('/')[0]
+    current_page = int(current_page)
+    mms = int(mms_bulge.split('-')[0])
+    max_bulges = int(mms_bulge.split('-')[1])
+    btn_position_section = []
+    btn_position_section.append(n)
+    btn_position_section.append(nPrev)
+    btn_position_section.append(nNext)
+    job_id = search.split('=')[-1]
+    job_directory = current_working_directory + 'Results/' + job_id + '/'
+    guide = all_guides[int(sel_cel[0]['row'])]['Guide']
+    if max(btn_position_section) == n:              #Last button pressed is filtering, return the first page of the filtered table
+        if pos_begin is None or pos_begin == '':
+            pos_begin = 0
+        if pos_end == '':
+            pos_end = None
+        if pos_end:
+            if int(pos_end) < int(pos_begin):
+                pos_end = None
+        df = pd.read_csv(job_directory + job_id + '.summary_by_position.' + guide +'.txt', sep = '\t')  
+        
+        df.rename(columns = {'#Chromosome':'Chromosome'}, inplace = True)
+        more_info_col = []
+        for i in range(df.shape[0]):
+            more_info_col.append('Show Targets')
+        df[''] = more_info_col
+        if chr is None or chr == '':
+            max_page = len(df.index)
+            max_page = math.floor(max_page / 10) + 1
+            return generate_table_position(df, 'table-position', 1, mms, max_bulges,guide, job_id ), '1/' + str(max_page)
+        if pos_end is None:
+            df.drop(df[(df['Chromosome'] != chr) | ((df['Chromosome'] == chr) & (df['Position'] < int(pos_begin)) )].index , inplace = True)
+        else:
+            df.drop(df[(df['Chromosome'] != chr) | ((df['Chromosome'] == chr) & (df['Position'] < int(pos_begin)) | (df['Position'] > int(pos_end)))].index , inplace = True)
+        max_page = len(df.index)
+        max_page = math.floor(max_page / 10) + 1
+        return generate_table_position(df, 'table-position', 1, mms, max_bulges,guide, job_id ), '1/'+ str(max_page)
+    else:
+        
+        if max(btn_position_section) == nNext:
+            current_page = current_page + 1
+            if chr:
+                if pos_begin is None or pos_begin == '':
+                    pos_begin = 0
+                if pos_end == '':
+                    pos_end = None
+                if pos_end:
+                    if int(pos_end) < int(pos_begin):
+                        pos_end = None
+                df = pd.read_csv(job_directory + job_id + '.summary_by_position.' + guide +'.txt', sep = '\t')  
+            else:
+                df = pd.read_csv(job_directory + job_id + '.summary_by_position.' + guide +'.txt', sep = '\t')#, nrows = current_page * 10)   
+            df.rename(columns = {'#Chromosome':'Chromosome'}, inplace = True)
+            more_info_col = []
+            for i in range(df.shape[0]):
+                more_info_col.append('Show Targets')
+            df[''] = more_info_col
+            if chr:
+                if pos_end is None:
+                    df.drop(df[(df['Chromosome'] != chr) | ((df['Chromosome'] == chr) & (df['Position'] < int(pos_begin)) )].index , inplace = True)
+                else:
+                    df.drop(df[(df['Chromosome'] != chr) | ((df['Chromosome'] == chr) & (df['Position'] < int(pos_begin)) | (df['Position'] > int(pos_end)))].index , inplace = True)
+            if ((current_page - 1) * 10) > len(df): 
+                current_page = current_page -1
+                if current_page < 1:
+                    current_page = 1
+            max_page = len(df.index)
+            max_page = math.floor(max_page / 10) + 1
+            return generate_table_position(df, 'table-position', current_page, mms, max_bulges,guide, job_id ), str(current_page) + '/' + str(max_page)
+        else:                       #Go to previous page
+            current_page = current_page - 1
+            if current_page < 1:
+                current_page = 1
+
+            if chr:
+                if pos_begin is None or pos_begin == '':
+                    pos_begin = 0
+                if pos_end == '':
+                    pos_end = None
+                if pos_end:
+                    if int(pos_end) < int(pos_begin):
+                        pos_end = None
+                df = pd.read_csv(job_directory + job_id + '.summary_by_position.' + guide +'.txt', sep = '\t')  
+            else:
+                df = pd.read_csv(job_directory + job_id + '.summary_by_position.' + guide +'.txt', sep = '\t')#, nrows = current_page * 10)   
+            df.rename(columns = {'#Chromosome':'Chromosome'}, inplace = True)
+            more_info_col = []
+            for i in range(df.shape[0]):
+                more_info_col.append('Show Targets')
+            df[''] = more_info_col
+            if chr:
+                if pos_end is None:
+                    df.drop(df[(df['Chromosome'] != chr) | ((df['Chromosome'] == chr) & (df['Position'] < int(pos_begin)) )].index , inplace = True)
+                else:
+                    df.drop(df[(df['Chromosome'] != chr) | ((df['Chromosome'] == chr) & (df['Position'] < int(pos_begin)) | (df['Position'] > int(pos_end)))].index , inplace = True)
+            
+            max_page = len(df.index)
+            max_page = math.floor(max_page / 10) + 1
+            return generate_table_position(df, 'table-position', current_page, mms, max_bulges,guide, job_id ), str(current_page) + '/' + str(max_page)
+'''
+# Input('prev-page-position','n_clicks_timestamp'),
+#Input('next-page-position', 'n_clicks_timestamp'),
+
+
+# #Save the first scomposition target from the second table, in order to highlight it in the first table
+# @app.callback(
+#     Output('target-to-highlight','children'),
+#     [Input('table-scomposition-cluster', 'data')],
+#     [State('target-to-highlight','children')]
+# )
+# def saveFirstScomposedTarget(data_scomp, current_target):
+#     if current_target != '' or current_target is None:
+#         raise PreventUpdate
+#     if data_scomp is None or not data_scomp:
+#         raise PreventUpdate
+#     return data_scomp[0]['DNA']
+
+# #update the Color of the top1 scomposed target in the first table
+# @app.callback(
+#     Output('table-position-target', 'style_data_conditional'),
+#     [Input('target-to-highlight', 'children')]
+# )
+# def highlightSummaryTarget(to_highlight):
+#     if to_highlight is None or to_highlight == '':
+#         raise PreventUpdate
+#     return [{'if': {'filter_query': '{DNA} eq ' + to_highlight}, 'font-weight':'bold'}]
+
+# Filter/sort cluster
+# Filter and sorting sample targets
+
+
+############################ Genome Database Page Callbacks ##########################
+
+
+############################ History Page ##########################
+
+# def get_results():
+#     '''
+#     Get a dataframe of the Results directory
+#     '''
+#     results_dirs = [join(current_working_directory + '/Results/', f) for f in listdir(current_working_directory + '/Results/') if isdir(
+#         join(current_working_directory + '/Results/', f)) and isfile(current_working_directory + '/Results/' + f + '/Params.txt')]
+#     results_dirs.sort(key=os.path.getctime)  # Sorted older first
+#     results_dirs = [os.path.basename(f) for f in results_dirs]
+#     col = ['Job ID', 'Genome', 'PAM', 'Mismatches', 'DNA Bulges',
+#            'RNA Bulges', 'Gecko Comparison', 'Reference Comparison', 'Date', 'Load']
+#     a = pd.DataFrame(columns=col)
+#     for job in results_dirs:
+#         if os.path.exists(current_working_directory + '/Results/' + job + '/Params.txt'):
+#             with open(current_working_directory + '/Results/' + job + '/Params.txt') as p:
+#                 all_params = p.read()
+#                 mms = (next(s for s in all_params.split('\n')
+#                             if 'Mismatches' in s)).split('\t')[-1]
+#                 genome_selected = (next(s for s in all_params.split(
+#                     '\n') if 'Genome_selected' in s)).split('\t')[-1]
+#                 genome_selected = genome_selected.replace('_', ' ')
+#                 if os.path.exists(current_working_directory + '/Results/' + job + '/log.txt'):
+#                     with open(current_working_directory + '/Results/' + job + '/log.txt') as lo:
+#                         all_log = lo.read()
+#                     job_start = (next(s for s in all_log.split(
+#                         '\n') if 'Job\tStart' in s)).split('\t')[-1]
+#                     try:
+#                         job_end = (next(s for s in all_log.split(
+#                             '\n') if 'Job\tDone' in s)).split('\t')[-1]
+#                     except:
+#                         link_load = URL + '/load?job=' + job
+#                     else:
+#                         link_load = URL + '/result?job=' + job
+#                 else:
+#                     job_start = 'n/a'
+#                     link_load = URL + '/load?job=' + job
+#                 dna = (next(s for s in all_params.split(
+#                     '\n') if 'DNA' in s)).split('\t')[-1]
+#                 rna = (next(s for s in all_params.split(
+#                     '\n') if 'RNA' in s)).split('\t')[-1]
+#                 pam = (next(s for s in all_params.split(
+#                     '\n') if 'Pam' in s)).split('\t')[-1]
+#                 gecko = (next(s for s in all_params.split(
+#                     '\n') if 'Gecko' in s)).split('\t')[-1]
+#                 if gecko == 'True':
+#                     gecko = 'Yes'
+#                 else:
+#                     gecko = 'No'
+#                 comparison = (next(s for s in all_params.split(
+#                     '\n') if 'Ref_comp' in s)).split('\t')[-1]
+#                 if comparison == 'True':
+#                     comparison = 'Yes'
+#                 else:
+#                     comparison = 'No'
+#                 if os.path.exists(current_working_directory + '/Results/' + job + '/guides.txt'):
+#                     with open(current_working_directory + '/Results/' + job + '/guides.txt') as g:
+#                         n_guides = str(len(g.read().strip().split('\n')))
+#                 else:
+#                     n_guides = 'n/a'
+
+#                 a = a.append({'Job ID': job, 'Genome': genome_selected, 'Mismatches': mms, 'DNA Bulges': dna,
+#                               'RNA Bulges': rna, 'PAM': pam, 'Gecko Comparison': gecko, 'Reference Comparison': comparison, 'Date': job_start, 'Load': link_load, 'Delete': ''}, ignore_index=True)
+#     a = a.sort_values(['Mismatches', 'DNA Bulges', 'RNA Bulges'],
+#                       ascending=[True, True, True])
+#     return a
+
+
+# Callback to update the hidden div filter of history page
+
+
+############################ GUI CALLBACKS #########################
+# # Add a new genome
+# @app.callback(
+#     Output("genome-job", "value"),
+#     [Input("add-genome", "n_clicks")],
+# )
+# def add_genome(nAdd):
+#     """
+#     Bottone per avviare la GUI in Tkinter per l'aggiunta di genomi offline
+#     """
+#     raise PreventUpdate
+#     from GUI import ChooseFiles as cf
+#     if nAdd is None:
+#         raise PreventUpdate
+#     cf.startChooseFiles(current_working_directory,  app_location + 'GUI/')
+#     return ''
+
+# Update an existing dictionary
+
+
+# @app.callback(
+#     Output("dict-job", "value"),
+#     [Input("update-dict", "n_clicks")],
+# )
+# def update_dict(nUpd):
+#     """
+#     Bottone per avviare la GUI in Tkinter per l'aggiornamento di dizionari
+#     """
+#     raise PreventUpdate
+#     from GUI import UpdateDict as ud
+#     if nUpd is None:
+#         raise PreventUpdate
+#     ud.startUpdateDict(current_working_directory)
+#     return ''
+
+
+# # Open filedialog for choosing new annotation file
+# @app.callback(
+#     [Output('label-new-annotation-selected', 'children'),
+#      Output('tooltip-label-new-annotation-selected', 'children')],
+#     [Input('button-choose-new-annotation', 'n_clicks')]
+# )
+# def fileDialogUpdateAnnotation(n):
+#     selected_file = openDialog(n, 'F')
+#     return 'Selected: ' + os.path.basename(selected_file), 'Full Path: ' + selected_file
+
+
+def start_browser():
+    wb.open("http://127.0.0.1:8080/result?job=Q47PXDTBC8")
+
+    # BUG nel filtering se ho, in min mismatch etc, la stringa '-', che non è considerata numero
+    # NOTE: l'ordinamento su Samples Summary o su Samples è fatto su stringhe, e non su numero di samples (potrebbe essere più utile)
+    # BUG see https://github.com/plotly/dash/issues/1049; Location component is called twice, meaning that two grep can occure at once.

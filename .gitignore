@@ -1,0 +1,10 @@
+Genomes/*
+genome_library/*
+Results/*
+Dictionaries/*
+VCFs/*
+*.pyc
+Gencode/*
+Cache/*
+*nohup*
+Annotations/*

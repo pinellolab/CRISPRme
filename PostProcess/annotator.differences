@@ -1,0 +1,7 @@
+annotator onlyvar is the same as annotator_cal_sample with these differences:
+-save_total_general_table always False
+-Remove if condition on save_general_table when sorting target_scomposti_salvare (anchor 'REMOVEDFORONLYVAR')
+-if false_targets >= len(target_combination):    just put 
+    save_cluster_targets = False
+	continue
+-add '.enriched' to scores
