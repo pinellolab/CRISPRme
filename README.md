@@ -147,7 +147,7 @@ https://docs.docker.com/docker-for-mac/install/ (MacOS)**
 
 After downloading and untaring the package, you will have a ready to use CRISPRme directory, remember DO NOT change any name of folders in the directory to avoid losing data or force the recreation of indexing and dictionaries.
 Here a more detailed explanation of the folder structure:
- 
+![Folder_structure](https://github.com/pinellolab/CRISPRme/blob/main/folder_structure.png)
 - Genomes: folder containing all the genomes in fasta format, each genome has to be saved into a specific folder and the name of the folder will be used to identify the genome itself and all the correlated data (VCF and samplesID).
   - hg19: folder containing fasta files of human genome 19.
   - hg38: folder containing fasta file of human genome 38.
