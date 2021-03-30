@@ -149,18 +149,18 @@ After downloading and untaring the package, you will have a ready to use CRISPRm
 Here a more detailed explanation of the folder structure:
  
 - Genomes: folder containing all the genomes in fasta format, each genome has to be saved into a specific folder and the name of the folder will be used to identify the genome itself and all the correlated data (VCF and samplesID).
--- hg19: folder containing fasta files of human genome 19.
--- hg38: folder containing fasta file of human genome 38.
+ - hg19: folder containing fasta files of human genome 19.
+ - hg38: folder containing fasta file of human genome 38.
 - VCFs: folder containing all the VCFs datasets, each dataset has to be saved into a specific folder and the name must contain the genome release correlated to the variant data.
--- hg38_HGDP: folder containing vcf files of HGDP set correlated with hg38.
--- hg38_1000G: folder containing vcf files of 1000G set correlated with hg38.
+ - hg38_HGDP: folder containing vcf files of HGDP set correlated with hg38.
+ - hg38_1000G: folder containing vcf files of 1000G set correlated with hg38.
 - samplesIDs: folder containing all the samplesID files, one for each VCF dataset, the name of the file must contain the identifier of a VCF dataset and the samplesID suffix.
--- hg38_HGDP.samplesID.txt: tabulated file with header to identify samples for HGDP dataset.
--- hg38_1000G.samplesID.txt: tabulated file with header to identify samples for 1000G dataset.
+ - hg38_HGDP.samplesID.txt: tabulated file with header to identify samples for HGDP dataset.
+ - hg38_1000G.samplesID.txt: tabulated file with header to identify samples for 1000G dataset.
 - Annotations: folder containing all the annotation bed files, there is no restriction on the name for this file.
--- gencode_encode.hg38.bed: bed file containing all the pregenerated annotations from gencode and encode datasets.
+ - gencode_encode.hg38.bed: bed file containing all the pregenerated annotations from gencode and encode datasets.
 - PAMs: folder containing all the PAM text files, one for each PAM, the name of the file must contain the name of the Cas protein as last field (field separator character “-”).
--- 20bp-NGG-spCas9.txt: text file containing the single line PAM, in the name is contained the position of the crRNA (the first 20bps), the position of the PAM sequence (the following 3 nucleotides, NGG) and the Cas protein (spCas9).
+ - 20bp-NGG-spCas9.txt: text file containing the single line PAM, in the name is contained the position of the crRNA (the first 20bps), the position of the PAM sequence (the following 3 nucleotides, NGG) and the Cas protein (spCas9).
 
 
 ## Usage (Phase 3):
