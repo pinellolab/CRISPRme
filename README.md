@@ -145,7 +145,7 @@ https://docs.docker.com/docker-for-mac/install/ (MacOS)**
     ```
 - You will see the processing starting, first with the download of all the necessary data and then with the analysis, depending on the system hardware and internet connection this may take very different time
 
-After downloading and untaring the package, you will have a ready to use CRISPRme directory, remember DO NOT change any name of folders in the directory to avoid losing data or force the recreation of indexing and dictionaries.
+After downloading and untaring the package, you will have a ready to use CRISPRme directory, remember DO NOT change any name of folders in the directory to avoid losing data or force the recreation of indexing and dictionaries. You MUST use the default directories to store all your data since the software recognizes only files and folder in the own folders structure.
 Here a more detailed explanation of the folder structure:
 ![Folder_structure](https://github.com/pinellolab/CRISPRme/blob/main/folder_structure.png)
 - Genomes: folder containing all the genomes in fasta format, each genome has to be saved into a specific folder and the name of the folder will be used to identify the genome itself and all the correlated data (VCF and samplesID).
@@ -231,8 +231,4 @@ Example call:
 - Conda
     ```
     crisprme.py web-interface
-    ```
-- Docker
-    ```
-    docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 -i scancellieri/crisprme crisprme.py web-interface
     ```
