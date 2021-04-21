@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 
-from intervaltree import Interval, IntervalTree
+from intervaltree import IntervalTree
 import sys
 import time
-import concurrent.futures
 import glob
 import subprocess
-import pandas as pd
 
 
 def rev_comp(a):
@@ -95,7 +93,7 @@ inEmpiricalResults = open(empiricalResults, 'r').readlines()
 # annotation data open
 inAnnotationFile = open(annotationFile, 'r')
 # guide file
-realguide = open(guideFile, 'r').readlines()
+# realguide = open(guideFile, 'r').readlines()
 # open outputDir to write results
 originFileName = crispritzResultFile.split('/')
 originFileName = originFileName[len(originFileName)-1]
@@ -118,16 +116,24 @@ empiricalList = []
 genomeDict = {}
 empiricalDict = {}
 valueDict = {}
+# saveDict = {"real_guide": 'n', "genome": 'n', "chr": 'n', "prim_pos": 'n', "strand": 'n', "highest_CFD_guide_alignment": 'n', "highest_CFD_alignment(ref)": 'n',
+#             "highest_CFD_alignment(alt)": 'n', "ref_seq_length": 'n', "ref_pos_alt(aligned_strand)": 'n', "pam": 'n', "annotation": 'n', "highest_CFD_score": 'n',
+#             "highest_CFD_score(ref)": 'n', "highest_CFD_score(alt)": 'n', "risk_score": 'n', "absolute_risk_score": 'n', "highest_CFD_mismatch": 'n',
+#             "highest_CFD_bulge": 'n', "highest_CFD_mismatch+bulge": 'n', "fewest_mm+bulge_guide_alignment": 'n', "fewest_mm+bulge_alignment(ref)": 'n',
+#             "fewest_mm+bulge_alignment(alt)": 'n', "fewest_mm+bulge_CFD_score(ref)": 'n', "fewest_mm+bulge_CFD_score(alt)": 'n', "fewest_mismatch": 'n',
+#             "fewest_bulge": 'n', "fewest_mismatch+bulge": 'n', "alt_haplotypes": 'n', "prim_origin": 'n', "prim_AF": 'n', "prim_samples": 'n',
+#             "prim_SNP_ID(positive_strand)": 'n', "gene_name": 'n', "gene_ID": 'n', "gene_annotation": 'n', "gene_distance(kb)": 'n', "lowest_empirical": 'n',
+#             "Nature2019": 'n', "Nature2019_mm+bul": 'n', "CHANGEseq": 'n', "CHANGEseq_mm+bul": 'n', "CIRCLEseq": 'n', "CIRCLEseq_mm+bul": 'n', "ONEseq": 'n',
+#             "ONEseq_mm+bul": 'n', "GUIDEseq_293": 'n', "GUIDEseq_293_mm+bul": 'n', "GUIDEseq_CD34": 'n', "GUIDEseq_CD34_mm+bul": 'n', "GUIDEseq": 'n',
+#             "GUIDEseq_mm+bul": 'n'}
+
 saveDict = {"real_guide": 'n', "genome": 'n', "chr": 'n', "prim_pos": 'n', "strand": 'n', "highest_CFD_guide_alignment": 'n', "highest_CFD_alignment(ref)": 'n',
             "highest_CFD_alignment(alt)": 'n', "ref_seq_length": 'n', "ref_pos_alt(aligned_strand)": 'n', "pam": 'n', "annotation": 'n', "highest_CFD_score": 'n',
             "highest_CFD_score(ref)": 'n', "highest_CFD_score(alt)": 'n', "risk_score": 'n', "absolute_risk_score": 'n', "highest_CFD_mismatch": 'n',
             "highest_CFD_bulge": 'n', "highest_CFD_mismatch+bulge": 'n', "fewest_mm+bulge_guide_alignment": 'n', "fewest_mm+bulge_alignment(ref)": 'n',
             "fewest_mm+bulge_alignment(alt)": 'n', "fewest_mm+bulge_CFD_score(ref)": 'n', "fewest_mm+bulge_CFD_score(alt)": 'n', "fewest_mismatch": 'n',
             "fewest_bulge": 'n', "fewest_mismatch+bulge": 'n', "alt_haplotypes": 'n', "prim_origin": 'n', "prim_AF": 'n', "prim_samples": 'n',
-            "prim_SNP_ID(positive_strand)": 'n', "gene_name": 'n', "gene_ID": 'n', "gene_annotation": 'n', "gene_distance(kb)": 'n', "lowest_empirical": 'n',
-            "Nature2019": 'n', "Nature2019_mm+bul": 'n', "CHANGEseq": 'n', "CHANGEseq_mm+bul": 'n', "CIRCLEseq": 'n', "CIRCLEseq_mm+bul": 'n', "ONEseq": 'n',
-            "ONEseq_mm+bul": 'n', "GUIDEseq_293": 'n', "GUIDEseq_293_mm+bul": 'n', "GUIDEseq_CD34": 'n', "GUIDEseq_CD34_mm+bul": 'n', "GUIDEseq": 'n',
-            "GUIDEseq_mm+bul": 'n'}
+            "prim_SNP_ID(positive_strand)": 'n', "gene_name": 'n', "gene_ID": 'n', "gene_annotation": 'n', "gene_distance(kb)": 'n', "lowest_empirical": 'n'}
 
 start_time = time.time()
 
@@ -139,13 +145,20 @@ for count, line in enumerate(inEmpiricalResults):
     empList.append(count)
     # adding empirical data to the tree
     empiricalTree[int(empList[2]):int(empList[3])] = empList
+    # generate temp empirical dict to save empirical information per row
     empiricalDict[str(empList[5])] = 50
+    # value of empirical row, keeping info about mm+bul for each empirical origin (seq data, in-silico, vitro, ecc)
     valueDict[str(empList[5])] = 'n'
+    # update save dict with user-defined names from empirical data
+    saveDict[str(empList[5])] = 'n'
+    newkey = str(empList[5])+'_mm+bul'
+    saveDict[newkey] = 'n'
 
 # writing header in file
 save = '#'
-for key in saveDict:
-    save += str(key)+'\t'
+save += '\t'.join(list(saveDict.keys()))
+# for key in saveDict:
+#     save += str(key)+'\t'
 save += '\n'
 outFile.write(save)
 

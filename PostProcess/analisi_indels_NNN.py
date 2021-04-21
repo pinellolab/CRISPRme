@@ -888,6 +888,7 @@ for line in inResult:
         #    t = t[::-1]
         guide_no_pam = final_result[1][pos_beg:pos_end]  
         list_t = list(t)  
+        tmp_pos_mms =  None
         for position_t, char_t in enumerate(final_result[2][pos_beg:pos_end]):
             if char_t.upper() != guide_no_pam[position_t]:
                 mm_new_t += 1

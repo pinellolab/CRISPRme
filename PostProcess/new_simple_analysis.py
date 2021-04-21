@@ -104,7 +104,7 @@ class reversor:
 
 def calc_cfd(guide_seq, sg, pam, mm_scores, pam_scores, do_scores):
     if do_scores == False:
-        print("NON CALCOLO")
+        # print("NON CALCOLO")
         score = 0
         return score
     score = 1
@@ -493,6 +493,84 @@ for line in inTarget:
         final_line.append(cfd_ref_seq)
         final_line.append(tmp_pos_mms)
         cluster_to_save.append(final_line)
+
+
+for t in cluster_to_save:
+
+    if t[0] == 'DNA':
+        cfd_score = calc_cfd(t[1][int(t[bulge_pos]):], t[2].upper()[int(
+            t[bulge_pos]):-3], t[2].upper()[-2:], mm_scores, pam_scores, do_scores)
+        t.append(str(cfd_score))
+    else:
+        cfd_score = calc_cfd(t[1], t[2].upper()[
+                                :-3], t[2].upper()[-2:], mm_scores, pam_scores, do_scores)
+        t.append(str(cfd_score))
+        # print(cfd_score)
+        
+cluster_to_save.sort(key=lambda x: (
+    float(x[-1]), reversor(int(x[9])), reversor(int(x[-2]))), reverse=True)
+
+cluster_to_save_mmbl = cluster_to_save.copy()
+cluster_to_save_mmbl.sort(key=lambda x: (int(x[8]), int(x[7])))
+
+keys_seen = []
+saved = False
+
+if cluster_to_save:
+    c = cluster_to_save[0]
+    c.pop(-2)
+    cfd_clus_key = c[3] + " " + c[5] + " " + c[6] + " " + c[17]
+
+    if c[12] == 'n':
+        cfd_for_graph['ref'][round(float(c[-1]) * 100)] += 1
+    else:
+        cfd_for_graph['var'][round(float(c[-1]) * 100)] += 1
+
+    cfd_best.write('\t'.join(c))
+    cluster_to_save.pop(0)
+    keys_seen.append(cfd_clus_key)
+    saved = True
+
+list_for_alt = []
+for c in cluster_to_save:
+    c.pop(-2)
+    new_cfd_clus_key = c[3] + " " + c[5] + " " + c[6] + " " + c[17]
+    if new_cfd_clus_key not in keys_seen:
+        keys_seen.append(new_cfd_clus_key)
+        if c[12] == 'n':
+            cfd_for_graph['ref'][round(float(c[-1]) * 100)] += 1
+        else:
+            cfd_for_graph['var'][round(float(c[-1]) * 100)] += 1
+        list_for_alt.append('\t'.join(c))
+if saved:
+    cfd_best.write('\t' + str(len(list_for_alt)) + '\n')
+for ele in list_for_alt:
+    cfd_best.write(ele+'\t'+str(len(list_for_alt)) + '\n')
+
+keys_seen = []
+saved = False
+if cluster_to_save_mmbl:
+    c = cluster_to_save_mmbl[0]
+    cfd_clus_key = c[3] + " " + c[5] + " " + c[6] + " " + c[17]
+
+    mmblg_best.write('\t'.join(c))
+    cluster_to_save_mmbl.pop(0)
+    keys_seen.append(cfd_clus_key)
+    saved = True
+
+list_for_alt = []
+for c in cluster_to_save_mmbl:
+    new_cfd_clus_key = c[3] + " " + c[5] + " " + c[6] + " " + c[17]
+    if new_cfd_clus_key not in keys_seen:
+        keys_seen.append(new_cfd_clus_key)
+        list_for_alt.append('\t'.join(c))
+
+if saved:
+    mmblg_best.write('\t' + str(len(list_for_alt)) + '\n')
+for ele in list_for_alt:
+    mmblg_best.write(ele+'\t'+str(len(list_for_alt)) + '\n')
+
+cluster_to_save = []
 
 
 cfd_best.close()

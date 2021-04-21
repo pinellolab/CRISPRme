@@ -121,8 +121,13 @@ def get_results():
                     n_guides = 'NA'
                 resultParamDataframe = resultParamDataframe.append({'Job': job, 'Genome_Selected': genome_selected, 'Variant_Selected': genome_idx, 'Mismatches': mms, 'DNA_bulge': dna,
                                                                     'RNA_bulge': rna, 'PAM': pam, 'Number_Guides': n_guides, 'Start': job_start}, ignore_index=True)
-    resultParamDataframe = resultParamDataframe.sort_values(
-        ['Mismatches', 'DNA_bulge', 'RNA_bulge'], ascending=[True, True, True])
+    try:
+        resultParamDataframe['Start'] = pd.to_datetime(resultParamDataframe['Start'])
+        resultParamDataframe.sort_values(by=['Start'], inplace=True, ascending=False)
+    except:
+        pass
+    # resultParamDataframe = resultParamDataframe.sort_values(
+    #     ['Mismatches', 'DNA_bulge', 'RNA_bulge'], ascending=[True, True, True])
     return resultParamDataframe
 
 

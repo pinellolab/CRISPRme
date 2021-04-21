@@ -165,15 +165,20 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
         genome_selected = 'hg38_ref'
     if pam is None or pam == '':
         pam = '20bp-NGG-SpCas9'
+        len_guide_sequence = 20
+    else:
+        for elem in pam.split('-'):
+            if 'bp' in elem:
+                len_guide_sequence = int(elem.replace('bp', ''))
     if text_guides is None or text_guides == '':
         text_guides = 'GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC'
-    else:
+    elif guide_type != 'GS':
         text_guides = text_guides.strip()
         if (not all(len(elem) == len(text_guides.split('\n')[0]) for elem in text_guides.split('\n'))):
             text_guides = selectSameLenGuides(text_guides)
     # if (len_guide_sequence is None or str(len_guide_sequence) == '') and ('sequence-tab' in active_tab):
     #    len_guide_sequence = 20
-    len_guide_sequence = 20
+    # print('guide len', len_guide_sequence)
     # if (text_sequence is None or text_sequence == '') and ('sequence-tab' in active_tab):
     #    text_sequence = '>sequence\nTACCCCAAACGCGGAGGCGCCTCGGGAAGGCGAGGTGGGCAAGTTCAATGCCAAGCGTGACGGGGGA'
 
@@ -257,29 +262,33 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             vcf_folder = "_"
             vcf_file.write(vcf_folder+"\n")
         if '1000G' in ref_var:
-            vcf_folder = current_working_directory+"/VCFs/hg38_1000G/"
+            # vcf_folder = current_working_directory+"/VCFs/hg38_1000G/"
+            vcf_folder = "hg38_1000G/"
             vcf_file.write(vcf_folder+"\n")
-            sample_list.append(current_working_directory + \
-                'samplesIDs/hg38_1000G.samplesID.txt')
+            # sample_list.append(current_working_directory +                               'samplesIDs/hg38_1000G.samplesID.txt')
+            sample_list.append('hg38_1000G.samplesID.txt')
             # dictionary_directory = current_working_directory + \
             #     'dictionaries/dictionary_VCFs_1000_genome_project'
         if 'HGDP' in ref_var:
-            vcf_folder = current_working_directory+"/VCFs/hg38_HGDP/"
+            # vcf_folder = current_working_directory+"/VCFs/hg38_HGDP/"
+            vcf_folder = "hg38_HGDP/"
             vcf_file.write(vcf_folder+"\n")
-            sample_list.append(current_working_directory + \
-                'samplesIDs/hg38_HGDP.samplesID.txt')
+            # sample_list.append(current_working_directory +'samplesIDs/hg38_HGDP.samplesID.txt')
+            sample_list.append('hg38_HGDP.samplesID.txt')
             # dictionary_directory = current_working_directory + \
             #     'dictionaries/dictionary_VCFs_1000_genome_project'
         if "PV" in ref_var:
             # genome_selected = data_personal_genome[sel_cel_genome['row']
             #                                       ]["Personal Genomes"]
-            vcf_folder = current_working_directory+"/VCFs/" + vcf_input
+            # vcf_folder = current_working_directory+"/VCFs/" + vcf_input
+            vcf_folder = vcf_input
             vcf_file.write(vcf_folder+"\n")
             # genome_ref = genome_selected.split("+")[0].replace(" ", "_")
             # sample_list = current_working_directory + 'samplesID/' + vcf_input
             # sample_list.append(current_working_directory + "/samplesID/" + vcf_input + "/" + [f for f in listdir(
             #     current_working_directory + 'samplesID/' + vcf_input) if isfile(join(current_working_directory + 'samplesID/' + vcf_input, f))][0])
-            sample_list.append(current_working_directory + "/samplesIDs/" + vcf_input + ".samplesID.txt")
+            # sample_list.append(current_working_directory + "/samplesIDs/" + vcf_input + ".samplesID.txt")
+            sample_list.append(vcf_input + ".samplesID.txt")
             # dictionary_directory = current_working_directory + \
             #     'dictionaries/'+genome_ref+'+'+vcf_input
 
@@ -320,26 +329,49 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
 
     if guide_type == 'GS':
         text_sequence = text_guides
+        # print(text_sequence)
+        # exit()
         # Extract sequence and create the guides
         guides = []
+        # extracted_seqs = list()
+        # for lines in text_sequence:
+        #     print('linea', lines)
         for name_and_seq in text_sequence.split('>'):
             if '' == name_and_seq:
                 continue
             name = name_and_seq[:name_and_seq.find('\n')]
             seq = name_and_seq[name_and_seq.find('\n'):]
-            seq = seq.strip().split()
-            seq = ''.join(seq)
+            # seq = seq.strip().split()
+            # seq = ''.join(seq)
+            seq = seq.strip()
             # name, seq = name_and_seq.strip().split('\n')
             if 'chr' in seq:
-                extracted_seq = extract_seq.extractSequence(
-                    name, seq, genome_ref.replace(' ', '_'))
+                # extracted_seq = extract_seq.extractSequence(
+                #         name, seq, genome_ref.replace(' ', '_'))
+                for single_row in seq.split('\n'):
+                    if '' == single_row:
+                        continue
+                    pieces_of_row = single_row.strip().split()
+                    seq_to_extract = pieces_of_row[0]+":" + \
+                        pieces_of_row[1]+"-"+pieces_of_row[2]
+                    extracted_seq = extract_seq.extractSequence(
+                        name, seq_to_extract, genome_ref.replace(' ', '_'))
+                    guides.extend(convert_pam.getGuides(
+                        extracted_seq, pam_char, len_guide_sequence, pam_begin))
             else:
+                seq = seq.split()
+                seq = ''.join(seq)
                 extracted_seq = seq.strip()
-
-            guides.extend(convert_pam.getGuides(
-                extracted_seq, pam_char, len_guide_sequence, pam_begin))
-            text_guides = '\n'.join(guides).strip()
-
+                guides.extend(convert_pam.getGuides(
+                    extracted_seq, pam_char, len_guide_sequence, pam_begin))
+            # print('extracted seq', extracted_seq)
+            # guides.extend(convert_pam.getGuides(
+            #     extracted_seq, pam_char, len_guide_sequence, pam_begin))
+        if not guides:
+            guides = "GAGTCCGAGCAGAAGAAGAA"
+        text_guides = '\n'.join(guides).strip()
+    # print(text_guides, 'and', guides, 'and', pam_char)
+    # exit()
     text_guides = text_guides.upper()
     for g in text_guides.split('\n'):
         for c in g:
@@ -348,6 +380,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     if len(text_guides.split('\n')) > 1000:
         text_guides = '\n'.join(text_guides.split('\n')[:1000]).strip()
     len_guides = len(text_guides.split('\n')[0])
+
     # Adjust guides by adding Ns to make compatible with Crispritz
     if (pam_begin):
         pam_to_file = pam_char + ('N' * len_guides) + ' ' + index_pam_value
@@ -408,25 +441,25 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     # genome_idx = ''
     # genome_idx_ref = ''
     # for gidx in genome_indices_created:
-        # if pam_char in gidx and genome_selected in gidx:
-            # if int(gidx.split('_')[1]) >= int(max_bulges):
-            # if '+' in gidx:
-            # genome_idx = gidx
-            # genome_idx_ref = gidx.split('+')[0]
+    # if pam_char in gidx and genome_selected in gidx:
+    # if int(gidx.split('_')[1]) >= int(max_bulges):
+    # if '+' in gidx:
+    # genome_idx = gidx
+    # genome_idx_ref = gidx.split('+')[0]
 
     # if genome_idx == '':
-        # if int(max_bulges) > 0:
-            # generate_index_enr = True
-            # with open(result_dir + '/pam_indexing.txt', 'w+') as pam_id_file:
-            # pam_id_file.write(pam_to_indexing)
-        # genome_idx = pam_char + '_' + str(max_bulges) + '_' + genome_selected
+    # if int(max_bulges) > 0:
+    # generate_index_enr = True
+    # with open(result_dir + '/pam_indexing.txt', 'w+') as pam_id_file:
+    # pam_id_file.write(pam_to_indexing)
+    # genome_idx = pam_char + '_' + str(max_bulges) + '_' + genome_selected
     # if genome_idx_ref == '':
-        # if int(max_bulges) > 0:
-            # generate_index_ref = True
-            # with open(result_dir + '/pam_indexing.txt', 'w+') as pam_id_file:
-            # pam_id_file.write(pam_to_indexing)
-        # genome_idx_ref = pam_char + '_' + \
-            # str(max_bulges) + '_' + genome_selected.split('+')[0]
+    # if int(max_bulges) > 0:
+    # generate_index_ref = True
+    # with open(result_dir + '/pam_indexing.txt', 'w+') as pam_id_file:
+    # pam_id_file.write(pam_to_indexing)
+    # genome_idx_ref = pam_char + '_' + \
+    # str(max_bulges) + '_' + genome_selected.split('+')[0]
 
     # if ref_var != '':
     #     generate_index_enr = False
@@ -544,8 +577,11 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             ' ' + genome_type + ' ' + app_main_directory + ' ' + str(dictionary_directory) + ' ' + str(sample_list) + ' ' + str(generate_index_ref) + ' ' + str(generate_index_enr) + ' ' + current_working_directory))
     '''
     # il 3 è il merge threshold
-    command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {3} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Gencode/gencode.protein_coding.bed {dest_email}"
-    exeggutor.submit(subprocess.run, command, shell=True)
+    command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {3} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Gencode/gencode.protein_coding.bed {dest_email} 1> {result_dir}/log_verbose.txt"
+    #with open(f"{result_dir}/log_verbose.txt", 'w') as log_verbose:
+    # log_verbose = open(f"{result_dir}/log_verbose.txt", 'w')
+    exeggutor.submit(subprocess.run, command, shell=True)#, stdout=log_verbose)
+    #subprocess.run(command, shell=True, stdout=log_verbose)
     return '/load', '?job=' + job_id
 
 
@@ -841,7 +877,7 @@ def changePlaceholderGuideTextArea(value):
     if value == 'IP':
         return ['GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC']
     elif value == 'GS':
-        return ['>sequence 1\nAAGTCCCAGGACTTCAGAAGagctgtgagaccttggc\n>sequence2\nchr1:11,130,540-11,130,751']
+        return ['>sequence1\nAAGTCCCAGGACTTCAGAAGagctgtgagaccttggc\n>sequence_bed\nchr1 11130540 11130751\nchr1 1023000 1024000']
 
 
 def selectSameLenGuides(list_guides):

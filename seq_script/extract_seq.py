@@ -6,6 +6,7 @@ from os import listdir
 
 #Input chr1:11,130,540-11,130,751
 def extractSequence(name, input_range, genome_selected):
+    name = '_'.join(name.split())
     current_working_directory = os.getcwd() + '/'
     chrom = input_range.split(':')[0]
     start_position = input_range.split(':')[1].split('-')[0].replace(',','').replace('.','').replace(' ','')

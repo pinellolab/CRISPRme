@@ -37,7 +37,8 @@ app.layout = html.Div([
 
 def directoryCheck():
     # function to check the main directory status, if some directory is missing, create it
-    directoryList = ['Genomes', 'Results', 'Dictionaries', 'VCFs', 'Annotations', 'Gencode', 'PAMs', 'samplesIDs']
+    directoryList = ['Genomes', 'Results', 'Dictionaries',
+                     'VCFs', 'Annotations', 'Gencode', 'PAMs', 'samplesIDs']
     for directory in directoryList:
         if not os.path.exists(current_working_directory+directory):
             os.makedirs(current_working_directory+directory)

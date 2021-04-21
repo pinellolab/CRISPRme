@@ -24,28 +24,46 @@ def init_summary_by_sample(path_samplesID):
 def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
     list_1000G = []
     list_HGDP = []
-    
+    list_ref = []
+
     for ele in cluster:
         if ele[-1] == 'HGDP':
             list_HGDP.append(ele)
-        else:
+        elif ele[-1] == '1000G':
             list_1000G.append(ele)
+        else:
+            list_ref.append(ele)
 
     list_HGDP.sort(key = lambda x : (float(x[cfd]), -int(x[total])), reverse=True) #taaaac
     list_1000G.sort(key = lambda x : (float(x[cfd]), -int(x[total])), reverse=True)
+    list_ref.sort(key = lambda x : (float(x[cfd]), -int(x[total])), reverse=True)
 
     best_HGDP = []
     best_1000G = []
     best_cfd_1000G_or_ref = 0
+    cfd_var = -1
     if len(list_HGDP) > 0:
         best_HGDP = list_HGDP[0]
+        cfd_var = float(best_HGDP[cfd])
         best_cfd_1000G_or_ref = float(best_HGDP[cfd+1])
     if len(list_1000G) > 0:
         best_1000G = list_1000G[0]
+        if cfd_var < float(best_1000G[cfd]):
+            cfd_var = float(best_1000G[cfd])
+        #print('prev 1000G best cfd',best_cfd_1000G_or_ref)
         if best_cfd_1000G_or_ref < float(best_1000G[cfd]):
             best_cfd_1000G_or_ref = float(best_1000G[cfd])
         if best_cfd_1000G_or_ref < float(best_1000G[cfd+1]):
             best_cfd_1000G_or_ref = float(best_1000G[cfd+1])
+    ref_is_best = False
+    #print(list_ref)
+    if len(list_ref) > 0:
+        best_ref = list_ref[0]
+        #print('prev ref best cfd',best_cfd_1000G_or_ref)
+        if best_cfd_1000G_or_ref <= float(best_ref[cfd]):
+            best_cfd_1000G_or_ref = float(best_ref[cfd])
+            if best_cfd_1000G_or_ref >= cfd_var:
+                ref_is_best = True
 
     #append diff_cfd from best 1000G in cluster
     for ele in list_HGDP:
@@ -54,14 +72,27 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
     for ele in list_1000G:
         ele.append(str(float(ele[cfd]) - best_cfd_1000G_or_ref))
 
+    for ele in list_ref:
+        ele.append(str(float(ele[cfd]) - best_cfd_1000G_or_ref))
 
     #write best target in bestFile
     populations = []
-    n_seq_in_cluster = str(len(list_1000G) + len(list_HGDP) - 1)
-    if len(best_HGDP) > 0 and float(best_HGDP[cfd]) - best_cfd_1000G_or_ref > 0:
+    n_seq_in_cluster = str(len(list_1000G) + len(list_HGDP) + len(list_ref) - 1)
+    #print(ref_is_best)
+    if ref_is_best:
+        best_ref[cfd-1] = n_seq_in_cluster
+        best_ref[2*cfd+1] = n_seq_in_cluster
+
+        best_ref.append("NO_POP")
+        fileOut.write('\t'.join(best_ref)+"\n")
+        list_ref.pop(0)
+    elif len(best_HGDP) > 0 and float(best_HGDP[cfd]) - best_cfd_1000G_or_ref > 0:
         best_HGDP[cfd-1] = n_seq_in_cluster
         best_HGDP[2*cfd+1] = n_seq_in_cluster
         
+        if len(list_1000G) == 0: #this is when HGDP generates a new target not found in 1000G
+            best_HGDP[-2] = "HGDP_only"
+
         for sample in best_HGDP[true_guide-2].split(','):
             populations.append(dict_samples_HGDP[sample][2])
         pops = Counter(populations)
@@ -88,20 +119,26 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
         list_1000G.pop(0)
 
     list_1000G.extend(list_HGDP)
+    list_1000G.extend(list_ref)
     list_1000G.sort(key = lambda x : (float(x[cfd]), -int(x[total])), reverse=True)
 
     for ele in list_1000G:
         populations = []
-        if ele[-2] == "HGDP":
+        if ele[-2] == "HGDP" or ele[-2] == "HGDP_only":
+            #print(ele)
             for sample in ele[true_guide-2].split(','):
                 populations.append(dict_samples_HGDP[sample][2])
-        else:
+        elif ele[-2] == "1000G":
             for sample in ele[true_guide-2].split(','):
                 populations.append(dict_samples_1000G[sample][2])
-        pops = Counter(populations)
-        string_populations = []
-        for pop in pops:
-            string_populations.append(str(pops[pop])+"_"+str(pop))
+        else:
+            string_populations = "NO_POP"
+        
+        if ele[-2] != "REF":
+            pops = Counter(populations)
+            string_populations = []
+            for pop in pops:
+                string_populations.append(str(pops[pop])+"_"+str(pop))
         ele[cfd-1] = n_seq_in_cluster
         ele[2*cfd+1] = n_seq_in_cluster
         ele.append(','.join(string_populations))

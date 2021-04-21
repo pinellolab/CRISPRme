@@ -38,7 +38,7 @@ output_folder=${12}
 
 echo $jobid
 # 1) Rimozione duplicati, estrazione semicommon e unique e creazione file total
-echo 'Creazione file .total.txt'
+#echo 'Creazione file .total.txt'
 ./extraction.sh $REFtargets $ENRtargets $jobid  # OUTPUT    $jobid.common_targets.txt -> Non usato
                                                 #           $jobid.semi_common_targets.txt 
                                                 #           $jobid.unique_targets.txt
@@ -55,7 +55,7 @@ cat $jobid.unique_targets.pamcreation.txt $jobid.semi_common_targets.minmaxdisr.
 rm $jobid.unique_targets.pamcreation.txt
 rm $jobid.semi_common_targets.minmaxdisr.txt
 
-echo 'Creazione cluster del file .total.txt'
+#echo 'Creazione cluster del file .total.txt'
 # 3) Clustering 
 ./cluster.dict.py $jobid.total.txt 'no' 'True' 'True' "$guide_file" 'total' 'orderChr'  # OUTPUT     $jobid.total.cluster.txt
 rm $jobid.total.txt
@@ -83,7 +83,7 @@ rm $jobid.total.txt
 # I file .bestCFD.txt si possono unire (attenzione che avrò 3 header all'interno del file) per ottenere il file completo
 # I file .CFDGraph.txt vanno sommati tra loro per ottenere il file finale -> AL MOMENTO NON NECESSARIO PER QUESTA ANALISI (TENERE COMUNQUE I FILE)
 
-echo 'Estrazione sample dal file .total.cluster.txt'
+#echo 'Estrazione sample dal file .total.cluster.txt'
 
 # ./simpleAnalysis_v3.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" $mismatch "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA 
 ./new_simple_analysis.py "$referencegenome" "$dictionaries" "$jobid.total.cluster.txt" "${pam_file}" "$jobid" "$mismatch"
