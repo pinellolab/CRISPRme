@@ -135,26 +135,29 @@ def refreshSearch(n, dir_name):
                         post_process_status = html.P(
                             'Post-analysis...' + ' ' + 'Step [1/1]', style={'color': 'orange'})
 
-                if 'Merging Close Targets\tEnd' in current_log:
+                if 'Merging Targets\tEnd' in current_log:
                     merge_status = html.P('Done', style={'color': 'green'})
                     all_done = all_done + 1
-                elif 'Merging Close Targets\tStart' in current_log:
+                elif 'Merging Targets\tStart' in current_log:
                     merge_status = html.P(
                         'Processing...' + ' ' + 'Step [1/1]', style={'color': 'orange'})
-
+                
+                if 'Annotating results\tStart' in current_log:
+                    images_status = html.P('Annotating... Step[1/2]', style={'color': 'orange'})
+                    
                 if 'Creating images\tEnd' in current_log:
                     images_status = html.P('Done', style={'color': 'green'})
                     all_done = all_done + 1
                 elif 'Creating images\tStart' in current_log:
                     images_status = html.P(
-                        'Processing...' + ' ' + 'Step [1/1]', style={'color': 'orange'})
+                        'Generating images...' + ' ' + 'Step [2/2]', style={'color': 'orange'})
 
                 if 'Creating database\tEnd' in current_log:
                     database_status = html.P('Done', style={'color': 'green'})
                     all_done = all_done + 1
                 elif 'Creating database\tStart' in current_log:
                     database_status = html.P(
-                        'Processing...' + ' ' + 'Step [1/1]', style={'color': 'orange'})
+                        'Inserting data...' + ' ' + 'Step [1/1]', style={'color': 'orange'})
                 
                 if 'Integrating results\tEnd' in current_log:
                     integrate_status = html.P('Done', style={'color': 'green'})
@@ -235,7 +238,7 @@ def refreshSearch(n, dir_name):
                     return {'visibility':'hidden'},  search_status, report_status, post_process_status,'', ''
                 '''
                 if all_done == 7 or 'Job\tDone' in current_log:
-                    return {'visibility': 'visible'}, index_status, search_status, post_process_status, merge_status, images_status, database_status, integrate_status, '/result?job=' + dir_name.split('=')[-1], ''
+                    return {'visibility': 'visible'}, index_status, search_status, post_process_status, merge_status, images_status, database_status, integrate_status, URL+'/result?job=' + dir_name.split('=')[-1], ''
                 else:
                     return {'visibility': 'hidden'}, index_status, search_status, post_process_status, merge_status, images_status, database_status, integrate_status, '', ''
         elif 'queue.txt' in onlyfile:
@@ -255,12 +258,11 @@ def load_page():
                         html.P(
                             'Job submitted. Copy this link to view the status and the result page '),
                         html.Div(
-                            html.P(
-                                'link', id='job-link', style={'margin-top': '0.75rem', 'font-size': 'large'}),
+                            html.P('link', id='job-link', style={'margin-top': '0.75rem', 'font-size': 'large'}),
                             style={'border-radius': '5px', 'border': '2px solid', 'border-color': 'blue',
                                    'width': '100%', 'display': 'inline-block', 'margin': '5px'}
                         ),
-                        html.P('Results will be kept available for 3 days')
+                        # html.P('Results will be kept available for 3 days')
                     ],
                     style={'display': 'inline-block'}
                 ),
@@ -280,11 +282,11 @@ def load_page():
                         html.Div(
                             html.Ul(
                                 [
-                                    html.Li('Indexing Genome(s)'),
+                                    html.Li('Indexing genome(s)'),
                                     html.Li('Searching crRNA'),
                                     html.Li('Post processing'),
-                                    html.Li('Merge Targets'),
-                                    html.Li('Generating images'),
+                                    html.Li('Merge targets'),
+                                    html.Li('Annotating and generating images'),
                                     html.Li('Populating database'),
                                     html.Li('Integrating results'),
                                     #html.Li('Annotating result'),

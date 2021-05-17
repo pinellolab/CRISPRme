@@ -20,4 +20,4 @@ with open(file_in, 'r') as fin:
             abs_diff = abs(cfd_diff)
             mmblg_cfd_diff = float(splitted[42]) - float(splitted[43])
             mmblg_abs_diff = abs(mmblg_cfd_diff)
-            fout.write('\t'.join(splitted[:22])+'\t'+str(cfd_diff)+'\t'+str(abs_diff)+"\t"+"\t".join(splitted[22:])+'\t'+str(mmblg_cfd_diff)+'\t'+str(mmblg_abs_diff)+'\n')
+            fout.write('\t'.join(splitted[:22])+'\t'+"{:.3f}".format(cfd_diff)+'\t'+"{:.3f}".format(abs_diff)+"\t"+"\t".join(splitted[22:])+'\t'+"{:.3f}".format(mmblg_cfd_diff)+'\t'+"{:.3f}".format(mmblg_abs_diff)+'\n')

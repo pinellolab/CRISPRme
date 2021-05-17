@@ -26,7 +26,7 @@ def convertVCF(inVCF):
     for pop in inPop:
         if '#' in pop:
             continue
-        popDict[pop.split()[0].strip()] = '0|0'
+        popDict[pop.split()[0].strip()] = '0/0'
 
     #read header from original VCF
     for line in inVCF:
@@ -47,12 +47,12 @@ def convertVCF(inVCF):
             continue
         info = split[7].strip().split(';')
         for pop in popDict:
-            popDict[pop] = '0|0'
+            popDict[pop] = '0/0'
             for index, data in enumerate(info): #read AC for each gnomAD population and insert a fake GT for each sample
                 if 'AC_'+str(pop)+'=' in data:
                     ACvalue = int(data.strip().split('=')[1])
                     if ACvalue > 0:
-                        popDict[pop] = '0|1'
+                        popDict[pop] = '0/1'
         split[7] = info[2]
         #write each line passing the filtering into the new VCF
         outVCF.write('\t'.join(split[:8])+'\tGT\t'+'\t'.join(popDict.values())+'\n')

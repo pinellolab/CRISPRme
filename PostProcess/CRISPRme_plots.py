@@ -36,14 +36,18 @@ matplotlib.use('Agg')
 # df["index"] += 1
 
 # Read file
-df = pd.read_csv(sys.argv[1], sep="\t",
-                 index_col=False, na_values=['n'], nrows=1200)
+df = pd.read_csv(sys.argv[1], sep="\t", index_col=False, na_values=['n'], nrows=1000)
 out_folder = sys.argv[2]
 guide = sys.argv[3]
 
+#Remove targets with no variant and CFD_ref=1
+df =df.loc[df["highest_CFD_score(ref)"] != 1.0]
+
 # Make index column that numbers the OTs starting from 1
 df = df.reset_index()
-df["index"] += 1
+# df["index"] += 1
+
+# print(df)
 
 # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
 # This will cause a warning of invalid sqrt later on, but that's fine to ignore

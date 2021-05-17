@@ -6,6 +6,7 @@
 # parameters (not yet implemented)
 
 # argv[1] is job directory, eg Results/72C1MNXDWF
+# argv[2] is mail config file
 
 import sys
 import smtplib
@@ -21,37 +22,29 @@ def sendMail():
 
             msg = EmailMessage()
             em = em.strip().split('\n')
-            msg['to'] = em[0]
+            msg['To'] = em[0]
             job_link = em[1]
             date_submission = em[2]
-            msg['Subject'] = 'CRISPRitz - Job completed'
+            msg['Subject'] = 'CRISPRme - Job completed'
 
-            msg['From'] = 'admin@crispritz.di.univr.it'
+            msg['From'] = 'crisprme-job@crisprme.di.univr.it'
             content_email = 'The requested job is completed, visit the following link ' + \
                 job_link + ' to view the report.'
 
             # TODO add Parameters section with date and other parameters
             msg.set_content(content_email)
-
-            context = ssl.SSLContext(ssl.PROTOCOL_TLS)
-
-            server = smtplib.SMTP("smtp.univr.it")
-            server.send_message(msg, from_addr='admin@crispritz.di.univr.it')
-
-            # server = smtplib.SMTP('smtp.univr.it',25)
-            # server = smtplib.SMTP('smtp-mail.outlook.com', 587)
-
-            #server = smtplib.SMTP_SSL("smtp.live.com",587)
-            # for example:
-            #server = smtplib.SMTP_SSL("smtp.libero.it", port=465)
-            # #start connection
-            # server.ehlo()
-            # server.starttls(context=context)
-            # server.ehlo()
-            # #login and send message
-            # # server.login("test.cri@hotmail.com", "univrCrispritz")
-            # server.login('admin@crispritz.di.univr.it')
-
-            # server.send_message(msg)
-            # #close connection
-            # server.quit()
+            
+            print('EMAIL SENT')
+            
+            #gmail settings
+            # port = 465  # For SSL
+            # # Create a secure SSL context
+            # context = ssl.create_default_context()
+            # # with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
+            #     # insert data to login into server
+            
+            #     server.send_message(msg)
+            
+            
+#disabled call until fixed with user personal mail server           
+#sendMail()

@@ -72,36 +72,36 @@ transparent_red = mcolors.colorConverter.to_rgba("red", alpha=0.5)
 transparent_blue = mcolors.colorConverter.to_rgba("blue", alpha=0.5)
 transparent_gray = mcolors.colorConverter.to_rgba("gray", alpha=0.5)
 
-# Color by annotation, with coding > accessible > neither
-# Note that coding & accessible categories are not mutually exclusive, but coding is more important than accessible, so if both, it's colored as coding
-df["color_str"] = np.where(df["gene_annotation"] ==
-                           "CDS", "red", "gray")  # coding
-df["color_str"] = np.where(df["annotation"].str.contains(
-    "HSC-1", na=False), "blue", df["color_str"])  # DHS, accessible in HSCs
-df["color"] = df["color_str"].apply(lambda x: transparent_red if x == "red" else (
-    transparent_blue if x == "blue" else transparent_gray))
+# # Color by annotation, with coding > accessible > neither
+# # Note that coding & accessible categories are not mutually exclusive, but coding is more important than accessible, so if both, it's colored as coding
+# df["color_str"] = np.where(df["gene_annotation"] ==
+#                            "CDS", "red", "gray")  # coding
+# df["color_str"] = np.where(df["annotation"].str.contains(
+#     "HSC-1", na=False), "blue", df["color_str"])  # DHS, accessible in HSCs
+# df["color"] = df["color_str"].apply(lambda x: transparent_red if x == "red" else (
+#     transparent_blue if x == "blue" else transparent_gray))
 
-"""
-Linear, annotated, top 100 (for supplement)
-"""
-# Plot data
-ax = df.plot.scatter(x="index", y="highest_CFD_score(ref)",
-                     s="ref_AF", c="color", marker='*', zorder=1)
-df.plot.scatter(x="index", y="highest_CFD_score(alt)",
-                s="plot_AF", c="color", zorder=2, ax=ax)
-# plt.title("Top CRISPRme-identified sites for sgRNA 1617")
-plt.xlabel("Candidate off-target site")
-plt.ylabel("CFD score")
+# """
+# Linear, annotated, top 100 (for supplement)
+# """
+# # Plot data
+# ax = df.plot.scatter(x="index", y="highest_CFD_score(ref)",
+#                      s="ref_AF", c="color", marker='*', zorder=1)
+# df.plot.scatter(x="index", y="highest_CFD_score(alt)",
+#                 s="plot_AF", c="color", zorder=2, ax=ax)
+# # plt.title("Top CRISPRme-identified sites for sgRNA 1617")
+# plt.xlabel("Candidate off-target site")
+# plt.ylabel("CFD score")
 
-# Boundaries
-plt.xlim(xmin=0.01, xmax=100)
-plt.ylim(ymin=0, ymax=1)
+# # Boundaries
+# plt.xlim(xmin=0.01, xmax=100)
+# plt.ylim(ymin=0, ymax=1)
 
-# Arrows
-for x, y, z in zip(df["index"], df["highest_CFD_score(ref)"], df["highest_CFD_score(alt)"]-df["highest_CFD_score(ref)"]):
-    plt.arrow(x, y+0.01, 0, z-0.02, color='green', head_width=0.75,
-              head_length=0.015, length_includes_head=True, alpha=0.5, zorder=0)
-    # +/- to avoid overlap of arrow w/ points
+# # Arrows
+# for x, y, z in zip(df["index"], df["highest_CFD_score(ref)"], df["highest_CFD_score(alt)"]-df["highest_CFD_score(ref)"]):
+#     plt.arrow(x, y+0.01, 0, z-0.02, color='green', head_width=0.75,
+#               head_length=0.015, length_includes_head=True, alpha=0.5, zorder=0)
+#     # +/- to avoid overlap of arrow w/ points
 
 # Size legend
 s1 = mlines.Line2D([], [], marker='o', label='1', linestyle='None',
@@ -110,24 +110,24 @@ s01 = mlines.Line2D([], [], marker='o', label='0.1', linestyle='None',
                     markersize=math.sqrt(math.sqrt((0.1+0.001)*1000)), color='black')
 s001 = mlines.Line2D([], [], marker='o', label='0.01', linestyle='None',
                      markersize=math.sqrt(math.sqrt((0.01+0.001)*1000)), color='black')
-plt.gca().add_artist(plt.legend(
-    handles=[s1, s01, s001], title="Allele frequency", loc=9))
+# plt.gca().add_artist(plt.legend(
+#     handles=[s1, s01, s001], title="Allele frequency", loc=9))
 
-# Shape & color legend
-star = mlines.Line2D([], [], marker='*', label='Reference',
-                     linestyle='None', markersize=10, color='black')
-circle = mlines.Line2D([], [], marker='o', label='Alternative',
-                       linestyle='None', markersize=10, color='black')
-red = mpatches.Patch(color=transparent_red, label='Coding')
-blue = mpatches.Patch(color=transparent_blue, label='DHS in HSC-1')
-gray = mpatches.Patch(color=transparent_gray, label='Neither')
-plt.legend(handles=[star, circle, red, blue, gray])
+# # Shape & color legend
+# star = mlines.Line2D([], [], marker='*', label='Reference',
+#                      linestyle='None', markersize=10, color='black')
+# circle = mlines.Line2D([], [], marker='o', label='Alternative',
+#                        linestyle='None', markersize=10, color='black')
+# red = mpatches.Patch(color=transparent_red, label='Coding')
+# blue = mpatches.Patch(color=transparent_blue, label='DHS in HSC-1')
+# gray = mpatches.Patch(color=transparent_gray, label='Neither')
+# plt.legend(handles=[star, circle, red, blue, gray])
 
-# Save
-plt.tight_layout()
-plt.savefig(
-    out_folder+f"CRISPRme_top_100_linear_annotated_for_supplement_{guide}.png")
-plt.clf()
+# # Save
+# plt.tight_layout()
+# plt.savefig(
+#     out_folder+f"CRISPRme_top_100_linear_annotated_for_supplement_{guide}.png")
+# plt.clf()
 
 
 """
