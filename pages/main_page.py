@@ -179,7 +179,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             text_guides = selectSameLenGuides(text_guides)
     temp_guide = ''
     for elem in text_guides.split('\n'):
-        temp_guide += elem.replace('N','')+'\n'
+        temp_guide += elem.replace('N', '')+'\n'
     text_guides = temp_guide.strip()
     # if (len_guide_sequence is None or str(len_guide_sequence) == '') and ('sequence-tab' in active_tab):
     #    len_guide_sequence = 20
@@ -315,7 +315,8 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
         with open(result_dir + '/email.txt', 'w') as e:
             e.write(dest_email + '\n')
             # e.write(URL + '/load?job=' + job_id + '\n')
-            e.write(''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
+            e.write(''.join(href.split('/')[:-1]
+                            ) + '/load?job=' + job_id + '\n')
             e.write(datetime.utcnow().strftime("%m/%d/%Y, %H:%M:%S") + '\n')
             # e.write('Job done. Parameters: etc etc')
             e.close()
@@ -385,8 +386,8 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
         for c in g:
             if c not in VALID_CHARS:
                 text_guides = text_guides.replace(c, '')
-    if len(text_guides.split('\n')) > 1000:
-        text_guides = '\n'.join(text_guides.split('\n')[:1000]).strip()
+    if len(text_guides.split('\n')) > 1000000000:
+        text_guides = '\n'.join(text_guides.split('\n')[:1000000000]).strip()
     len_guides = len(text_guides.split('\n')[0])
 
     # Adjust guides by adding Ns to make compatible with Crispritz
@@ -528,7 +529,8 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
                             if send_email:
                                 with open(current_working_directory + 'Results/' + job_id + '/email.txt', 'w+') as e:
                                     e.write(dest_email + '\n')
-                                    e.write(''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
+                                    e.write(
+                                        ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
                                     e.write(datetime.utcnow().strftime(
                                         "%m/%d/%Y, %H:%M:%S") + '\n')
                                 # Send mail with file in job_id dir with link to job already done, note that job_id directory will be deleted
@@ -541,13 +543,15 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
                                 with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'a+') as e:
                                     e.write('--OTHEREMAIL--')
                                     e.write(dest_email + '\n')
-                                    e.write(''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
+                                    e.write(
+                                        ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
                                     e.write(datetime.utcnow().strftime(
                                         "%m/%d/%Y, %H:%M:%S") + '\n')
                             else:
                                 with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'w+') as e:
                                     e.write(dest_email + '\n')
-                                    e.write(''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
+                                    e.write(
+                                        ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
                                     e.write(datetime.utcnow().strftime(
                                         "%m/%d/%Y, %H:%M:%S") + '\n')
 
@@ -562,13 +566,15 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
                                     with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'a+') as e:
                                         e.write('--OTHEREMAIL--')
                                         e.write(dest_email + '\n')
-                                        e.write(''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
+                                        e.write(
+                                            ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
                                         e.write(datetime.utcnow().strftime(
                                             "%m/%d/%Y, %H:%M:%S") + '\n')
                                 else:
                                     with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'w+') as e:
                                         e.write(dest_email + '\n')
-                                        e.write(''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
+                                        e.write(
+                                            ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
                                         e.write(datetime.utcnow().strftime(
                                             "%m/%d/%Y, %H:%M:%S") + '\n')
                             return '/load', '?job=' + check_param_dir
@@ -579,13 +585,15 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             ' ' + str(report) + ' ' + str(gecko_comp) + ' ' + str(ref_comparison) + ' ' + current_working_directory +  'genome_library/' + genome_idx_ref + ' ' + str(send_email) + ' '  + current_working_directory +  'Annotations/' + annotation_file +
             ' ' + genome_type + ' ' + app_main_directory + ' ' + str(dictionary_directory) + ' ' + str(sample_list) + ' ' + str(generate_index_ref) + ' ' + str(generate_index_enr) + ' ' + current_working_directory))
     '''
-    #merge default is 3 nt wide
+    # merge default is 3 nt wide
     merge_default = 3
-    print(f"Submitted JOB {job_id}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
+    print(
+        f"Submitted JOB {job_id}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
     command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {merge_default} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Gencode/gencode.protein_coding.bed {dest_email} 1> {result_dir}/log_verbose.txt 2>{result_dir}/log_error.txt"
-    #with open(f"{result_dir}/log_verbose.txt", 'w') as log_verbose:
+    # with open(f"{result_dir}/log_verbose.txt", 'w') as log_verbose:
     # log_verbose = open(f"{result_dir}/log_verbose.txt", 'w')
-    exeggutor.submit(subprocess.run, command, shell=True)#, stdout=log_verbose)
+    # , stdout=log_verbose)
+    exeggutor.submit(subprocess.run, command, shell=True)
     #subprocess.run(command, shell=True, stdout=log_verbose)
     return '/load', '?job=' + job_id
 
@@ -784,7 +792,8 @@ def disabled_mail(checklist_value):
         return True
     elif 'email' in checklist_value:
         return False
-    
+
+
 @app.callback(
     Output('job-name', 'disabled'),
     [Input('checklist-job-name', 'value')]
@@ -971,7 +980,7 @@ def changeVariantsChecklistState(genome_value):
         checklist_variants_options.append({'label': ' plus HGDP variants',
                                            'value': 'HGDP', 'disabled': False})
         checklist_variants_options.append({'label': ' plus Personal Variants',
-                                           'value': 'PV', 'disabled': True})
+                                           'value': 'PV', 'disabled': False})
     personal_vcf = get_more_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
 
@@ -1075,8 +1084,8 @@ def indexPage():
                            ),
             dcc.Textarea(id='text-guides', placeholder='GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC', style={
                          'width': '300px', 'height': '30px'}),
-            dbc.FormText(
-                'Note: a maximum number of 1000 sequences can be provided, protospacer must be provided without PAM', color='secondary')
+            # dbc.FormText(
+            #     'Note: a maximum number of 100 guides can be provided, protospacer must be provided without PAM. If using the sequence extraction features only the first 100 guides extracted will be processed', color='secondary')
         ],
         style={'width': '300px'}  # NOTE same as text-area
     )
@@ -1190,7 +1199,7 @@ def indexPage():
                     {'label': ' ENCODE cCREs + GENCODE gene',
                      'value': 'EN'},
                     {'label': ' Personal annotations',
-                     'value': 'MA', 'disabled': True},
+                     'value': 'MA', 'disabled': False},
                 ],
                     id='checklist-annotations', value=['EN'])
             ),
@@ -1208,17 +1217,20 @@ def indexPage():
             dcc.Checklist(options=[{'label': ' Notify me by email', 'value': 'email', 'disabled': False}],
                           id='checklist-mail', value=[]),
             # dbc.Fade(
-            dbc.FormGroup(dbc.Input(type="email", id="example-email",placeholder="name@mail.com", className='exampleEmail', disabled=True, style={'width': '300px'}))
+            dbc.FormGroup(dbc.Input(type="email", id="example-email", placeholder="name@mail.com",
+                                    className='exampleEmail', disabled=True, style={'width': '300px'}))
             #     # id='fade', is_in=False, appear=False
             #     id='fade', is_in=False, appear=True
             # )
         ]
     )
-    
+
     job_name_content = html.Div(
         [
-            dcc.Checklist(options=[{'label': ' Personalized job name', 'value': 'job_name', 'disabled': False}], id='checklist-job-name', value=[]),
-            dbc.FormGroup(dbc.Input(type="text", id="job-name", placeholder="my_job", className='jobName', disabled=True, style={'width': '300px'}))
+            dcc.Checklist(options=[{'label': ' Personalized job name', 'value': 'job_name',
+                                    'disabled': False}], id='checklist-job-name', value=[]),
+            dbc.FormGroup(dbc.Input(type="text", id="job-name", placeholder="my_job",
+                                    className='jobName', disabled=True, style={'width': '300px'}))
         ]
     )
 

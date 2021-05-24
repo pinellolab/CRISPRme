@@ -6,7 +6,8 @@ import subprocess
 import itertools
 from Bio.Seq import Seq
 import re
-from os.path import isfile, isdir,join      #for getting lst of chr to know file extension and if enriched
+# for getting lst of chr to know file extension and if enriched
+from os.path import isfile, isdir, join
 from os import listdir
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +29,8 @@ input_args = sys.argv
 
 if '--debug' in input_args:
     script_path = current_working_directory+'PostProcess/'
-    
+    corrected_web_path = current_working_directory
+
 VALID_CHARS = {'a', 'A', 't', 'T', 'c', 'C', 'g', 'G',
                "R",
                "Y",
@@ -53,37 +55,42 @@ VALID_CHARS = {'a', 'A', 't', 'T', 'c', 'C', 'g', 'G',
                }
 
 
-
-#Input chr1:11,130,540-11,130,751
+# Input chr1:11,130,540-11,130,751
 def extractSequence(name, input_range, genome_selected):
     name = '_'.join(name.split())
     current_working_directory = os.getcwd() + '/'
     chrom = input_range.split(':')[0]
-    start_position = input_range.split(':')[1].split('-')[0].replace(',','').replace('.','').replace(' ','')
-    end_position = input_range.split(':')[1].split('-')[1].replace(',','').replace('.','').replace(' ','')
+    start_position = input_range.split(':')[1].split(
+        '-')[0].replace(',', '').replace('.', '').replace(' ', '')
+    end_position = input_range.split(':')[1].split(
+        '-')[1].replace(',', '').replace('.', '').replace(' ', '')
 
-    list_chr = [f for f in listdir(current_working_directory + 'Genomes/' + genome_selected) if isfile(join(current_working_directory + 'Genomes/' + genome_selected, f)) and not f.endswith('.fai')]
+    list_chr = [f for f in listdir(current_working_directory + 'Genomes/' + genome_selected) if isfile(
+        join(current_working_directory + 'Genomes/' + genome_selected, f)) and not f.endswith('.fai')]
     add_ext = '.fa'
     if '.fasta' in list_chr[0]:
         add_ext = '.fasta'
-    with open(current_working_directory + name + '.bed','w') as b:
+    with open(current_working_directory + name + '.bed', 'w') as b:
         b.write(chrom + '\t' + start_position + '\t' + end_position)
 
-    output_extract = subprocess.check_output(['bedtools getfasta -fi ' + current_working_directory + 'Genomes/' + genome_selected + '/' + chrom + add_ext + ' -bed ' + current_working_directory + name + '.bed'], shell=True).decode("utf-8") 
+    output_extract = subprocess.check_output(['bedtools getfasta -fi ' + current_working_directory + 'Genomes/' + genome_selected +
+                                              '/' + chrom + add_ext + ' -bed ' + current_working_directory + name + '.bed'], shell=True).decode("utf-8")
     try:
-        os.remove(current_working_directory + 'Genomes/' + genome_selected + '/' + chrom + '.fa.fai')
+        os.remove(current_working_directory + 'Genomes/' +
+                  genome_selected + '/' + chrom + '.fa.fai')
     except:
         pass
     try:
         os.remove(current_working_directory + name + '.bed')
     except:
         pass
-    ret_string = output_extract.split('\n')[1].strip() 
+    ret_string = output_extract.split('\n')[1].strip()
     return ret_string
+
 
 def getGuides(extracted_seq, pam, len_guide, pam_begin):
     len_pam = len(pam)
-    #dict
+    # dict
     len_guide = int(len_guide)
     pam_dict = {
         'A':  "ARWMDHV",
@@ -106,7 +113,7 @@ def getGuides(extracted_seq, pam, len_guide, pam_begin):
     for char in pam:
         list_prod.append(pam_dict[char])
 
-    iupac_pam = []          #NNNNNNN NGG
+    iupac_pam = []  # NNNNNNN NGG
     for element in itertools.product(*list_prod):
         iupac_pam.append(''.join(element))
 
@@ -115,44 +122,50 @@ def getGuides(extracted_seq, pam, len_guide, pam_begin):
     for char in rev_pam:
         list_prod.append(pam_dict[char])
 
-    iupac_pam_reverse = []        #CCN NNNNNNN  -> results found with this pam must be reverse complemented
+    # CCN NNNNNNN  -> results found with this pam must be reverse complemented
+    iupac_pam_reverse = []
     for element in itertools.product(*list_prod):
         iupac_pam_reverse.append(''.join(element))
 
-    
     extracted_seq = extracted_seq.upper()
-    len_sequence = len(extracted_seq)    
+    len_sequence = len(extracted_seq)
     guides = []
     for pam in iupac_pam:
-        pos = ([m.start() for m in re.finditer('(?=' + pam + ')', extracted_seq)])
+        pos = ([m.start()
+                for m in re.finditer('(?=' + pam + ')', extracted_seq)])
         if pos:
             for i in pos:
                 if pam_begin:
                     if i > (len_sequence - len_guide - len_pam):
                         continue
-                    guides.append(extracted_seq[i + len_pam : i +len_pam + len_guide])
+                    guides.append(
+                        extracted_seq[i + len_pam: i + len_pam + len_guide])
                 else:
                     if i < len_guide:
                         continue
-                    #guides.append(extracted_seq[i-len_guide:i+len_pam])           # i is position where first char of pam is found, eg the N char in NNNNNN NGG
+                    # guides.append(extracted_seq[i-len_guide:i+len_pam])           # i is position where first char of pam is found, eg the N char in NNNNNN NGG
                     #print('1 for:' , extracted_seq[i-len_guide:i])
                     guides.append(extracted_seq[i-len_guide:i])
-    for pam in iupac_pam_reverse:       #Negative strand
-        pos = ([m.start() for m in re.finditer('(?=' + pam + ')', extracted_seq)])
+    for pam in iupac_pam_reverse:  # Negative strand
+        pos = ([m.start()
+                for m in re.finditer('(?=' + pam + ')', extracted_seq)])
         if pos:
             for i in pos:
                 if pam_begin:
                     if i < len_guide:
                         continue
-                    guides.append(str(Seq(extracted_seq[i-len_guide:i]).reverse_complement()))
+                    guides.append(
+                        str(Seq(extracted_seq[i-len_guide:i]).reverse_complement()))
                 else:
                     if i > (len_sequence - len_guide - len_pam):
                         continue
-                    #guides.append(str(Seq(extracted_seq[i:i+len_pam+len_guide]).reverse_complement()))         # i is position where first char of pam is found, eg the first C char in CCN NNNNNN
+                    # guides.append(str(Seq(extracted_seq[i:i+len_pam+len_guide]).reverse_complement()))         # i is position where first char of pam is found, eg the first C char in CCN NNNNNN
                     #print('2 for:', str(Seq(extracted_seq[i + len_pam : i + len_guide + len_pam]).reverse_complement()))
-                    guides.append(str(Seq(extracted_seq[i + len_pam : i + len_guide + len_pam]).reverse_complement()))
+                    guides.append(str(
+                        Seq(extracted_seq[i + len_pam: i + len_guide + len_pam]).reverse_complement()))
     return guides
-    #return guides for when adding to app.py
+    # return guides for when adding to app.py
+
 
 def directoryCheck():
     # function to check the main directory status, if some directory is missing, create it
@@ -169,32 +182,41 @@ def complete_search():
         print("This is the automated search process that goes from raw input up to the post-analysis of results.")
         print("These are the flags that must be used in order to run this function:")
         print("\t--genome, used to specify the reference genome folder")
-        print("\t--vcf, used to specify the file containing a list of VCF folders (one per line) [OPTIONAL!]")
-        print("\t--guide, used to specify the file that contains guides used for the search [IF NOT --sequence]")
-        print("\t--sequence, used to specify the file containing DNA sequences or bed coordinates to extract guides [IF NOT --guide]")
+        print(
+            "\t--vcf, used to specify the file containing a list of VCF folders (one per line) [OPTIONAL!]")
+        print(
+            "\t--guide, used to specify the file that contains guides used for the search [IF NOT --sequence]")
+        print(
+            "\t--sequence, used to specify the file containing DNA sequences or bed coordinates to extract guides [IF NOT --guide]")
         print("\t--pam, used to specify the file that contains the pam")
         print("\t--annotation, used to specify the file that contains some annotations of the reference genome")
-        print("\t--samplesID, used to specify the file with a list of files (one per line) containing the information about samples present in VCF files [OPTIONAL!]")
-        print("\t--gene_annotation, used to specify a gencode or similar annotation to find nearest gene for each target found [OPTIONAL]")
+        print(
+            "\t--samplesID, used to specify the file with a list of files (one per line) containing the information about samples present in VCF files [OPTIONAL!]")
+        print(
+            "\t--gene_annotation, used to specify a gencode or similar annotation to find nearest gene for each target found [OPTIONAL]")
         print("\t--bMax, used to specify the number of bulges for the indexing of the genome(s)")
-        print("\t--mm, used to specify the number of mismatches permitted in the search phase")
-        print("\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]")
-        print("\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
-        print("\t--merge, used to specify the threshold used to merge close targets (based on genetic position), use target with highest CFD as pivot [default 3]")
+        print(
+            "\t--mm, used to specify the number of mismatches permitted in the search phase")
+        print(
+            "\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]")
+        print(
+            "\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
+        print(
+            "\t--merge, used to specify the threshold used to merge close targets (based on genetic position), use target with highest CFD as pivot [default 3]")
         print("\t--output, used to specify the output name for the results (these results will be saved into Results/<name>)")
         print("\t--thread, used to set the number of thread used in the process (default is ALL available minus 2)")
         exit(0)
 
     # check if all directories are found, if not, create them
     directoryCheck()
-    
+
     if '--guide' not in input_args and '--sequence' not in input_args:
         print('Please input a guide file or a sequence file')
         exit(1)
     if '--guide' in input_args and '--sequence' in input_args:
         print('Please select only ONE input type, either --guide or --sequence')
         exit(1)
-    #guide check
+    # guide check
     if "--guide" in input_args:
         try:
             guidefile = os.path.abspath(
@@ -205,7 +227,7 @@ def complete_search():
         if not os.path.isfile(guidefile):
             print("The folder specified for --guide does not exist")
             exit(1)
-    #sequence check
+    # sequence check
     sequence_use = False
     if '--sequence' in input_args:
         try:
@@ -218,7 +240,7 @@ def complete_search():
         if not os.path.isfile(sequence_file):
             print("The file specified for --sequence does not exist")
             exit(1)
-            
+
     if "--genome" not in input_args:
         print("--genome must be contained in the input")
         exit(1)
@@ -450,7 +472,7 @@ def complete_search():
             pam_char = pam_char.split(' ')[0][end_idx * (-1):]
             pam_len = end_idx
             pam_begin = False
-        
+
     genome_ref = os.path.basename(genomedir)
     annotation_name = os.path.basename(annotationfile)
     nuclease = os.path.basename(pamfile).split('.')[0].split('-')[2]
@@ -495,8 +517,8 @@ def complete_search():
     if sequence_use:
         guides = list()
         text_sequence = str()
-        for line in open(sequence_file,'r'):
-            text_sequence+=line
+        for line in open(sequence_file, 'r'):
+            text_sequence += line
         for name_and_seq in text_sequence.split('>'):
             if '' == name_and_seq:
                 continue
@@ -532,10 +554,10 @@ def complete_search():
                 temp_guides.append(addN+guide)
             else:
                 temp_guides.append(guide+addN)
-        if len(temp_guides)>1000:
+        if len(temp_guides) > 1000:
             temp_guides = temp_guides[:1000]
         guides = temp_guides
-        extracted_guides_file = open(outputfolder+'/guides.txt','w')
+        extracted_guides_file = open(outputfolder+'/guides.txt', 'w')
         for guide in guides:
             extracted_guides_file.write(guide+'\n')
         extracted_guides_file.close()
@@ -543,7 +565,8 @@ def complete_search():
     # exit(0)
     if sequence_use == False:
         os.system(f'cp {guidefile} {outputfolder}/guides.txt')
-    print(f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
+    print(
+        f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
     if variant:
         with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
             with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
@@ -673,15 +696,17 @@ def target_integration():
     os.system(script_path+"./post_process.sh "+target_file+" "+gencode_file +
               " "+empiricalfile+" "+guidefile+" "+str(genome_version)+" "+outputfolder+" "+vcf_dir+" "+script_path)
 
+
 def gnomAD_converter():
     if "--help" in input_args:
         print("This is the VCF gnomAD converter provided to convert all gnomADv3.1 VCFs into CRISPRme supported VCFs")
         print("These are the flags that must be used in order to run this function:")
         print("\t--gnomAD_VCFdir, used to specify the directory containing gnomADv3.1 original VCFs")
         print("\t--samplesID, used to specify the pre-generated samplesID file necessary to introduce samples into gnomAD variant")
-        print("\t--thread, used to specify the number of core used to process VCFs in parallel (DEFAULT is ALL available minus 2) [OPTIONAL]")
+        print(
+            "\t--thread, used to specify the number of core used to process VCFs in parallel (DEFAULT is ALL available minus 2) [OPTIONAL]")
         exit(0)
-        
+
     if "--gnomAD_VCFdir" not in input_args:
         print("--gnomAD_VCFdir not in input, MANDATORY TO CONVERT DATA")
         # vcf_dir = script_path+'vuota/'
@@ -696,7 +721,7 @@ def gnomAD_converter():
         if not os.path.isdir(vcf_dir):
             print("The folder specified for --gnomAD_VCFdir does not exist")
             exit(1)
-            
+
     if "--thread" not in input_args:
         # print("--thread must be contained in the input")
         # exit(1)
@@ -716,7 +741,7 @@ def gnomAD_converter():
             print("thread is set to default (ALL available minus 2)")
             thread = len(os.sched_getaffinity(0))-2
             # exit(1)
-            
+
     if "--samplesID" not in input_args:
         print("--samplesID not in input, MANDATORY TO CONVERT DATA")
         exit(1)
@@ -730,9 +755,10 @@ def gnomAD_converter():
         if not os.path.isfile(samplefile):
             print("The file specified for --samplesID does not exist")
             exit(1)
-            
-    os.system(script_path+"./convert_gnomAD.py "+vcf_dir+" "+samplefile +" "+ str(thread))
-        
+
+    os.system(script_path+"./convert_gnomAD.py " +
+              vcf_dir+" "+samplefile + " " + str(thread))
+
 
 def web_interface():
     if "--help" in input_args:

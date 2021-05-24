@@ -144,14 +144,14 @@ for count, line in enumerate(inEmpiricalResults):
     empList = [elem.strip() for elem in empList]
     empList.append(count)
     # adding empirical data to the tree
-    empiricalTree[int(empList[2]):int(empList[3])] = empList
+    empiricalTree[int(empList[1]):int(empList[2])] = empList
     # generate temp empirical dict to save empirical information per row
-    empiricalDict[str(empList[5])] = 50
+    empiricalDict[str(empList[4])] = 50
     # value of empirical row, keeping info about mm+bul for each empirical origin (seq data, in-silico, vitro, ecc)
-    valueDict[str(empList[5])] = 'n'
+    valueDict[str(empList[4])] = 'n'
     # update save dict with user-defined names from empirical data
-    saveDict[str(empList[5])] = 'n'
-    newkey = str(empList[5])+'_mm+bul'
+    saveDict[str(empList[4])] = 'n'
+    newkey = str(empList[4])+'_mm+bul'
     saveDict[newkey] = 'n'
 
 # writing header in file
@@ -337,8 +337,8 @@ for nline, line in enumerate(inCrispritzResults):
         empirical = foundEmpirical[found].data
         if str(saveDict['chr']) == str(empirical[0]):
             empiricalList.append(empirical[7])
-            valueDict[str(empirical[5])] = empirical[6]
-            empiricalDict[str(empirical[5])] = int(empirical[4])
+            valueDict[str(empirical[4])] = empirical[5]
+            empiricalDict[str(empirical[4])] = int(empirical[3])
 
     for key in empiricalDict:
         if int(empiricalDict[key]) < 50:

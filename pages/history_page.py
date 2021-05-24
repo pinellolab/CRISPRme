@@ -41,7 +41,7 @@ def supportFilterHistory(result_df, genome_f, pam_f):
         result_df.drop(labels=keep_values, inplace=True)
 
     max_page = len(result_df.index)
-    max_page = math.floor(max_page / 10) + 1
+    max_page = math.floor(max_page / 1000000) + 1
     return result_df, max_page
 
 
@@ -122,8 +122,10 @@ def get_results():
                 resultParamDataframe = resultParamDataframe.append({'Job': job, 'Genome_Selected': genome_selected, 'Variant_Selected': genome_idx, 'Mismatches': mms, 'DNA_bulge': dna,
                                                                     'RNA_bulge': rna, 'PAM': pam, 'Number_Guides': n_guides, 'Start': job_start}, ignore_index=True)
     try:
-        resultParamDataframe['Start'] = pd.to_datetime(resultParamDataframe['Start'])
-        resultParamDataframe.sort_values(by=['Start'], inplace=True, ascending=False)
+        resultParamDataframe['Start'] = pd.to_datetime(
+            resultParamDataframe['Start'])
+        resultParamDataframe.sort_values(
+            by=['Start'], inplace=True, ascending=False)
     except:
         pass
     # resultParamDataframe = resultParamDataframe.sort_values(
@@ -274,7 +276,7 @@ def get_results():
 #     return generate_table_results(results, 1), '1/' + str(max_page)
 
 
-def generate_table_results(dataframe, page, max_rows=10):
+def generate_table_results(dataframe, page, max_rows=1000000):
     '''
     Generate table for History page
     '''
@@ -364,15 +366,15 @@ def historyPage():
         html.Div(
             [
                 html.Br(),
-                html.Button('Prev', id='prev-page-history'),
-                html.Button('Next', id='next-page-history')
+                # html.Button('Prev', id='prev-page-history'),
+                # html.Button('Next', id='next-page-history')
             ],
             style={'text-align': 'center'}
         )
     )
     max_page = len(results.index)
-    max_page = math.floor(max_page / 10) + 1
-    final_list.append(html.Div('1/' + str(max_page),
-                               id='div-current-page-history'))
+    max_page = math.floor(max_page / 1000000) + 1
+    # final_list.append(html.Div('1/' + str(max_page),
+    #                            id='div-current-page-history'))
     page = html.Div(final_list, style={'margin': '1%'})
     return page

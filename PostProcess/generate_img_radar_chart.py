@@ -66,13 +66,21 @@ def generatePlot(guide, guideDict, motifDict, mismatch, bulge, source):
     for elem in guideDict:
         if float(guideDict['General']) != 0:
             percentage_list.append(
-                float(str(float(guideDict[elem])/float(guideDict['General']))[0:5]))
+                float(str(float(guideDict[elem])*100/float(guideDict['General']))[0:5]))
         else:
             percentage_list.append(float(0))
 
     guideDataFrame = pd.DataFrame.from_dict(guideDict, orient='index')
-    guideDataFrame['Percentage'] = percentage_list
-    guideDataFrame.columns = ['Total', 'Percentage']
+    # for count, elem in enumerate(percentage_list):  # correct to 100 based scale
+    #     print(elem)
+    #     if elem != 0:
+    #         elem = elem*100
+    #     else:
+    #         elem = 0
+    #     percentage_list[count] = elem
+
+    guideDataFrame['Proportion'] = percentage_list
+    guideDataFrame.columns = ['Total', 'Proportion']
     # convert to int total column
     # print('prima', guideDataFrame)
     # guideDataFrame['Total'] = guideDataFrame['Total'].astype('int32')
@@ -84,7 +92,7 @@ def generatePlot(guide, guideDict, motifDict, mismatch, bulge, source):
 
     # We are going to plot the first line of the data frame.
     # But we need to repeat the first value to close the circular graph:
-    values = guideDataFrame.loc['Percentage'].values.flatten().tolist()
+    values = guideDataFrame.loc['Proportion'].values.flatten().tolist()
     values += values[:1]
 
     # What will be the angle of each axis in the plot? (we divide the plot / number of variable)
@@ -110,9 +118,11 @@ def generatePlot(guide, guideDict, motifDict, mismatch, bulge, source):
     # Draw ylabels
     # # # Draw ylabels
     ax.set_rlabel_position(0)
-    plt.yticks([0, 0.25, 0.50, 0.75], ["0", "0.25",
-                                       "0.50", "0.75"], color="black", size=12)
-    plt.ylim(0, 1)
+    # plt.yticks([0, 0.25, 0.50, 0.75], ["0", "0.25", "0.50", "0.75"], color="black", size=12)
+    plt.yticks([0, 25, 50, 75], ["0", "25", "50", "75"],
+               color="black", size=12)
+    # plt.ylim(0, 1)
+    plt.ylim(0, 100)
 
     # Fill area
     ax.fill(angles, values, 'b', alpha=0.1)
@@ -142,7 +152,7 @@ def generatePlot(guide, guideDict, motifDict, mismatch, bulge, source):
     transpose_list = templist
 
     plt.axis('off')
-    table = plt.table(cellText=transpose_list, rowLabels=categories, colLabels=['Total', 'Percentage'],
+    table = plt.table(cellText=transpose_list, rowLabels=categories, colLabels=['Total', 'Proportion'],
                       loc='best', colWidths=[0.25, 0.25])
     table.auto_set_font_size(False)
     table.set_fontsize(13)

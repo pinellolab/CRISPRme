@@ -392,24 +392,27 @@ do
 	fi
 
 	if [ "$vcf_name" != "_" ]; then
-		echo -e "SNPs analysis ended. Starting INDELs analysis"
 		cd "$starting_dir"
 		
-		echo -e 'Post-analysis INDELs\tStart\t'$(date) >> $log	
-		# echo -e 'Post-analysis INDELs\tStart\t'$(date) >&2	
-		./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
-			
-		# echo -e 'Post-analysis INDELs\tEnd\t'$(date) >&2	
-		for key in "${array_fake_chroms[@]}"
-		do	
-			echo "Concatenating $key"
-			tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt" >> "$final_res" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
-			tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt" >> "$final_res_alt" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.altCFD.txt.tmp"
-			rm "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt"
-			rm "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt"
-		done
+		if [ $(wc -l "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" | awk -F" " '{print $1}') -gt 1 ]; then
+			echo -e "SNPs analysis ended. Starting INDELs analysis"
+			echo -e 'Post-analysis INDELs\tStart\t'$(date) >> $log	
+			# echo -e 'Post-analysis INDELs\tStart\t'$(date) >&2	
+			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
+				
+			# echo -e 'Post-analysis INDELs\tEnd\t'$(date) >&2	
+			for key in "${array_fake_chroms[@]}"
+			do	
+				echo "Concatenating $key"
+				tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt" >> "$final_res" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
+				tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt" >> "$final_res_alt" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.altCFD.txt.tmp"
+				rm "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt"
+				rm "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt"
+			done
 
-		echo -e 'Post-analysis INDELs\tEnd\t'$(date) >> $log
+		fi
+			echo -e 'Post-analysis INDELs\tEnd\t'$(date) >> $log
+		
 
 	fi
 done < $vcf_list

@@ -27,24 +27,25 @@ def sendMail():
             date_submission = em[2]
             msg['Subject'] = 'CRISPRme - Job completed'
 
-            msg['From'] = 'crisprme-job@crisprme.di.univr.it'
+            # msg['From'] = 'crisprme-job@crisprme.di.univr.it'
+            msg['From'] = 'crisprme.job@gmail.com'
             content_email = 'The requested job is completed, visit the following link ' + \
                 job_link + ' to view the report.'
 
             # TODO add Parameters section with date and other parameters
             msg.set_content(content_email)
-            
+
             print('EMAIL SENT')
-            
-            #gmail settings
+
+            # gmail settings
             # port = 465  # For SSL
             # # Create a secure SSL context
             # context = ssl.create_default_context()
             # # with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
             #     # insert data to login into server
-            
+
             #     server.send_message(msg)
-            
-            
-#disabled call until fixed with user personal mail server           
-#sendMail()
+
+
+# disabled call until fixed with user personal mail server
+# sendMail()
