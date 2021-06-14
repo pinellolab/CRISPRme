@@ -40,7 +40,7 @@ app.layout = html.Div([
 def directoryCheck():
     # function to check the main directory status, if some directory is missing, create it
     directoryList = ['Genomes', 'Results', 'Dictionaries',
-                     'VCFs', 'Annotations', 'Gencode', 'PAMs', 'samplesIDs']
+                     'VCFs', 'Annotations', 'PAMs', 'samplesIDs']
     for directory in directoryList:
         if not os.path.exists(current_working_directory+directory):
             os.makedirs(current_working_directory+directory)
@@ -49,16 +49,16 @@ def directoryCheck():
 @app.callback(
     [Output('page-content', 'children'),
      Output('job-link', 'children')],
-    [Input('url', 'href'), 
+    [Input('url', 'href'),
      Input('url', 'pathname'),
-     Input('url', 'search')], 
+     Input('url', 'search')],
     [State('url', 'hash')]
 )
 def changePage(href, path, search, hash_guide):
     '''
     Controllo della pagina da mostrare in base all'url
     '''
-    
+
     # print(href)
     if path == '/load':
         # print("CHANGING TO LOAD PAGE")

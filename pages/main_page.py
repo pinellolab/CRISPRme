@@ -10,7 +10,7 @@ import dash_core_components as dcc
 import dash_bootstrap_components as dbc
 import dash_table
 from os.path import isfile, isdir, join  # for getting directories
-from os import listdir  # for getting directories
+from os import error, listdir  # for getting directories
 import os
 import subprocess
 import string
@@ -54,8 +54,9 @@ av_mismatches = [{'label': i, 'value': i} for i in range(0, set_max_mms)]
 av_bulges = [{'label': i, 'value': i} for i in range(0, set_max_bulges)]
 av_guide_sequence = [{'label': i, 'value': i} for i in range(15, 26)]
 
-
 # For filtering
+
+
 def split_filter_part(filter_part):
     '''
     Preso dal sito di dash sul filtering datatables con python
@@ -150,7 +151,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
         `Genomes/JobID/pam.txt` file, following the Crispritz standard
         + Indexing: if the selected Genome-PAM has no index in `genome_library`, set a flag to calculate the index when submitting the job. The PAM
         used for indexing is `Genomes/JobID/pam_indexing.txt`
-        + Params file: the informations about the job are saved into the `Params.txt` file
+        + Params file: the informations about the job are saved into the `.Params.txt` file
         + Annotation: based on the selected genome reference part, the annotation is chosen from the `annotations` directory
         + Sample: based on the enriched genome selected, the sampleID file is chosen from the `samplesID` directory
         + Dictionary: based on the enriched genome selected, the Dictionary for sample extraction is selected from the `dictionaries` directory
@@ -172,7 +173,8 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             if 'bp' in elem:
                 len_guide_sequence = int(elem.replace('bp', ''))
     if text_guides is None or text_guides == '':
-        text_guides = 'GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC'
+        text_guides = 'A'*len_guide_sequence
+        # text_guides = 'GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC'
     elif guide_type != 'GS':
         text_guides = text_guides.strip()
         if (not all(len(elem) == len(text_guides.split('\n')[0]) for elem in text_guides.split('\n'))):
@@ -213,21 +215,36 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     # 3) Set parameters
 
     # ANNOTATION CHECK
-    annotation_name = current_working_directory+'/PostProcess/vuoto.txt'
+    # annotation_name = current_working_directory+'/PostProcess/vuoto.txt'
+    gencode_name = 'gencode.protein_coding.bed'
+    annotation_name = '.dummy.bed'  # necessary to process without annotation
     if 'EN' in annotation_var:
         # annotation_name = 'hg38_ref.annotations.bed'
-        annotation_name = 'gencode_encode.hg38.bed'
+        annotation_name = 'encode+gencode.hg38.bed'
         if "MA" in annotation_var:
-            annotation_name = 'gencode_encode.hg38+' + \
+            annotation_name = 'encode+gencode.hg38.bed+' + \
                 "".join(annotation_input.split('.')[:-1]) + '.bed'
             os.system(
-                f"cp {current_working_directory}/Annotations/gencode_encode.hg38.bed {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
+                f"cp {current_working_directory}/Annotations/encode+gencode.hg38.bed {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
             os.system(
-                f"tail -n +2 {current_working_directory}/Annotations/{annotation_input} >> {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
+                f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} | sed "s/ /\t/g" > {current_working_directory}/Annotations/{annotation_input}.tmp')
+            # os.system(
+            #     f'mv {current_working_directory}/Annotations/{annotation_input}.tmp {current_working_directory}/Annotations/{annotation_input}')
+            os.system(
+                f"tail -n +1 {current_working_directory}/Annotations/{annotation_input}.tmp >> {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
             os.system(
                 f"mv {current_working_directory}/Annotations/ann_tmp_{job_id}.bed {current_working_directory}/Annotations/{annotation_name}")
+            os.system(
+                f'rm -f {current_working_directory}/Annotations/{annotation_input}.tmp')
     elif 'MA' in annotation_var:
-        annotation_name = annotation_input
+        # annotation_name = annotation_input
+        os.system(
+            f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} > {current_working_directory}/Annotations/{annotation_input}.tmp')
+        annotation_name = annotation_input+'.tmp'
+    if annotation_name == '.dummy.bed':
+        os.system(f"rm -f {current_working_directory}/Annotations/.dummy.bed")
+        os.system(f"touch {current_working_directory}/Annotations/.dummy.bed")
+        gencode_name = '.dummy.bed'
 
     # GENOME TYPE CHECK
     ref_comparison = False
@@ -264,7 +281,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
 
     # print('valore del vcf', ref_var)
     sample_list = []
-    with open(result_dir+"/list_vcfs.txt", 'w') as vcf_file:
+    with open(result_dir+"/.list_vcfs.txt", 'w') as vcf_file:
         if len(ref_var) == 0:
             vcf_folder = "_"
             vcf_file.write(vcf_folder+"\n")
@@ -299,7 +316,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             # dictionary_directory = current_working_directory + \
             #     'dictionaries/'+genome_ref+'+'+vcf_input
 
-    with open(result_dir+"/samplesID.txt", 'w') as sampleID_file:
+    with open(result_dir+"/.samplesID.txt", 'w') as sampleID_file:
         for ele in sample_list:
             sampleID_file.write(ele+"\n")
     # for ele in sample_list:
@@ -320,6 +337,8 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             e.write(datetime.utcnow().strftime("%m/%d/%Y, %H:%M:%S") + '\n')
             # e.write('Job done. Parameters: etc etc')
             e.close()
+    else:
+        dest_email = "_"
 
     pam_len = 0
     with open(current_working_directory + 'PAMs/' + pam + '.txt') as pam_file:
@@ -376,19 +395,36 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             # print('extracted seq', extracted_seq)
             # guides.extend(convert_pam.getGuides(
             #     extracted_seq, pam_char, len_guide_sequence, pam_begin))
+        guides = list(set(guides))
         if not guides:
-            guides = "GAGTCCGAGCAGAAGAAGAA"
+            guides = 'A'*len_guide_sequence
         text_guides = '\n'.join(guides).strip()
     # print(text_guides, 'and', guides, 'and', pam_char)
     # exit()
     text_guides = text_guides.upper()
+    new_test_guides = list()
+    for guide in text_guides.split('\n'):
+        if len(guide) == len_guide_sequence:
+            new_test_guides.append(guide)
+    if not new_test_guides:
+        new_test_guides.append('A'*len_guide_sequence)
+    text_guides = '\n'.join(new_test_guides)
     for g in text_guides.split('\n'):
         for c in g:
             if c not in VALID_CHARS:
                 text_guides = text_guides.replace(c, '')
     if len(text_guides.split('\n')) > 1000000000:
         text_guides = '\n'.join(text_guides.split('\n')[:1000000000]).strip()
-    len_guides = len(text_guides.split('\n')[0])
+    # len_guides = len(text_guides.split('\n')[0])
+    len_guides = len_guide_sequence
+
+    # if 'A'*len_guide_sequence in text_guides:
+    #     error_in_seq_extract = True
+    #     return '/index', ''
+    #     error = dbc.Alert(
+    #         "The input spacer(s) or sequence is not a valid input, please check your input and retry.", color="danger")
+    #     visibility = {'display': 'true'}
+    #     return '/index', '', error, visibility
 
     # Adjust guides by adding Ns to make compatible with Crispritz
     if (pam_begin):
@@ -398,14 +434,14 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
         pam_to_file = ('N' * len_guides) + pam_char + ' ' + index_pam_value
         pam_to_indexing = ('N' * 25) + pam_char + ' ' + index_pam_value
 
-    save_pam_file = open(result_dir + '/pam.txt', 'w')
+    save_pam_file = open(result_dir + '/.pam.txt', 'w')
     save_pam_file.write(pam_to_file)
     save_pam_file.close()
-    pam = result_dir + '/pam.txt'
+    pam = result_dir + '/.pam.txt'
 
-    guides_file = result_dir + '/guides.txt'
+    guides_file = result_dir + '/.guides.txt'
     if text_guides is not None and text_guides != '':
-        save_guides_file = open(result_dir + '/guides.txt', 'w')
+        save_guides_file = open(result_dir + '/.guides.txt', 'w')
         if (pam_begin):
             text_guides = 'N' * pam_len + \
                 text_guides.replace('\n', '\n' + 'N' * pam_len)
@@ -475,8 +511,8 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     # genome_idx = pam_char + '_' + '2' + '_' + genome_selected
     # genome_idx_ref = genome_idx.split('+')[0]
 
-    # Create Params.txt file
-    with open(result_dir + '/Params.txt', 'w') as p:
+    # Create .Params.txt file
+    with open(result_dir + '/.Params.txt', 'w') as p:
         p.write('Genome_selected\t' + genome_selected + '\n')
         p.write('Genome_ref\t' + genome_ref + '\n')
         if search_index:
@@ -500,15 +536,15 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     all_result_dirs.remove(job_id)
     # all_result_dirs.remove('test')
     for check_param_dir in all_result_dirs:
-        if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/Params.txt'):
+        if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/.Params.txt'):
             # if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/log.txt'):
             # with open(current_working_directory + 'Results/' + check_param_dir + '/log.txt') as log:
             # if ('Job\tDone' in log.read()):
-            if (filecmp.cmp(current_working_directory + 'Results/' + check_param_dir + '/Params.txt', result_dir + '/Params.txt')):
+            if (filecmp.cmp(current_working_directory + 'Results/' + check_param_dir + '/.Params.txt', result_dir + '/.Params.txt')):
                 guides1 = open(current_working_directory + 'Results/' +
-                               check_param_dir + '/guides.txt').read().split('\n')
+                               check_param_dir + '/.guides.txt').read().split('\n')
                 guides2 = open(current_working_directory + 'Results/' +
-                               job_id + '/guides.txt').read().split('\n')
+                               job_id + '/.guides.txt').read().split('\n')
                 if (collections.Counter(guides1) == collections.Counter(guides2)):
                     if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/log.txt'):
                         adj_date = False
@@ -589,17 +625,17 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     merge_default = 3
     print(
         f"Submitted JOB {job_id}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
-    command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {merge_default} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Gencode/gencode.protein_coding.bed {dest_email} 1> {result_dir}/log_verbose.txt 2>{result_dir}/log_error.txt"
+    command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/.list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/.samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {merge_default} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Annotations/{gencode_name} {dest_email} 1> {result_dir}/log_verbose.txt 2>{result_dir}/log_error.txt"
     # with open(f"{result_dir}/log_verbose.txt", 'w') as log_verbose:
     # log_verbose = open(f"{result_dir}/log_verbose.txt", 'w')
     # , stdout=log_verbose)
     exeggutor.submit(subprocess.run, command, shell=True)
-    #subprocess.run(command, shell=True, stdout=log_verbose)
+    # subprocess.run(command, shell=True, stdout=log_verbose)
     return '/load', '?job=' + job_id
 
 
 # Check input presence
-@app.callback(
+@ app.callback(
     [Output('submit-job', 'n_clicks'),
      Output('modal', 'is_open'),
      Output('available-genome', 'className'),
@@ -614,6 +650,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
      Input('close', 'n_clicks')],
     [State('available-genome', 'value'),
      State('available-pam', 'value'),
+     State('radio-guide', 'value'),
      State('text-guides', 'value'),
      State('mms', 'value'),
      State('dna', 'value'),
@@ -621,7 +658,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
      State("modal", "is_open")]
 )
 # len_guide_seq, active_tab ,
-def checkInput(n, n_close, genome_selected, pam, text_guides, mms, dna, rna, is_open):
+def checkInput(n, n_close, genome_selected, pam, guide_type, text_guides, mms, dna, rna, is_open):
     '''
     Checks the presence and correctness of the input fields, changing their border to red if it's missing and displaying a Modal element with
     a list of the missing inputs. The callback is triggered when the user clicks on the 'Submit' button or when the modal is closed
@@ -689,6 +726,9 @@ def checkInput(n, n_close, genome_selected, pam, text_guides, mms, dna, rna, is_
         genome_update = classname_red
         update_style = True
         miss_input_list.append('Genome')
+    if genome_selected is None or genome_selected == '':
+        genome_selected = 'hg38_ref'
+    genome_ref = genome_selected
     if pam is None or pam == '':
         pam_update = classname_red
         update_style = True
@@ -713,6 +753,111 @@ def checkInput(n, n_close, genome_selected, pam, text_guides, mms, dna, rna, is_
     #    len_guide_update = classname_red
     #    update_style = True
     #    miss_input_list.append('gRNA length')
+    if pam is None or pam == '':
+        pam = '20bp-NGG-SpCas9'
+        len_guide_sequence = 20
+    else:
+        for elem in pam.split('-'):
+            if 'bp' in elem:
+                len_guide_sequence = int(elem.replace('bp', ''))
+
+    no_guides = False
+    if text_guides is None or text_guides == '':
+        text_guides = 'A'*len_guide_sequence
+        no_guides = True
+        # text_guides = 'GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC'
+    elif guide_type != 'GS':
+        text_guides = text_guides.strip()
+        if (not all(len(elem) == len(text_guides.split('\n')[0]) for elem in text_guides.split('\n'))):
+            text_guides = selectSameLenGuides(text_guides)
+
+    pam_len = 0
+    with open(current_working_directory + 'PAMs/' + pam + '.txt') as pam_file:
+        pam_char = pam_file.readline()
+        index_pam_value = pam_char.split(' ')[-1]
+        if int(pam_char.split(' ')[-1]) < 0:
+            end_idx = int(pam_char.split(' ')[-1]) * (-1)
+            pam_char = pam_char.split(' ')[0][0: end_idx]
+            pam_len = end_idx
+            pam_begin = True
+        else:
+            end_idx = int(pam_char.split(' ')[-1])
+            pam_char = pam_char.split(' ')[0][end_idx * (-1):]
+            pam_len = end_idx
+            pam_begin = False
+
+    if guide_type == 'GS':
+        text_sequence = text_guides
+        # print(text_sequence)
+        # exit()
+        # Extract sequence and create the guides
+        guides = []
+        # extracted_seqs = list()
+        # for lines in text_sequence:
+        #     print('linea', lines)
+        for name_and_seq in text_sequence.split('>'):
+            if '' == name_and_seq:
+                continue
+            name = name_and_seq[:name_and_seq.find('\n')]
+            seq = name_and_seq[name_and_seq.find('\n'):]
+            # seq = seq.strip().split()
+            # seq = ''.join(seq)
+            seq = seq.strip()
+            # name, seq = name_and_seq.strip().split('\n')
+            if 'chr' in seq:
+                # extracted_seq = extract_seq.extractSequence(
+                #         name, seq, genome_ref.replace(' ', '_'))
+                for single_row in seq.split('\n'):
+                    if '' == single_row:
+                        continue
+                    pieces_of_row = single_row.strip().split()
+                    seq_to_extract = pieces_of_row[0]+":" + \
+                        pieces_of_row[1]+"-"+pieces_of_row[2]
+                    extracted_seq = extract_seq.extractSequence(
+                        name, seq_to_extract, genome_ref.replace(' ', '_'))
+                    guides.extend(convert_pam.getGuides(
+                        extracted_seq, pam_char, len_guide_sequence, pam_begin))
+            else:
+                seq = seq.split()
+                seq = ''.join(seq)
+                extracted_seq = seq.strip()
+                guides.extend(convert_pam.getGuides(
+                    extracted_seq, pam_char, len_guide_sequence, pam_begin))
+            # print('extracted seq', extracted_seq)
+            # guides.extend(convert_pam.getGuides(
+            #     extracted_seq, pam_char, len_guide_sequence, pam_begin))
+        guides = list(set(guides))
+        if not guides:
+            guides = 'A'*len_guide_sequence
+            no_guides = True
+        text_guides = '\n'.join(guides).strip()
+    # print(text_guides, 'and', guides, 'and', pam_char)
+    # exit()
+    text_guides = text_guides.upper()
+    new_test_guides = list()
+    for guide in text_guides.split('\n'):
+        guide = guide.replace('N', '')
+        if len(guide) == len_guide_sequence:
+            new_test_guides.append(guide)
+    if not new_test_guides:
+        new_test_guides.append('A'*len_guide_sequence)
+        no_guides = True
+    text_guides = '\n'.join(new_test_guides)
+    for g in text_guides.split('\n'):
+        for c in g:
+            if c not in VALID_CHARS:
+                text_guides = text_guides.replace(c, '')
+    if len(text_guides.split('\n')) > 100:  # set limit to 100 guides per run in the website
+        text_guides = '\n'.join(text_guides.split('\n')[:100]).strip()
+    # len_guides = len(text_guides.split('\n')[0])
+    len_guides = len_guide_sequence
+
+    if no_guides:
+        text_update = {'width': '300px',
+                       'height': '30px', 'border': '1px solid red'}
+        update_style = True
+        miss_input_list.append('Input at least one correct guide')
+
     miss_input = html.Div(
         [
             html.P('The following inputs are missing:'),
@@ -727,7 +872,7 @@ def checkInput(n, n_close, genome_selected, pam, text_guides, mms, dna, rna, is_
     return None, not is_open, genome_update, pam_update, text_update, mms_update, dna_update, rna_update, len_guide_update, miss_input
 
 
-@app.callback(
+@ app.callback(
     Output('fade-len-guide', 'is_in'),
     [Input('tabs', 'active_tab')],
     [State('fade-len-guide', 'is_in')]
@@ -755,7 +900,7 @@ def resetTab(current_tab, is_in):
 # Email validity
 
 
-@app.callback(
+@ app.callback(
     Output('example-email', 'style'),
     [Input('example-email', 'value')]
 )
@@ -782,7 +927,7 @@ def checkEmailValidity(val):
 # Fade in/out email
 
 
-@app.callback(
+@ app.callback(
     Output('example-email', 'disabled'),
     [Input('checklist-mail', 'value')]
 )
@@ -794,7 +939,7 @@ def disabled_mail(checklist_value):
         return False
 
 
-@app.callback(
+@ app.callback(
     Output('job-name', 'disabled'),
     [Input('checklist-job-name', 'value')]
 )
@@ -844,7 +989,7 @@ def disable_job_name(checklist_value):
     #         return [{'visibility': 'visible'}]
 
 
-@app.callback(
+@ app.callback(
     [Output('vcf-dropdown', 'disabled'),
      Output('vcf-dropdown', 'value')],
     [Input('checklist-variants', 'value')]
@@ -856,7 +1001,7 @@ def change_disabled_vcf_dropdown(checklist_value):
         return True, ""
 
 
-@app.callback(
+@ app.callback(
     [Output('annotation-dropdown', 'disabled'),
      Output('annotation-dropdown', 'value')],
     [Input('checklist-annotations', 'value')]
@@ -880,7 +1025,7 @@ def change_disabled_vcf_dropdown(checklist_value):
 #         return [{'visibility': 'visible'}]
 
 
-@app.callback(
+@ app.callback(
     [Output('available-pam', 'options')],
     [Input('available-cas', 'value')]
 )
@@ -894,7 +1039,7 @@ def changePlaceholderGuideTextArea(value):
     return [correct_options]
 
 
-@app.callback(
+@ app.callback(
     [Output('text-guides', 'placeholder')],
     [Input('radio-guide', 'value')]
 )
@@ -967,7 +1112,7 @@ def availableCAS():
 #     return ['']
 
 
-@app.callback(
+@ app.callback(
     [Output('checklist-variants', 'options'),
      Output('vcf-dropdown', 'options')],
     [Input('available-genome', 'value')]
@@ -979,7 +1124,7 @@ def changeVariantsChecklistState(genome_value):
                                            'value': '1000G', 'disabled': False})
         checklist_variants_options.append({'label': ' plus HGDP variants',
                                            'value': 'HGDP', 'disabled': False})
-        checklist_variants_options.append({'label': ' plus Personal Variants',
+        checklist_variants_options.append({'label': ' plus personal variants',
                                            'value': 'PV', 'disabled': False})
     personal_vcf = get_more_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
@@ -1009,7 +1154,7 @@ def get_more_annotations():
     annotation_list = []
 
     for elem in annotation_dir:
-        if 'gencode_encode' not in elem and 'None' not in elem:
+        if 'encode' not in elem and 'None' not in elem and 'dummy' not in elem and 'tmp' not in elem:
             annotation_list.append({'label': elem.strip().split(
                 '/')[-1], 'value': elem.strip().split('/')[-1]})
 
@@ -1037,15 +1182,16 @@ def indexPage():
     + **index_page** (*list*): list of html, dcc and dbc components for the layout.
     '''
 
-    final_list = []
+    final_list = list()
 
     introduction_content = html.Div(
         [
-            html.Div(
-                'CRISPRme  performs  predictive analysis and result assessment on population and individual specific CRISPR/Cas experiments.' +
-                ' CRISPRme enumerates on- and off-target accounting simultaneously for  substitutions, DNA/RNA bulges and common genetic variants from the 1000 genomes project.' +
-                ' CRISPRme is based on CRISPRitz [1] a software tool for population target analyses.'
-                + ' CRISPRme is devoted to individual specific on- and off-target analyses.'),
+            # html.Div('CRISPRme is a web application, also available offline or command-line for comprehensive off-target assessment. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:spacer mismatches and bulges, and is suitable for population and personal genome analyses.'),
+            html.Div('CRISPRme is a web application, also available offline or command line, for comprehensive off-target assessment. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:protospacer mismatches and bulges, and is suitable for population and personal genome analyses.'),
+            # html.Div(['Check out our preprint on bioRxiv ', html.A(
+            #     'here!', target='_blank', href='https://www.biorxiv.org/content/10.1101/2021.05.20.445054v1')]),
+            # html.Div(['CRISPRme offline version can be downloaded from ', html.A(
+            #     'Github', target='_blank', href='https://github.com/pinellolab/CRISPRme')]),
             html.Br()
         ]
     )
@@ -1075,7 +1221,8 @@ def indexPage():
             html.H4('Select gRNA'),
             dcc.RadioItems(id="radio-guide",
                            options=[
-                               {'label': ' Input individual protospacer(s)', 'value': 'IP'},
+                               {'label': ' Input individual spacer(s)',
+                                'value': 'IP'},
                                {'label': ' Input genomic sequence(s)',
                                 'value': 'GS'},
                            ],
@@ -1135,7 +1282,7 @@ def indexPage():
                      'value': '1000G', 'disabled': True},
                     {'label': ' plus HGDP variants',
                      'value': 'HGDP', 'disabled': True},
-                    {'label': ' plus Personal Variants',
+                    {'label': ' plus personal variants',
                      'value': 'PV', 'disabled': True}
                 ],
                     id='checklist-variants', value=[])
@@ -1227,7 +1374,7 @@ def indexPage():
 
     job_name_content = html.Div(
         [
-            dcc.Checklist(options=[{'label': ' Personalized job name', 'value': 'job_name',
+            dcc.Checklist(options=[{'label': ' Job name', 'value': 'job_name',
                                     'disabled': False}], id='checklist-job-name', value=[]),
             dbc.FormGroup(dbc.Input(type="text", id="job-name", placeholder="my_job",
                                     className='jobName', disabled=True, style={'width': '300px'}))
@@ -1238,10 +1385,17 @@ def indexPage():
         [
             html.Button('Submit', id='check-job',
                         style={'background-color': '#E6E6E6'}),
-            html.Button('', id='submit-job', style={'display': 'none'})
+            html.Button('', id='submit-job', style={'display': 'none'}),
         ]
     )
 
+    terms_and_conditions_content = html.Div(
+        [
+            html.Div('By clicking submit you are agreeing to the'),
+            html.Div(html.A('Terms and Conditions!', target='_blank',
+                            href='https://github.com/pinellolab/CRISPRme/blob/main/LICENSE'))
+        ]
+    )
     # insert introduction in the layout
     final_list.append(introduction_content)
     final_list.append(
@@ -1291,12 +1445,12 @@ def indexPage():
                                     [
                                         annotation_content,
                                         html.Br(),
-                                        html.Div(submit_content, style={
-                                                 'margin-left': '30%'}),
-                                        # personal_data_management_content,
                                         html.Br(),
                                         mail_content,
-                                        job_name_content
+                                        job_name_content,
+                                        html.Div(submit_content, style={
+                                                 'margin-left': '30%'}),
+                                        terms_and_conditions_content
                                     ],
                                     id='column-three-step-3',
                                     # style={'flex': '0 0 30%', 'tex-align': 'center'}
@@ -1324,13 +1478,16 @@ def indexPage():
                 # ),
             ],
             style={'background-color': 'rgba(157, 195, 230, 0.39)', 'border-radius': '5px',
-                   'border': '1px solid black', 'margin-left': '5%', 'margin-right': '5%'},
+                   #    'border': '1px solid black', 'margin-left': '5%', 'margin-right': '5%'},
+                   'border': '1px solid black'},
             # style={'background-color': 'rgba(157, 195, 230, 0.39)', 'border-radius': '5px',
             #        'border': '1px solid black'},
             id='steps-background'
         )
     )
-    # final_list.append(html.Br())
+    final_list.append(html.Br())
+    # final_list.append(
+    #     html.P('*The offline version of CRISPRme can be downloaded from GitHub and offers additional functionalities, including the option to input personal data (such as genetic variants, annotations, and/or empirical off-target results) as well as custom PAMs and genomes. There is no limit on the number of spacers, mismatches, and/or bulges used in the offline search.'))
     # final_list.append(html.P(
     #     '[1] Cancellieri, Samuele, et al. \"Crispritz: rapid, high-throughput, and variant-aware in silico off-target site identification for crispr genome editing.\" Bioinformatics (2019).'))
     # final_list.append(

@@ -11,20 +11,22 @@ import base64  # for decoding upload content
 import io  # for decoding upload content
 from app import app_main_directory
 
+
 def helpPage():
     final_list = []
     final_list.append(
-        html.Div([
-            html.H3('About'),
-            html.P([
-                'CRISPRme  performs  predictive analysis and result assessment on population and individual specific CRISPR/Cas experiments.' +
-                ' CRISPRme enumerates on- and off-target accounting simultaneously for  substitutions, DNA/RNA bulges and common genetic variants from the 1000 genomes project.'
-            ]),
-            html.P(['Open this ', html.A('example', href='http://crisprme.di.univr.it/load?job=6FDKYQS472',
-                                         target='_blank'), ' to navigate the results we show in this page'])
-
-        ])
-
+        html.Div(
+            [
+                html.H3('About'),
+                html.P(
+                    ['CRISPRme is available as an online web app at ',
+                     html.A('http://crisprme.di.univr.it',
+                            href='http://crisprme.di.univr.it', target='_blank'),
+                     ' a standalone command line package. The required inputs to perform an online search are: gRNA spacer(s), Cas protein, PAM sequence, genome build with or without the inclusion of genetic variants (1000G, HGDP and/or personal variants), and thresholds of mismatches and RNA/DNA bulges.'
+                     ]
+                )
+            ]
+        )
     )
 
     final_list.append(html.H3('Main Page'))
@@ -32,32 +34,34 @@ def helpPage():
     final_list.append(
         html.Div([
             html.P(
-                ['In the main page of CRISPRme, users can select a wide range of options to personalize their searches. The input phase is divided into three main steps:',
-                 html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+'/assets/main_page.png', 'rb').read()).decode()), width="100%", height="auto")]
+                [
+                    'A search on CRISPRme can be performed in three simple steps thanks to the user-friendly user interface. Several options are available to personalize a search.',
+                 html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                      '/assets/main_page.png', 'rb').read()).decode()), width="100%", height="auto")
+                 ]
             ),
             html.Ul(
                 [
                     html.Li(
                         [
-                            'STEP 1: Guide, Nuclease and PAM selection',
+                            'STEP 1: Spacer, Cas Protein and PAM selection',
                             html.Ul(
                                 [
-                                    html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                                        open(app_main_directory+'/assets/helpPage/guides.png', 'rb').read()).decode()), width='30%'),
+                                    # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                                    #     open(app_main_directory+'/assets/helpPage/guides.png', 'rb').read()).decode()), width='30%'),
                                     html.Li(
-                                        'Individual Protospacer(s): a list of crRNAs sequences, consisting in 1 or more sequences (max 1000 sequences) to search on the genome'),
-                                    html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                                        open(app_main_directory+'/assets/helpPage/sequence.png', 'rb').read()).decode()), width='40%'),
-                                    html.Li('Genomic sequence(s): one or more genetic sequences (max 1000 characters), each sequence MUST BE separated with the header \'>name\'. The sequence can be also submitted with a ' +
-                                            'chromosome range, also provided with an header. The region will be extracted from the Genome selected in STEP 1'),                                    
-                                    html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                                        open(app_main_directory+'/assets/helpPage/nuclease.png', 'rb').read()).decode()), width='30%'),
+                                        'Spacer(s): The guide RNA (gRNA) spacer sequence matches the genomic target protospacer sequence (typically 20 nucleotides) and directs Cas protein binding to the protospacer in the presence of a protospacer adjacent motif (PAM). The spacer sequence is represented as DNA (rather than RNA) in CRISPRme to allow easy comparison to the aligned protospacer sequence. CRISPRme accepts a set of gRNA spacer(s), one per line, each with the same length (max 100 sequences). The input spacer sequence should not include PAM.'),
+                                    # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                                    #     open(app_main_directory+'/assets/helpPage/sequence.png', 'rb').read()).decode()), width='40%'),
+                                    html.Li('Genomic sequence(s): CRISPRme can alternatively take as input a set of genomic coordinates in BED format (chromosome# start end) or DNA sequences in FASTA format (max 1000 characters). The BED file coordinates will be treated as 0-based and CRISPRme (online version) will extract the first 100 possible spacer sequences within these coordinates starting with the positive strand. To use this type of input, the user must delimit each entry with a >header.'),
+                                    # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                                    #     open(app_main_directory+'/assets/helpPage/nuclease.png', 'rb').read()).decode()), width='30%'),
                                     html.Li(
-                                        'Nuclease: here you can select a specific Cas protein.'),
-                                    html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                                        open(app_main_directory+'/assets/helpPage/pam.png', 'rb').read()).decode()), width='30%'),
-                                    html.Li(
-                                        'PAM: here you can select a Protospacer Adjacent Motif for the specified Cas protein.'),
+                                        'PAM sequence: The PAM is a short (∼2-6 nucleotide) DNA sequence adjacent to the protospacer necessary for the Cas protein to bind to a specific DNA target. CRISPRme supports a set of PAMs and users must select one of them in order to perform the search. The software supports both 3’ (e.g. SpCas9) and 5’ (e.g. Cas12a) PAM sequences.'),
+                                    # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                                    #     open(app_main_directory+'/assets/helpPage/pam.png', 'rb').read()).decode()), width='30%'),
+                                    # html.Li(
+                                    #     'PAM: here you can select a Protospacer Adjacent Motif for the specified Cas protein.'),
                                 ], style={'padding': '15px'}
                             )
                         ]
@@ -84,18 +88,17 @@ def helpPage():
                             'STEP 2: Genome selection and threshold configuration',
                             html.Ul(
                                 [
-                                    html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                                        open(app_main_directory+'/assets/helpPage/genome.png', 'rb').read()).decode()), width='40%'),
+                                    # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                                    #     open(app_main_directory+'/assets/helpPage/genome.png', 'rb').read()).decode()), width='40%'),
                                     html.Li(
-                                        'Genome: here you can select a genome from the ones present and combine it with one or more VCF datasets (1000G, HGDP, personal variants)'),
-                                    html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                                        open(app_main_directory+'/assets/helpPage/thresholds.png', 'rb').read()).decode()), width='20%'),
-                                    html.Li(
-                                        'Allowed mismatches: number of tolerated mismatches in a target'),
-                                    html.Li(
-                                        'Bulge DNA size: size of bubbles tolerated on the DNA sequence (can be consecutive(AA--AA) or interleaved(AA-A-AA)).'),
-                                    html.Li(
-                                        'Bulge RNA size: size of bubbles tolerated on the RNA sequence (can be consecutive(AA--AA) or interleaved(AA-A-AA))'),
+                                        'Genome builds: The genome builds are based on FASTA files from UCSC. The hg38 and hg19 genomic builds are available with the option to incorporate variants from 1000G, HGDP, and/or personal variants in the search. The option to add personal variants is enabled only for the local offline and command line versions.'),
+                                    # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                                    #     open(app_main_directory+'/assets/helpPage/thresholds.png', 'rb').read()).decode()), width='20%'),
+                                    html.Li('Search thresholds: CRISPRme allows users to specify the number of mismatches, DNA and RNA bulges tolerated in enumerating potential off-targets. The web-tool allows up to 6 mismatches and up to 2 RNA/DNA bulges (which can be consecutive (NN--NN) or interleaved (NN-N-NN)). However, for the command line version, these thresholds can be set freely and depend only on the available computational resources.'),
+                                    # html.Li(
+                                    #     'Bulge DNA size: size of bubbles tolerated on the DNA sequence (can be consecutive(AA--AA) or interleaved(AA-A-AA)).'),
+                                    # html.Li(
+                                    #     'Bulge RNA size: size of bubbles tolerated on the RNA sequence (can be consecutive(AA--AA) or interleaved(AA-A-AA))'),
                                 ], style={'padding': '15px'}
                             )
                         ]
@@ -130,15 +133,16 @@ def helpPage():
                     # ),
                     html.Li(
                         [
-                            'STEP 3 Select Annotation(s) and notify by email',
+                            'STEP 3 Annotation(s), email notification, and job name',
                             html.Ul(
                                 [
-                                    html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                                        open(app_main_directory+'/assets/helpPage/advOpt.png', 'rb').read()).decode()), width='40%'),
+                                    # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                                    #     open(app_main_directory+'/assets/helpPage/advOpt.png', 'rb').read()).decode()), width='40%'),
+                                    html.Li('Functional annotations: To assess the potential impact of off-target activity, CRISPRme provides a set of functional annotations for coding and non-coding regions. The annotations are based on files obtained from the Encyclopedia of DNA Elements (ENCODE) containing candidate cis regulatory elements21 and from GENCODE25 containing annotations for protein coding genes, transcribed but untranslated regions, and introns. In the offline versions of CRISPRme, users can add custom genome annotations, such as cell-type specific chromatin marks or off-target sites nominated by in vitro and/or cellular assays as simple BED files.'),
                                     html.Li(
-                                        'The user can choose the annotation to use, either only the provided set of annotations or combine it with a personal annotation file.'),
+                                        'Email notification: If an email address is provided, the user will receive a notification upon the job completion.'),
                                     html.Li(
-                                        'Notify me by email: if selected, let you insert an email to receive a notification when your job is terminated.'),
+                                        'Job name: If a string is provided, a prefix will be added to the unique job id to facilitate the identification of a particular search e.g. my_job_G05B8KHU0H.'),
                                 ], style={'padding': '15px'}
                             )
                         ]
@@ -166,20 +170,15 @@ def helpPage():
 
     final_list.append(
         html.P(
-            ['After selecting the desired inputs, click on the Submit button to start the search']
+            ['After selecting the desired inputs, clicking the Submit button starts the search . After the submission, a new page will show the status and progress.']
         )
     )
 
     final_list.append(
         html.Div(
             [
-                dbc.Alert(
-                    [
-                        'WARNING: If some inputs are missing, a warning popup will be displayed', html.P(),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                            open(app_main_directory+'/assets/helpPage/warning.png', 'rb').read()).decode()), width='100%'),
-                    ], color='warning', fade=False, style={'width': '70%'}
-                )
+                html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                    open(app_main_directory+'/assets/helpPage/load_page.png', 'rb').read()).decode()), width='100%')
             ]
         )
     )
@@ -187,10 +186,10 @@ def helpPage():
     final_list.append(
         html.P(
             [
-                'After the submission, the status of the search will be displayed in a new page',
-                html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
-                    open(app_main_directory+'/assets/waitPage/loadPage.png', 'rb').read()).decode()), width='100%'),
-                'When the job is complete, the result link will appear at the end of the status report',
+                # 'After the submission, the status of the search will be displayed in a new page',
+                # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
+                #     open(app_main_directory+'/assets/waitPage/loadPage.png', 'rb').read()).decode()), width='100%'),
+                'Upon completion of the job, a link “View Results” will appear to view the results at the bottom of the status report page.',
                 html.P(html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(
                     open(app_main_directory+'/assets/waitPage/jobDone.png', 'rb').read()).decode()), width='20%'))
             ]
@@ -202,8 +201,8 @@ def helpPage():
         html.P(
             [
                 'At the top of the page, you find a table with the list of gRNAs used during the search phase. This table summarizes the results obtained for each input guide.',
-                html.P(html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                    '/assets/resultPage/resultsSummary.png', 'rb').read()).decode()), width='100%')),
+                html.P(html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                            '/assets/resultPage/resultsSummary.png', 'rb').read()).decode()), width='100%')),
                 html.Ul(
                     [
                         html.Li('CFD: Off-Target Cutting Frequency Determination Score, calculates how much is the affinity of the guides with the off-targets, basically tells you the likelihood of the guide to perform cut in off-target regions.'),
@@ -234,14 +233,14 @@ def helpPage():
                     [
                         html.Li([html.Span('Custom ranking: ', style={
                                 'color': 'red'}), 'This page allows the user to sort the results based on various values like number of mismatches, bulges, CFD, etc...']),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                            '/assets/resultPage/customRanking.png', 'rb').read()).decode()), width='100%'),
+                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                             '/assets/resultPage/customRanking.png', 'rb').read()).decode()), width='100%'),
 
 
                         html.Li([html.Span('Summary by Mismatches/Bulges: ', style={
                                 'color': 'red'}), 'This table collects all the possible On-/Off- Targets grouped by mismatch/bulge couples.']),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                            '/assets/resultPage/summaryByGuide.png', 'rb').read()).decode()), width='100%'),
+                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                             '/assets/resultPage/summaryByGuide.png', 'rb').read()).decode()), width='100%'),
                         html.Ul(
                             [
                                 html.Li(
@@ -264,8 +263,8 @@ def helpPage():
 
                         html.Li([html.Span('Summary by Sample: ', style={
                                 'color': 'red'}), 'This table collects all the possible On-/Off- Targets grouped by sample ID.']),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                            '/assets/resultPage/summaryBySamples.png', 'rb').read()).decode()), width='100%'),
+                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                             '/assets/resultPage/summaryBySamples.png', 'rb').read()).decode()), width='100%'),
                         html.Ul(
                             [
                                 html.Li(
@@ -291,8 +290,8 @@ def helpPage():
 
                         html.Li([html.Span('Query Genomic Region: ', style={
                                 'color': 'red'}), 'This table collects all the possible On-/Off- Targets grouped by position in the genome (composed by chromosome and relative position)']),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                            '/assets/resultPage/summaryByPosition.png', 'rb').read()).decode()), width='100%'),
+                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                             '/assets/resultPage/summaryByPosition.png', 'rb').read()).decode()), width='100%'),
                         # html.Ul(
                         #     [
                         #         html.Li(
@@ -312,19 +311,19 @@ def helpPage():
                         # ),
                         html.Li([html.Span('Graphical Reports: ', style={
                                 'color': 'red'}), 'This page shows graphics about a specific guide, including genomic annotation and motif logos. The main feature introduced is the possibility to visualize graphical reports at individual level.']),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                            '/assets/resultPage/summaryByGraphic_population.png', 'rb').read()).decode()), width='100%'),
+                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                             '/assets/resultPage/summaryByGraphic_population.png', 'rb').read()).decode()), width='100%'),
                         html.Li(
                             'Select a Mismatch and Bulge Value: generate graphics with the specified mismatch+bulge value'),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                            '/assets/resultPage/summaryByGraphic_sample.png', 'rb').read()).decode()), width='100%'),
+                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                             '/assets/resultPage/summaryByGraphic_sample.png', 'rb').read()).decode()), width='100%'),
                         html.Li(
-                                    'Select Individual Data: generate individual data, by selecting Super Population, Population and Sample'),
+                            'Select Individual Data: generate individual data, by selecting Super Population, Population and Sample'),
 
                         html.Li([html.Span('Personal Risk Cards: ', style={
                                 'color': 'red'}), 'This page shows at individual level the most important data for a given sample.']),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                            '/assets/resultPage/personalCard.png', 'rb').read()).decode()), width='100%'),
+                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
+                                                                                             '/assets/resultPage/personalCard.png', 'rb').read()).decode()), width='100%'),
                         html.Ul(
                             [
                                 html.Li(

@@ -41,7 +41,7 @@ else:
     DISPLAY_OFFLINE = ''
     DISPLAY_ONLINE = 'none'
 
-exeggutor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
+exeggutor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
 
 CACHE_CONFIG = {
     # try 'filesystem' if you don't want to setup redis

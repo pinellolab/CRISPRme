@@ -1,6 +1,14 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jun  8 11:48:20 2021
+
+@author: franc
+"""
+
 import sqlite3
 import time
 import sys
+import pandas as pd
 #Creation of the connection to a new database and table
 
 """
@@ -15,92 +23,55 @@ to permit the use of multiple guides. Same type of indexes are created in the ca
 
 """
 
+def dict_pd_dtypes_to_sql_types(pd_dtype):
+    if pd_dtype == 'O':
+        return 'TEXT'
+    elif pd_dtype == 'int64':
+        return 'INTEGER'
+    elif pd_dtype == 'float64':
+        return 'NUMERIC'
+    else:
+        return 'TEXT'
+
+# fileIn = sys.argv[1]
+# fileOut = sys.argv[2]
+
 fileIn = sys.argv[1]
 fileOut = sys.argv[2]
 
 conn = sqlite3.connect(f'{fileOut}.db')
 c = conn.cursor()
-tot_lines = 0
-with open(f"{fileIn}", "r") as f:
-    first = f.readline().split()
-    for line in f:
-        tot_lines += 1
+# tot_lines = 0
+# with open(f"{fileIn}", "r") as f:
+#     header = f.readline().split()
+#     for line in f:
+#         tot_lines += 1
+db_schema = []
+try:
+    df = pd.read_csv(fileIn, sep='\t', index_col=False, na_filter=False, nrows=1000)
+    types = [dict_pd_dtypes_to_sql_types(pd_dtype) for pd_dtype in df.dtypes]
 
-a=int(len(first)/2)
-l1 = first[0:a]
-i=0
-li=[]
-for i in l1 :
-  i=i.replace('#','')
-  i=i+'_1'
-  li.append(i)
+    for i, col in enumerate(df.columns):
+        db_schema.append(f"\"{col}\" {types[i]}")
 
-l2 = first[a:len(first)]
-i=0
-for i in l2 :
-  i=i.replace('#','')
-  i=i+'_2'
-  li.append(i)
+    db_schema = ', '.join(db_schema)
+except:
+    with open(fileIn) as f_in:
+        cols = f_in.readline().strip().split('\t')
+        for col in cols:
+            db_schema.append(f"\"{col}\" TEXT")
+        db_schema = ', '.join(db_schema)
+#print(db_schema)
 
-
-q = """CREATE TABLE IF NOT EXISTS final_table (
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  INTEGER,
-  {}  INTEGER,
-  {}  TEXT,
-  {}  INTEGER,
-  {}  INTEGER,
-  {}  INTEGER,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  NUMERIC,
-  {}  NUMERIC,
-  {}  NUMERIC,
-  {}  NUMERIC,
-  
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  INTEGER,
-  {}  INTEGER,
-  {}  TEXT,
-  {}  INTEGER,
-  {}  INTEGER,
-  {}  INTEGER,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  TEXT,
-  {}  NUMERIC,
-  {}  NUMERIC,
-  {}  NUMERIC,
-  {}  NUMERIC
-)""".format(*li);
+q = f"CREATE TABLE IF NOT EXISTS final_table ({db_schema})"
 
 c.execute(q)
 
 def insert(data):
-  s=time.time()
   print("Inserting chunk of data")
-  c.executemany('INSERT INTO final_table VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', data)
+  question_marks = ["?"] * len(data[0])
+  question_marks = ','.join(question_marks)
+  c.executemany(f'INSERT INTO final_table VALUES ({question_marks})', data)
   conn.commit()
 
 with open(f"{fileIn}", "r") as f:
@@ -113,55 +84,43 @@ with open(f"{fileIn}", "r") as f:
          line.split()
          y=y+1
        else:
-         g=line.split('\t')
+         g=line.strip().split('\t')
          data.append(g)
-         if len(data)==tot_lines//10:
+         if len(data)==500000: #stop to small enough chunks of data
            insert(data)
            data=[]
-    insert(data)
+    if len(data) != 0: #insert last chunk of data
+        insert(data)
     # create indexes
-    c.execute("CREATE INDEX IF NOT EXISTS g ON final_table(Real_Guide_1)")
-
-    c.execute("CREATE INDEX IF NOT EXISTS rgm ON final_table(Real_Guide_1,Mismatches_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgc ON final_table(Real_Guide_1,CFD_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgt ON final_table(Real_Guide_1,Total_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbs ON final_table(Real_Guide_1,Bulge_Size_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgcrs ON final_table(Real_Guide_1,Highest_CFD_Risk_Score_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rghcar ON final_table(Real_Guide_1,Highest_CFD_Absolute_Risk_Score_1)")
-
-    c.execute("CREATE INDEX IF NOT EXISTS rgm2 ON final_table(Real_Guide_1,MMBLG_Mismatches_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgc2 ON final_table(Real_Guide_1,MMBLG_CFD_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgt2 ON final_table(Real_Guide_1,MMBLG_Total_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbs2 ON final_table(Real_Guide_1,MMBLG_Bulge_Size_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgcrs2 ON final_table(Real_Guide_1,MMBLG_CFD_Risk_Score_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rghcar2 ON final_table(Real_Guide_1,MMBLG_CFD_Absolute_Risk_Score_2)")
-
-    c.execute("CREATE INDEX IF NOT EXISTS rgmcfd ON final_table(Real_Guide_1,Mismatches_1,CFD_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgmbul ON final_table(Real_Guide_1,Mismatches_1,Bulge_Size_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgmtot ON final_table(Real_Guide_1,Mismatches_1,Total_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgcmi ON final_table(Real_Guide_1,CFD_1,Mismatches_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgcbulg ON final_table(Real_Guide_1,CFD_1,Bulge_Size_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgctot ON final_table(Real_Guide_1,CFD_1,Total_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgtmis ON final_table(Real_Guide_1,Total_1,Mismatches_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgtcfd ON final_table(Real_Guide_1,Total_1,CFD_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgtbulg ON final_table(Real_Guide_1,Total_1,Bulge_Size_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbsmism ON final_table(Real_Guide_1,Bulge_Size_1,Mismatches_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbscfd ON final_table(Real_Guide_1,Bulge_Size_1,CFD_1)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbstot ON final_table(Real_Guide_1,Bulge_Size_1,Total_1)")
-
-    c.execute("CREATE INDEX IF NOT EXISTS rgmcfd2 ON final_table(Real_Guide_1,MMBLG_Mismatches_2,MMBLG_CFD_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgmbul2 ON final_table(Real_Guide_1,MMBLG_Mismatches_2,MMBLG_Bulge_Size_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgmtot2 ON final_table(Real_Guide_1,MMBLG_Mismatches_2,MMBLG_Total_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgcmi2 ON final_table(Real_Guide_1,MMBLG_CFD_2,MMBLG_Mismatches_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgcbulg2 ON final_table(Real_Guide_1,MMBLG_CFD_2,MMBLG_Bulge_Size_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgctot2 ON final_table(Real_Guide_1,MMBLG_CFD_2,MMBLG_Total_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgtmis2 ON final_table(Real_Guide_1,MMBLG_Total_2,MMBLG_Mismatches_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgtcfd2 ON final_table(Real_Guide_1,MMBLG_Total_2,MMBLG_CFD_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgtbulg2 ON final_table(Real_Guide_1,MMBLG_Total_2,MMBLG_Bulge_Size_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbsmism2 ON final_table(Real_Guide_1,MMBLG_Bulge_Size_2,MMBLG_Mismatches_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbscfd2 ON final_table(Real_Guide_1,MMBLG_Bulge_Size_2,MMBLG_CFD_2)")
-    c.execute("CREATE INDEX IF NOT EXISTS rgbstot2 ON final_table(Real_Guide_1,MMBLG_Bulge_Size_2,MMBLG_Total_2)")
-
+    print('Now creating indexes')
+    
+    guide_column = 'Spacer+PAM'
+    mm_column = 'Mismatches_(highest_CFD)'
+    blg_column = 'Bulges_(highest_CFD)'
+    total_column = 'Mismatches+bulges_(highest_CFD)'
+    cfd_column = 'CFD_score_(highest_CFD)'
+    risk_cfd_column = 'CFD_risk_score_(highest_CFD)'
+    pos_column = 'Start_coordinate_(highest_CFD)'
+    samples_column = 'Variant_samples_(highest_CFD)'
+    chrom_column = 'Chromosome'
+    bulge_t_column = 'Bulge_type_(highest_CFD)'
+    
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_mm ON final_table(\"{guide_column}\",\"{mm_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_blg ON final_table(\"{guide_column}\",\"{blg_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_tot ON final_table(\"{guide_column}\",\"{total_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_cfd ON final_table(\"{guide_column}\",\"{cfd_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_risk ON final_table(\"{guide_column}\",\"{risk_cfd_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_chrom_pos ON final_table(\"{guide_column}\",\"{chrom_column}\",\"{pos_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_samples ON final_table(\"{guide_column}\",\"{samples_column}\")")
+    
+    
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_mm_blg_blgt ON final_table(\"{guide_column}\",\"{mm_column}\",\"{blg_column}\",\"{bulge_t_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_mm_tot ON final_table(\"{guide_column}\",\"{mm_column}\",\"{total_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_mm_cfd ON final_table(\"{guide_column}\",\"{mm_column}\",\"{cfd_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_blg_tot ON final_table(\"{guide_column}\",\"{blg_column}\",\"{total_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_blg_cfd ON final_table(\"{guide_column}\",\"{blg_column}\",\"{cfd_column}\")")
+    c.execute(f"CREATE INDEX IF NOT EXISTS g_tot_cfd ON final_table(\"{guide_column}\",\"{total_column}\",\"{cfd_column}\")")
+    
     conn.commit()
     conn.close()
 

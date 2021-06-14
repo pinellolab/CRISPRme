@@ -47,11 +47,11 @@ df["index"] += 1
 
 # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
 # This will cause a warning of invalid sqrt later on, but that's fine to ignore
-df["prim_AF"] = df["prim_AF"].fillna(-1)
+df["Variant_MAF_(highest_CFD)"] = df["Variant_MAF_(highest_CFD)"].fillna(-1)
 
 # If multiple AFs (haplotype with multiple SNPs), take min AF
 # Approximation until we have haplotype frequencies
-df["AF"] = df["prim_AF"].astype(str).str.split(',')
+df["AF"] = df["Variant_MAF_(highest_CFD)"].astype(str).str.split(',')
 df["AF"] = df["AF"].apply(lambda x: min(x))
 df["AF"] = pd.to_numeric(df["AF"])
 
@@ -148,10 +148,10 @@ plt.rcParams['ps.fonttype'] = 42
 # ax = fig.add_subplot(1,1,1)
 
 # Plot data
-ax = df.plot.scatter(x="index", y="highest_CFD_score(ref)",
+ax = df.plot.scatter(x="index", y="CFD_score_REF_(highest_CFD)",
                      s="ref_AF", c=transparent_red, zorder=1)
 # ax = df.plot.scatter(x="index", y="highest_CFD_score(ref)", s="ref_AF", c=transparent_red, zorder=1, ax=ax)
-df.plot.scatter(x="index", y="highest_CFD_score(alt)",
+df.plot.scatter(x="index", y="CFD_score_ALT_(highest_CFD)",
                 s="plot_AF", c=transparent_blue, zorder=2, ax=ax)
 ax.set_xscale("log")
 # plt.title("Top CRISPRme-identified sites for sgRNA 1617")
@@ -163,7 +163,7 @@ plt.xlim(xmin=0.9, xmax=100)
 plt.ylim(ymin=0, ymax=1)
 
 # Arrows
-for x, y, z in zip(df["index"], df["highest_CFD_score(ref)"], df["highest_CFD_score(alt)"]-df["highest_CFD_score(ref)"]):
+for x, y, z in zip(df["index"], df["CFD_score_REF_(highest_CFD)"], df["CFD_score_ALT_(highest_CFD)"]-df["CFD_score_REF_(highest_CFD)"]):
     plt.arrow(x, y+0.02, 0, z-0.04, color='gray', head_width=(x*(10**0.005-10**(-0.005))),
               head_length=0.02, length_includes_head=True, zorder=0, alpha=0.5)
     # +/- to avoid overlap of arrow w/ points, head_width calculated to remain constant despite log scale of x-axis

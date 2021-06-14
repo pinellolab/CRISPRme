@@ -79,48 +79,51 @@ def highlightRow(sel_cel, all_guides):
 
 def get_results():
     results_dirs = [f for f in listdir(current_working_directory + '/Results/') if isdir(join(
-        current_working_directory + '/Results/', f)) and isfile(current_working_directory + '/Results/' + f + '/Params.txt')]
+        current_working_directory + '/Results/', f)) and isfile(current_working_directory + '/Results/' + f + '/.Params.txt')]
     col = 'Job\tGenome_Selected\tVariant_Selected\tMismatches\tDNA_bulge\tRNA_bulge\tPAM\tNumber_Guides'
     resultParamDataframe = pd.DataFrame(columns=col.split('\t'))
     for job in results_dirs:
-        if os.path.exists(current_working_directory + '/Results/' + job + '/Params.txt'):
-            with open(current_working_directory + '/Results/' + job + '/Params.txt') as p:
-                all_params = p.read()
-                mms = (next(s for s in all_params.split('\n')
-                            if 'Mismatches' in s)).split('\t')[-1]
-                genome_selected = (next(s for s in all_params.split(
-                    '\n') if 'Genome_selected' in s)).split('\t')[-1]
-                with open(current_working_directory + '/Results/' + job + '/log.txt') as lo:
-                    all_log = lo.read()
-                job_start = (next(s for s in all_log.split('\n')
-                                  if 'Job\tStart' in s)).split('\t')[-1]
-                if '+' in genome_selected:
-                    genome_selected = genome_selected.split('+')[0] + '+'
-                dna = (next(s for s in all_params.split(
-                    '\n') if 'DNA' in s)).split('\t')[-1]
-                rna = (next(s for s in all_params.split(
-                    '\n') if 'RNA' in s)).split('\t')[-1]
-                genome_idx = (next(s for s in all_params.split(
-                    '\n') if 'Genome_idx' in s)).split('\t')[-1]
-                if '+' in genome_idx:
-                    splitted = genome_idx.split(',')
-                    genome_idx = []
-                    for ele in splitted:
-                        genome_idx.append(ele.split('+')[-1])
-                    genome_idx = ','.join(genome_idx)
-                else:
-                    genome_idx = 'Reference'
-                pam = (next(s for s in all_params.split(
-                    '\n') if 'Pam' in s)).split('\t')[-1]
-                # comparison=(next(s for s in all_params.split(
-                #     '\n') if 'Ref_comp' in s)).split('\t')[-1]
-                if os.path.exists(current_working_directory + '/Results/' + job + '/guides.txt'):
-                    with open(current_working_directory + '/Results/' + job + '/guides.txt') as g:
-                        n_guides = str(len(g.read().strip().split('\n')))
-                else:
-                    n_guides = 'NA'
-                resultParamDataframe = resultParamDataframe.append({'Job': job, 'Genome_Selected': genome_selected, 'Variant_Selected': genome_idx, 'Mismatches': mms, 'DNA_bulge': dna,
-                                                                    'RNA_bulge': rna, 'PAM': pam, 'Number_Guides': n_guides, 'Start': job_start}, ignore_index=True)
+        try:
+            if os.path.exists(current_working_directory + '/Results/' + job + '/.Params.txt'):
+                with open(current_working_directory + '/Results/' + job + '/.Params.txt') as p:
+                    all_params = p.read()
+                    mms = (next(s for s in all_params.split('\n')
+                                if 'Mismatches' in s)).split('\t')[-1]
+                    genome_selected = (next(s for s in all_params.split(
+                        '\n') if 'Genome_selected' in s)).split('\t')[-1]
+                    with open(current_working_directory + '/Results/' + job + '/log.txt') as lo:
+                        all_log = lo.read()
+                    job_start = (next(s for s in all_log.split('\n')
+                                      if 'Job\tStart' in s)).split('\t')[-1]
+                    if '+' in genome_selected:
+                        genome_selected = genome_selected.split('+')[0] + '+'
+                    dna = (next(s for s in all_params.split(
+                        '\n') if 'DNA' in s)).split('\t')[-1]
+                    rna = (next(s for s in all_params.split(
+                        '\n') if 'RNA' in s)).split('\t')[-1]
+                    genome_idx = (next(s for s in all_params.split(
+                        '\n') if 'Genome_idx' in s)).split('\t')[-1]
+                    if '+' in genome_idx:
+                        splitted = genome_idx.split(',')
+                        genome_idx = []
+                        for ele in splitted:
+                            genome_idx.append(ele.split('+')[-1])
+                        genome_idx = ','.join(genome_idx)
+                    else:
+                        genome_idx = 'Reference'
+                    pam = (next(s for s in all_params.split(
+                        '\n') if 'Pam' in s)).split('\t')[-1]
+                    # comparison=(next(s for s in all_params.split(
+                    #     '\n') if 'Ref_comp' in s)).split('\t')[-1]
+                    if os.path.exists(current_working_directory + '/Results/' + job + '/guides.txt'):
+                        with open(current_working_directory + '/Results/' + job + '/guides.txt') as g:
+                            n_guides = str(len(g.read().strip().split('\n')))
+                    else:
+                        n_guides = 'NA'
+                    resultParamDataframe = resultParamDataframe.append({'Job': job, 'Genome_Selected': genome_selected, 'Variant_Selected': genome_idx, 'Mismatches': mms, 'DNA_bulge': dna,
+                                                                        'RNA_bulge': rna, 'PAM': pam, 'Number_Guides': n_guides, 'Start': job_start}, ignore_index=True)
+        except:
+            continue
     try:
         resultParamDataframe['Start'] = pd.to_datetime(
             resultParamDataframe['Start'])

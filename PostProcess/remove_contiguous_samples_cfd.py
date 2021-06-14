@@ -64,6 +64,7 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
                 dict_var[(ele[pos], ele[snp_info])] = [ele]
     
     list_ref.sort(key = lambda x : int(x[total]))
+    var_only = False
     if len(list_ref) > 1:
         best_ref = list_ref[0]
         for ele_ref in list_ref[1:]:
@@ -72,6 +73,8 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
         final_list.append(best_ref)
     elif len(list_ref) == 1:
         final_list.append(list_ref[0])
+    else:
+        var_only = True
     
     for key in dict_var.keys():
         list_var = dict_var[key]
@@ -81,8 +84,12 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
             for ele_var in list_var[1:]:
                 if float(ele_var[cfd]) > float(best_var[cfd]):
                     best_var = ele_var
+            if var_only:
+                best_var[12] = 'y'
             final_list.append(best_var)
         else:
+            if var_only:
+                best_var[12] = 'y'
             final_list.append(best_var)
     
     n_ele = len(final_list)
@@ -92,16 +99,17 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
             final_list[1][cfd-1] = str(n_ele-1)
             final_list[1][2*cfd+1] = str(n_ele-1)
             fileOut.write("\t".join(final_list[1]))
-            final_list.pop(1)
+            bestTarget = final_list.pop(1)
         else:
             final_list[0][cfd-1] = str(n_ele-1)
             final_list[0][2*cfd+1] = str(n_ele-1)
             fileOut.write("\t".join(final_list[0]))
-            final_list.pop(0)
+            bestTarget = final_list.pop(0)
         for ele in final_list:
             ele[cfd-1] = str(n_ele-1)
             ele[2*cfd+1] = str(n_ele-1)
-            fileOut_disc.write("\t".join(ele))
+            #fileOut_disc.write(("\t".join(ele)).strip()+"\t"+bestTarget[chrom]+"_"+bestTarget[pos]+"\n")
+            fileOut_disc.write(("\t".join(ele)))
     elif n_ele == 1:
         fileOut.write("\t".join(final_list[0]))
 

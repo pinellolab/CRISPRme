@@ -114,7 +114,7 @@ class reversor:
 def calc_cfd(guide_seq, sg, pam, mm_scores, pam_scores, do_scores):
     if do_scores == False:
         # print("NON CALCOLO")
-        score = 0
+        score = -1
         return score
     score = 1
     sg = sg.replace('T', 'U')
@@ -175,7 +175,7 @@ def retrieveFromDict(chr_pos):
     for entry in multi_entry:
         split_entry = entry.split(';')
         samples = split_entry[0].strip().split(',')
-        if samples[0] == '': 
+        if samples[0] == '':
             samples = []
         sample_list.append(samples)
         snp_list.append(split_entry[1].strip().split(',')[1])
@@ -231,7 +231,7 @@ mm_scores, pam_scores = get_mm_pam_scores()
 
 do_scores = True
 if len_pam != 3 or guide_len != 20 or pam_at_beginning:
-    sys.stderr.write('CFD SCORE IS NOT CALCULATED WITH GUIDES LENGTH != 20 OR PAM LENGTH !=3 OR UPSTREAM PAM')
+    # sys.stderr.write('CFD SCORE IS NOT CALCULATED WITH GUIDES LENGTH != 20 OR PAM LENGTH !=3 OR UPSTREAM PAM')
     do_scores = False
 
 allowed_mms = int(sys.argv[6])
@@ -253,14 +253,14 @@ for line in inTarget:
             if t[0] == 'DNA':
                 cfd_score = calc_cfd(t[1][int(t[bulge_pos]):], t[2].upper()[int(
                     t[bulge_pos]):-3], t[2].upper()[-2:], mm_scores, pam_scores, do_scores)
-                #t.append(str(cfd_score))
+                # t.append(str(cfd_score))
                 t.append("{:.3f}".format(cfd_score))
             else:
                 cfd_score = calc_cfd(t[1], t[2].upper()[
                                      :-3], t[2].upper()[-2:], mm_scores, pam_scores, do_scores)
-                #t.append(str(cfd_score))
+                # t.append(str(cfd_score))
                 t.append("{:.3f}".format(cfd_score))
-            
+
         cluster_to_save.sort(key=lambda x: (
             float(x[-1]), reversor(int(x[9])), reversor(int(x[-2]))), reverse=True)
 
@@ -350,26 +350,30 @@ for line in inTarget:
         if c in iupac_code:
             # print(c)
             countIUPAC += 1
-            snpToReplace, sampleSet, rsID, AF_var, snpInfo = retrieveFromDict(pos_c+int(split[4]))
+            snpToReplace, sampleSet, rsID, AF_var, snpInfo = retrieveFromDict(
+                pos_c+int(split[4]))
             for i, elem in enumerate(snpToReplace):
                 listReplaceTarget = list(refSeq)
                 listReplaceTarget[pos_c] = elem
                 listInfo = [[rsID[i], AF_var[i], snpInfo[i]]]
                 if haplotype_check:
-                    haploSamples = {0:[], 1:[]}
+                    haploSamples = {0: [], 1: []}
                     for count, sample in enumerate(sampleSet[i]):
                         sampleInfo = sample.split(':')
                         for haplo in totalDict:
                             if sampleInfo[1].split('|')[haplo] != '0':
                                 haploSamples[haplo].append(sampleInfo[0])
-                    totalDict[0][0][(pos_c, elem)] = [listReplaceTarget, set(haploSamples[0]), listInfo]                                 
-                    totalDict[1][0][(pos_c, elem)] = [listReplaceTarget, set(haploSamples[1]), listInfo]                                 
+                    totalDict[0][0][(pos_c, elem)] = [
+                        listReplaceTarget, set(haploSamples[0]), listInfo]
+                    totalDict[1][0][(pos_c, elem)] = [
+                        listReplaceTarget, set(haploSamples[1]), listInfo]
                 else:
                     sampleList = list()
                     for count, sample in enumerate(sampleSet[i]):
                         sampleList.append(sample.split(':')[0])
-                    totalDict[0][0][(pos_c, elem)] = [listReplaceTarget, set(sampleList), listInfo]
-    
+                    totalDict[0][0][(pos_c, elem)] = [
+                        listReplaceTarget, set(sampleList), listInfo]
+
     if countIUPAC > 0:
         if revert:
             refSeq = reverse_complement_table(refSeq)
@@ -381,7 +385,8 @@ for line in inTarget:
                 else:
                     break
                 totalDict[count][size+1] = dict()
-                for key in totalDict[count][size]:  # for each snp in target (fixpoint)
+                # for each snp in target (fixpoint)
+                for key in totalDict[count][size]:
                     # for each other snp in target (> fixpoint)
                     for newkey in totalDict[count][0]:
                         if newkey[-2] > key[-2]:
@@ -390,17 +395,27 @@ for line in inTarget:
                             if len(resultSet) > 0:  # if set is not null
                                 createdNewLayer = True
                                 # add new snp to preceding target seq with snp
-                                replaceTarget1 = totalDict[count][0][newkey][0].copy()
-                                replaceTarget2 = totalDict[count][size][key][0].copy()
-                                replaceTarget2[newkey[0]] = replaceTarget1[newkey[0]]  # dioboia
-                                listInfo2 = totalDict[count][size][key][2].copy()
-                                listInfo2.extend(totalDict[count][0][newkey][2])
+                                replaceTarget1 = totalDict[count][0][newkey][0].copy(
+                                )
+                                replaceTarget2 = totalDict[count][size][key][0].copy(
+                                )
+                                replaceTarget2[newkey[0]
+                                               ] = replaceTarget1[newkey[0]]
+                                listInfo2 = totalDict[count][size][key][2].copy(
+                                )
+                                listInfo2.extend(
+                                    totalDict[count][0][newkey][2])
                                 # add to next level the modified seq and set of samples and info of snp
                                 combinedKey = key + newkey
-                                totalDict[count][size+1][combinedKey] = [replaceTarget2, resultSet, listInfo2]
+                                totalDict[count][size+1][combinedKey] = [
+                                    replaceTarget2, resultSet, listInfo2]
                                 # remove the new generated sample set from all lower levels
-                                totalDict[count][size][key][1] = totalDict[count][size][key][1] - totalDict[count][size+1][combinedKey][1]
-                                totalDict[count][0][newkey][1] = totalDict[count][0][newkey][1] - totalDict[count][size+1][combinedKey][1]
+                                totalDict[count][size][key][1] = totalDict[count][size][key][1] - \
+                                    totalDict[count][size +
+                                                     1][combinedKey][1]
+                                totalDict[count][0][newkey][1] = totalDict[count][0][newkey][1] - \
+                                    totalDict[count][size +
+                                                     1][combinedKey][1]
 
             refSeq_with_bulges = list(refSeq)
             for pos, char in enumerate(realTarget):
@@ -411,17 +426,18 @@ for line in inTarget:
                 if char_t.upper() != guide_no_pam[position_t]:
                     tmp_pos_mms = position_t
                     if guide_no_pam[position_t] != '-':
-                        refSeq_with_bulges[pos_beg + position_t] = char_t.lower()
+                        refSeq_with_bulges[pos_beg +
+                                           position_t] = char_t.lower()
 
             refSeq_with_bulges = ''.join(refSeq_with_bulges)
             if split[0] == 'DNA':
                 cfd_score = calc_cfd(split[1][int(split[bulge_pos]):], refSeq_with_bulges.upper()[int(
                     split[bulge_pos]):-3], refSeq_with_bulges.upper()[-2:], mm_scores, pam_scores, do_scores)
-                cfd_ref_seq = "{:.3f}".format(cfd_score) #str(cfd_score)
+                cfd_ref_seq = "{:.3f}".format(cfd_score)  # str(cfd_score)
             else:
                 cfd_score = calc_cfd(split[1], refSeq_with_bulges.upper()[
                     :-3], refSeq_with_bulges.upper()[-2:], mm_scores, pam_scores, do_scores)
-                cfd_ref_seq = "{:.3f}".format(cfd_score) #str(cfd_score)
+                cfd_ref_seq = "{:.3f}".format(cfd_score)  # str(cfd_score)
 
             for level in totalDict[count]:
                 for key in totalDict[count][level]:
@@ -448,7 +464,7 @@ for line in inTarget:
                                 tmp_pos_mms = position_t
                                 if guide_no_pam[position_t] != '-':
                                     target_to_list[pos_beg +
-                                                position_t] = char_t.lower()
+                                                   position_t] = char_t.lower()
 
                         pam_ok = True
                         for pam_chr_pos, pam_chr in enumerate(target_to_list[pam_begin:pam_end]):
@@ -472,8 +488,10 @@ for line in inTarget:
                             if found_creation:
                                 final_line[10] = ''.join(
                                     target_to_list[pam_begin:pam_end])
-                            final_line[12] = ','.join(totalDict[count][level][key][1])
-                            tmp_matrix = np.array(totalDict[count][level][key][2])
+                            final_line[12] = ','.join(
+                                totalDict[count][level][key][1])
+                            tmp_matrix = np.array(
+                                totalDict[count][level][key][2])
                             if tmp_matrix.shape[0] > 1:
                                 final_line[15] = ','.join(tmp_matrix[:, 0])
                                 final_line[16] = ','.join(tmp_matrix[:, 1])
@@ -497,11 +515,11 @@ for line in inTarget:
         if split[0] == 'DNA':
             cfd_score = calc_cfd(split[1][int(split[bulge_pos]):], split[2].upper()[int(
                 split[bulge_pos]):-3], split[2].upper()[-2:], mm_scores, pam_scores, do_scores)
-            cfd_ref_seq = "{:.3f}".format(cfd_score)#str(cfd_score)
+            cfd_ref_seq = "{:.3f}".format(cfd_score)  # str(cfd_score)
         else:
             cfd_score = calc_cfd(split[1], split[2].upper()[
                 :-3], split[2].upper()[-2:], mm_scores, pam_scores, do_scores)
-            cfd_ref_seq = "{:.3f}".format(cfd_score)#str(cfd_score)
+            cfd_ref_seq = "{:.3f}".format(cfd_score)  # str(cfd_score)
 
         final_line.append("n")
         final_line.append(cfd_ref_seq)
@@ -514,14 +532,14 @@ for t in cluster_to_save:
     if t[0] == 'DNA':
         cfd_score = calc_cfd(t[1][int(t[bulge_pos]):], t[2].upper()[int(
             t[bulge_pos]):-3], t[2].upper()[-2:], mm_scores, pam_scores, do_scores)
-        #t.append(str(cfd_score))
+        # t.append(str(cfd_score))
         t.append("{:.3f}".format(cfd_score))
     else:
         cfd_score = calc_cfd(t[1], t[2].upper()[
-                                :-3], t[2].upper()[-2:], mm_scores, pam_scores, do_scores)
-        #t.append(str(cfd_score))
+            :-3], t[2].upper()[-2:], mm_scores, pam_scores, do_scores)
+        # t.append(str(cfd_score))
         t.append("{:.3f}".format(cfd_score))
-        
+
 cluster_to_save.sort(key=lambda x: (
     float(x[-1]), reversor(int(x[9])), reversor(int(x[-2]))), reverse=True)
 

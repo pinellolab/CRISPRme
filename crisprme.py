@@ -170,7 +170,7 @@ def getGuides(extracted_seq, pam, len_guide, pam_begin):
 def directoryCheck():
     # function to check the main directory status, if some directory is missing, create it
     directoryList = ['Genomes', 'Results', 'Dictionaries',
-                     'VCFs', 'Annotations', 'Gencode', 'PAMs', 'samplesIDs']
+                     'VCFs', 'Annotations', 'PAMs', 'samplesIDs']
     for directory in directoryList:
         if not os.path.exists(current_working_directory+directory):
             os.makedirs(current_working_directory+directory)
@@ -288,7 +288,7 @@ def complete_search():
             exit(1)
 
     if "--gene_annotation" not in input_args:
-        gene_annotation = '_'
+        gene_annotation = 'no'
     else:
         try:
             gene_annotation = os.path.abspath(
@@ -577,6 +577,9 @@ def complete_search():
             with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
                 subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), '_', str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(script_path+'vuoto.txt'),
                                 str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation)], stdout=log_verbose, stderr=log_error)
+    # change name of guide and param files to hidden
+    os.system(f"mv {outputfolder}/guides.txt {outputfolder}/.guides.txt")
+    os.system(f"mv {outputfolder}/Params.txt {outputfolder}/.Params.txt")
 
 
 def target_integration():
@@ -588,7 +591,7 @@ def target_integration():
         # print("\t--guide, used to specify the file that contains guides used for the search")
         print("\t--gencode, used to specify the file that contains gencode annotation to find nearest gene to any target")
         print(
-            "\t--empirical_data, used to specify the file that contains gencode annotation to find nearest gene to any target [OPTIONAL]")
+            "\t--empirical_data, used to specify the file that contains empirical data provided by the user to assess in-silico targets")
         print(
             "\t--vcf_dir, used to specify the directory containing vcf files used in the search phase, necessary to obtain haplotype frequence in multi-variant targets [OPTIONAL][BETA]")
         print("\t--output, used to specify the output folder for the results")
@@ -760,6 +763,55 @@ def gnomAD_converter():
               vcf_dir+" "+samplefile + " " + str(thread))
 
 
+def personal_card():
+    if "--help" in input_args:
+        print("This is the personal card generator that creates a files with all the private targets for the input sample")
+        print("These are the flags that must be used in order to run this function:")
+        print("\t--result_dir, directory containing the result from which extract the targets to generate the card")
+        print(
+            "\t--guide_seq, sequence of the guide to use in order to exctract the targets")
+        print("\t--sample_id, ID of the sample to use in order to generate the card")
+        exit(0)
+
+    if "--result_dir" not in input_args:
+        print("--result_dir not in input, please input a result directory")
+        exit(1)
+    else:
+        try:
+            result_dir = os.path.abspath(
+                input_args[input_args.index("--result_dir")+1])
+        except IndexError:
+            print("Please input some parameter for flag --result_dir")
+            exit(1)
+        if not os.path.isdir(result_dir):
+            print("The folder specified for --result_dir does not exist")
+            exit(1)
+
+    if "--guide_seq" not in input_args:
+        print("--guide_seq must be contained in the input, e.g. CTAACAGTTGCTTTTATCACNNN")
+        exit(1)
+    else:
+        try:
+            guide = input_args[input_args.index(
+                "--guide_seq")+1]
+        except IndexError:
+            print("Please input some parameter for flag --guide_seq")
+            exit(1)
+    if "--sample_id" not in input_args:
+        print("--sample_id must be contained in the input, e.g. HG00001")
+        exit(1)
+    else:
+        try:
+            sample_id = input_args[input_args.index(
+                "--sample_id")+1]
+        except IndexError:
+            print("Please input some parameter for flag --sample_id")
+            exit(1)
+
+    os.system(script_path+"./generate_sample_card.py "+result_dir+" "+guide +
+              " "+sample_id+" "+script_path)
+
+
 def web_interface():
     if "--help" in input_args:
         print("This function must be launched without input, it starts a local server to use the web interface.")
@@ -777,6 +829,7 @@ def callHelp():
           "\ncrisprime.py complete-search FUNCTION SEARCHING THE WHOLE GENOME (REFERENCE AND VARIANT IF REQUESTED) AND PERFORM CFD ANALYSIS AND TARGET SELECTION",
           "\ncrisprime.py targets-integration FUNCTION THAT INTEGRATES IN-SILICO TARGETS WITH EMPIRICAL DATA GENERATING A USABLE PANEL",
           "\ncrisprime.py gnomAD-converter FUNCTION THAT CONVERTS ALL gnomADv3.1 vcf.bgz FILES INTO COMPATIBLE VCFs",
+          "\ncrisprime.py generate-personal-card FUNCTION TO GENERATE PERSONAL CARD FOR A SPECIFIC SAMPLE EXTRACTING ALL THE PRIVATE TARGETS",
           "\ncrisprime.py web-interface FUNCTION TO ACTIVATE WEB INTERFACE OF CRISPRme TO USE WITH A BROWSER LOCALLY"
           "\n\nADD help TO ANY FUNCTION TO VISUALIZE A BRIEF HELP PAGE (example: crisprime.py complete-search --help)\n")
 
@@ -796,5 +849,7 @@ elif sys.argv[1] == 'targets-integration':
     target_integration()
 elif sys.argv[1] == 'web-interface':
     web_interface()
+elif sys.argv[1] == 'generate-personal-card':
+    personal_card()
 else:
     print("ERROR! \"" + sys.argv[1] + "\" is not an allowed!")
