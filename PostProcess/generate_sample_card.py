@@ -36,7 +36,7 @@ script_path = sys.argv[4]
 
 # print('entrato')
 path_db = glob.glob(
-    current_working_directory + '/' + '*.db')[0]
+    current_working_directory + '/.*.db')[0]
 #print('leggo il nome db')
 path_db = str(path_db)
 conn = sqlite3.connect(path_db)

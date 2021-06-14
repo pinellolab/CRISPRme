@@ -147,7 +147,7 @@ https://docs.docker.com/docker-for-mac/install/ (MacOS)**
 
 After downloading and untaring the package, you will have a ready to use CRISPRme directory, remember DO NOT change any name of folders in the directory to avoid losing data or force the recreation of indexing and dictionaries. You MUST use the default directories to store all your data since the software recognizes only files and folder in the own folders structure.
 Here a more detailed explanation of the folder structure:
-![Folder_structure](https://github.com/pinellolab/CRISPRme/blob/main/folder_structure.png)
+![Folder_structure](https://github.com/samuelecancellieri/CRISPRme/blob/main/assets/directory_tree.png)
 - Genomes: folder containing all the genomes in fasta format, each genome has to be saved into a specific folder and the name of the folder will be used to identify the genome itself and all the correlated data (VCF and samplesID).
   - hg19: folder containing fasta files of human genome 19.
   - hg38: folder containing fasta file of human genome 38.
@@ -223,7 +223,49 @@ Example call:
     ```
     docker run -v ${PWD}:/DATA -w /DATA -i i scancellieri/crisprme crisprme.py targets-integration --targets sg1617.bestMerge.txt --genome_version hg38 --guide sg1617.txt --gencode Gencode/gencode.protein_coding.bed --output .
     ```
-    
+   
+**<a name="Web-Interface">3.3</a> CRISPRme gnomAD converter function**
+This function convertes a set of gnomADv3.1 VCFs into compatible VCFs.
+Input:
+- gnomAD_VCFdir, used to specify the directory containing gnomADv3.1 original VCFs 
+- samplesID, used to specify the pre-generated samplesID file necessary to introduce samples into gnomAD variant 
+- thread, the number of threads used in the process (default is ALL available minus 2)
+
+Output:
+- original gnomAD directory with the full set of gnomAD VCFs converted to compatible format
+
+Example call:
+- Conda
+```
+crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
+``` 
+- Docker
+```
+    docker run -v ${PWD}:/DATA -w /DATA -i i scancellieri/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
+```
+
+**<a name="Web-Interface">3.3</a> CRISPRme generate-personal-card function**
+This function generate a personal card for a specified input sample.
+
+Input:
+- result_dir, directory containing the result from which extract the targets to generate the card
+- guide_seq, sequence of the guide to use in order to exctract the targets
+- sample_id, ID of the sample to use in order to generate the card
+
+Output:
+- Set of plots generated with personal and private targets containing the variant CFD score and the reference CFD score
+- Filtered file with private targets of the sample directly extracted from integrated file
+
+Example call:
+- Conda
+```
+crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
+``` 
+- Docker
+```
+    docker run -v ${PWD}:/DATA -w /DATA -i i scancellieri/crisprme crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
+```
+
 **<a name="Web-Interface">3.3</a> CRISPRme Web-Interface function**  
 This function starts the server to use the web-interface
 
