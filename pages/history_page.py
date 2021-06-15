@@ -115,8 +115,8 @@ def get_results():
                         '\n') if 'Pam' in s)).split('\t')[-1]
                     # comparison=(next(s for s in all_params.split(
                     #     '\n') if 'Ref_comp' in s)).split('\t')[-1]
-                    if os.path.exists(current_working_directory + '/Results/' + job + '/guides.txt'):
-                        with open(current_working_directory + '/Results/' + job + '/guides.txt') as g:
+                    if os.path.exists(current_working_directory + '/Results/' + job + '/.guides.txt'):
+                        with open(current_working_directory + '/Results/' + job + '/.guides.txt') as g:
                             n_guides = str(len(g.read().strip().split('\n')))
                     else:
                         n_guides = 'NA'

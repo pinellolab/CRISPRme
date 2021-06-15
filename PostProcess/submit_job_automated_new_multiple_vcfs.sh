@@ -544,7 +544,6 @@ if [ $gene_proximity != "_" ]; then
 		python $starting_dir/CRISPRme_plots.py "${output_folder}/tmp_linda_plot_file_${guide}.txt" "${output_folder}/imgs/" $guide &>"${output_folder}/warnings.txt"
 		rm -f "${output_folder}/warnings.txt"
 		rm "${output_folder}/tmp_linda_plot_file_${guide}.txt"
-		mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv"
 	done <$guide_file
 fi
 echo -e 'Integrating results\tEnd\t'$(date) >>$log
@@ -569,11 +568,13 @@ python $starting_dir/change_headers_bestMerge.py "${output_folder}/$(basename ${
 mv "${output_folder}/$(basename ${output_folder}).altMerge.new.header.txt" "${output_folder}/$(basename ${output_folder}).altMerge.txt"
 mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt"
 
-
 # echo -e 'Integrating results\tEnd\t'$(date) >&2
 echo -e 'Job\tDone\t'$(date) >>$log
 # echo -e 'Job\tDone\t'$(date) >&2
 # echo -e 'Job End' >  $output
+
+#change name of empirical not found
+mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv"
 
 if [ $(wc -l <"$guide_file") -gt 1 ]; then
 	mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_CFD_integrated_results.tsv"

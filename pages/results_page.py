@@ -1291,9 +1291,6 @@ def samplePage(job_id, hash):
     # result = pd.DataFrame(result.to_dict()).fillna('NA')
     with open(integrated_file_name, 'r') as integrated:
         header = integrated.readline().strip().split('\t')
-    # with open(integrated_file_name, 'r') as integrated:
-    #     print(integrated.readline().strip().split())
-    # header = header_integrated
 
     cols = [{"name": i, "id": i, 'hideable': True}
             for i in header]

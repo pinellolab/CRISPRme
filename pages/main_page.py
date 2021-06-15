@@ -847,8 +847,9 @@ def checkInput(n, n_close, genome_selected, pam, guide_type, text_guides, mms, d
         for c in g:
             if c not in VALID_CHARS:
                 text_guides = text_guides.replace(c, '')
-    if len(text_guides.split('\n')) > 100:  # set limit to 100 guides per run in the website
-        text_guides = '\n'.join(text_guides.split('\n')[:100]).strip()
+    # set limit to 100 guides per run in the website
+    if len(text_guides.split('\n')) > 1000000000:
+        text_guides = '\n'.join(text_guides.split('\n')[:1000000000]).strip()
     # len_guides = len(text_guides.split('\n')[0])
     len_guides = len_guide_sequence
 
