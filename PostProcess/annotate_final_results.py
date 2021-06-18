@@ -20,9 +20,9 @@ annotationsSet = set()
 with open(inAnnotationFile, 'r') as annotations:
     for line in annotations:
         x = line.split('\t')
-        x[3] = str(x[3]).rstrip("\n")
-        annotationsTree[int(x[1]):int(x[2])] = str(x[0])+'\t'+str(x[3])
-        annotationsSet.add(str(x[3]))
+        annotations_list = str(x[3]).strip()
+        annotationsTree[int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list
+        annotationsSet.add(annotations_list)
 
 
 with open(file_final_results, 'r') as f_in:

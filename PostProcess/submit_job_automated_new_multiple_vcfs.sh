@@ -455,11 +455,12 @@ mv $final_res_alt.annotated $final_res_alt
 
 echo -e "Cleaning directory"
 
-if ! [ -d "$output_folder/cfd_graphs" ]; then
-	mkdir $output_folder/cfd_graphs
-fi
-./assemble_cfd_graphs.py $output_folder
-mv $output_folder/snps.CFDGraph.txt $output_folder/cfd_graphs
+# if ! [ -d "$output_folder/cfd_graphs" ]; then
+# 	mkdir $output_folder/cfd_graphs
+# fi
+# ./assemble_cfd_graphs.py $output_folder
+# mv $output_folder/snps.CFDGraph.txt $output_folder/cfd_graphs
+rm -f $output_folder/*.CFDGraph.txt
 #mv $output_folder/indels.CFDGraph.txt $output_folder/cfd_graphs
 rm -f $output_folder/indels.CFDGraph.txt
 
@@ -474,7 +475,7 @@ mv "$final_res_alt.risk" "${output_folder}/$(basename ${output_folder}).altMerge
 echo -e "Risk score added"
 
 cd $output_folder
-rm -r "cfd_graphs"
+# rm -r "cfd_graphs"
 rm -r "crispritz_prof"
 # rm -r "crispritz_targets" #remove targets in online version to avoid memory saturation
 rm $final_res
