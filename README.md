@@ -119,7 +119,6 @@ https://docs.docker.com/docker-for-mac/install/ (MacOS)**
 ## Post installation test (Phase <a name="phase2">2</a>):
 - Download and untar this package:
     ```
-    conda install gdown -y
     gdown https://drive.google.com/uc?id=11wn9pg6AWzDYZ7V_LjBIjGvgx95bnVJ1
     tar -xvf crisprme_test.tar.gz
     ```
