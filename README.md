@@ -157,7 +157,8 @@ Here a more detailed explanation of the folder structure:
 ## Usage (Phase 3):
 **<a name="Complete-Search">3.1</a> CRISPRme Complete-Search function**  
 This function perform a complete search from scratch producing all the results and post-analysis data.
-- Input:
+
+Input:
 - Directory containing a genome in fasta format, need to be separated into single
 chromosome files.
 - Text file containing path to VCF directories [OPTIONAL]
@@ -173,7 +174,8 @@ chromosome files.
 - Merge range, necessary to reduce the inflation of targets due to bulges, it's the window of bp necessary to merge one target into another maintaining the highest scoring one
 - Output directory, in which all the data will be produced
 - Number of threads to use in computation
-- Output:
+
+Output:
 - bestMerge targets file, containing all the highest scoring targets, in terms of CFD and targets with the lowest combination of mismatches and bulges (with preference to lowest mismatches count), each genomic position is represent by one target
 - altMerge targets file, containing all the discarded targets from the bestMerge file, each genomic position can be represented by more than target
 - Parameters data file, containing all the parameters used in the search
@@ -193,7 +195,8 @@ Example call:
     ```
 
 **<a name="Targets-Integration">3.2</a> CRISPRme Targets-Integration function**  
-This function produces the integrated data starting from a Merge file (best/alt).
+This function produces an integrated_result file with paired empirical targets from an integrated_results file.
+
 Input:
 - Integrated results from a search, containing the processed targets
 - Bed file containing empirical verified OT, like via GUIDE-seq, CIRCLE-seq and other sequencing protocols
@@ -214,6 +217,7 @@ Example call:
    
 **<a name="Web-Interface">3.3</a> CRISPRme gnomAD converter function**
 This function convertes a set of gnomADv3.1 VCFs into compatible VCFs.
+
 Input:
 - gnomAD_VCFdir, used to specify the directory containing gnomADv3.1 original VCFs 
 - samplesID, used to specify the pre-generated samplesID file necessary to introduce samples into gnomAD variant 
