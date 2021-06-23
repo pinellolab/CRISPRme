@@ -22,7 +22,7 @@ from os.path import isfile, isdir, join  # for getting directories
 import pandas as pd
 from app import app
 # GUImessage as Gmsg
-from . import GUImessage
+# from . import GUImessage
 # from .GUImessage import GUImessage as Gmsg
 from .main_page import availableGenomes, availablePAM
 import math

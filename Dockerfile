@@ -17,8 +17,7 @@ RUN apt-get upgrade -y && apt-get clean
 RUN apt update
 RUN apt upgrade -y
 
-#Install crisprme package (change the default version of python to 3.8)
-RUN conda install python=3.8 -y
+#Install crisprme package
 RUN conda install crispritz -y
 RUN conda install crisprme -y
 RUN conda update crispritz -y
