@@ -119,7 +119,6 @@ https://docs.docker.com/docker-for-mac/install/ (MacOS)**
 ## Post installation test (Phase <a name="phase2">2</a>):
 - Download and untar this package:
     ```
-    conda install gdown -y
     gdown https://drive.google.com/uc?id=11wn9pg6AWzDYZ7V_LjBIjGvgx95bnVJ1
     tar -xvf crisprme_test.tar.gz
     ```
@@ -158,6 +157,7 @@ Here a more detailed explanation of the folder structure:
 ## Usage (Phase 3):
 **<a name="Complete-Search">3.1</a> CRISPRme Complete-Search function**  
 This function perform a complete search from scratch producing all the results and post-analysis data.
+
 Input:
 - Directory containing a genome in fasta format, need to be separated into single
 chromosome files.
@@ -174,6 +174,7 @@ chromosome files.
 - Merge range, necessary to reduce the inflation of targets due to bulges, it's the window of bp necessary to merge one target into another maintaining the highest scoring one
 - Output directory, in which all the data will be produced
 - Number of threads to use in computation
+
 Output:
 - bestMerge targets file, containing all the highest scoring targets, in terms of CFD and targets with the lowest combination of mismatches and bulges (with preference to lowest mismatches count), each genomic position is represent by one target
 - altMerge targets file, containing all the discarded targets from the bestMerge file, each genomic position can be represented by more than target
@@ -194,30 +195,29 @@ Example call:
     ```
 
 **<a name="Targets-Integration">3.2</a> CRISPRme Targets-Integration function**  
-This function produces the integrated data starting from a Merge file (best/alt).
+This function produces an integrated_result file with paired empirical targets from an integrated_results file.
+
 Input:
-- Best/Alt merge targets file, containing the processed targets
-- Genome version, the name of the genome used in the search, such as hg38,hg19,mm10 and so on
-- Bed file extracted from Gencode data to find gene proximity of targets
+- Integrated results from a search, containing the processed targets
 - Bed file containing empirical verified OT, like via GUIDE-seq, CIRCLE-seq and other sequencing protocols
-- Directory of VCF data used in the search, supporting only one dataset at the time
-- Output directory, in which all the temporary data and final integrated results will be created
+- Output directory, in which the integrated result file with empirical data will be created
 
 Output:
-- Directory containing the integrated result file with all the targets from the merge input file and a notfound file containing all the targets from empirical verified OT that does not match in a predicted in-silico target
+- Directory containing the integrated result with each target pair with an existing empirical target (if found)
 
 Example call:
 - Conda
     ```
-    crisprme.py targets-integration --targets sg1617.bestMerge.txt --genome_version hg38 --guide sg1617.txt --gencode Gencode/gencode.protein_coding.bed --output .
+    crisprme.py targets-integration --targets *integrated_results.tsv --empirical_data empirical_data.tsv --output dir/
     ```
 - Docker
     ```
-    docker run -v ${PWD}:/DATA -w /DATA -i i scancellieri/crisprme crisprme.py targets-integration --targets sg1617.bestMerge.txt --genome_version hg38 --guide sg1617.txt --gencode Gencode/gencode.protein_coding.bed --output .
+    docker run -v ${PWD}:/DATA -w /DATA -i i scancellieri/crisprme crisprme.py targets-integration --targets *integrated_results.tsv --empirical_data empirical_data.tsv --output dir/
     ```
    
 **<a name="Web-Interface">3.3</a> CRISPRme gnomAD converter function**
 This function convertes a set of gnomADv3.1 VCFs into compatible VCFs.
+
 Input:
 - gnomAD_VCFdir, used to specify the directory containing gnomADv3.1 original VCFs 
 - samplesID, used to specify the pre-generated samplesID file necessary to introduce samples into gnomAD variant 

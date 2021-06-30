@@ -165,7 +165,21 @@ def get_mm_pam_scores():
 
 
 def retrieveFromDict(chr_pos):
-    entry = mydict[current_chr+','+str(chr_pos+1)]
+    try:
+        entry = mydict[current_chr+','+str(chr_pos+1)]
+    except:
+        snp_list = []
+        sample_list = []
+        AF_list = []
+        rsID_list = []
+        snp_info_list = []
+        sample_list.append([])  # no samples
+        snp_list.append('C')  # fake snp
+        rsID_list.append('.')  # no rsid
+        AF_list.append('0')  # fake AF
+        snp_info_list.append(
+            current_chr+'_'+str(chr_pos+1)+'_'+'C'+'_'+'G')  # fake snp info list
+        return snp_list, sample_list, rsID_list, AF_list, snp_info_list
     multi_entry = entry.split('$')
     snp_list = []
     sample_list = []

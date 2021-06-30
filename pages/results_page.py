@@ -964,12 +964,14 @@ def clusterPage(job_id, hash):
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
                 # style_data_conditional=[
@@ -1023,12 +1025,14 @@ def clusterPage(job_id, hash):
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
                 # style_data_conditional=[
@@ -1341,12 +1345,14 @@ def samplePage(job_id, hash):
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
                 # style_data_conditional=[
@@ -1945,12 +1951,14 @@ def guidePagev3(job_id, hash):
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
                 css=[{'selector': '.row',
@@ -2599,12 +2607,14 @@ def filterPositionTable(filter_q, n, search, sel_cel, all_guides, current_page, 
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
                 style_table={
@@ -3396,12 +3406,14 @@ def generate_sample_card(n, sample, sel_cel, all_guides, search):
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
             ),
@@ -3418,12 +3430,14 @@ def generate_sample_card(n, sample, sel_cel, all_guides, search):
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
                 style_table={
@@ -3467,12 +3481,14 @@ def generate_sample_card(n, sample, sel_cel, all_guides, search):
                     {
                         'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     },
                     {
                         'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                         'textAlign': 'left',
-                        'maxWidth': '300px'
+                        'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                        'overflow': 'hidden'
                     }
                 ],
                 columns=[{"name": i, "id": i} for i in results_table.columns],
@@ -4037,12 +4053,14 @@ def updateContentTab(value, sel_cel, all_guides, search, genome_type):
                                         {
                                             'if': {'column_id': 'Variant_samples_(highest_CFD)'},
                                             'textAlign': 'left',
-                                            'maxWidth': '300px'
+                                            'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                                            'overflow': 'hidden'
                                         },
                                         {
                                             'if': {'column_id': 'Variant_samples_(fewest_mm+b)'},
                                             'textAlign': 'left',
-                                            'maxWidth': '300px'
+                                            'minWidth': '180px', 'width': '180px', 'maxWidth': '180px',
+                                            'overflow': 'hidden'
                                         }
                                     ],
                                     # tooltip_data=[
