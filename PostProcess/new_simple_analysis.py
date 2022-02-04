@@ -134,7 +134,8 @@ def revcom(s):
 
 
 def get_mm_pam_scores():
-    # print(os.path.dirname(os.path.realpath(__file__)))
+    # print((os.path.dirname(
+    #     os.path.realpath(__file__))))
     try:
         mm_scores = pickle.load(open(os.path.dirname(
             os.path.realpath(__file__)) + '/mismatch_score.pkl', 'rb'))
