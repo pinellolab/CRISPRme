@@ -12,8 +12,8 @@ with open(sys.argv[1], 'r') as fileIn:
     with open(sys.argv[1]+'.tmp', 'w') as fileOut:
         header = fileIn.readline()
         doubleFile = False
-        if len(header) > 23:
-            doubleFile = True
+        # if len(header) > 23:
+        #     doubleFile = True
         fileOut.write(header)
         for line in fileIn:
             splitted = line.split('\t')

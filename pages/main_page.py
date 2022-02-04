@@ -84,6 +84,22 @@ def split_filter_part(filter_part):
     return [None] * 3
 
 
+# load example data
+@app.callback(
+    [Output('text-guides', 'value'),
+     Output('available-cas', 'value'),
+     Output('available-pam', 'value'),
+     Output('available-genome', 'value'),
+     Output('checklist-variants', 'value'),
+     Output('mms', 'value'),
+     Output('dna', 'value'),
+     Output('rna', 'value')],
+    [Input('load-example-button', 'n_clicks')]
+)
+def load_example_data(load_button_click):
+    return ["CTAACAGTTGCTTTTATCAC", 'SpCas9', '20bp-NNN-SpCas9', 'hg38', ['1000G'], '6', '2', '2']
+
+
 # Submit Job, change url
 @app.callback(
     [Output('url', 'pathname'),
@@ -227,20 +243,18 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
             os.system(
                 f"cp {current_working_directory}/Annotations/encode+gencode.hg38.bed {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
             os.system(
-                f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} | sed "s/ /\t/g" | sed "s/,/_personal,/g" > {current_working_directory}/Annotations/{annotation_input}.tmp')
-            # os.system(
-            #     f'mv {current_working_directory}/Annotations/{annotation_input}.tmp {current_working_directory}/Annotations/{annotation_input}')
+                f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} > {current_working_directory}/Annotations/{annotation_input}.tmp')
             os.system(
-                f"tail -n +1 {current_working_directory}/Annotations/{annotation_input}.tmp >> {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
+                f'mv {current_working_directory}/Annotations/{annotation_input}.tmp {current_working_directory}/Annotations/{annotation_input}')
+            os.system(
+                f"tail -n +1 {current_working_directory}/Annotations/{annotation_input} >> {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
             os.system(
                 f"mv {current_working_directory}/Annotations/ann_tmp_{job_id}.bed {current_working_directory}/Annotations/{annotation_name}")
-            os.system(
-                f'rm -f {current_working_directory}/Annotations/{annotation_input}.tmp')
     elif 'MA' in annotation_var:
         # annotation_name = annotation_input
         os.system(
-            f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} | sed "s/ /\t/g" | sed "s/,/_personal,/g" > {current_working_directory}/Annotations/{annotation_input}.personal.tmp')
-        annotation_name = annotation_input+'.personal.tmp'
+            f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} > {current_working_directory}/Annotations/{annotation_input}.tmp')
+        annotation_name = annotation_input+'.tmp'
     if 'EN' not in annotation_var:
         os.system(f"rm -f {current_working_directory}/Annotations/.dummy.bed")
         os.system(f"touch {current_working_directory}/Annotations/.dummy.bed")
@@ -413,8 +427,8 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
         for c in g:
             if c not in VALID_CHARS:
                 text_guides = text_guides.replace(c, '')
-    if len(text_guides.split('\n')) > 1000000000:
-        text_guides = '\n'.join(text_guides.split('\n')[:1000000000]).strip()
+    if len(text_guides.split('\n')) > 100:  # set limit to 100 guides per run in the website
+        text_guides = '\n'.join(text_guides.split('\n')[:100]).strip()
     # len_guides = len(text_guides.split('\n')[0])
     len_guides = len_guide_sequence
 
@@ -857,7 +871,8 @@ def checkInput(n, n_close, genome_selected, pam, guide_type, text_guides, mms, d
         text_update = {'width': '300px',
                        'height': '30px', 'border': '1px solid red'}
         update_style = True
-        miss_input_list.append('Input at least one correct guide')
+        miss_input_list.append(
+            'Input at least one correct guide, correct guides must have the length requested for the selected PAM sequence (e.g., 20bp, 21bp, etc)')
 
     miss_input = html.Div(
         [
@@ -1125,8 +1140,8 @@ def changeVariantsChecklistState(genome_value):
                                            'value': '1000G', 'disabled': False})
         checklist_variants_options.append({'label': ' plus HGDP variants',
                                            'value': 'HGDP', 'disabled': False})
-        checklist_variants_options.append({'label': ' plus personal variants',
-                                           'value': 'PV', 'disabled': False})
+        checklist_variants_options.append({'label': ' plus personal variants*',
+                                           'value': 'PV', 'disabled': True})
     personal_vcf = get_more_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
 
@@ -1189,10 +1204,10 @@ def indexPage():
         [
             # html.Div('CRISPRme is a web application, also available offline or command-line for comprehensive off-target assessment. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:spacer mismatches and bulges, and is suitable for population and personal genome analyses.'),
             html.Div('CRISPRme is a web application, also available offline or command line, for comprehensive off-target assessment. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:protospacer mismatches and bulges, and is suitable for population and personal genome analyses.'),
-            # html.Div(['Check out our preprint on bioRxiv ', html.A(
-            #     'here!', target='_blank', href='https://www.biorxiv.org/content/10.1101/2021.05.20.445054v1')]),
-            # html.Div(['CRISPRme offline version can be downloaded from ', html.A(
-            #     'Github', target='_blank', href='https://github.com/pinellolab/CRISPRme')]),
+            html.Div(['Check out our preprint on bioRxiv ', html.A(
+                'here!', target='_blank', href='https://www.biorxiv.org/content/10.1101/2021.05.20.445054v1')]),
+            html.Div(['CRISPRme offline version can be downloaded from ', html.A(
+                'Github', target='_blank', href='https://github.com/pinellolab/CRISPRme')]),
             html.Br()
         ]
     )
@@ -1232,8 +1247,8 @@ def indexPage():
                            ),
             dcc.Textarea(id='text-guides', placeholder='GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC', style={
                          'width': '300px', 'height': '30px'}),
-            # dbc.FormText(
-            #     'Note: a maximum number of 100 guides can be provided, protospacer must be provided without PAM. If using the sequence extraction features only the first 100 guides extracted will be processed', color='secondary')
+            dbc.FormText(
+                'Spacer must be provided as a DNA sequence without a PAM. A maximum of 100 spacer sequences can be provided . If using the sequence extraction feature, only the first 100 spacer sequences (starting from the top strand) will be extracted.*', color='secondary')
         ],
         style={'width': '300px'}  # NOTE same as text-area
     )
@@ -1283,7 +1298,7 @@ def indexPage():
                      'value': '1000G', 'disabled': True},
                     {'label': ' plus HGDP variants',
                      'value': 'HGDP', 'disabled': True},
-                    {'label': ' plus personal variants',
+                    {'label': ' plus personal variants*',
                      'value': 'PV', 'disabled': True}
                 ],
                     id='checklist-variants', value=[])
@@ -1346,8 +1361,8 @@ def indexPage():
                 dcc.Checklist(options=[
                     {'label': ' ENCODE cCREs + GENCODE gene',
                      'value': 'EN'},
-                    {'label': ' Personal annotations',
-                     'value': 'MA', 'disabled': False},
+                    {'label': ' Personal annotations*',
+                     'value': 'MA', 'disabled': True},
                 ],
                     id='checklist-annotations', value=['EN'])
             ),
@@ -1387,6 +1402,13 @@ def indexPage():
             html.Button('Submit', id='check-job',
                         style={'background-color': '#E6E6E6'}),
             html.Button('', id='submit-job', style={'display': 'none'}),
+        ]
+    )
+
+    example_content = html.Div(
+        [
+            html.Button('Load Example', id='load-example-button',
+                        style={'background-color': '#E6E6E6'}),
         ]
     )
 
@@ -1451,6 +1473,8 @@ def indexPage():
                                         job_name_content,
                                         html.Div(submit_content, style={
                                                  'margin-left': '30%'}),
+                                        html.Div(example_content, style={
+                                                 'margin-left': '20%'}),
                                         terms_and_conditions_content
                                     ],
                                     id='column-three-step-3',
@@ -1487,8 +1511,8 @@ def indexPage():
         )
     )
     final_list.append(html.Br())
-    # final_list.append(
-    #     html.P('*The offline version of CRISPRme can be downloaded from GitHub and offers additional functionalities, including the option to input personal data (such as genetic variants, annotations, and/or empirical off-target results) as well as custom PAMs and genomes. There is no limit on the number of spacers, mismatches, and/or bulges used in the offline search.'))
+    final_list.append(
+        html.P('*The offline version of CRISPRme can be downloaded from GitHub and offers additional functionalities, including the option to input personal data (such as genetic variants, annotations, and/or empirical off-target results) as well as custom PAMs and genomes. There is no limit on the number of spacers, mismatches, and/or bulges used in the offline search.'))
     # final_list.append(html.P(
     #     '[1] Cancellieri, Samuele, et al. \"Crispritz: rapid, high-throughput, and variant-aware in silico off-target site identification for crispr genome editing.\" Bioinformatics (2019).'))
     # final_list.append(

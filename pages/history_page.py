@@ -133,6 +133,7 @@ def get_results():
         pass
     # resultParamDataframe = resultParamDataframe.sort_values(
     #     ['Mismatches', 'DNA_bulge', 'RNA_bulge'], ascending=[True, True, True])
+
     return resultParamDataframe
 
 

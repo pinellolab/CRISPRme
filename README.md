@@ -119,7 +119,7 @@ https://docs.docker.com/docker-for-mac/install/ (MacOS)**
 ## Post installation test (Phase <a name="phase2">2</a>):
 - Download and untar this package:
     ```
-    gdown https://drive.google.com/uc?id=11wn9pg6AWzDYZ7V_LjBIjGvgx95bnVJ1
+    wget https://www.dropbox.com/s/urciozkana5md0z/crisprme_test.tar.gz?dl=1 -O crisprme_test.tar.gz
     tar -xvf crisprme_test.tar.gz
     ```
 - Then move into the directory

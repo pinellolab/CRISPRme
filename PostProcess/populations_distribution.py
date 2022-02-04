@@ -44,9 +44,16 @@ import math
 import matplotlib
 from matplotlib.ticker import ScalarFormatter
 # matplotlib.use("TkAgg")
-matplotlib.use('Agg')
-
+# SUPPRESS ALL WARNINGS
 warnings.filterwarnings("ignore")
+# do not use X11
+matplotlib.use('Agg')
+# set matplotlib for pdf editing
+plt.rcParams["figure.dpi"] = 400
+# matplotlib.rcParams["figure.figsize"] = 10, 3
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['ps.fonttype'] = 42
+plt.style.use('seaborn-poster')
 
 
 def adjust_lightness(color, amount=0.5):
@@ -57,12 +64,6 @@ def adjust_lightness(color, amount=0.5):
     c = colorsys.rgb_to_hls(*mc.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
 
-
-plt.rcParams["figure.dpi"] = 400
-# matplotlib.rcParams["figure.figsize"] = 10, 3
-plt.rcParams['pdf.fonttype'] = 42
-plt.rcParams['ps.fonttype'] = 42
-plt.style.use('seaborn-poster')
 
 # matplotlib.rcParams["figure.figsize"] = 7, 5
 ax = plt.figure()
@@ -77,9 +78,12 @@ fontsize = 17
 barplot_values = dict()  # barplot_values -> EAS -> [1,2]
 total = int(sys.argv[2])
 guide = sys.argv[3]
+# criteria to generate the plots (CFD,CRISTA,FEWEST)
+selection_criteria = sys.argv[4]
 max_value = 0
 number_bars = 0
 previous_bar = []
+# open pop distribution file
 with open(sys.argv[1]) as summary:
     for line in summary:
         if guide in line:
@@ -228,4 +232,4 @@ plt.yticks(y_range, size=size_y_ticks)  # , size=size_y_ticks)
 plt.tight_layout()
 # plt.subplots_adjust(top=0.95, bottom=0.06, left=0.1, right=0.99)
 plt.savefig("populations_distribution_" + guide + '_' +
-            str(total) + "total" + ".png", format='png')
+            str(total) + "total_" + selection_criteria + ".png", format='png')

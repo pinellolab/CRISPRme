@@ -202,8 +202,6 @@ def complete_search():
             "\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]")
         print(
             "\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
-        print(
-            "\t--merge, used to specify the threshold used to merge close targets (based on genetic position), use target with highest CFD as pivot [default 3]")
         print("\t--output, used to specify the output name for the results (these results will be saved into Results/<name>)")
         print("\t--thread, used to set the number of thread used in the process (default is ALL available minus 2)")
         exit(0)
@@ -455,7 +453,7 @@ def complete_search():
         #     exit(1)
 
     if "--merge" not in input_args:
-        merge_t = 3  # default merge
+        merge_t = 3  # default merge is 3 nt
     else:
         try:
             merge_t = input_args[input_args.index("--merge")+1]

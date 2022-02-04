@@ -46,9 +46,10 @@ with open(file_final_results, 'r') as f_in:
             if not found_bool:
                 last_annotation = 'n'
             else:
-                last_annotation = ','.join(string_annotation)
-            splitted[14] = last_annotation
-            splitted[36] = last_annotation
+                last_annotation = ','.join(list(set(string_annotation)))
+            splitted[14] = last_annotation  # bestCFD
+            # splitted[36] = last_annotation #fewestMM_BUL
+            # splitted[58] = last_annotation #bestCRISTA
 
             f_out.write('\t'.join(splitted)+'\n')
 

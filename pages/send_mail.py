@@ -6,7 +6,6 @@
 # parameters (not yet implemented)
 
 # argv[1] is job directory, eg Results/72C1MNXDWF
-# argv[2] is mail config file
 
 import sys
 import smtplib
@@ -27,8 +26,7 @@ def sendMail():
             date_submission = em[2]
             msg['Subject'] = 'CRISPRme - Job completed'
 
-            # msg['From'] = 'crisprme-job@crisprme.di.univr.it'
-            msg['From'] = 'crisprme.job@gmail.com'
+            msg['From'] = '<SENDER OF RESULT MAIL>'
             content_email = 'The requested job is completed, visit the following link ' + \
                 job_link + ' to view the report.'
 
@@ -37,15 +35,23 @@ def sendMail():
 
             print('EMAIL SENT')
 
+            # univr settings
+            # server = smtplib.SMTP(host="smtp.univr.it", port=25)
+            # server.ehlo_or_helo_if_needed()
+            # server.send_message(msg, from_addr='crisprme-job@crisprme.di.univr.it')
+            # server.quit()
+
             # gmail settings
-            # port = 465  # For SSL
-            # # Create a secure SSL context
-            # context = ssl.create_default_context()
-            # # with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-            #     # insert data to login into server
+            port = 465  # For SSL (used for gmail account)
+            # Create a secure SSL context
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL("<INSERT SMTP SERVER>", port, context=context) as server:
+                server.login("<USERNAME>", '<PASSWORD>')
+                server.send_message(msg)
 
-            #     server.send_message(msg)
 
-
-# disabled call until fixed with user personal mail server
-# sendMail()
+# function call
+try:
+    sendMail()
+except:
+    print('NO mail requested by user')
