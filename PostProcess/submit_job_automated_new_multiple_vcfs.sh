@@ -574,6 +574,7 @@ mv $final_res.bestCRISTA.txt.trimmed.discarded_samples $final_res_alt.bestCRISTA
 echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 
 echo -e 'Annotating results\tStart\t'$(date) >>$log
+echo -e $annotation_file
 
 #ANNOTATE BEST TARGETS
 ./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
