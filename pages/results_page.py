@@ -665,19 +665,48 @@ def result_page(job_id: str) -> html.Div:
     return result_page
 
 
-# Generate download link summary_by_sample
-
-
+# store drop-down value in auxiliary file
 @app.callback(
     Output("store", "data"),
     [Input("target_filter_dropdown", "value")],
     [State("url", "search")]
 )
 def sendto_write_json(filter_criterion: str, search: str) -> None:
+    """Write auxiliary file to store the table filtering criterion
+    (received from the drop-down) and filter the tables displayed in 
+    Summary by Mismatches/Bulges accordingly.
+
+    The function is triggered by the user, when choosing the filtering
+    criterion from the drop-down bar.
+    
+    ...
+
+    Parameters
+    ----------
+    filter_criterion : str
+        Table filtering criterion
+    search : str
+        Target search name
+
+    Returns 
+    -------
+    None
+    """
+    if not isinstance(filter_criterion, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+    if not filter_criterion in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     job_id = search.split("=")[-1]
     write_json(filter_criterion, job_id)
 
 
+#-------------------------------------------------------------------------------
+# Download links generation and actions definition
+#
+
+# Generate download link summary_by_sample
 @app.callback(
     [
         Output("download-link-summary_by_sample", "children"),
@@ -686,29 +715,52 @@ def sendto_write_json(filter_criterion: str, search: str) -> None:
     [Input("interval-summary_by_sample", "n_intervals")],
     [State("div-info-summary_by_sample", "children"), State("url", "search")],
 )
-def downloadLinkSample(n, file_to_load, search):  # file to load =
+def download_link_sample(
+    n: int, file_to_load: str, search: str
+) -> Tuple[str, bool]:  # file to load =
+    """Create the link to download CRISPRme result files.
+    
+    ...
+
+    Parameters
+    ----------
+    n : int
+    file_to_load : str
+        File to download
+    search : str
+        Target search name
+
+    Returns
+    -------
+    str 
+    bool
+    """
+
+    if not isinstance(file_to_load, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
-        raise PreventUpdate
+        raise PreventUpdate  # nothing to do
     job_id = search.split("=")[-1]
-    # file_to_load = file_to_load + '.zip'
-    file_to_load = file_to_load + ".txt"
+    file_to_load = ".".join([file_to_load, "txt"])
     file_to_load = file_to_load.strip().split("/")[-1]
-    # ###print(file_to_load)
+    # print(file_to_load)
     if os.path.exists(
-        current_working_directory + "Results/" + job_id + "/" + file_to_load
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
                 "Download file",
-                href=URL + "/Results/" + job_id + "/" + file_to_load,
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
             True,
         )
-
     return "Generating download link, Please wait...", False
 
 
+# download summary result table
 @app.callback(
     [
         Output("download-link-general-table", "children"),
@@ -717,30 +769,51 @@ def downloadLinkSample(n, file_to_load, search):  # file to load =
     [Input("interval-general-table", "n_intervals")],
     [State("div-info-general-table", "children"), State("url", "search")],
 )
-def downloadGeneralTable(n, file_to_load, search):  # file to load =
+def download_general_table(
+    n: int, file_to_load: str, search: str
+) -> Tuple[str, bool]:  # file to load =
+    """Create the link to download CRISPRme result summary table.
+    
+    ...
+
+    Parameters
+    ----------
+    n : int
+    file_to_load : str
+        File to download
+    search : str
+        Target search name
+
+    Returns
+    -------
+    str 
+    bool
+    """
+
+    if not isinstance(file_to_load, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
-    # ###print(file_to_load)
+    # print(file_to_load)
     if os.path.exists(
-        current_working_directory + "Results/" + job_id + "/" + file_to_load
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
                 "Download General Table",
-                href=URL + "/Results/" + job_id + "/" + file_to_load,
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
             True,
         )
-
     return "Generating download link, Please wait...", False
 
 
-# downalod integrated results
-
-
+# download integrated results
 @app.callback(
     [
         Output("download-link-integrated-results", "children"),
@@ -749,30 +822,51 @@ def downloadGeneralTable(n, file_to_load, search):  # file to load =
     [Input("interval-integrated-results", "n_intervals")],
     [State("div-info-integrated-results", "children"), State("url", "search")],
 )
-def downloadGeneralTable(n, file_to_load, search):  # file to load =
+def download_general_table(
+    n: int, file_to_load: str, search: str
+) -> Tuple[str, bool]:  # file to load =
+    """Create the link to download CRISPRme integrated result table.
+    
+    ...
+
+    Parameters
+    ----------
+    n : int
+    file_to_load : str
+        File to download
+    search : str
+        Target search name
+
+    Returns
+    -------
+    str 
+    bool
+    """
+
+    if not isinstance(file_to_load, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
-    # ###print(file_to_load)
+    # print(file_to_load)
     if os.path.exists(
-        current_working_directory + "Results/" + job_id + "/" + file_to_load
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
                 "Download Integrated Results",
-                href=URL + "/Results/" + job_id + "/" + file_to_load,
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
             True,
         )
-
     return "Generating download link, Please wait...", False
 
 
 # Generate download link sumbysample
-
-
 @app.callback(
     [
         Output("download-link-sumbysample", "children"),
@@ -781,29 +875,50 @@ def downloadGeneralTable(n, file_to_load, search):  # file to load =
     [Input("interval-sumbysample", "n_intervals")],
     [State("div-info-sumbysample-targets", "children"), State("url", "search")],
 )
-def downloadLinkSample(n, file_to_load, search):  # file to load = job_id.HG001.guide
+def download_link_sample(
+    n: int, file_to_load: str, search: str
+) -> Tuple[str, bool]:  # file to load = job_id.HG001.guide
+    """Create the link to download CRISPRme results by sample table.
+    
+    ...
+
+    Parameters
+    ----------
+    n : int
+    file_to_load : str
+        File to download
+    search : str
+        Target search name
+
+    Returns
+    -------
+    str 
+    bool
+    """
+
+    if not isinstance(file_to_load, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
-    file_to_load = file_to_load + ".zip"
+    file_to_load = ".".join([file_to_load, "zip"])
     if os.path.exists(
-        current_working_directory + "Results/" + job_id + "/" + file_to_load
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
                 "Download zip",
-                href=URL + "/Results/" + job_id + "/" + file_to_load,
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
             True,
         )
-
     return "Generating download link, Please wait...", False
 
 
 # Generate download link sumbyguide
-
-
 @app.callback(
     [
         Output("download-link-sumbyguide", "children"),
@@ -812,34 +927,78 @@ def downloadLinkSample(n, file_to_load, search):  # file to load = job_id.HG001.
     [Input("interval-sumbyguide", "n_intervals")],
     [State("div-info-sumbyguide-targets", "children"), State("url", "search")],
 )
-def downloadLinkGuide(n, file_to_load, search):  # file to load = job_id.RNA.1.0.guide
+def downloadLinkGuide(
+    n: int, file_to_load: str, search: str
+) -> Tuple[str, bool]:  # file to load = job_id.RNA.1.0.guide
+    """Create the link to download CRISPRme results by sample table.
+    
+    ...
+
+    Parameters
+    ----------
+    n : int
+    file_to_load : str
+        File to download
+    search : str
+        Target search name
+
+    Returns
+    -------
+    str 
+    bool
+    """
+
+    if not isinstance(file_to_load, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
-    file_to_load = file_to_load + ".zip"
+    file_to_load = ".".join([file_to_load, "zip"])
     if os.path.exists(
-        current_working_directory + "Results/" + job_id + "/" + file_to_load
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
                 "Download zip",
-                href=URL + "/Results/" + job_id + "/" + file_to_load,
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
             True,
         )
-
     return "Generating download link, Please wait...", False
 
 
+# trigger file download
 @app.server.route("/Results/<path:path>")
-def download_file(path):
-    # ###print(current_working_directory)
-    # ###print('test', path)
+def download_file(path: str) -> flask.Response:
+    """Download the chosen file.
+    
+    ...
+
+    Parameters
+    ----------
+    path : str
+        Path to file location
+
+    Returns
+    -------
+    flask.Response
+    """
+    
+    if not isinstance(path, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(path).__name__}")
+    # print(current_working_directory)
+    # print('test', path)
     return flask.send_from_directory(
         os.path.join(current_working_directory, "Results/"), path, as_attachment=True
     )
 
+
+##################
+# DONE TILL HERE
+##################
 
 # Filter/sort IUPAC decomposition table for cluster page
 @app.callback(
