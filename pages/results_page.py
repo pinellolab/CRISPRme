@@ -154,22 +154,27 @@ import flask
 # check header for personal annotation
 
 
-def resultPage(job_id: str) -> html.Div:
+#-------------------------------------------------------------------------------
+# Result page layout 
+#
+
+def result_page(job_id: str) -> html.Div:
     """Print the results page layout (guides table + images).
-    The guides table contains the research profile found during target search.
-    Creates 10 buttons (mismatch number + 2), the remaining ones are set to
-    style = {"display":None}, in order to have the right number of buttons, based
-    on mismatches required in input during the target search. This choice
-    solves some callback issues that have in input elements not created. In this
-    case, all the possible buttons are created, but are shown only those correct
-    based on the selected number of mismatches.
+    The guides table contains the research profile found during 
+    target search. Creates 10 buttons (mismatch number + 2), the 
+    remaining ones are set to style = {"display":None}, in order 
+    to have the right number of buttons, based on mismatches required 
+    in input during the target search. This choice solves some 
+    callback issues that have in input elements not created. In this
+    case, all the possible buttons are created, but are shown only 
+    those correct based on the selected number of mismatches.
 
     ...
 
     Parameters
     ----------
     job_id : str
-        Current job ID
+        Unique job identifier
 
     Returns
     -------
@@ -245,23 +250,18 @@ def resultPage(job_id: str) -> html.Div:
         raise e
     finally:
         p.close()
-
+    # recover genome name
     genome_name = genome_type_f
     if "+" in real_genome_name:
         genome_name = [genome_name] + [
             name.split("+")[1] for name in real_genome_name.strip().split(",")
         ]
-        # splitted_genome_names = real_genome_name.strip().split(",")
-        # for name in splitted_genome_names:
-        #     name_corrected = name.split("+")[1]
-        #     genome_name.append(name_corrected)
         genome_name = "+".join(genome_name)
     if "True" in ref_comp:
         genome_type = "both"
     else:
         genome_type = "ref"
     mms = int(mms[0])
-
     # load acfd for each guide
     acfd_file = os.path.join(
         current_working_directory,
@@ -284,9 +284,6 @@ def resultPage(job_id: str) -> html.Div:
         current_working_directory, RESULTS_DIR, job_id, "guides_error.txt"
     )
     list_error_guides = []
-    # if os.path.exists(
-    #    current_working_directory + "Results/" + value + "/guides_error.txt"
-    # ):
     if os.path.exists(guides_error_file):
         try:
             with open(guides_error_file) as handle_error_g:
@@ -303,46 +300,46 @@ def resultPage(job_id: str) -> html.Div:
     col_targetfor = " ".join([col_targetfor, "Mismatches + Bulges)"])
     # Column of headers. Remove the entries accordingly when checking genome type
     columns_profile_table = [
-        {"name": ["", "gRNA (spacer+PAM)"], "id": "Guide", "type": "text"},
-        {"name": ["", "Nuclease", ""], "id": "Nuclease", "type": "text"},
+        {"name":["", "gRNA (spacer+PAM)"], "id": "Guide", "type": "text"},
+        {"name":["", "Nuclease", ""], "id": "Nuclease", "type": "text"},
         {
-            "name": ["", "Aggregated Specificity Score (0-100)"],
-            "id": "CFD",
-            "type": "text",
+            "name":["", "Aggregated Specificity Score (0-100)"],
+            "id":"CFD",
+            "type":"text",
         },
         {
-            "name": ["Off-targets for Mismatch (MM) and Bulge (B) Value", "Total"],
-            "id": "Total",
-            "type": "text",
+            "name":["Off-targets for Mismatch (MM) and Bulge (B) Value", "Total"],
+            "id":"Total",
+            "type":"text",
         },
     ]
     columns_profile_table.append(
         {
-            "name": ["Off-targets for Mismatch (MM) and Bulge (B) Value", "# Bulges"],
-            "id": "# Bulges",
-            "type": "text",
+            "name":["Off-targets for Mismatch (MM) and Bulge (B) Value", "# Bulges"],
+            "id":"# Bulges",
+            "type":"text",
         }
     )
     for i in range(mms + 1):
         columns_profile_table.append(
             {
-                "name": [
+                "name":[
                     "Off-targets for Mismatch (MM) and Bulge (B) Value",
-                    str(i) + "MM",
+                    "".join([str(i), "MM"]),
                 ],
-                "id": str(i) + "MM",
-                "type": "text",
+                "id":"".join([str(i), "MM"]),
+                "type":"text",
             }
         )
     remove_indices = set()
     if "NO SCORES" in all_scores:
-        # remove_indices.update([1,2,3,4])    #Remove CFD and Doench header
-        remove_indices.update("CFD", "Doench 2016", "Reference", "Enriched")
+        # remove CFD and Doench header from table
+        remove_indices.add("CFD", "Doench 2016", "Reference", "Enriched")
     if genome_type == "ref":
-        # remove_indices.update([3,4,6,7])
+        # remove reference header 
         remove_indices.update(["Reference", "Enriched"])
     else:
-        # remove_indices.update([3,4,5,7])
+        # remove reference and reference target headers
         remove_indices.update(
             [
                 "Reference",
@@ -351,7 +348,7 @@ def resultPage(job_id: str) -> html.Div:
                 "Samples in Class 0 - 0+ - 1 - 1+",
             ]
         )
-    # Remove headers not used in selected search result
+    # Remove headers not used in the selected search results
     columns_profile_table = [
         i
         for j, i in enumerate(columns_profile_table)
@@ -366,8 +363,7 @@ def resultPage(job_id: str) -> html.Div:
                     "Warning: Some guides have too many targets! ",
                     html.A(
                         "Click here",
-                        href=os.path.join(
-                            URL, DATA_DIR, job_id, "guides_error.txt"),
+                        href=os.path.join(URL, DATA_DIR, job_id, "guides_error.txt"),
                         className="alert-link",
                     ),
                     " to view them",
@@ -397,17 +393,27 @@ def resultPage(job_id: str) -> html.Div:
             )
         )
     )
-
-    add_to_description = html.P(
-        "General summary for input guides. For each guide, is reported the count of targets in reference and variant genome grouped by mismatches count and bulge size."
-    )
+    # short description
     if genome_type == "both":
         add_to_description = html.P(
             [
-                "General summary for input guides. For each guide, is reported the count of targets in reference and variant genome grouped by mismatches count and bulge size.",
+                str(
+                    "General summary for input guides. For each guide, is "
+                    "reported the count of targets in reference and variant "
+                    "genome grouped by mismatches count and bulge size."
+                ),
             ]
         )
-    final_list.append(add_to_description)
+    else:
+        add_to_description = html.P(
+            str(
+                "General summary for input guides. For each guide, is reported the "
+                "count of targets in reference and variant genome grouped by "
+                "mismatches count and bulge size."
+            )
+        )
+    final_list.append(add_to_description)  # add description line to page layout
+    # define upper page box
     final_list.append(
         html.Div(
             dbc.Row(
@@ -423,14 +429,14 @@ def resultPage(job_id: str) -> html.Div:
                                     interval=1 * 1000, id="interval-general-table"
                                 ),
                                 html.Div(
-                                    current_working_directory
-                                    + "Results/"
-                                    + job_id
-                                    + "/"
-                                    + job_id
-                                    + ".general_table.txt",
-                                    style={"display": "none"},
-                                    id="div-info-general-table",
+                                    os.path.join(
+                                        current_working_directory,
+                                        RESULTS_DIR,
+                                        job_id,
+                                        ".".join([job_id, "general_table.txt"])
+                                    ),
+                                    style={"display":"none"},
+                                    id="div-info-general-table"
                                 ),
                             ]
                         ),
@@ -455,6 +461,7 @@ def resultPage(job_id: str) -> html.Div:
             )
         )
     )
+    # results table (middle of page layout)
     final_list.append(
         html.Div(
             html.Div(
@@ -465,17 +472,18 @@ def resultPage(job_id: str) -> html.Div:
                     merge_duplicate_headers=True,
                     # fixed_rows={ 'headers': True, 'data': 0 },
                     # data = profile.to_dict('records'),
-                    selected_cells=[{"row": 0, "column": 0}],
+                    selected_cells=[{"row":0, "column":0}],
+                    # layout CSS style
                     css=[
                         {
-                            "selector": ".row",
-                            "rule": "margin: 0",
-                            "selector": "td.cell--selected, td.focused",
-                            "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                            "selector":".row",
+                            "rule":"margin: 0",
+                            "selector":"td.cell--selected, td.focused",
+                            "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                         },
                         {
-                            "selector": "td.cell--selected *, td.focused *",
-                            "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                            "selector":"td.cell--selected *, td.focused *",
+                            "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                         },
                     ],
                     page_current=0,
@@ -489,23 +497,23 @@ def resultPage(job_id: str) -> html.Div:
                     sort_by=[],
                     style_table={
                         # 'margin-left': "10%",
-                        "max-height": "260px",
-                        "overflowY": "scroll",
+                        "max-height":"260px",
+                        "overflowY":"scroll",
                         # 'overflowX': 'hidden',
                     },
                     style_data={
-                        "whiteSpace": "pre",
-                        "height": "auto",
-                        "font-size": "1.30rem",
+                        "whiteSpace":"pre",
+                        "height":"auto",
+                        "font-size":"1.30rem",
                     },
                     # style_cell={
                     #    'width':f'{1/len(columns_profile_table)*100}%'
                     # },
                     style_data_conditional=[
                         {
-                            "if": {"column_id": "Genome"},
-                            "font-weight": "bold",
-                            "textAlign": "center",
+                            "if":{"column_id":"Genome"},
+                            "font-weight":"bold",
+                            "textAlign":"center",
                         },
                         # {'if': {'column_id': 'Guide'},
                         #                    'width': '10%',
@@ -513,24 +521,24 @@ def resultPage(job_id: str) -> html.Div:
                     ],
                     style_cell_conditional=[
                         {
-                            "if": {"column_id": "Guide"},
-                            "width": "20%",
+                            "if":{"column_id": "Guide"},
+                            "width":"20%",
                         },
                         {
-                            "if": {"column_id": "Total"},
-                            "width": "15%",
+                            "if":{"column_id": "Total"},
+                            "width":"15%",
                         },
                         {
-                            "if": {"column_id": "Doench 2016"},
-                            "width": "5%",
+                            "if":{"column_id": "Doench 2016"},
+                            "width":"5%",
                         },
                         {
-                            "if": {"column_id": "# Bulges"},
-                            "width": "5%",
+                            "if":{"column_id": "# Bulges"},
+                            "width":"5%",
                         },
                         {
-                            "if": {"column_id": "Nuclease"},
-                            "width": "5%",
+                            "if":{"column_id": "Nuclease"},
+                            "width":"5%",
                         },
                     ],
                     #                        {'if': {'column_id': 'Reference'},
@@ -538,14 +546,12 @@ def resultPage(job_id: str) -> html.Div:
                     #                        }],
                 ),
                 id="div-general-profile-table",
-                style={"margin-left": "5%", "margin-right": "5%"},
+                style={"margin-left":"5%", "margin-right":"5%"},
             )
         )
     )
-
-    # PUT drop-down here
-    final_list.append(html.Br())
-
+    final_list.append(html.Br()) # add space between HTML lines
+    # drop-down bar (filetring criterion selection)
     final_list.append(
         html.Div(
             dbc.Row(
@@ -555,11 +561,11 @@ def resultPage(job_id: str) -> html.Div:
                             html.H4("Select filter criteria for targets"),
                             dcc.Dropdown(
                                 options=[
-                                    {"label": "CFD score", "value": "CFD"},
-                                    {"label": "CRISTA Score", "value": "CRISTA"},
+                                    {"label":"CFD score", "value":"CFD"},
+                                    {"label":"CRISTA Score", "value":"CRISTA"},
                                     {
-                                        "label": "Fewest Mismatches and Bulges",
-                                        "value": "fewest",
+                                        "label":"Fewest Mismatches and Bulges",
+                                        "value":"fewest",
                                     },
                                 ],
                                 value="CFD",
@@ -572,9 +578,7 @@ def resultPage(job_id: str) -> html.Div:
             ),
         )
     )
-
-    final_list.append(html.Br())
-
+    final_list.append(html.Br())  # add space between HTML lines
     if genome_type == "ref":
         final_list.append(
             dcc.Tabs(
@@ -589,8 +593,10 @@ def resultPage(job_id: str) -> html.Div:
                     dcc.Tab(
                         label="Query Genomic Region", value="tab-summary-by-position"
                     ),
-                    dcc.Tab(label="Graphical Reports",
-                            value="tab-summary-graphical"),
+                    dcc.Tab(
+                        label="Graphical Reports",
+                        value="tab-summary-graphical"
+                    ),
                 ],
             )
         )
@@ -607,13 +613,13 @@ def resultPage(job_id: str) -> html.Div:
                                     id="btn-collapse-populations",
                                 )
                             ),
-                            # dbc.Col(html.A('Download full list of targets', target = '_blank', id = 'download-full-list' ))
                         ]
                     ),
                     dbc.Collapse(
                         dbc.Card(
                             dbc.CardBody(
-                                html.Div(id="content-collapse-population"))
+                                html.Div(id="content-collapse-population")
+                            )
                         ),
                         id="collapse-populations",
                     ),
@@ -621,7 +627,8 @@ def resultPage(job_id: str) -> html.Div:
                 hidden=True,
             )
         )
-        final_list.append(html.Br())
+        final_list.append(html.Br())  # add space between HTML lines
+        # define results page tabs
         final_list.append(
             dcc.Tabs(
                 id="tabs-reports",
@@ -632,13 +639,17 @@ def resultPage(job_id: str) -> html.Div:
                         label="Summary by Mismatches/Bulges",
                         value="tab-summary-by-guide",
                     ),
-                    dcc.Tab(label="Summary by Sample",
-                            value="tab-summary-by-sample"),
+                    dcc.Tab(
+                        label="Summary by Sample",
+                        value="tab-summary-by-sample"
+                    ),
                     dcc.Tab(
                         label="Query Genomic Region", value="tab-summary-by-position"
                     ),
-                    dcc.Tab(label="Graphical Reports",
-                            value="tab-summary-graphical"),
+                    dcc.Tab(
+                        label="Graphical Reports",
+                        value="tab-summary-graphical"
+                    ),
                     dcc.Tab(
                         label="Personal Risk Cards", value="tab-graphical-sample-card"
                     ),
@@ -648,9 +659,9 @@ def resultPage(job_id: str) -> html.Div:
     final_list.append(html.Div(id="div-tab-content"))
 
     final_list.append(
-        html.Div(genome_type, style={"display": "none"}, id="div-genome-type")
+        html.Div(genome_type, style={"display":"none"}, id="div-genome-type")
     )
-    result_page = html.Div(final_list, style={"margin": "1%"})
+    result_page = html.Div(final_list, style={"margin":"1%"})
     return result_page
 
 

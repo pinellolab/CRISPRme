@@ -1,4 +1,5 @@
-"""Python script containing static variables used in CRISPRme's result page. 
+"""Python script containing static variables and utilities functions
+used throughout CRISPRme's result page. 
 """
 
 from typing import Dict, List
