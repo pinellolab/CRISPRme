@@ -249,6 +249,23 @@ def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
 
 
 def write_json(dropdown_value: str, job_id: str) -> None:
+    """Write auxiliary file to keep track of filetring criterion
+    when displaying tables in Summary by Mismatches and Bulges and
+    Summary by Sample tabs.
+    
+    ...
+    
+    Parameters
+    ----------
+    dropdown_value : str
+        Table filtering criterion
+    job_id : str
+        Unique job identifier
+
+    Returns
+    -------
+    None
+    """
     if not isinstance(dropdown_value, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(dropdown_value).__name__}")
@@ -265,6 +282,21 @@ def write_json(dropdown_value: str, job_id: str) -> None:
 
 
 def read_json(job_id: str) -> str:
+    """Read the auxiliary file to recover the filtering criterion
+    selected by the user with the dropdown.
+    
+    ...
+    
+    Parameters
+    ----------
+    job_id : str
+        Unique job identifier
+
+    Returns
+    -------
+    str
+        Table filtering criterion
+    """
     dropdown_json_file = os.path.join(
         current_working_directory, RESULTS_DIR, job_id, ".dropdown.json"
     )
@@ -286,6 +318,21 @@ def read_json(job_id: str) -> str:
 
 
 def get_query_column(filter_criterion: str) -> Dict[str, str]:
+    """Recover the names of the columns to display after in 
+    Summary by Mismatches/Bulges and Summary by Sample tabs.
+
+    ...
+
+    Parameters
+    ----------
+    filter_crietrion : str
+        Table filtering criterion
+    
+    Returns
+    -------
+    Dict[str, str]
+        Columns to keep in the summary table after filtering
+    """
     query_columns = {
         "start": "Start_coordinate",
         "mm": "Mismatches",
