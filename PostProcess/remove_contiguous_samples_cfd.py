@@ -7,48 +7,6 @@ Created on Fri Aug 28 15:58:04 2020
 import sys
 import time
 
-'''
-def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
-    list_ref = []
-    dict_var = dict()
-    for ele in cluster:
-        if ele[snp_info] == 'n':
-            list_ref.append(ele)
-        else:
-            if ele[snp_info] in dict_var.keys():
-                dict_var[ele[snp_info]].append(ele)
-            else:
-                dict_var[ele[snp_info]] = [ele]
-    
-    list_ref.sort(key = lambda x : x[total])
-    if len(list_ref) > 1:
-        best_ref = list_ref[0]
-        for ele_ref in list_ref[1:]:
-            if float(ele_ref[cfd]) > float(best_ref[cfd]):
-                fileOut_disc.write("\t".join(best_ref))
-                best_ref = ele_ref
-            else:
-                fileOut_disc.write("\t".join(ele_ref))
-        fileOut.write("\t".join(best_ref))
-    elif len(list_ref) == 1:
-        fileOut.write("\t".join(list_ref[0]))
-    
-    for key in dict_var.keys():
-        list_var = dict_var[key]
-        list_var.sort(key = lambda x : x[total])
-        best_var = list_var[0]
-        if len(list_var) > 1:
-            for ele_var in list_var[1:]:
-                if float(ele_var[cfd]) > float(best_var[cfd]):
-                    fileOut_disc.write("\t".join(best_var))
-                    best_var = ele_var
-                else:
-                    fileOut_disc.write("\t".join(ele_var))
-            fileOut.write("\t".join(best_var))
-        else:
-            fileOut.write("\t".join(best_var))
-'''
-
 
 def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
     # avoid crush when cluster is empty in the first call
@@ -118,10 +76,10 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
         # sort per score (CFD or CRISTA)
         if validity_check_ref:
             final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
-                float(x[cfd]), -int(x[total])))
+                -float(x[cfd]), int(x[total])))
         if validity_check_var:
             final_list_best_var = sorted(final_list_best_var, key=lambda x: (
-                float(x[cfd]), -int(x[total])))
+                -float(x[cfd]), int(x[total])))
         if var_only:  # no ref found
             # count the residual targets in the list
             final_list_best_var[0][cfd-1] = str(len(final_list_best_var)-1)
@@ -144,6 +102,7 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
                 len(final_list_best_ref)-1)
             fileOut.write("\t".join(final_list_best_ref[0]))
             bestTarget = final_list_best_ref.pop(0)
+        # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
             final_list_best_ref[count][cfd-1] = str(
                 len(final_list_best_ref)+len(final_list_best_var)-1)
@@ -156,10 +115,10 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
         # sort for total (mm+bul) in target
         if validity_check_ref:
             final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
-                -int(x[total-2]), -int(x[total-1])))
+                int(x[total-2]), int(x[total-1])))
         if validity_check_var:
             final_list_best_var = sorted(final_list_best_var, key=lambda x: (
-                -int(x[total-2]), -int(x[total-1])))
+                int(x[total-2]), int(x[total-1])))
         if var_only:  # no ref found
             # count the residual targets in the list
             final_list_best_var[0][cfd-1] = str(len(final_list_best_var)-1)
@@ -182,6 +141,7 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
                 len(final_list_best_ref)-1)
             fileOut.write("\t".join(final_list_best_ref[0]))
             bestTarget = final_list_best_ref.pop(0)
+        # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
             final_list_best_ref[count][cfd-1] = str(
                 len(final_list_best_ref)+len(final_list_best_var)-1)
@@ -230,4 +190,4 @@ with open(sys.argv[1], 'r') as fileIn:
 
             get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info)
 
-print("Mergin done in: "+str(time.time()-start))
+print("Merging done in: "+str(time.time()-start))
