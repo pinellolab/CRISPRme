@@ -2,8 +2,8 @@
 used throughout CRISPRme's result page. 
 """
 
-from typing import Dict, List
-from app import current_working_directory
+from typing import Dict, List, Tuple
+from app import current_working_directory, operators
 
 import pandas as pd
 
@@ -366,3 +366,41 @@ def get_query_column(filter_criterion: str) -> Dict[str, str]:
     else:
         raise ValueError
     return query_columns
+
+
+def split_filter_part(filter_part: str) -> Tuple[str, str, str]:
+    """Split the data table filter in its parts.
+
+    ...
+
+    Parameters
+    ----------
+    filter_part : str
+        Filter
+
+    Returns
+    -------
+    Tuple[str, str, str]
+        Filter fields
+    """
+
+    if not isinstance(filter_part, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_part).__name__}")
+    for operator_type in operators:
+        for operator in operator_type:
+            if operator in filter_part:
+                name_part, value_part = filter_part.split(operator, 1)
+                name = name_part[(name_part.find("{") + 1):name_part.rfind("}")]
+                value_part = value_part.strip()
+                v0 = value_part[0]
+                if v0 == value_part[-1] and v0 in ("'", '"', "`"):
+                    value = value_part[1:-1].replace(("\\" + v0), v0)
+                else:
+                    try:
+                        value = float(value_part)
+                    except ValueError:
+                        value = value_part
+                # word operators need spaces after them in the filter string,
+                # but we don't want these later
+                return name, operator_type[0].strip(), value
+    return [None] * 3

@@ -29,6 +29,8 @@ The results could be sorted and filtered according to 3 criteria:
 TODO: complete doc string with missing info --> read paper carefully
 """
 
+from attr import has
+from numpy import isin
 from .results_page_utils import (
     PAGE_SIZE,
     BARPLOT_LEN,
@@ -59,10 +61,11 @@ from .results_page_utils import (
     drop_columns,
     write_json,
     read_json,
-    get_query_column
+    get_query_column,
+    split_filter_part
 )
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Type
 from glob import glob
 
 import os
@@ -996,10 +999,6 @@ def download_file(path: str) -> flask.Response:
     )
 
 
-##################
-# DONE TILL HERE
-##################
-
 # Filter/sort IUPAC decomposition table for cluster page
 @app.callback(
     Output("table-scomposition-cluster", "data"),
@@ -1011,74 +1010,104 @@ def download_file(path: str) -> flask.Response:
     ],
     [State("url", "search"), State("url", "hash")],
 )
-def update_iupac_scomposition_table_cluster(
-    page_current, page_size, sort_by, filter, search, hash
-):
+def update_iupac_decomposition_table_cluster(
+    page_current: int, 
+    page_size: int, 
+    filter_criterion: str, 
+    search: str, 
+    hash_term: str
+) -> Dict[str, str]:
+    """
+
+    ...
+
+    Parameters
+    ----------
+    page_current : int
+        Current page
+    page_size : int
+        Page size
+    filter_criterion : str
+        Data table filter
+    search : str
+        Unique search ID
+    hash_term : str
+        Hashing
+
+    Returns 
+    -------
+    Dict[str, str]
+    """
+
+    if not isinstance(page_current, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+    if not isinstance(page_size, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
+    if not isinstance(filter_criterion, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if not isinstance(hash_term, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-    hash = hash.split("#")[1]
-    guide = hash[: hash.find("-Pos-")]
-    chr_pos = hash[hash.find("-Pos-") + 5:]
+    hash_term = hash_term.split("#")[1]
+    guide = hash_term[:hash_term.find("-Pos-")]
+    chr_pos = hash_term[(hash_term.find("-Pos-") + 5):]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
-
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
-
+    try:
+        with open(
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, ".Params.txt")
+        ) as handle:
+            all_params = handle.read()
+            genome_type_f = (
+                next(s for s in all_params.split("\n") if "Genome_selected" in s)
+            ).split("\t")[-1]
+            ref_comp = (
+                next(s for s in all_params.split("\n") if "Ref_comp" in s)
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-
     if genome_type == "ref":
         raise PreventUpdate
-
-    filtering_expressions = filter.split(" && ")
-    dff = global_store_general(
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + chromosome
-        + "_"
-        + position
-        + "."
-        + guide
-        + ".scomposition.txt"
+    filtering_expressions = filter_criterion.split(" && ")
+    decomp_fname = (
+        job_id + "." + chromosome + "_" + position + "." + guide + ".scomposition.txt"
     )
-    if dff is None:
+    # load data and cache the data table (in pd.DataFrame)
+    df_cached = global_store_general(
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, decomp_fname)
+    )
+    if df_cached is None:  #  nothing to display and do not update the page
         raise PreventUpdate
-
-    dff.rename(columns=COL_BOTH_RENAME, inplace=True)
-
+    df_cached.rename(columns=COL_BOTH_RENAME, inplace=True)
+    # filter data table
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
-
         if operator in ("eq", "ne", "lt", "le", "gt", "ge"):
             # these operators match pandas series operator method names
-            dff = dff.loc[getattr(dff[col_name], operator)(filter_value)]
+            df_cached = df_cached.loc[
+                getattr(df_cached[col_name], operator)(filter_value)
+            ]
         elif operator == "contains":
-            dff = dff.loc[dff[col_name].str.contains(filter_value)]
+            df_cached = df_cached.loc[
+                df_cached[col_name].str.contains(filter_value)
+            ]
         elif operator == "datestartswith":
             # this is a simplification of the front-end filtering logic,
             # only works with complete fields in standard format
-            dff = dff.loc[dff[col_name].str.startswith(filter_value)]
-
+            df_cached = df_cached.loc[
+                df_cached[col_name].str.startswith(filter_value)
+            ]
     # Calculate sample count
-
-    data_to_send = dff.iloc[
+    data_to_send = df_cached.iloc[
         page_current * page_size: (page_current + 1) * page_size
     ].to_dict("records")
-
     return data_to_send
 
 
@@ -1094,75 +1123,121 @@ def update_iupac_scomposition_table_cluster(
     [State("url", "search"), State("url", "hash")],
 )
 def update_table_cluster(
-    page_current, page_size, sort_by, filter, hide_reference, search, hash
-):
+    page_current: int, 
+    page_size: int, 
+    sort_by: List[str], 
+    filter_criterion: str, 
+    hide_reference: str, 
+    search: str, 
+    hash_term: str
+) -> Dict[str, str]:
+    """
+
+    ...
+
+    Parameters
+    ----------
+    page_current : int
+        Current page
+    page_size : int
+        Page size
+    sort_by : List[str]
+        Columns used while sorting the data table
+    filter_criterion : str
+        Data table filter
+    hide_reference : str
+        Hide reference data
+    search : str
+        Unique search ID
+    has_term : str
+        Hashing
+
+    Returns
+    -------
+    Dict[str, str]
+    """
+    
+    if not isinstance(page_current, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+    if not isinstance(page_size, int):
+        raise TypeError(f"Exepcted {int.__name__}, got {type(page_size).__name__}")
+    if not isinstance(sort_by, list):
+        raise TypeError(f"Expected {list.__name__}, got {type(sort_by).__name__}")
+    if not isinstance(filter_criterion, str):
+        raise TypeError(f"Exepcted {str.__name__}, got {type(filter_criterion).__name__}")
+    if not isinstance(hide_reference, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(hide_reference).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if not isinstance(hash_term, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-    hash = hash.split("#")[1]
-    guide = hash[: hash.find("-Pos-")]
-    chr_pos = hash[hash.find("-Pos-") + 5:]
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    hash_term = hash_term.split("#")[1]
+    guide = hash_term[: hash_term.find("-Pos-")]
+    chr_pos = hash_term[hash_term.find("-Pos-") + 5:]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
-
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
-
+    try:
+        with open(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, job_id, ".Params.txt"
+            )
+        ) as handle:
+            all_params = handle.read()
+            genome_type_f = (
+                next(s for s in all_params.split("\n") if "Genome_selected" in s)
+            ).split("\t")[-1]
+            ref_comp = (
+                next(s for s in all_params.split("\n") if "Ref_comp" in s)
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-
-    filtering_expressions = filter.split(" && ")
-    dff = global_store_general(
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + chromosome
-        + "_"
-        + position
-        + "."
-        + guide
-        + ".txt"
+    filtering_expressions = filter_criterion.split(" && ")
+    guide_fname = job_id + "." + chromosome + "_" + position + "." + guide + ".txt"
+    # cache guide data table
+    df_cached = global_store_general(
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, guide_fname)
     )
-    if dff is None:
+    if df_cached is None:  # empty file -> nothing cached and nothing to do
         raise PreventUpdate
-
     if genome_type == "ref":
-        dff.rename(columns=COL_BOTH_RENAME, inplace=True)
+        df_cached.rename(columns=COL_BOTH_RENAME, inplace=True)
     else:
-        dff.rename(columns=COL_BOTH_RENAME, inplace=True)
-
+        df_cached.rename(columns=COL_BOTH_RENAME, inplace=True)
+    # drop unused columns
     if "hide-ref" in hide_reference or genome_type == "var":
-        dff.drop(dff[(dff["Samples"] == "n")].index, inplace=True)
-
+        df_cached.drop(
+            df_cached[(df_cached["Samples"] == "n")].index, inplace=True
+        )
+    # hide reference data
     if "hide-cluster" in hide_reference:
-        dff = dff.head(1)
-
+        df_cached = df_cached.head(1)
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
-
         if operator in ("eq", "ne", "lt", "le", "gt", "ge"):
             # these operators match pandas series operator method names
-            dff = dff.loc[getattr(dff[col_name], operator)(filter_value)]
+            df_cached = df_cached.loc[
+                getattr(df_cached[col_name], operator)(filter_value)
+            ]
         elif operator == "contains":
-            dff = dff.loc[dff[col_name].str.contains(filter_value)]
+            df_cached = df_cached.loc[
+                df_cached[col_name].str.contains(filter_value)
+            ]
         elif operator == "datestartswith":
             # this is a simplification of the front-end filtering logic,
             # only works with complete fields in standard format
-            dff = dff.loc[dff[col_name].str.startswith(filter_value)]
-
-    if len(sort_by):
-        dff = dff.sort_values(
+            df_cached = df_cached.loc[
+                df_cached[col_name].str.startswith(filter_value)
+            ]
+    # sort data table by the defined columns
+    if bool(sort_by):
+        df_cached = df_cached.sort_values(
             [
                 "Samples" if col["column_id"] == "Samples Summary" else col["column_id"]
                 for col in sort_by
@@ -1170,17 +1245,17 @@ def update_table_cluster(
             ascending=[col["direction"] == "asc" for col in sort_by],
             inplace=False,
         )
-
     # Calculate sample count
-
-    data_to_send = dff.iloc[
-        page_current * page_size: (page_current + 1) * page_size
+    data_to_send = df_cached.iloc[
+        (page_current * page_size):((page_current + 1) * page_size)
     ].to_dict("records")
     if genome_type != "ref":
         (
             dict_sample_to_pop,
             dict_pop_to_superpop,
-        ) = associateSample.loadSampleAssociation(job_directory + ".sampleID.txt")[:2]
+        ) = associateSample.loadSampleAssociation(
+            job_directory + ".sampleID.txt"
+        )[:2]
         for row in data_to_send:
             summarized_sample_cell = dict()
             for s in row["Samples"].split(","):
@@ -1204,6 +1279,11 @@ def update_table_cluster(
             else:
                 row["Samples Summary"] = "n"
     return data_to_send
+
+
+#################################
+# DONE TILL HERE
+#################################
 
 
 # Return the targets for the selected cluster
@@ -1845,21 +1925,41 @@ def samplePage(job_id, hash):
 
 
 @cache.memoize()
-def global_store_general(path_file_to_load):
+def global_store_general(path_file_to_load: str) -> pd.DataFrame:
+    """Cache target files to improve results visualization and get better
+    performances.
+
+    ...
+
+    Parameters
+    ----------
+    path_file_to_load : str
+        Path to file to cache
+
+    Returns
+    -------
+    pandas.DataFrame
+        Results table
     """
-    Caching dei file targets per una miglior performance di visualizzazione
-    """
+
+    if not isinstance(path_file_to_load, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(path_file_to_load).__name__}")
+    if path_file_to_load is not None and not os.path.isfile(path_file_to_load):
+        raise FileNotFoundError(f"Unable to locate {path_file_to_load}")
+    if path_file_to_load is None:
+        return ""  # do not cache anything
     if "scomposition" in path_file_to_load:
         rows_to_skip = 1
     else:
         rows_to_skip = 1  # Skip header
-    if path_file_to_load is None:
-        return ""
-    if os.path.getsize(path_file_to_load) > 0:
-        df = pd.read_csv(path_file_to_load, sep="\t",
-                         index_col=False, na_filter=False)
+    # make sure file to cache is not empty
+    if os.path.getsize(path_file_to_load) > 0:  
+        # TSV format -> sep="\t"
+        df = pd.read_csv(
+            path_file_to_load, sep="\t", index_col=False, na_filter=False
+        )
     else:
-        df = None
+        df = None  # empty file, no need for caching
     return df
 
 
@@ -5122,36 +5222,6 @@ def parse_contents(contents):
 
     decoded = base64.b64decode(content_string)
     return decoded
-
-
-# For filtering
-
-
-def split_filter_part(filter_part):
-    """
-    Preso dal sito di dash sul filtering datatables con python
-    """
-    for operator_type in operators:
-        for operator in operator_type:
-            if operator in filter_part:
-                name_part, value_part = filter_part.split(operator, 1)
-                name = name_part[name_part.find("{") + 1: name_part.rfind("}")]
-
-                value_part = value_part.strip()
-                v0 = value_part[0]
-                if v0 == value_part[-1] and v0 in ("'", '"', "`"):
-                    value = value_part[1:-1].replace("\\" + v0, v0)
-                else:
-                    try:
-                        value = float(value_part)
-                    except ValueError:
-                        value = value_part
-
-                # word operators need spaces after them in the filter string,
-                # but we don't want these later
-                return name, operator_type[0].strip(), value
-
-    return [None] * 3
 
 
 # Perform expensive loading of a dataframe and save result into 'global store'
