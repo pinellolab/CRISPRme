@@ -112,7 +112,7 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
                 len(final_list_best_ref)+len(final_list_best_var)-1)
             fileOut_disc.write(("\t".join(ele)))
     else:
-        # sort for total (mm+bul) in target
+        # sort for mm and bulges (ascending) in target
         if validity_check_ref:
             final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
                 int(x[total-2]), int(x[total-1])))
