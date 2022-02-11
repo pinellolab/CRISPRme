@@ -27,7 +27,7 @@ from pages import contacts_page
 # from pages import genome_database
 
 
-navbar = navbar_creation.Navbar()
+navbar = navbar_creation.navbar()
 # For multipage
 app.layout = html.Div([
     navbar,
