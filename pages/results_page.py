@@ -29,8 +29,6 @@ The results could be sorted and filtered according to 3 criteria:
 TODO: complete doc string with missing info --> read paper carefully
 """
 
-from attr import has
-from numpy import isin
 from .results_page_utils import (
     PAGE_SIZE,
     BARPLOT_LEN,
@@ -100,61 +98,6 @@ import webbrowser as wb
 import sqlite3
 from PostProcess import query_manager
 import flask
-
-# import send_from_directory
-
-
-# TODO: delete comment lines
-# PAGE_SIZE = 10  # number of entries in each page of the table in view report
-# BARPLOT_LEN = 4  # number of barplots in each row of Populations Distributions
-# COL_REF = ['Bulge Type', 'crRNA', 'Off target_motif', 'Reference sequence', 'Chromosome',
-#            'Position', 'Direction', 'Mismatches',
-#            'Bulge Size', 'PAM gen', 'Samples', 'Variant',
-#            'CFD', 'CFD ref', 'Highest CFD Risk Score',
-#            'AF', 'Annotation Type']
-# COL_REF_TYPE = ['text', 'text', 'text', 'text', 'text', 'numeric',
-#                 'numeric', 'text', 'numeric', 'numeric', 'text', 'text', 'text',
-#                 'numeric', 'numeric', 'numeric', 'numeric', 'text']
-# COL_REF_RENAME = {0: 'Bulge Type', 1: 'crRNA', 2: 'Off target motif', 3: 'Reference sequence', 4: 'Chromosome', 5: 'Position', 6: 'Cluster Position', 7: 'Direction',
-#                   8: 'Mismatches', 9: 'Bulge Size', 10: 'Total', 11: 'PAM gen', 12: 'Variant Unique', 13: 'Samples', 14: 'Annotation Type', 15: 'Real Guide',
-#                   16: 'rsID', 17: 'AF', 18: 'Variant', 19: '#Seq in cluster', 20: 'CFD', 21: 'CFD ref', 22: 'Highest CFD Risk Score'}
-# COL_BOTH = ['Highest_CFD_Strand', 'Chromosome', 'Highest_CFD_start_coordinate',
-#             'Highest_CFD_aligned_spacer+PAM',
-#             'Highest_CFD_aligned_protospacer+PAM_REF', 'Highest_CFD_aligned_protospacer+PAM_ALT',
-#             'Highest_CFD_mismatches', 'Highest_CFD_bulges', 'Highest_CFD_mismatches+bulges',
-#             'Highest_CFD_bulge_type', 'Highest_CFD_PAM_gen', 'Highest_CFD_score', 'Highest_CFD_score_REF',
-#             'Highest_CFD_risk_score', 'Not_found_in_REF', 'Highest_CFD_variant_info_genome',
-#             'Highest_CFD_variant_MAF', 'Highest_CFD_variant_rsID',
-#             'Highest_CFD_variant_samples', 'Other_motifs', 'Annotation_ENCODE']
-# COL_BOTH_TYPE = ['text', 'text', 'numeric', 'text',
-#                  'text', 'text',
-#                  'numeric', 'numeric', 'numeric',
-#                  'text', 'text', 'numeric', 'numeric',
-#                  'numeric', 'text', 'text', 'numeric', 'text',
-#                  'text', 'numeric', 'text']
-# COL_BOTH_RENAME = {0: 'Highest_CFD_Strand', 1: 'Chromosome', 2: 'Highest_CFD_start_coordinate',
-#                    3: 'Highest_CFD_aligned_spacer+PAM', 4: 'Highest_CFD_aligned_protospacer+PAM_REF',
-#                    5: 'Highest_CFD_aligned_protospacer+PAM_ALT', 6: 'Highest_CFD_mismatches',
-#                    7: 'Highest_CFD_bulges', 8: 'Highest_CFD_mismatches+bulges',
-#                    9: 'Highest_CFD_bulge_type', 10: 'Highest_CFD_PAM_gen', 11: 'Highest_CFD_score',
-#                    12: 'Highest_CFD_score_REF', 13: 'Highest_CFD_risk_score',
-#                    14: 'Not_found_in_REF', 15: 'Highest_CFD_variant_info_genome',
-#                    16: 'Highest_CFD_variant_MAF', 17: 'Highest_CFD_variant_rsID',
-#                    18: 'Highest_CFD_variant_samples', 19: 'Other_motifs', 37: 'Annotation_ENCODE'}
-# GENOME_DATABASE = ['Reference', 'Enriched',
-#                    'Samples', 'Dictionary', 'Annotation']
-# GUIDE_COLUMN = 'Spacer+PAM'
-# CHR_COLUMN = 'Chromosome'
-# POS_COLUMN = 'Start_coordinate_(highest_CFD)'
-# MM_COLUMN = 'Mismatches_(highest_CFD)'
-# BLG_COLUMN = 'Bulges_(highest_CFD)'
-# TOTAL_COLUMN = 'Mismatches+bulges_(highest_CFD)'
-# BLG_T_COLUMN = 'Bulge_type_(highest_CFD)'
-# CFD_COLUMN = 'CFD_score_(highest_CFD)'
-# RISK_COLUMN = 'CFD_risk_score_(highest_CFD)'
-# SAMPLES_COLUMN = 'Variant_samples_(highest_CFD)'
-
-# check header for personal annotation
 
 
 #-------------------------------------------------------------------------------
@@ -1281,13 +1224,7 @@ def update_table_cluster(
     return data_to_send
 
 
-#################################
-# DONE TILL HERE
-#################################
-
-
 # Return the targets for the selected cluster
-
 
 def clusterPage(job_id, hash):
     guide = hash[: hash.find("-Pos-")]
@@ -1661,30 +1598,73 @@ def clusterPage(job_id, hash):
 
 # Filter and sorting sample targets
 
+#-------------------------------------------------------------------------------
+# Summary by Sample tab
+#
+def global_get_sample_targets(
+    job_id: str, sample: str, guide: str, page: int
+) -> pd.DataFrame:
+    """Recover CRISPRme analysis report regarding the selected sample.
+    The sample related report can be filtered using the criteria available
+    in the drop-down bar, above the report tabs:
+    - CFD score
+    - CRISTA score
+    - Fewest Mismatches and Bulges
 
-def global_get_sample_targets(job_id, sample, guide, page):
+    ...
 
+    Parameters
+    ----------
+    job_id : str
+        Unique job identifier
+    sample : str
+        Sample identifier
+    guide : str
+        CRISPR guide
+    page : int
+        Current page 
+    
+    Returns
+    -------
+    pd.DataFrame
+        Data table reporting CRISPRme analysis results related to the
+        selected sample
+    """
+
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(sample, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+    if not isinstance(guide, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
+    if not isinstance(page, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if job_id is None:
         return ""
-    path_db = glob(current_working_directory +
-                   "Results/" + job_id + "/.*.db")[0]
-    path_db = str(path_db)
-    conn = sqlite3.connect(path_db)
+    db_path = glob(
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db")
+    )[0]
+    assert isinstance(db_path, str)
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
-
-    filter_criterion = read_json(job_id)
+    filter_criterion = read_json(job_id)  # recover filter criterion selected
     query_cols = get_query_column(filter_criterion)
-
+    # query the db
     result = pd.read_sql_query(
         "SELECT * FROM final_table WHERE \"{}\"='{}' AND \"{}\" LIKE '%{}%' LIMIT {} OFFSET {}".format(
-            GUIDE_COLUMN, guide, query_cols['samples'], sample, PAGE_SIZE, page * PAGE_SIZE
+            GUIDE_COLUMN, 
+            guide, 
+            query_cols["samples"], 
+            sample, 
+            PAGE_SIZE, 
+            page * PAGE_SIZE
         ),
         conn,
     )
-
     return result
 
 
+# callback to update the samples table 
 @app.callback(
     [Output("table-sample-target", "data"),
      Output("table-sample-target", "columns")],
@@ -1696,62 +1676,112 @@ def global_get_sample_targets(job_id, sample, guide, page):
     ],
     [State("url", "search"), State("url", "hash")],
 )
-def update_table_sample(page_current, page_size, sort_by, filter, search, hash):
+def update_table_sample(
+    page_current: int, 
+    page_size: int, 
+    sort_by: str, 
+    filter_criterion: str, 
+    search: str, 
+    hash_term : str
+) -> Tuple[Dict[str, str], pd.DataFrame]:
+    """Update the sample table accordingly to the filtering criterion 
+    selected in the drop-down bar.
 
+    ...
+
+    Parameters
+    ----------
+    page_current : int
+        Current webpage
+    page_size : int
+        Webpage size
+    sort_by : str
+        Data table sorting criterion
+    filter_criterion : str
+        Data table filtering criterion
+    search : str
+        Search identifier
+    hash_term : str
+        Hashing term
+
+    Returns
+    -------
+    Tuple[Dict[str, str], pd.DataFrame]
+    """
+
+    if not isinstance(page_current, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if not isinstance(hash_term, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
-    filter_criterion = read_json(job_id)
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-    hash = hash.split("#")[1]
-    guide = hash[: hash.find("-Sample-")]
-    sample = str(hash[hash.rfind("-") + 1:])
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
-
+    filter_criterion = read_json(job_id)  # recover filter criterion
+    assert isinstance(filter_criterion, str)
+    assert filter_criterion in FILTERING_CRITERIA
+    hash_term = hash_term.split("#")[1]
+    guide = hash_term[:hash_term.find("-Sample-")]
+    sample = str(hash_term[hash_term.rfind("-") + 1:])
+    try:
+        with open(
+            os.path.join(
+                current_working_directory,
+                RESULTS_DIR,
+                job_id,
+                ".Params.txt"
+            )
+        ) as handle:
+            all_params = handle.read()
+            genome_type_f = (
+                next(s for s in all_params.split("\n") if "Genome_selected" in s)
+            ).split("\t")[-1]
+            ref_comp = (
+                next(s for s in all_params.split("\n") if "Ref_comp" in s)
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-    if not (filter is None):
-        filtering_expressions = filter.split(" && ")
-
-    df = global_get_sample_targets(job_id, sample, guide, page_current)
-    drop_cols = drop_columns(df, filter_criterion)
-    df.drop(drop_cols, inplace=True, axis=1)
-
-    # name of file to report personal targets
-    integrated_sample_personal = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + sample
-        + "."
-        + guide
-        + ".personal_targets.tsv"
+    # populate the sample table
+    sample_df = global_get_sample_targets(job_id, sample, guide, page_current)
+    # filter the sample table
+    drop_cols = drop_columns(sample_df, filter_criterion)
+    sample_df.drop(drop_cols, inplace=True, axis=1)
+    # personal targets report filename
+    integrated_sample_personal_fname = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        ".".join(
+            [
+                job_id,
+                sample,
+                guide,
+                "personal_targets.tsv"
+            ]
+        )
     )
-
-    # save dataframe to personal targets file
-    df.to_csv(integrated_sample_personal, sep='\t', na_rep='NA', index=False)
-    # zip name of the file
-    integrated_sample_personal_zip = integrated_sample_personal.replace(
-        "tsv", "zip")
+    # store sample table to personal targets file
+    sample_df.to_csv(
+        integrated_sample_personal_fname, sep='\t', na_rep='NA', index=False
+    )
+    # personal targets report ZIP
+    integrated_sample_personal_zip_fname = integrated_sample_personal_fname.replace(
+        "tsv", "zip"
+    )
     # zip operation, non blocking
-    os.system(
-        f"zip -j {integrated_sample_personal_zip} {integrated_sample_personal} &")
-
+    cmd =  f"zip -j {integrated_sample_personal_zip_fname} {integrated_sample_personal_fname} &"
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise ValueError(f"An error occurred while running \"{cmd}\"")
     columns_df = [
-        {"name": i, "id": i, "hideable": True} for col, i in enumerate(df.columns)
+        {"name":i, "id":i, "hideable":True} 
+        for col, i in enumerate(sample_df.columns)
     ]
-    return df.to_dict("records"), columns_df
+    return sample_df.to_dict("records"), columns_df
 
 
 # Return the targets found for the selected sample

@@ -195,6 +195,12 @@ MMBULGES_FILTER = "fewest_mm+b"
 CFD_FILTER = "highest_CFD"
 # filter CRISTA
 CRISTA_FILTER = "highest_CRISTA"
+# CRISPRme mail subject
+MAIL_SUBJECT = "CRISPRme - Job completed"
+# CRISPRme mail sender
+MAIL_SENDER = "<SENDER OF RESULT MAIL>"
+# SSL port (gmail account)
+SSL_PORT = 465
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
