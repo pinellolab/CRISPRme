@@ -80,7 +80,7 @@ def changePage(href, path, search, hash_guide):
     if path == '/user-guide':
         return help_page.helpPage(), URL + '/load' + search
     if path == '/contacts':
-        return contacts_page.contactPage(), URL + '/load' + search
+        return contacts_page.contact_page(), URL + '/load' + search
     if path == '/history':
         return history_page.historyPage(), URL + '/load' + search
     # if path == '/genomes':
