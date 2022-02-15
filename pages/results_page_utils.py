@@ -157,6 +157,12 @@ GENOME_DATABASE = ["Reference", "Enriched",
                    "Samples", "Dictionary", "Annotation"]
 # results directory
 RESULTS_DIR = "Results"
+# Run parameters file
+PARAMS_FILE = ".Params.txt"
+# Log file
+LOG_FILE = "log.txt"
+# CRISPR guides file
+GUIDES_FILE = ".guides.txt"
 # data directory
 DATA_DIR = "data"
 # guide column name

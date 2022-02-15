@@ -56,6 +56,7 @@ from .results_page_utils import (
     RESULTS_DIR,
     DATA_DIR,
     FILTERING_CRITERIA,
+    PARAMS_FILE,
     drop_columns,
     write_json,
     read_json,
@@ -163,35 +164,51 @@ def result_page(job_id: str) -> html.Div:
     # Load mismatches
     try:
         with open(
-            os.path.join(current_working_directory,
-                         RESULTS_DIR, value, ".Params.txt")
+            os.path.join(
+                current_working_directory, RESULTS_DIR, value, PARAMS_FILE
+            )
         ) as p:
             all_params = p.read()
             real_genome_name = (
-                next(s for s in all_params.split("\n") if "Genome_idx" in s)
+                next(
+                    s for s in all_params.split("\n") if "Genome_idx" in s
+                )
             ).split("\t")[-1]
-            mms = (next(s for s in all_params.split("\n") if "Mismatches" in s)).split(
-                "\t"
-            )[-1]
-            bulge_dna = (next(s for s in all_params.split("\n") if "DNA" in s)).split(
-                "\t"
-            )[-1]
-            bulge_rna = (next(s for s in all_params.split("\n") if "RNA" in s)).split(
-                "\t"
-            )[-1]
+            mms = (
+                next(
+                    s for s in all_params.split("\n") if "Mismatches" in s
+                )
+            ).split("\t")[-1]
+            bulge_dna = (
+                next(
+                    s for s in all_params.split("\n") if "DNA" in s
+                )
+            ).split("\t")[-1]
+            bulge_rna = (
+                next(
+                    s for s in all_params.split("\n") if "RNA" in s
+                )
+            ).split("\t")[-1]
             genome_type_f = (
-                next(s for s in all_params.split(
-                    "\n") if "Genome_selected" in s)
+                next(
+                    s for s in all_params.split("\n") if "Genome_selected" in s
+                )
             ).split("\t")[-1]
             ref_comp = (
-                next(s for s in all_params.split("\n") if "Ref_comp" in s)
+                next(
+                    s for s in all_params.split("\n") if "Ref_comp" in s
+                )
             ).split("\t")[-1]
             max_bulges = (
-                next(s for s in all_params.split("\n") if "Max_bulges" in s)
+                next(
+                    s for s in all_params.split("\n") if "Max_bulges" in s
+                )
             ).split("\t")[-1]
-            pam_name = (next(s for s in all_params.split("\n") if "Pam" in s)).split(
-                "\t"
-            )[-1]
+            pam_name = (
+                next(
+                    s for s in all_params.split("\n") if "Pam" in s
+                )
+            ).split("\t")[-1]
     except OSError as e:
         raise e
     finally:
@@ -246,8 +263,8 @@ def result_page(job_id: str) -> html.Div:
     col_targetfor = " ".join([col_targetfor, "Mismatches + Bulges)"])
     # Column of headers. Remove the entries accordingly when checking genome type
     columns_profile_table = [
-        {"name":["", "gRNA (spacer+PAM)"], "id": "Guide", "type": "text"},
-        {"name":["", "Nuclease", ""], "id": "Nuclease", "type": "text"},
+        {"name":["", "gRNA (spacer+PAM)"], "id":"Guide","type": "text"},
+        {"name":["", "Nuclease", ""], "id":"Nuclease", "type":"text"},
         {
             "name":["", "Aggregated Specificity Score (0-100)"],
             "id":"CFD",
@@ -1000,7 +1017,7 @@ def update_iupac_decomposition_table_cluster(
     position = chr_pos.split("-")[1]
     try:
         with open(
-            os.path.join(current_working_directory, RESULTS_DIR, job_id, ".Params.txt")
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle:
             all_params = handle.read()
             genome_type_f = (
@@ -1124,7 +1141,7 @@ def update_table_cluster(
     try:
         with open(
             os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, ".Params.txt"
+                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
             )
         ) as handle:
             all_params = handle.read()

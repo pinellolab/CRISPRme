@@ -20,17 +20,6 @@ import sys
 import os
 
 
-
-# import for send mail
-# Structure of email.txt
-# destinatario
-# job link
-# date submitted job
-# parameters (not yet implemented)
-
-# argv[1] is job directory, eg Results/72C1MNXDWF
-
-
 def send_mail() -> None:
     """Send the email to notify the user that his/her CRISPRme is 
     complete.
