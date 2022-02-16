@@ -65,7 +65,7 @@ from .results_page_utils import (
     split_filter_part
 )
 
-from typing import Dict, List, Tuple, Type, final
+from typing import Dict, List, Tuple 
 from glob import glob
 
 import os
@@ -1622,11 +1622,10 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     return html.Div(final_list, style={"margin":"1%"})
 
 
-# Filter and sorting sample targets
-
 #-------------------------------------------------------------------------------
 # Summary by Sample tab
 #
+
 def global_get_sample_targets(
     job_id: str, sample: str, guide: str, page: int
 ) -> pd.DataFrame:
@@ -1813,37 +1812,70 @@ def update_table_sample(
 # Return the targets found for the selected sample
 
 
-def samplePage(job_id, hash):
-    # ###print("SAMPLE PAGE LOADED FOR", job_id, hash)
-    guide = hash[: hash.find("-Sample-")]
-    sample = str(hash[hash.rfind("-") + 1:])
-    if not isdir(current_working_directory + "Results/" + job_id):
-        return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
+def sample_page(job_id: str, hash_term: str) -> html.Div:
+    """Build the sample webpage.
+    The sample page contains the CRISPR targets found for the selected 
+    sample.
 
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
+    ...
 
+    Parameters
+    ----------
+    job_id : str
+        Unique job identifier
+    hash_term : str
+        Hashing
+    
+    Returns
+    -------
+    html.Div
+        Sample webpage
+    """
+
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(hash_term, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+    guide = hash_term[:hash_term.find("-Sample-")]
+    sample = str(hash_term[(hash_term.rfind("-") + 1):])
+    if not os.path.isdir(
+        os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    ):
+        return html.Div(
+            dbc.Alert("The selected result does not exist", color="danger")
+        )
+    try:
+        with open(
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
+        ) as handle_params:
+            params = handle_params.read()
+            genome_type_f = (
+                next(
+                    s for s in params.split("\n") if "Genome_selected" in s
+                )
+            ).split("\t")[-1]
+            ref_comp = (
+                next(
+                    s for s in params.split("\n") if "Ref_comp" in s
+                )
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-
-    final_list = []
+    # begin sample page construction
+    final_list = []  # HTML page handler
     final_list.append(
-        # html.P('List of Targets found for the selected Sample - ' + sample + ' - and guide - ' + guide + ' -')
-        html.H3("Selected Sample: " + sample)
+        html.H3(f"Selected Sample: {sample}")  # page header
     )
     final_list.append(
         html.P(
             [
-                # 'The rows highlighted in red indicates that the target was found only in the genome with variants.',
+                # if rows are highlghted in red, the CRISPR target was found 
+                # only in non reference genome (enriched with variants)
                 "List of Targets found for the selected sample.",
                 html.Div(
                     [
@@ -1851,135 +1883,129 @@ def samplePage(job_id, hash):
                             "Generating download link, Please wait...",
                             id="download-link-sumbysample",
                         ),
-                        dcc.Interval(interval=5 * 1000,
-                                     id="interval-sumbysample"),
+                        dcc.Interval(
+                            interval=(5 * 1000), id="interval-sumbysample"
+                        ),
                     ]
                 ),
             ]
         )
     )
-
-    header = current_working_directory + "Results/" + job_id + "/header.txt"
-
+    # header file
+    header = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id, "header.txt"
+    )
     # file_to_grep = current_working_directory + 'Results/' + \
     #     job_id + '/.' + job_id + '.bestMerge.txt'
-    integrated_file_name = glob(
-        current_working_directory + "Results/" + job_id + "/" + "*integrated*"
-    )[0]
-    integrated_file_name = str(integrated_file_name)
-    file_to_grep = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + ".bestMerge.txt.integrated_results.tsv"
+    integrated_fname = glob(
+        os.path.join(
+            current_working_directory, RESULTS_DIR, job_id, "*integrated*"
+        )
+    )[0]  # take the first element
+    assert isinstance(integrated_fname, str)
+    file_to_grep = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        f"{job_id}.bestMerge.txt.integrated_results.tsv"
     )
-    sample_grep_result = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + sample
-        + "."
-        + guide
-        + ".txt"
+    sample_grep_result = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        f"{job_id}.{sample}.{guide}.txt"
     )
-    integrated_sample_personal = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + sample
-        + "."
-        + guide
-        + ".personal_targets.tsv"
+    integrated_sample_personal = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        f"{job_id}.{sample}.{guide}.personal_targets.tsv"
     )
     integrated_sample_personal_zip = integrated_sample_personal.replace(
-        "tsv", "zip")
+        "tsv", "zip"
+    )
     final_list.append(
         html.Div(
-            job_id + "." + sample + "." + guide + ".personal_targets",
+            f"{job_id}.{sample}.{guide}.personal_targets",
             style={"display": "none"},
             id="div-info-sumbysample-targets",
         )
     )
-
-    path_db = glob(current_working_directory +
-                   "Results/" + job_id + "/.*.db")[0]
-    path_db = str(path_db)
-    conn = sqlite3.connect(path_db)
+    # define path to db
+    db_path = glob(
+        os.path.join(
+            current_working_directory, RESULTS_DIR, job_id, ".*.db"
+        )
+    )[0] 
+    assert isinstance(db_path, str)
+    # initialize db for queries 
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     total_private_sample = f"SELECT * FROM final_table LIMIT 1"
     rows = c.execute(total_private_sample)
     header = [description[0] for description in rows.description]
     conn.commit()
-    conn.close()
-
-    cols = [{"name": i, "id": i, "hideable": True} for i in header]
-
+    conn.close()  # close db connection
+    # define columns
+    cols = [{"name":i, "id":i, "hideable":True} for i in header]
     final_list.append(
         html.Div(
             dash_table.DataTable(
                 id="table-sample-target",
                 columns=cols,
-                style_cell={"textAlign": "left"},
+                style_cell={"textAlign":"left"},
                 page_current=0,
                 page_size=PAGE_SIZE,
                 page_action="custom",
                 style_table={
-                    "overflowX": "scroll",
-                    "overflowY": "scroll",
-                    "max-height": "300px",
+                    "overflowX":"scroll",
+                    "overflowY":"scroll",
+                    "max-height":"300px",
                 },
                 style_cell_conditional=[
                     {
-                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if":{"column_id":"Variant_samples_(highest_CFD)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                     {
-                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if":{"column_id":"Variant_samples_(fewest_mm+b)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                     {
-                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if":{"column_id":"Variant_samples_(highest_CRISTA)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                 ],
                 css=[
-                    {"selector": ".row", "rule": "margin: 0"},
+                    {"selector":".row", "rule":"margin: 0"},
                     {
-                        "selector": "td.cell--selected, td.focused",
-                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector":"td.cell--selected, td.focused",
+                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                     {
-                        "selector": "td.cell--selected *, td.focused *",
-                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector":"td.cell--selected *, td.focused *",
+                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                 ],
             ),
             id="div-result-table",
         )
     )
-    return html.Div(final_list, style={"margin": "1%"})
+    return html.Div(final_list, style={"margin":"1%"})
 
-
+# TODO: move auxiliary functions close to each other in this file
 @cache.memoize()
 def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     """Cache target files to improve results visualization and get better
@@ -2019,10 +2045,11 @@ def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     return df
 
 
-# Filter etc for second table
+#-------------------------------------------------------------------------------
+# Summary by Mismatches/Bulges tab
+#
 
-
-# Update primary table of 'Show targets' of Summary by Guide
+# Update primary table of 'Show targets' of Summary by Mismatches/Bulges
 @app.callback(
     [
         Output("table-subset-target", "data"),
@@ -2041,47 +2068,96 @@ def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     ],
 )
 def update_table_subset(
-    page_current,
-    page_size,
-    sort_by,
-    filter,
-    hide_reference,
-    # filter_criterion,
-    search,
-    hash_guide,
-):
-    """
-    La funzione ritorna uno split dei risultati in base ad un filtering o a un sort da parte dell'utente. Inoltre aggiorna i risultati
-    visualizzati quando il bottone next page / prev page è cliccato. (Codice preso dalla pagina dash datatable sul sorting con python)
-    Inoltre carica i file targets, o scores se presente, e lo trasforma in un dataframe, cambiando il nome delle colonne per farle corrispondere
-    all'id delle colonne della tabella nella pagina.
-    Se non ci sono targets ritorna un avviso di errore
+    page_current: int,
+    page_size: int,
+    sort_by: str,
+    filter_term: str,
+    hide_reference: str,
+    search: str,
+    hash_guide: str,
+) -> List:
+    """The function splits the results according to user-defined filtering
+    or sorting criteria.
+    
+    The function also updates the visualized results when the user clicks
+    the button next/prev page.
+
+    The function loads the CRISPR targets/scores files if available and use 
+    them to create a pandas DataFrame. The DataFrame column names are changed
+    accordingly to those used as IDs of webpage datatable columns.
+
+    If no target is available, the function returns an error message.
+
+    ...
+
+    Parameters
+    ----------
+    page_current : int
+        Current page
+    page_size : int
+        Current page size
+    sort_by : str
+        Sorting criterion
+    filter_term : str
+        Filtering criterion
+    hide_reference : bool
+        Displays only non reference data
+    search : str
+        Search
+    hash_guide : str
+        Guide hashing
+
+    Returns
+    -------
+    List
     """
 
+    if not isinstance(page_current, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+    if not isinstance(page_size, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
+    if not isinstance(hide_reference, list):
+        raise TypeError(f"Expected {list.__name__}, got {type(hide_reference).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if not isinstance(hash_guide, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_guide).__name__}")  
+    # recover job identifier
     job_id = search.split("=")[-1]
-    filter_criterion = read_json(job_id)
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
-
+    # recover the filtering criterion from drop-down bar
+    filter_criterion = read_json(job_id)  
+    try:
+        with open(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
+            )
+        ) as handle_params:
+            params = handle_params.read()
+            genome_type_f = (
+                next(
+                    s for s in params.split("\n") if "Genome_selected" in s
+                )
+            ).split("\t")[-1]
+            ref_comp = (
+                next(
+                    s for s in params.split("\n") if "Ref_comp" in s
+                )
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-    value = job_id
+    #value = job_id
     if search is None:
-        raise PreventUpdate
-    if not (filter is None):
-        filtering_expressions = filter.split(" && ")
+        raise PreventUpdate  # do not do anything
+    if filter_term is not None:
+        filtering_expressions = filter_term.split(" && ")
     # filtering_expressions.append(['{crRNA} = ' + guide])
-    guide = hash_guide[1: hash_guide.find("new")]
+    # recover guide, mismatches and bulges
+    guide = hash_guide[1:hash_guide.find("new")]
     mms = hash_guide[-1:]
     bulge_s = hash_guide[-2:-1]
     if "DNA" in hash_guide:
@@ -2090,44 +2166,36 @@ def update_table_subset(
         bulge_t = "RNA"
     else:
         bulge_t = "X"
-
+    # choose if hide reference data
     if "hide-ref" in hide_reference or genome_type == "var":
         result = global_store_subset_no_ref(
-            value, bulge_t, bulge_s, mms, guide, page_current, job_id
+            job_id, bulge_t, bulge_s, mms, guide, page_current
         )
     else:
         result = global_store_subset(
-            value, bulge_t, bulge_s, mms, guide, page_current, job_id
+            job_id, bulge_t, bulge_s, mms, guide, page_current
         )
     drop_cols = drop_columns(result, filter_criterion)
-    result = result.drop(drop_cols, axis=1)
-
+    result.drop(drop_cols, axis=1, inplace=True)
     # name of target file filtered with bul-type, mm and bul
-    targets_with_mm_bul = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + str(bulge_t)
-        + "."
-        + str(mms)
-        + "."
-        + str(bulge_s)
-        + "."
-        + guide
-        + ".targets.tsv"
+    targets_with_mm_bul = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv"
     )
     # save df to tsv with filtered data
-    result.to_csv(targets_with_mm_bul, sep='\t', na_rep='NA', index=False)
+    result.to_csv(targets_with_mm_bul, sep="\t", na_rep="NA", index=False)
     # change name to zip file
     targets_with_mm_bul_zip = targets_with_mm_bul.replace("tsv", "zip")
     # zip operation, non blocking
-    os.system(f"zip -j {targets_with_mm_bul_zip} {targets_with_mm_bul} &")
-
+    cmd = f"zip -j {targets_with_mm_bul_zip} {targets_with_mm_bul} &"
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise ValueError(f"An error occurred while running {cmd}")
     columns_result = [
-        {"name": i, "id": i, "hideable": True} for col, i in enumerate(result.columns)
+        {"name":i, "id":i, "hideable":True} 
+        for col, i in enumerate(result.columns.tolist())
     ]
     data_to_send = result.to_dict("records")
     return [data_to_send, columns_result]
@@ -2323,92 +2391,167 @@ def guidePagev3(job_id, hash):
     return html.Div(final_list, style={"margin": "1%"})
 
 
+# TODO: move auxiliary functions close to each other
 # @cache.memoize()
-def global_store_subset_no_ref(value, bulge_t, bulge_s, mms, guide, page, job_id):
+def global_store_subset_no_ref(
+    job_id: str, bulge_t: str, bulge_s: str, mms: str, guide: str, page: int
+) -> pd.DataFrame:
+    """Cache targets files to improve visualization performance.
+
+    ...
+
+    Parameters
+    ----------
+    job_id : str
+        Unique job identifier
+    bulge_t : str
+        Bulge type
+    bulge_s : str
+    mms : str
+        Mismatches 
+    guide : str
+        Guide
+    page : int
+        Current page
+    
+    Returns
+    -------
+    pd.DataFrame
+        Results table
     """
-    Caching dei file targets per una miglior performance di visualizzazione
-    """
-    if value is None:
-        return ""
-    path_db = glob(current_working_directory +
-                   "Results/" + value + "/.*.db")[0]
-    path_db = str(path_db)
-    conn = sqlite3.connect(path_db)
+    
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(bulge_t, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_t).__name__}")
+    if not isinstance(bulge_s, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_s).__name__}")
+    if not isinstance(mms, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(mms).__name__}")
+    if not isinstance(guide, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
+    if not isinstance(page, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
+    if job_id is None:
+        return ""  # do not do anything
+    # recover path to db file
+    db_path = glob(
+        os.path.join(
+            current_working_directory, RESULTS_DIR, job_id, ".*.db"
+        )
+    )[0]  # take the first element
+    assert isinstance(db_path, str)
+    # initialize db
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
-
+    # recover the filtering criterion from drop-down bar
     filter_criterion = read_json(job_id)
+    if filter_criterion not in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     query_cols = get_query_column(filter_criterion)
-
+    # perform query on db
     result = pd.read_sql_query(
         'SELECT * FROM final_table WHERE "{}"=\'{}\' AND "{}"=\'{}\' AND "{}"={} AND "{}"={} AND "{}"<>\'NA\' LIMIT {} OFFSET {}'.format(
             GUIDE_COLUMN,
             guide,
-            query_cols['bul_type'],
+            query_cols["bul_type"],
             bulge_t,
-            query_cols['bul'],
+            query_cols["bul"],
             bulge_s,
-            query_cols['mm'],
+            query_cols["mm"],
             mms,
-            query_cols['samples'],
+            query_cols["samples"],
             PAGE_SIZE,
             page * PAGE_SIZE,
         ),
         conn,
     )
-
     return result
 
 
+# TODO: move auxiliary functions close to each other
 # @cache.memoize()
-def global_store_subset(value, bulge_t, bulge_s, mms, guide, page, job_id):
+def global_store_subset(
+    job_id: str, bulge_t: str, bulge_s: str, mms: str, guide: str, page: int
+) -> pd.DataFrame:
+    """Cache targets files to improve visualization performance.
+
+    ...
+
+    Parameters
+    ----------
+    job_id : str
+        Unique job identifier
+    bulge_t : str
+        Bulge type
+    bulge_s : str
+    mms : str
+        Mismatches 
+    guide : str
+        Guide
+    page : int
+        Current page
+    
+    Returns
+    -------
+    pd.DataFrame
+        Res
     """
-    Caching dei file targets per una miglior performance di visualizzazione
-    """
-    if value is None:
-        return ""
-    path_db = glob(current_working_directory +
-                   "Results/" + value + "/.*.db")[0]
-    path_db = str(path_db)
-    conn = sqlite3.connect(path_db)
+
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(bulge_t, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_t).__name__}")
+    if not isinstance(bulge_s, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_s).__name__}")
+    if not isinstance(mms, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(mms).__name__}")
+    if not isinstance(guide, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
+    if not isinstance(page, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
+    if job_id is None:
+        return ""  # do not do anything
+    # recover path to db 
+    db_path = glob(
+        os.path.join(
+            current_working_directory, RESULTS_DIR, job_id, ".*.db"
+        )
+    )[0]
+    assert isinstance(db_path, str)
+    # initialize db
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
-
+    # recover filtering criterion from drop-down bar
     filter_criterion = read_json(job_id)
+    if not filter_criterion in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     query_cols = get_query_column(filter_criterion)
-
+    # perform query on db
     result = pd.read_sql_query(
         'SELECT * FROM final_table WHERE "{}"=\'{}\' AND "{}"=\'{}\' AND "{}"={} AND "{}"={} LIMIT {} OFFSET {}'.format(
             GUIDE_COLUMN,
             guide,
-            query_cols['bul_type'],
+            query_cols["bul_type"],
             bulge_t,
-            query_cols['bul'],
+            query_cols["bul"],
             bulge_s,
-            query_cols['mm'],
+            query_cols["mm"],
             mms,
             PAGE_SIZE,
             page * PAGE_SIZE,
         ),
         conn,
     )
-
-    targets_with_mm_bul = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + str(bulge_t)
-        + "."
-        + str(mms)
-        + "."
-        + str(bulge_s)
-        + "."
-        + guide
-        + ".targets.tsv"
+    # add mismatches and bulges
+    targets_with_mm_bul = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv"
     )
-    result.to_csv(targets_with_mm_bul, sep='\t', na_rep='NA', index=False)
-
+    # store query results in TSV file
+    result.to_csv(targets_with_mm_bul, sep="\t", na_rep="NA", index=False)
     return result
 
 

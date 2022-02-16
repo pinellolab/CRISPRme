@@ -71,7 +71,7 @@ def changePage(href, path, search, hash_guide):
         if 'new' in hash_guide:  # TODO cambiare nome alla pagina delle guide
             return results_page.guidePagev3(job_id, hash_guide.split('#')[1]), URL + '/load' + search
         if '-Sample-' in hash_guide:
-            return results_page.samplePage(job_id, hash_guide.split('#')[1]), URL + '/load' + search
+            return results_page.sample_page(job_id, hash_guide.split('#')[1]), URL + '/load' + search
         if '-Pos-' in hash_guide:
             return results_page.cluster_page(job_id, hash_guide.split('#')[1]), URL + '/load' + search
         return results_page.result_page(job_id), URL + '/load' + search
