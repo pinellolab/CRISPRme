@@ -29,6 +29,7 @@ The results could be sorted and filtered according to 3 criteria:
 TODO: complete doc string with missing info --> read paper carefully
 """
 
+
 from .results_page_utils import (
     PAGE_SIZE,
     BARPLOT_LEN,
@@ -64,7 +65,7 @@ from .results_page_utils import (
     split_filter_part
 )
 
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple, Type, final
 from glob import glob
 
 import os
@@ -1241,109 +1242,129 @@ def update_table_cluster(
     return data_to_send
 
 
-# Return the targets for the selected cluster
+def cluster_page(job_id: str, hash_term: str) -> html.Div:
+    """Recover CRISPR targets for the selected cluster.
 
-def clusterPage(job_id, hash):
-    guide = hash[: hash.find("-Pos-")]
-    chr_pos = hash[hash.find("-Pos-") + 5:]
+    ...
+
+    Parameters
+    ----------
+    job_id : str
+        Unique job identifier
+    hash_term : str
+        Hashing
+
+    Returns 
+    -------
+    html.Div
+        Sample page layout
+    """
+
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(hash_term, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+    guide = hash_term[:hash_term.find("-Pos-")]
+    chr_pos = hash_term[(hash_term.find("-Pos-") + 5):]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
-    if not isdir(current_working_directory + "Results/" + job_id):
-        return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
-
+    if not os.path.isdir(
+        os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    ):
+        return html.Div(
+            dbc.Alert("The selected result does not exist", color="danger")
+        )
+    try:
+        with open(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
+            )
+        ) as handle_params:
+            params = handle_params.read()
+            genome_type_f = (
+                next(s for s in params.split("\n") if "Genome_selected" in s)
+            ).split("\t")[-1]
+            ref_comp = (
+                next(s for s in params.split("\n") if "Ref_comp" in s)
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
-    style_hide_reference = {"display": "none"}
+    style_hide_reference = {"display":"none"}  # display reference data
     value_hide_reference = []
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
         style_hide_reference = {}
-        value_hide_reference = ["hide-ref", "hide-cluster"]
-    final_list = []
-    final_list.append(html.H3("Selected Position: " +
-                      chromosome + " - " + position))
-
+        value_hide_reference = ["hide-ref", "hide-cluster"]  # hide reference data
+    # begin page body construction
+    final_list = []  # HTML page handler
+    assert isinstance(chromosome, str)
+    assert isinstance(position, str)
+    final_list.append(
+        html.H3(f"Selected Position: {chromosome} - {position}")
+    )
     if genome_type == "ref":
         cols = [
-            {"name": i, "id": i, "type": t, "hideable": True}
+            {"name":i, "id":i, "type":t, "hideable":True}
             for i, t in zip(COL_BOTH, COL_BOTH_TYPE)
         ]
         file_to_grep = ".bestMerge.txt"
     else:
         cols = [
-            {"name": i, "id": i, "type": t, "hideable": True}
+            {"name":i, "id":i, "type":t, "hideable":True}
             for i, t in zip(COL_BOTH, COL_BOTH_TYPE)
         ]
         file_to_grep = ".bestMerge.txt"
-    # ###print('qui cluster before grep')
-
-    cluster_grep_result = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + chromosome
-        + "_"
-        + position
-        + "."
-        + guide
-        + ".txt"
+    cluster_grep_result = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        ".".join([job_id, f"{chromosome}_{position}", guide, "txt"])
     )
-    put_header = (
-        "head -1 "
-        + current_working_directory
-        + "Results/"
-        + job_id
-        + "/."
-        + job_id
-        + file_to_grep
-        + " > "
-        + cluster_grep_result
-        + " ; "
+    put_header_cmd = " ".join(
+        [
+            "head -1",
+            os.path.join(
+                current_working_directory, 
+                RESULTS_DIR, 
+                job_id,
+                f".{job_id}{file_to_grep}"
+            ),
+            f"> {cluster_grep_result} ; "
+        ]
     )
-    # ###print('esiste cluster?' , str(os.path.exists(cluster_grep_result)) )
     # Example    job_id.chr3_100.guide.txt
     if not os.path.exists(cluster_grep_result):
         # os.system(f'touch {cluster_grep_result}')
         # Grep annotation for ref
-        os.system(f"head -1 {file_to_grep} > {cluster_grep_result}")
-        if genome_type == "ref":  # NOTE HEADER NON SALVATO
-            get_annotation = subprocess.Popen(
+        cmd = f"head -1 {file_to_grep} > {cluster_grep_result}"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"An error occurred while running {cmd}")
+        if genome_type == "ref":  # NOTE HEADER NOT SAVED
+            cmd = " ".join(
                 [
-                    " grep -F "
-                    + guide
-                    + " "
-                    + current_working_directory
-                    + "Results/"
-                    + job_id
-                    + "/"
-                    + job_id
-                    + ".Annotation.targets.txt"
-                    + " |  awk '$6=="
-                    + position
-                    + ' && $4=="'
-                    + chromosome
-                    + "\"'"
-                ],
-                shell=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                    "grep -F",
+                    guide,
+                    os.path.join(
+                        current_working_directory,
+                        RESULTS_DIR,
+                        job_id,
+                        f"{job_id}.Annotation.targets.txt"
+                    ),
+                    "|",
+                    f"awk '$6=={position} && $4==\"{chromosome}\"'"
+                ]
+            )
+            get_annotation = subprocess.Popen(
+                [cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             )
             out, err = get_annotation.communicate()
             annotation_type = out.decode("UTF-8").strip().split("\t")[-1]
             os.popen(
-                put_header
+                put_header_cmd
                 + " grep -F "
                 + guide
                 + " "
@@ -1362,99 +1383,89 @@ def clusterPage(job_id, hash):
                 + "\"}' >> "
                 + cluster_grep_result
             ).read()
-        else:
-            # ###print('qui cluster in grep')     #NOTE HEADER NON SALVATO
+        else:  # NOTE HEADER NOT SAVED
             os.popen(
-                put_header
-                + " grep -F "
-                + guide
-                + " "
-                + current_working_directory
-                + "Results/"
-                + job_id
-                + "/"
-                + job_id
-                + file_to_grep
-                + " | awk '$6=="
-                + position
-                + ' && $4=="'
-                + chromosome
-                + "\"' >> "
-                + cluster_grep_result
-            ).read()  # NOTE top1 will have sample and annotation, other targets will have '.'-> 18/03 all samples and annotation are already writter for all targets
+                " ".join(
+                    [
+                        put_header_cmd,
+                        "grep -F",
+                        guide,
+                        os.path.join(
+                            current_working_directory,
+                            RESULTS_DIR,
+                            job_id,
+                            f"{job_id}{file_to_grep}"
+                        ),
+                        "|",
+                        f"awk '$6=={position} && $4==\"{chromosome}\"'",
+                        ">>",
+                        cluster_grep_result
+                    ]
+                )
+            ).read()  
+            # NOTE top1 will have sample and annotation, other targets will 
+            # have '.'-> 18/03 all samples and annotation are already writter 
+            # for all targets
+
+        # TODO: review this part    
         os.system(
             f"python {app_main_directory}/PostProcess/change_headers_bestMerge.py {cluster_grep_result} {cluster_grep_result}.tmp"
         )
         os.system(
             f"mv -f {cluster_grep_result}.tmp {cluster_grep_result} > /dev/null 2>&1"
         )
-        os.system(
-            "zip "
-            + "-j "
-            + cluster_grep_result.replace(".txt", ".zip")
-            + " "
-            + cluster_grep_result
-            + " &"
-        )
+        # zip cluster results
+        cmd = f"zip -j {cluster_grep_result.replace('txt', 'zip')} {cluster_grep_result} &"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"An error occurred while running {cmd}")
     final_list.append(
         html.Div(
-            job_id + "." + chromosome + "_" + position + "." + guide,
-            style={"display": "none"},
+            f"{job_id}.{chromosome}_{position}.{guide}",
+            style={"display":"none"},
             id="div-info-sumbyposition-targets",
         )
     )
-
-    scomposition_file = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + chromosome
-        + "_"
-        + position
-        + "."
-        + guide
-        + ".scomposition.txt"
+    decomp_fname = os.path.join(
+        current_working_directory,
+        RESULTS_DIR,
+        job_id,
+        f"{job_id}.{chromosome}_{position}.{guide}.scomposition.txt"
     )
-    file_to_grep = ".bestMerge.txt"
-
-    iupac_scomposition_visibility = {"display": "none"}
+    iupac_decomp_visibility = {"display":"none"}
     if genome_type != "ref":
-        iupac_scomposition_visibility = {}
+        iupac_decomp_visibility = {}
         # Example    job_id.chr_pos.guide.scomposition.txt
         # if not os.path.exists(scomposition_file):
         # os.system(f'touch {scomposition_file}')
-        os.popen(
-            " grep -F "
-            + guide
-            + " "
-            + current_working_directory
-            + "Results/"
-            + job_id
-            + "/."
-            + job_id
-            + file_to_grep
-            + " |  awk '$6=="
-            + position
-            + ' && $4=="'
-            + chromosome
-            + '" && $13!="n"\' > '
-            + scomposition_file
-        ).read()
-
+        cmd = " ".join(
+            [
+                "grep -F",
+                guide,
+                os.path.join(
+                    current_working_directory,
+                    RESULTS_DIR,
+                    job_id,
+                    f".{job_id}{file_to_grep}"
+                ),
+                "|",
+                f"awk '$6=={position} && $4==\"{chromosome}\" && $13!=\"n\"'",
+                ">",
+                decomp_fname
+            ]
+        )
+        os.popen(cmd).read()
     final_list.append(
         html.P(
             [
                 html.P(
                     "List of all the configurations for the target in the selected position.",
-                    style=iupac_scomposition_visibility,
+                    style=iupac_decomp_visibility,
                 ),
                 dcc.Checklist(
                     options=[
-                        {"label": "Hide Reference Targets", "value": "hide-ref"},
-                        {"label": "Show only TOP1 Target", "value": "hide-cluster"},
+                        {"label":"Hide Reference Targets", "value":"hide-ref"},
+                        {"label":"Show only TOP1 Target", "value":"hide-cluster"},
                     ],
                     id="hide-reference-targets",
                     value=value_hide_reference,
@@ -1466,29 +1477,27 @@ def clusterPage(job_id, hash):
                             "Generating download link, Please wait...",
                             id="download-link-sumbyposition",
                         ),
-                        dcc.Interval(interval=5 * 1000,
-                                     id="interval-sumbyposition"),
+                        dcc.Interval(
+                            interval=5 * 1000, id="interval-sumbyposition"
+                        ),
                     ]
                 ),
             ]
         )
     )
-
-    cols_for_scomposition = cols.copy()
-    cols_for_scomposition.append(
-        {"name": "Samples", "id": "Samples", "type": "text", "hideable": True}
+    cols_for_decomp = cols.copy()
+    cols_for_decomp.append(
+        {"name":"Samples", "id":"Samples", "type":"text", "hideable":True}
     )
     final_list.append(
         html.Div(
             dash_table.DataTable(
-                # TABLE that represent scomposition of iupac of selected target, take rows from top_1.samples.txt
+                # Table storing IUPAC decomposition of the selected target
+                # rows are recovered from top1.samples.txt
                 id="table-scomposition-cluster",
-                columns=cols_for_scomposition,
-                # data = df.to_dict('records'),
+                columns=cols_for_decomp,
                 virtualization=True,
-                fixed_rows={"headers": True, "data": 0},
-                # fixed_columns = {'headers': True, 'data':1},
-                # style_cell={'width': '150px'},
+                fixed_rows={"headers":True, "data":0},
                 page_current=0,
                 page_size=PAGE_SIZE,
                 page_action="custom",
@@ -1500,63 +1509,63 @@ def clusterPage(job_id, hash):
                 style_table={"max-height": "600px"},
                 style_cell_conditional=[
                     {
-                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if":{"column_id":"Variant_samples_(highest_CFD)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                     {
-                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if":{"column_id":"Variant_samples_(fewest_mm+b)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                     {
-                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if": {"column_id":"Variant_samples_(highest_CRISTA)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                 ],
                 css=[
-                    {"selector": ".row", "rule": "margin: 0"},
+                    {"selector":".row", "rule":"margin: 0"},
                     {
-                        "selector": "td.cell--selected, td.focused",
-                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector":"td.cell--selected, td.focused",
+                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                     {
-                        "selector": "td.cell--selected *, td.focused *",
-                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector":"td.cell--selected *, td.focused *",
+                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                 ],
             ),
-            style=iupac_scomposition_visibility,
+            style=iupac_decomp_visibility,
         )
     )
-
     final_list.append(html.Hr())
-
-    # Cluster Table
+    # Build cluster Table
     final_list.append(
-        # The rows highlighted in red indicates that the target was found only in the genome with variants.',
-        "List of Targets found for the selected position. Other possible configurations of the target are listed in the table above, along with the corresponding samples list.",
+        # if rows are highlighted in red, the target was found only in 
+        # non-reference genome (enriched with variants)
+        str(
+            "List of Targets found for the selected position. Other possible "
+            "configurations of the target are listed in the table above, along " 
+            "with the corresponding samples list."
+        ),
     )
     final_list.append(
         html.Div(
             dash_table.DataTable(
                 id="table-position-target",
                 columns=cols,
-                # data = df.to_dict('records'),
                 virtualization=True,
-                fixed_rows={"headers": True, "data": 0},
-                # fixed_columns = {'headers': True, 'data':1},
-                # style_cell={'width': '150px'},
+                fixed_rows={"headers":True, "data":0},
                 page_current=0,
                 page_size=PAGE_SIZE,
                 page_action="custom",
@@ -1566,51 +1575,51 @@ def clusterPage(job_id, hash):
                 filter_action="custom",
                 filter_query="",
                 style_table={
-                    "max-height": "600px",
-                    "overflowY": "scroll",
+                    "max-height":"600px",
+                    "overflowY":"scroll",
                 },
                 style_cell_conditional=[
                     {
-                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if":{"column_id": "Variant_samples_(highest_CFD)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                     {
-                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if": {"column_id":"Variant_samples_(fewest_mm+b)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                     {
-                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
-                        "textAlign": "left",
-                        "minWidth": "180px",
-                        "width": "180px",
-                        "maxWidth": "180px",
-                        "overflow": "hidden",
+                        "if":{"column_id":"Variant_samples_(highest_CRISTA)"},
+                        "textAlign":"left",
+                        "minWidth":"180px",
+                        "width":"180px",
+                        "maxWidth":"180px",
+                        "overflow":"hidden",
                     },
                 ],
                 css=[
-                    {"selector": ".row", "rule": "margin: 0"},
+                    {"selector":".row", "rule":"margin: 0"},
                     {
-                        "selector": "td.cell--selected, td.focused",
-                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector":"td.cell--selected, td.focused",
+                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                     {
-                        "selector": "td.cell--selected *, td.focused *",
-                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector":"td.cell--selected *, td.focused *",
+                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                 ],
             ),
             id="div-result-table",
         )
     )
-    return html.Div(final_list, style={"margin": "1%"})
+    return html.Div(final_list, style={"margin":"1%"})
 
 
 # Filter and sorting sample targets

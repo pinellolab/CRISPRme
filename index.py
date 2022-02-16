@@ -73,7 +73,7 @@ def changePage(href, path, search, hash_guide):
         if '-Sample-' in hash_guide:
             return results_page.samplePage(job_id, hash_guide.split('#')[1]), URL + '/load' + search
         if '-Pos-' in hash_guide:
-            return results_page.clusterPage(job_id, hash_guide.split('#')[1]), URL + '/load' + search
+            return results_page.cluster_page(job_id, hash_guide.split('#')[1]), URL + '/load' + search
         return results_page.result_page(job_id), URL + '/load' + search
     # if path == '/genome-dictionary-management':
         # return personalization_page.genomeAndDictionaryManagement(), URL + '/load' + search

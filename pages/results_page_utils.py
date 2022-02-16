@@ -153,8 +153,9 @@ COL_BOTH_RENAME = {
     37: "Annotation_ENCODE",
 }
 # genome database fields
-GENOME_DATABASE = ["Reference", "Enriched",
-                   "Samples", "Dictionary", "Annotation"]
+GENOME_DATABASE = [
+    "Reference", "Enriched", "Samples", "Dictionary", "Annotation"
+]
 # results directory
 RESULTS_DIR = "Results"
 # Run parameters file
