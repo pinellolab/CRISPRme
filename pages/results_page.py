@@ -30,7 +30,9 @@ TODO: complete doc string with missing info --> read paper carefully
 """
 
 
+from operator import mod
 from .results_page_utils import (
+    GUIDES_FILE,
     PAGE_SIZE,
     BARPLOT_LEN,
     COL_REF,
@@ -2563,34 +2565,74 @@ def global_store_subset(
     [Input("general-profile-table", "selected_cells")],
     [State("general-profile-table", "data"), State("url", "search")],
 )
-def loadDistributionPopulations(sel_cel, all_guides, job_id):
+def load_distribution_populations(
+    sel_cel: List, all_guides: List[str], job_id: str
+) -> List[html.Div]:
+    """Load targets distribution by superpopulation and display
+    them in the corresponding webpage.
+
+    ...
+
+    Parameters
+    ----------
+    sel_cel : List
+    all_guides : List[str]
+        CRISPR guides
+    job_id : str
+        Unique job identifier
+
+    Returns
+    -------
+    List[html.Div]
+        Webpage with target distribution plots
+    """
+
+    if not isinstance(sel_cel, list):
+        raise TypeError(f"Expected {list.__name__}, got {type(sel_cel).__name__}")
+    if not isinstance(all_guides, list):
+        raise TypeError(f"Expected {list.__name__}, got {type(all_guides).__name__}")
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if sel_cel is None or not sel_cel or not all_guides:
-        raise PreventUpdate
+        raise PreventUpdate  # do not do anything
+    # get the guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
-    job_id = job_id.split("=")[-1]
-
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        mms = int(
-            (next(s for s in all_params.split("\n") if "Mismatches" in s)).split("\t")[
-                -1
-            ]
-        )
-        max_bulges = int(
-            (next(s for s in all_params.split("\n") if "Max_bulges" in s)).split("\t")[
-                -1
-            ]
-        )
-
+    job_id = job_id.split("=")[-1]  # job identifier
+    try:
+        with open(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
+            )
+        ) as handle_params:
+            all_params = handle_params.read()
+            mms = (
+                next(
+                    s for s in all_params.split("\n") if "Mismatches" in s
+                )
+            ).split("\t")[-1]
+            mms = int(mms)
+            max_bulges = (
+                next(
+                    s for s in all_params.split("\n") if "Max_bulges" in s
+                )
+            ).split("\t")[-1]
+            max_bulges = int(max_bulges)
+    except OSError as e:
+        raise e
+    # begin page construction
     distributions = [
         dbc.Row(
             html.P(
-                "On- and Off-Targets distributions in the Reference and Variant Genome. For the Variant Genome, the targets are divided into SuperPopulations.",
+                str(
+                    "On- and Off-Targets distributions in the Reference and "
+                    "Variant Genome. For the Variant Genome, the targets are "
+                    "divided into SuperPopulations."
+                ),
                 style={"margin-left": "0.75rem"},
             )
         )
     ]
-
+    # compute plots
     for i in range(math.ceil((mms + max_bulges + 1) / BARPLOT_LEN)):
         all_images = []
         for mm in range(i * BARPLOT_LEN, (i + 1) * BARPLOT_LEN):
@@ -2604,37 +2646,46 @@ def loadDistributionPopulations(sel_cel, all_guides, job_id):
                                         src="data:image/png;base64,{}".format(
                                             base64.b64encode(
                                                 open(
-                                                    current_working_directory
-                                                    + "Results/"
-                                                    + job_id
-                                                    + "/imgs/populations_distribution_"
-                                                    + guide
-                                                    + "_"
-                                                    + str(mm)
-                                                    + "total.png",
-                                                    "rb",
-                                                ).read()
+                                                    os.path.join(
+                                                        current_working_directory,
+                                                        RESULTS_DIR,
+                                                        job_id,
+                                                        "imgs",
+                                                        "_".join(
+                                                            [
+                                                                "populations",
+                                                                "distribution",
+                                                                guide,
+                                                                f"{mm}total.png"
+                                                            ]
+                                                        )
+                                                    ),
+                                                    mode="rb"
+                                                ).read(),
                                             ).decode()
                                         ),
-                                        id="distribution-population" + str(mm),
+                                        id=f"distribution-population{mm}",
                                         width="100%",
                                         height="auto",
                                     ),
                                     target="_blank",
-                                    href="/Results/"
-                                    + job_id
-                                    + "/imgs/"
-                                    + "populations_distribution_"
-                                    + guide
-                                    + "_"
-                                    + str(mm)
-                                    + "total.png",
+                                    href=os.path.join(
+                                        RESULTS_DIR, 
+                                        job_id,
+                                        "imgs",
+                                        "_".join(
+                                            [
+                                                "populations",
+                                                "distribution",
+                                                guide,
+                                                f"{mm}total.png"
+                                            ]
+                                        )
+                                    ),
                                 ),
                                 html.Div(
                                     html.P(
-                                        "Distribution "
-                                        + str(mm)
-                                        + " Mismatches + Bulges ",
+                                        f"Distribution {mm} Mismatches + Bulges ",
                                         style={"display": "inline-block"},
                                     ),
                                     style={"text-align": "center"},
@@ -2648,21 +2699,17 @@ def loadDistributionPopulations(sel_cel, all_guides, job_id):
                             [
                                 html.Div(
                                     html.P(
-                                        "No Targets found with "
-                                        + str(mm)
-                                        + " Mismatches + Bulges",
+                                        f"No Targets found with {mm} Mismatches + Bulges",
                                         style={"display": "inline-block"},
                                     ),
                                     style={"text-align": "center"},
                                 ),
-                                # html.Div(html.P('Distribution ' + str(mm) + ' Mismatches + Bulges ', style = {'display':'inline-block'} ),style = {'text-align':'center'})
                             ],
                             align="center",
                         )
                     )
             else:
                 all_images.append(dbc.Col(html.P("")))
-
         distributions.append(html.Div([dbc.Row(all_images)]))
     return distributions
 
@@ -2673,15 +2720,17 @@ def loadDistributionPopulations(sel_cel, all_guides, job_id):
     [Input("btn-collapse-populations", "n_clicks")],
     [State("collapse-populations", "is_open")],
 )
-def toggleCollapseDistributionPopulations(n, is_open):
+def toggle_collapse_distribution_populations(n, is_open):
     if n:
         return not is_open
     return is_open
 
 
-# Filtering e sorting per la pagina principale delle guide
+#-------------------------------------------------------------------------------
+# Custom Ranking tab
+#
 
-
+# trigger guides table construction
 @app.callback(
     [
         Output("general-profile-table", "data"),
@@ -2697,57 +2746,131 @@ def toggleCollapseDistributionPopulations(n, is_open):
     [State("url", "search")],
 )
 def update_table_general_profile(
-    page_current, page_size, sort_by, filter, filter_criterion, search
-):
+    page_current: int, 
+    page_size: int, 
+    sort_by: List[str], 
+    filter_term: str, 
+    filter_criterion: str, 
+    search: str
+) -> Tuple[Dict, List]:
+    """Construct the custom ranking tab page.
+    The tab displays a table summarizing the CRISPRme analysis results
+    for each input guide.
+
+    The displayed table columns are filtered according to the filter
+    criterion selected by the user through the drop-down bar.
+
+    ...
+
+    Parameters
+    ----------
+    page_current : int
+        Current page
+    page_size : int
+        Page size
+    sort_by : List[str]
+        Sorting criterion
+    filter_term : str
+        Filter
+    filter_criterion : str
+        Filter criterion
+    search : str
+        Search
+
+    Returns
+    -------
+    Tuple[Dict, List]
+    """
+
+    if not isinstance(page_current, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+    if not isinstance(page_size, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
+    if not isinstance(sort_by, list):
+        raise TypeError(f"Expected {list.__name__}, got {type(sort_by).__name__}")
+    if not isinstance(filter_term, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_term).__name__}")
+    if not isinstance(filter_criterion, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+    if filter_criterion not in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filter criterion ({filter_criterion})")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    # recover job identifier
     job_id = search.split("=")[-1]
-
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
-        mms = int(
-            (next(s for s in all_params.split("\n") if "Mismatches" in s)).split("\t")[
-                -1
-            ]
-        )
-        max_bulges = int(
-            (next(s for s in all_params.split("\n") if "Max_bulges" in s)).split("\t")[
-                -1
-            ]
-        )
-        nuclease = (next(s for s in all_params.split("\n") if "Nuclease" in s)).split(
-            "\t"
-        )[-1]
-
+    try:  
+        with open(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
+            )
+        ) as handle_params:  
+            params = handle_params.read()
+            genome_type_f = (
+                next(
+                    s for s in params.split("\n") if "Genome_selected" in s
+                )
+            ).split("\t")[-1]
+            ref_comp = (
+                next(
+                    s for s in params.split("\n") if "Ref_comp" in s
+                )
+            ).split("\t")[-1]
+            mms = (
+                next(
+                    s for s in params.split("\n") if "Mismatches" in s
+                )
+            ).split("\t")[-1]
+            mms = int(mms)
+            max_bulges = (
+                next(
+                    s for s in params.split("\n") if "Max_bulges" in s
+                )
+            ).split("\t")[-1]
+            max_bulges = int(max_bulges)
+            nuclease = (
+                next(
+                    s for s in params.split("\n") if "Nuclease" in s
+                )
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-
-    filtering_expressions = filter.split(" && ")
-
+    filtering_expressions = filter_term.split(" && ")
     # Get error guides
-    list_error_guides = []
+    error_guides = []
     if os.path.exists(
-        current_working_directory + "Results/" + job_id + "/guides_error.txt"
-    ):
-        with open(
-            current_working_directory + "Results/" + job_id + "/guides_error.txt"
-        ) as error_g:
-            for e_g in error_g:
-                list_error_guides.append(e_g.strip())
-
+        os.path.join(
+            current_working_directory, RESULTS_DIR, job_id, 
+        )
+    ): 
+        try:
+            with open(
+                os.path.join(
+                    current_working_directory, 
+                    RESULTS_DIR, 
+                    job_id, 
+                    "guides_error.txt"
+                )
+            ) as handle_guide_error:
+                for e_g in handle_guide_error:
+                    error_guides.append(e_g.strip())
+        except OSError as e:
+            raise e
     # Get guide from guide.txt
-    with open(current_working_directory + "Results/" + job_id + "/.guides.txt") as g:
-        guides = g.read().strip().split("\n")
-        guides.sort()
-
-    # MT add
+    try:
+        with open(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, job_id, GUIDES_FILE
+            )
+        ) as handle_guides:
+            guides = handle_guides.read().strip().split("\n")
+            guides.sort()
+    except OSError as e:
+        raise e
     acfd_file = os.path.join(
         current_working_directory,
         RESULTS_DIR,
@@ -2756,29 +2879,30 @@ def update_table_general_profile(
     )
     if not os.path.isfile(acfd_file):
         raise FileNotFoundError(f"Unable to locate {acfd_file}")
-
     # load acfd for each guide
-    with open(acfd_file) as a:
-        all_scores = a.read().strip().split("\n")
-
+    try:
+        with open(acfd_file) as handle_acfd:
+            all_scores = handle_acfd.read().strip().split("\n")
+    except OSError as e:
+        raise e
     # Load scores
     if "NO SCORES" not in all_scores:
         all_scores.sort()
         acfd = [
             float(a.split("\t")[1])
             for a in all_scores
-            if a.split("\t")[0] not in list_error_guides
+            if a.split("\t")[0] not in error_guides
         ]
         doench = [
             a.split("\t")[2]
             for a in all_scores
-            if a.split("\t")[0] not in list_error_guides
+            if a.split("\t")[0] not in error_guides
         ]
         if genome_type == "both":
             doench_enr = [
                 a.split("\t")[3]
                 for a in all_scores
-                if a.split("\t")[0] not in list_error_guides
+                if a.split("\t")[0] not in error_guides
             ]
         # acfd = [int(round((100/(100 + x))*100)) for x in acfd]
         acfd = [
@@ -2787,200 +2911,205 @@ def update_table_general_profile(
             else "CFD score not available"
             for x in acfd
         ]
-
-    # Get target counting from summary by guide
-    column_on_target = []
-    column_off_target_ref = []
-    column_sample_class = []
-    column_total = []
-
     df = []
-    table_to_file = list()
-    for x, g in enumerate(guides):
+    table_to_file = []
+    for i, g in enumerate(guides):
         table_to_file.append(g)  # append guide to table
         # append nuclease to table
-        table_to_file.append("Nuclease: " + str(nuclease))
+        table_to_file.append(f"Nuclease: {nuclease}")
         data_general_count = pd.read_csv(
-            current_working_directory
-            + "Results/"
-            + job_id
-            + "/."
-            + job_id
-            + ".general_target_count."
-            + g
-            + "_"
-            + filter_criterion
-            + ".txt",
+            os.path.join(
+                current_working_directory,
+                RESULTS_DIR,
+                job_id,
+                f".{job_id}.general_target_count.{g}_{filter_criterion}.txt"
+            ),
             sep="\t",
-            na_filter=False,
+            na_filter=False
         )
-
-        data_guides = dict()
+        data_guides = {}
         data_guides["Guide"] = g
         data_guides["Nuclease"] = nuclease
         data_general_count_copy = data_general_count.copy()
-        count_bulges = list()
-        origin_ref = list()
-        origin_var = list()
+        count_bulges = []
+        origin_ref = []
+        origin_var = []
         for the_bulge in range(max_bulges + 1):
             origin_ref.append("REF")
             origin_var.append("VAR")
             count_bulges.append(the_bulge)
-
         count_bulges_concat = count_bulges + count_bulges
         origin_concat = origin_ref + origin_var
-
         data_general_count_copy.insert(0, "Genome", origin_concat, True)
         data_general_count_copy.insert(1, "Bulges", count_bulges_concat, True)
-
         if "NO SCORES" not in all_scores:
-            data_guides["CFD"] = acfd[x]
-            table_to_file.append("CFD: " + str(acfd[x]))  # append CFD to table
+            data_guides["CFD"] = acfd[i]
+            table_to_file.append(f"CFD: {acfd[i]}")  # append CFD to table
             table_to_file.append("\t\t\t\tMismatches")
-
-            # table_to_file.append('IN THE FOLLOWING MATRIX, THE FIRST GROUP OF '+str(max_bulges)+' LINES, ARE REFERED TO REFERENCE TARGET, THE SECOND GROUP OF '+str(max_bulges)+' LINES ARE REFERED TO VARIANT GENOME')
-
-            table_to_file.append(
-                data_general_count_copy.to_string(index=False))
-
+            table_to_file.append(data_general_count_copy.to_string(index=False))
             if genome_type == "both":
-                data_guides["Doench 2016"] = doench[x]
-                # data_guides['Enriched'] = doench_enr[x]
+                data_guides["Doench 2016"] = doench[i]
             else:
-                data_guides["Doench 2016"] = doench[x]
-
+                data_guides["Doench 2016"] = doench[i]
         if genome_type == "both":
-            tmp = [str(i) for i in range(max_bulges + 1)] * 2
+            tmp = [str(j) for j in range(max_bulges + 1)] * 2
             tmp.insert(len(tmp) // 2, "")
             data_guides["# Bulges"] = "\n".join(tmp)
         else:
-            tmp = [str(i) for i in range(max_bulges + 1)]
+            tmp = [str(j) for j in range(max_bulges + 1)]
             data_guides["# Bulges"] = "\n".join(tmp)
-
         data_guides["Total"] = []
         if genome_type == "both":
             if max_bulges == 2:
-                for i in range(len(data_guides["# Bulges"].split("\n")) - 1):
-                    if i == 1:
+                for j in range(len(data_guides["# Bulges"].split("\n")) - 1):
+                    if j == 1:
                         data_guides["Total"].append(
-                            "REFERENCE\t" +
-                            str(sum(data_general_count.iloc[i, :]))
+                            "\t".join(
+                                [
+                                    "REFERENCE", 
+                                    str(sum(data_general_count.iloc[j, :]))
+                                ]
+                            )
                         )
-                    elif i == 2:
+                    elif j == 2:
                         data_guides["Total"].append(
-                            "\t" + str(sum(data_general_count.iloc[i, :]))
+                            f"\t{str(sum(data_general_count.iloc[j, :]))}"
                         )
                         data_guides["Total"].append("\t")
-                    elif i == 4:
+                    elif j == 4:
                         data_guides["Total"].append(
-                            "VARIANT\t\t" +
-                            str(sum(data_general_count.iloc[i, :]))
+                            "\t\t".join(
+                                [
+                                    "VARIANT", 
+                                    str(sum(data_general_count.iloc[j, :]))
+                                ]
+                            )
                         )
                     else:
                         data_guides["Total"].append(
-                            "\t" + str(sum(data_general_count.iloc[i, :]))
+                            f"\t{str(sum(data_general_count.iloc[i, :]))}"
                         )
             elif max_bulges == 1:
-                for i in range(len(data_guides["# Bulges"].split("\n")) - 1):
-                    if i == 1:
+                for j in range(len(data_guides["# Bulges"].split("\n")) - 1):
+                    if j == 1:
                         data_guides["Total"].append(
-                            "REFERENCE\t" +
-                            str(sum(data_general_count.iloc[i, :]))
+                            "\t".join(
+                                [
+                                    "REFERENCE",
+                                    str(sum(data_general_count.iloc[j, :]))
+                                ]
+                            )
                         )
                         data_guides["Total"].append("\t")
                     elif i == 3:
                         data_guides["Total"].append(
-                            "VARIANT\t\t" +
-                            str(sum(data_general_count.iloc[i, :]))
+                            "\t\t".join(
+                                [
+                                    "VARIANT",
+                                    str(sum(data_general_count.iloc[j, :]))
+                                ]
+                            )
                         )
                     else:
                         data_guides["Total"].append(
-                            "\t" + str(sum(data_general_count.iloc[i, :]))
+                            f"\t{str(sum(data_general_count.iloc[j, :]))}"
                         )
             else:
-                for i in range(len(data_guides["# Bulges"].split("\n")) - 1):
-                    if i == 0:
+                for j in range(len(data_guides["# Bulges"].split("\n")) - 1):
+                    if j == 0:
                         data_guides["Total"].append(
-                            "REFERENCE\t" +
-                            str(sum(data_general_count.iloc[i, :]))
+                            "\t".join(
+                                [
+                                    "REFERENCE",
+                                    str(sum(data_general_count.iloc[j, :]))
+                                ]
+                            )
                         )
                         data_guides["Total"].append("\t")
-                    elif i == 1:
+                    elif j == 1:
                         data_guides["Total"].append(
-                            "VARIANT\t\t" +
-                            str(sum(data_general_count.iloc[i, :]))
+                            "\t\t".join(
+                                [
+                                    "VARIANT",
+                                    str(sum(data_general_count.iloc[j, :]))
+                                ]
+                            )
                         )
         else:
-            for i in range(len(data_guides["# Bulges"].split("\n"))):
-                if i == len(data_guides["# Bulges"].split("\n")) // 2:
+            for j in range(len(data_guides["# Bulges"].split("\n"))):
+                if j == len(data_guides["# Bulges"].split("\n")) // 2:
                     data_guides["Total"].append(
-                        "REFERENCE\t" + str(sum(data_general_count.iloc[i, :]))
+                        "\t".join(
+                            [
+                                "REFERENCE", 
+                                str(sum(data_general_count.iloc[j, :]))
+                            ]
+                        )
                     )
                 else:
                     data_guides["Total"].append(
-                        "\t" + str(sum(data_general_count.iloc[i, :]))
+                        f"\t{str(sum(data_general_count.iloc[j, :]))}"
                     )
-
         if genome_type == "both":
             for i in range(mms + 1):
                 tmp = list(data_general_count.iloc[:, i].values.astype(str))
                 tmp.insert(len(tmp) // 2, "")
                 data_guides[str(i) + "MM"] = "\n".join(tmp)
         else:
-            for i in range(mms + 1):
-                tmp = list(
-                    data_general_count.iloc[: max_bulges +
-                                            1, i].values.astype(str)
-                )
+            for j in range(mms + 1):
+                tmp = [
+                    data_general_count.iloc[:(max_bulges + 1), j].values.astype(str)
+                ]
                 # tmp.insert(len(tmp)//2, "")
-                data_guides[str(i) + "MM"] = "\n".join(tmp)
-
+                data_guides[str(j) + "MM"] = "\n".join(tmp)
         data_guides["Total"] = "\n".join(data_guides["Total"])
-
         df.append(data_guides)
-    dff = pd.DataFrame(df)
-
+    dff = pd.DataFrame(df)  # create data table
     table_to_file_save_dest = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + ".general_table.txt"
+        os.path.join(
+            current_working_directory,
+            RESULTS_DIR,
+            job_id,
+            f"{job_id}.general_table.txt"
+        )
     )
-
-    outfile = open(table_to_file_save_dest, "w")
-    for elem in table_to_file:
-        outfile.write(elem + "\n")
-    outfile.close()
-
+    try:
+        outfile = open(table_to_file_save_dest, "w")
+        for elem in table_to_file:
+            outfile.write(elem + "\n")
+    except OSError as e:
+        raise e
+    finally:
+        outfile.close()
     # zip integrated results
-    integrated_file_name = glob(
-        current_working_directory + "Results/" + job_id + "/" + "*integrated*"
+    integrated_fname = glob(
+        os.path.join(
+            current_working_directory, RESULTS_DIR, job_id, "*integrated*"
+        )
     )[0]
-    integrated_file_name = str(integrated_file_name)
-    integrated_file = integrated_file_name
-
-    integrated_to_zip = integrated_file_name.replace("tsv", "zip")
+    assert isinstance(integrated_fname, str)
+    integrated_file = integrated_fname
+    # zip integrated file 
+    integrated_to_zip = integrated_fname.replace("tsv", "zip")
     if not os.path.exists(integrated_to_zip):
-        os.system(f"zip -j {integrated_to_zip} {integrated_file} &")
-
+        cmd = f"zip -j {integrated_to_zip} {integrated_file} &"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"An error occurred while running {cmd}")
     if "NO SCORES" not in all_scores:
         try:
-            dff = dff.sort_values(["CFD", "Doench 2016"],
-                                  ascending=[False, False])
+            dff = dff.sort_values(
+                ["CFD", "Doench 2016"], ascending=[False, False]
+            )
         except:  # for BOTH
-            dff = dff.sort_values(["CFD", "Enriched"],
-                                  ascending=[False, False])
+            dff = dff.sort_values(["CFD", "Enriched"], ascending=[False, False])
     else:
         try:
             dff = dff.sort_values("On-Targets Reference", ascending=True)
         except:
             dff = dff.sort_values("On-Targets Enriched", ascending=True)
-
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
-
         if operator in ("eq", "ne", "lt", "le", "gt", "ge"):
             # these operators match pandas series operator method names
             dff = dff.loc[getattr(dff[col_name], operator)(filter_value)]
@@ -2990,8 +3119,7 @@ def update_table_general_profile(
             # this is a simplification of the front-end filtering logic,
             # only works with complete fields in standard format
             dff = dff.loc[dff[col_name].str.startswith(filter_value)]
-
-    if len(sort_by):
+    if bool(sort_by):
         dff = dff.sort_values(
             [
                 "Samples" if col["column_id"] == "Samples Summary" else col["column_id"]
@@ -3000,9 +3128,7 @@ def update_table_general_profile(
             ascending=[col["direction"] == "asc" for col in sort_by],
             inplace=False,
         )
-
     # Calculate sample count
-
     data_to_send = dff.iloc[
         page_current * page_size: (page_current + 1) * page_size
     ].to_dict("records")
