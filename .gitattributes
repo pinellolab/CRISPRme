@@ -60,7 +60,7 @@ Dockerfile text
 *.mkdn text diff=markdown
 *.mdtxt text
 *.mdtext text
-*.txt text
+*.txt text eol=lf
 AUTHORS text
 CHANGELOG text
 CHANGES text
