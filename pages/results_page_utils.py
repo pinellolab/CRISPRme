@@ -2,9 +2,10 @@
 used throughout CRISPRme's result page. 
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from app import current_working_directory, operators
 
+import dash_html_components as html
 import pandas as pd
 
 import os
@@ -417,3 +418,90 @@ def split_filter_part(filter_part: str) -> Tuple[str, str, str]:
                 # but we don't want these later
                 return name, operator_type[0].strip(), value
     return [None] * 3
+
+
+def generate_table_samples(
+    dataframe: pd.DataFrame, 
+    id_table: str, 
+    page: int, 
+    guide: Optional[str] = "", 
+    job_id: Optional[str] = "", 
+    max_rows: Optional[int] = 10
+) -> html.Table:
+    """Generate a html table from a given pandas DataFrame.
+
+    ...
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        Input dataframe
+    id_table : str
+        HTML table identifier
+    page : int
+        Current webpage
+    guide : str
+        Guide
+    job_id : str
+        Unique job identifier
+    max_rows : int
+        Maximum number of rows to display
+
+    Returns
+    -------
+    html.Table
+        HTML table
+    """
+
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+    if not isinstance(id_table, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
+    if not isinstance(page, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
+    if not isinstance(guide, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(max_rows, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
+    if max_rows < 1:
+        raise ValueError(f"Forbidden number of rows to display ({max_rows})")
+    # force dataframe fields to be of str type
+    dataframe = dataframe.astype(str)
+    rows_remaining = len(dataframe) - (page - 1) * max_rows
+    return html.Table(
+        # Header
+        [html.Tr([html.Th(col) for col in dataframe.columns])] +
+        # Body
+        [
+            html.Tr(
+                [
+                    html.Td(
+                        html.A(
+                            dataframe.iloc[i + (page - 1) * max_rows][col],
+                            href="".join(
+                                [
+                                    "result?job=",
+                                    job_id,
+                                    "#",
+                                    guide,
+                                    "-Sample-",
+                                    dataframe.iloc[
+                                        i + (page - 1) * max_rows
+                                    ]["Sample"]
+                                ]
+                            ),
+                            target="_blank",
+                        )
+                    )
+                    if col == ""
+                    else html.Td(dataframe.iloc[i + (page - 1) * max_rows][col])
+                    for col in dataframe.columns
+                ]
+            )
+            for i in range(min(rows_remaining, max_rows))
+        ],
+        style={"display": "inline-block"},
+        id=id_table,
+    )

@@ -64,10 +64,11 @@ from .results_page_utils import (
     write_json,
     read_json,
     get_query_column,
-    split_filter_part
+    split_filter_part,
+    generate_table_samples
 )
 
-from typing import Dict, List, Tuple 
+from typing import Dict, List, Optional, Tuple 
 from glob import glob
 
 import os
@@ -2589,8 +2590,6 @@ def load_distribution_populations(
 
     if not isinstance(sel_cel, list):
         raise TypeError(f"Expected {list.__name__}, got {type(sel_cel).__name__}")
-    if not isinstance(all_guides, list):
-        raise TypeError(f"Expected {list.__name__}, got {type(all_guides).__name__}")
     if not isinstance(job_id, str):
         raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if sel_cel is None or not sel_cel or not all_guides:
@@ -2844,7 +2843,7 @@ def update_table_general_profile(
     error_guides = []
     if os.path.exists(
         os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, 
+            current_working_directory, RESULTS_DIR, job_id, "guides_error.txt"
         )
     ): 
         try:
@@ -2860,7 +2859,7 @@ def update_table_general_profile(
                     error_guides.append(e_g.strip())
         except OSError as e:
             raise e
-    # Get guide from guide.txt
+    # Get guide from .guide.txt
     try:
         with open(
             os.path.join(
@@ -3136,31 +3135,54 @@ def update_table_general_profile(
 
 
 # Update color on selected row
-
-
 @app.callback(
     Output("general-profile-table", "style_data_conditional"),
     [Input("general-profile-table", "selected_cells")],
     [State("general-profile-table", "data")],
 )
-def colorSelectedRow(sel_cel, all_guides):
+def color_selected_row(sel_cel: List, all_guides: List) -> List:
+    """Color the selected row of the data table.
+
+    ...
+
+    Parameters
+    ----------
+    sel_cel : List
+        Selected row
+    all_guides : List
+        Guides list
+
+    Returns
+    -------
+    List
+    """
+
+    # check if the table has to be updated or not
     if sel_cel is None or not sel_cel or not all_guides:
-        raise PreventUpdate
+        raise PreventUpdate  # do not do anything
+    # recover the guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
+    # color the selected row
     return [
         {
             "if": {
                 "filter_query": '{Guide} eq "' + guide + '"',
             },
-            "background-color": "rgba(0, 0, 255,0.15)",  # 'rgb(255, 102, 102)'
+            "background-color": "rgba(0, 0, 255,0.15)",  # rgb(255, 102, 102)
         },
-        {"if": {"column_id": "Genome"}, "font-weight": "bold", "textAlign": "center"},
+        {
+            "if": {"column_id": "Genome"}, 
+            "font-weight": "bold", 
+            "textAlign": "center"
+        },
     ]
 
 
 # ------------------------------------------------------------------------------
 # Query genomic region tab
 #
+
+# trigger filtering table by genomic coordinates
 @app.callback(
     [
         Output("div-table-position", "children"),
@@ -3174,10 +3196,9 @@ def colorSelectedRow(sel_cel, all_guides):
         State("general-profile-table", "selected_cells"),
         State("general-profile-table", "data"),
         State("div-current-page-table-position", "children"),
-        # State("div-mms-bulges-position", "children"),
     ],
 )
-def filterPositionTable(
+def filter_position_table(
     filter_q: List[str],
     n: int,
     filter_criterion: str,
@@ -3185,7 +3206,6 @@ def filterPositionTable(
     sel_cel: List[int],
     all_guides: List[int],
     current_page: str,
-    # mms_bulge: str,
 ) -> Tuple[List[html.P], str]:
     """Filter result table by genomic region. The table is filtered in order to
     display only those targets falling within the genomic interval defined
@@ -3220,6 +3240,7 @@ def filterPositionTable(
         Page numeration
 
     """
+
     if n is not None:
         if not isinstance(n, int):
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
@@ -3228,48 +3249,37 @@ def filterPositionTable(
             f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
         )
     if not filter_criterion in FILTERING_CRITERIA:
-        raise ValueError(f"Forbidden filtering criterion {filter_criterion}")
+        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(search, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(search).__name__}")
-    if not isinstance(sel_cel, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(sel_cel).__name__}")
-    if not bool(sel_cel):
-        raise ValueError("Empty Dictionary, stopping execution.")
-    if not isinstance(all_guides, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(all_guides).__name__}")
-    if not bool(all_guides):
-        raise ValueError("Empty Dictionary, stopping execution.")
-
     if sel_cel is None:
         raise PreventUpdate
     if n is None:
         raise PreventUpdate
-    # recover filter query fields; if there are NULL fields -> prevent table update
+    # recover filter query fields; 
+    # if there are NULL fields -> prevent table update
     # query structure: chrom,start,stop
     if isinstance(filter_q, str):  # simple regular query
         filter_q = filter_q.split(",")
+        assert isinstance(filter_q, list)  # it should be list of fields
     elif isinstance(filter_q, list):  # updated by callback
         assert len(filter_q) == 2  # we should have just two elements
         filter_criterion = filter_q[1]  # recover table filtering criterion
         filter_q = filter_q[0].split(",")  # query genomic coordinates
-    print(filter_criterion)
     assert filter_criterion in FILTERING_CRITERIA
     chrom = filter_q[0]
     if chrom == "None":
-        raise PreventUpdate
+        raise PreventUpdate  # invalid chromosome
     start = filter_q[1]
     if start == "None":
-        raise PreventUpdate
+        raise PreventUpdate  # invalid start
     end = filter_q[2]
     if end == "None":
-        raise PreventUpdate
+        raise PreventUpdate  # invalid stop 
     current_page = int(current_page.split("/")[0])
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id)
+    # recover the guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover db file
     db_path = glob(
@@ -3281,10 +3291,10 @@ def filterPositionTable(
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     query = 'SELECT * FROM final_table WHERE "{}"=\'{}\' AND "{}">={} AND "{}"<={} AND "{}"=\'{}\''
-
+    # recover filtering criterion
     filter_criterion = read_json(job_id)
-    query_cols = get_query_column(filter_criterion)
-
+    query_cols = get_query_column(filter_criterion)  # recover query columns
+    # query the db
     result = pd.read_sql_query(
         query.format(
             GUIDE_COLUMN, guide, query_cols['start'], start, query_cols['start'], end, CHR_COLUMN, chrom
@@ -3292,8 +3302,9 @@ def filterPositionTable(
         conn,
     )
     conn.commit()
-    conn.close()
-    if result.shape[0] == 0:  # no guides found
+    conn.close()  # close db connection
+    assert isinstance(result, pd.DataFrame)
+    if result.empty:  # no guides found ?
         df_check = False
     else:  # check table fit to page
         df_check = True
@@ -3347,10 +3358,10 @@ def filterPositionTable(
         ]
     else:
         out_1 = [html.P("No results found with this genomic coordinates")]
+    return out_1, "/".join([str(1), str(1)])
 
-    return out_1, "/".join([str(1) + str(1)])
 
-
+# update filters to filter results by position
 @app.callback(
     Output("div-position-filter-query", "children"),
     [Input("button-filter-position", "n_clicks")],
@@ -3361,7 +3372,7 @@ def filterPositionTable(
         State("input-position-end", "value"),
     ],
 )
-def updatePositionFilter(
+def update_position_filter(
     n: int, filter_criterion: str, chrom: str, pos_start: str, pos_end: str
 ) -> Tuple[str, str, int]:
     """Callback to update the result table filtered by genomic location.
@@ -3402,7 +3413,6 @@ def updatePositionFilter(
     if not isinstance(pos_end, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(pos_end).__name__}")
-
     if n is None:  # no click -> no page update
         raise PreventUpdate
     if pos_start == "":
@@ -3413,9 +3423,11 @@ def updatePositionFilter(
     return coords, filter_criterion
 
 
-# Callback to view next/prev page on sample table
+# ------------------------------------------------------------------------------
+# Summary by Sample tab
+#
 
-
+# View next/prev page on sample table
 @app.callback(
     [
         Output("div-table-samples", "children"),
@@ -3435,64 +3447,123 @@ def updatePositionFilter(
         State("div-current-page-table-samples", "children"),
     ],
 )
-def filterSampleTable(
-    nPrev,
-    nNext,
-    filter_q,
-    filter_criterion,
-    n,
-    search,
-    sel_cel,
-    all_guides,
-    current_page,
-):
-    if sel_cel is None:
-        raise PreventUpdate
-    if nPrev is None and nNext is None and n is None:
-        raise PreventUpdate
+def filter_sample_table(
+    n_prev: int,
+    n_next: int,
+    filter_q: str,
+    filter_criterion: str,
+    n: int,
+    search: str,
+    sel_cel: List,
+    all_guides: List,
+    current_page: str,
+) -> Tuple[html.Table, str]:
+    """Filter summary by sample table according to the filtering crietrion
+    selected by the user.
 
-    if nPrev is None:
-        nPrev = 0
-    if nNext is None:
-        nNext = 0
+    The adopted filtering criterion is selected by the user through the 
+    drop-down bar available for all webpage result tabs.
+
+    ...
+
+    Parameters
+    ----------
+    n_prev : int
+        Previous pages number
+    n_next : 
+        Next pages number
+    filter_q : str
+        Filter query
+    filter_criterion : str
+        Filtering criterion
+    n : int
+        Clicks
+    search : str
+        Search
+    sel_cel : List
+        Selected table rows
+    all_guides : List
+        Guides list
+    current_page : str
+        Current webpage
+
+    Returns
+    -------
+    Tuple[html.Table, str]
+        Updated samples table    
+    """
+
+    if n_prev is not None:
+        if not isinstance(n_prev, int):
+            raise TypeError(f"Expected {int.__name__}, got {type(n_prev).__name__}")
+    if n_next is not None:
+        if not isinstance(n_next, int):
+            raise TypeError(f"Expected {int.__name__}, got {type(n_next).__name__}")
+    if not isinstance(filter_q, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_q).__name__}")
+    if n is not None:
+        if not isinstance(n, int):
+            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if not isinstance(current_page, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(current_page).__name__}")
+    if sel_cel is None:
+        raise PreventUpdate  # do not do anything
+    if n_prev is None and n_next is None and n is None:
+        raise PreventUpdate  # do not do anything
+    if n_prev is None:
+        n_prev = 0
+    if n_next is None:
+        n_next = 0
     if n is None:
         n = 0
-
+    # get superpopulation name
     sup_pop = filter_q.split(",")[0]
+    # get population name
     pop = filter_q.split(",")[1]
-    samp = str(filter_q.split(",")[2])
+    # get sample
+    sample = str(filter_q.split(",")[2])
     if sup_pop == "None":
         sup_pop = None
     if pop == "None":
         pop = None
-    if samp == "None" or samp == "NONE":
-        samp = None
-    current_page = current_page.split("/")[0]
-    current_page = int(current_page)
-    btn_sample_section = []
-    btn_sample_section.append(n)
-    btn_sample_section.append(nPrev)
-    btn_sample_section.append(nNext)
+    if sample == "None" or sample == "NONE":
+        sample = None
+    current_page = int(current_page.split("/")[0])
+    btn_sample_section = [n, n_prev, n_next]
+    # get job identifier
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
-        job_directory + ".sampleID.txt"
+        os.path.join(job_directory, ".sampleID.txt")
     )[2]
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        genome_type_f = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
-            "\t"
-        )[-1]
-
+    # read CRISPRme run parameters
+    try:
+        with open(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
+            )
+        ) as handle_params:
+            params = handle_params.read()
+            genome_type_f = (
+                next(
+                    s for s in params.split("\n") if "Genome_selected" in s
+                )
+            ).split("\t")[-1]
+            ref_comp = (
+                next(
+                    s for s in params.split("\n") if "Ref_comp" in s
+                )
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
     genome_type = "ref"
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-
+    # recover the guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     if genome_type == "both":
         col_names_sample = [
@@ -3516,182 +3587,159 @@ def filterSampleTable(
             "Targets in Super Population",
             "PAM Creation",
         ]  # , 'Class']
-    # Last button pressed is filtering, return the first page of the filtered table
+    # Last button pressed is filtering, return the first page of the 
+    # filtered table
     if max(btn_sample_section) == n:
-        if genome_type == "both":
-            df = pd.read_csv(
-                job_directory
-                + job_id
-                + ".summary_by_samples."
-                + guide
-                + "_"
-                + filter_criterion
-                + ".txt",
-                sep="\t",
-                names=col_names_sample,
-                skiprows=2,
-                na_filter=False,
-            )
-            df = df.sort_values("Targets in Variant", ascending=False)
-        else:
-            df = pd.read_csv(
-                job_directory
-                + job_id
-                + ".summary_by_samples."
-                + guide
-                + "_"
-                + filter_criterion
-                + ".txt",
-                sep="\t",
-                names=col_names_sample,
-                skiprows=2,
-                na_filter=False,
-            )
-            df = df.sort_values("Targets in Variant", ascending=False)
-
-        more_info_col = []
-        for i in range(df.shape[0]):
-            more_info_col.append("Show Targets")
+        df = pd.read_csv(
+            os.path.join(
+                job_directory,
+                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+            ),
+            sep="\t",
+            names=col_names_sample,
+            skiprows=2,
+            na_filter=False
+        )
+        df = df.sort_values("Targets in Variant", ascending=False)
+        more_info_col = ["Show Targets" for _ in range(df.shape[0])]
         df[""] = more_info_col
         if (
-            (sup_pop is None or sup_pop == "")
-            and (pop is None or pop == "")
-            and (samp is None or samp == "")
-        ):  # No filter value selected
-            max_page = len(df.index)
-            max_page = math.floor(max_page / 10) + 1
-            return (
-                generate_table_samples(df, "table-samples", 1, guide, job_id),
-                "1/" + str(max_page),
-            )
-        if samp is None or samp == "":
-            if pop is None or pop == "":
-                df.drop(
+            (sup_pop is not None and sup_pop != "")
+            or (pop is not None and pop != "")
+            or (sample is not None and sample != "")
+        ):
+            if sample is None or sample == "":
+                if pop is None or pop == "":
+                    df.drop(
                     df[(~(df["Population"].isin(population_1000gp[sup_pop])))].index,
                     inplace=True,
                 )
+                else:
+                    df.drop(df[(df["Sample"] != sample)].index, inplace=True)
             else:
-                df.drop(df[(df["Population"] != pop)].index, inplace=True)
-        else:
-            df.drop(df[(df["Sample"] != samp)].index, inplace=True)
+                df.drop(df[(df["Sample"] != sample)].index, inplace=True)
+        # if (
+        #     (sup_pop is None or sup_pop == "")
+        #     and (pop is None or pop == "")
+        #     and (sample is None or sample == "")
+        # ):  # No filter value selected
+        #     max_page = len(df.index)
+        #     max_page = math.floor(max_page / 10) + 1
+        #     return (
+        #         generate_table_samples(df, "table-samples", 1, guide, job_id),
+        #         f"1/{max_page}",
+        #     )
+        # # filter table to keep sample data
+        # if sample is None or sample == "":
+        #     # filter table to keep population data
+        #     if pop is None or pop == "":
+        #         df.drop(
+        #             df[(~(df["Population"].isin(population_1000gp[sup_pop])))].index,
+        #             inplace=True,
+        #         )
+        #     else:
+        #         df.drop(df[(df["Population"] != pop)].index, inplace=True)
+        # else:
+        #     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
         max_page = len(df.index)
         max_page = math.floor(max_page / 10) + 1
         return (
             generate_table_samples(df, "table-samples", 1, guide, job_id),
-            "1/" + str(max_page),
+            f"1/{max_page}",
         )
     else:
-        if max(btn_sample_section) == nNext:
-            current_page = current_page + 1
+        if max(btn_sample_section) == n_next:  # go to next page
+            current_page += 1
+            df = pd.read_csv(
+                os.path.join(
+                    job_directory, 
+                    f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+                ),
+                sep="\t",
+                names=col_names_sample,
+                skiprows=2,
+                na_filter=False
+            )
             if genome_type == "both":
-                df = pd.read_csv(
-                    job_directory + job_id + ".summary_by_samples." + guide + ".txt",
-                    sep="\t",
-                    names=col_names_sample,
-                    skiprows=2,
-                    na_filter=False,
-                )
                 df = df.sort_values("Targets in Variant", ascending=False)
             else:
-                df = pd.read_csv(
-                    job_directory + job_id + ".summary_by_samples." + guide + ".txt",
-                    sep="\t",
-                    names=col_names_sample,
-                    skiprows=2,
-                    na_filter=False,
-                )
-                df = df.sort_values("Targets in Reference", ascending=False)
-
-            more_info_col = []
-            for i in range(df.shape[0]):
-                more_info_col.append("Show Targets")
+               df = df.sort_values("Targets in Reference", ascending=False)
+            more_info_col = ["Show Targets" for _ in range(df.shape[0])]
             df[""] = more_info_col
             # Active filter
-            if pop or sup_pop or samp:
-                if samp is None or samp == "":
+            if pop or sup_pop or sample:
+                if sample is None or sample == "":
                     if pop is None or pop == "":
                         df.drop(
                             df[
-                                (~(df["Population"].isin(
-                                    population_1000gp[sup_pop])))
+                                (
+                                    ~(
+                                        df["Population"].isin(
+                                            population_1000gp[sup_pop]
+                                        )
+                                    )
+                                )
                             ].index,
                             inplace=True,
                         )
                     else:
-                        df.drop(df[(df["Population"] != pop)].index,
-                                inplace=True)
+                        df.drop(df[(df["Population"] != pop)].index, inplace=True)
                 else:
-                    df.drop(df[(df["Sample"] != samp)].index, inplace=True)
-
+                    df.drop(df[(df["Sample"] != sample)].index, inplace=True)
             if ((current_page - 1) * 10) > len(df):
                 current_page = current_page - 1
                 if current_page < 1:
                     current_page = 1
-            max_page = len(df.index)
-            max_page = math.floor(max_page / 10) + 1
-            return (
-                generate_table_samples(
-                    df, "table-samples", current_page, guide, job_id
-                ),
-                str(current_page) + "/" + str(max_page),
-            )
-
-        else:  # Go to previous page
-            current_page = current_page - 1
+        else:  # go to previous page
+            current_page -= 1
             if current_page < 1:
                 current_page = 1
+            df = pd.read_csv(
+                os.path.join(
+                    job_directory,
+                    f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+                ),
+                sep="\t",
+                names=col_names_sample,
+                skiprows=2,
+                na_filter=False
+            )
             if genome_type == "both":
-                df = pd.read_csv(
-                    job_directory + job_id + ".summary_by_samples." + guide + ".txt",
-                    sep="\t",
-                    names=col_names_sample,
-                    skiprows=2,
-                    na_filter=False,
-                )
                 df = df.sort_values("Targets in Variant", ascending=False)
             else:
-                df = pd.read_csv(
-                    job_directory + job_id + ".summary_by_samples." + guide + ".txt",
-                    sep="\t",
-                    names=col_names_sample,
-                    skiprows=2,
-                    na_filter=False,
-                )
                 df = df.sort_values("Targets in Variant", ascending=False)
-
-            more_info_col = []
-            for i in range(df.shape[0]):
-                more_info_col.append("Show Targets")
+            more_info_col = ["Show Targets" for _ in range(df.shape[0])]
             df[""] = more_info_col
-            if pop or sup_pop or samp:
-                if samp is None or samp == "":
+            if pop or sup_pop or sample:
+                if sample is None or sample == "":
                     if pop is None or pop == "":
                         df.drop(
                             df[
-                                (~(df["Population"].isin(
-                                    population_1000gp[sup_pop])))
+                                (
+                                    ~(
+                                        df["Population"].isin(
+                                            population_1000gp[sup_pop]
+                                        )
+                                    )
+                                )
                             ].index,
                             inplace=True,
                         )
                     else:
-                        df.drop(df[(df["Population"] != pop)].index,
-                                inplace=True)
+                        df.drop(df[(df["Population"] != pop)].index, inplace=True)
                 else:
-                    df.drop(df[(df["Sample"] != samp)].index, inplace=True)
-            max_page = len(df.index)
-            max_page = math.floor(max_page / 10) + 1
-            return (
-                generate_table_samples(
-                    df, "table-samples", current_page, guide, job_id
-                ),
-                str(current_page) + "/" + str(max_page),
-            )
-    raise PreventUpdate
+                    df.drop(df[(df["Sample"] != sample)].index, inplace=True)
+        max_page = len(df.index)
+        max_page = math.floor(max_page / 10) + 1
+        return (
+            generate_table_samples(
+                df, "table-samples", current_page, guide, job_id
+            ),
+            f"{current_page}/{max_page}",
+        )
 
 
 # Callback to update the hidden div filter
-
-
 @app.callback(
     Output("div-sample-filter-query", "children"),
     [Input("button-filter-population-sample", "n_clicks")],
@@ -3701,16 +3749,57 @@ def filterSampleTable(
         State("input-sample", "value"),
     ],
 )
-def updateSampleFilter(n, superpopulation, population, sample):
+def update_sample_filter(
+    n: int, superpopulation: str, population: str, sample: str
+) -> str:
+    """Update the filter for the samples table.
+    
+    ...
+
+    Parameters
+    ----------
+    n : int
+        Clicks
+    superpopulation : str
+        Superpopulation code
+    population : str
+        Population code
+    sample : str
+        Sample identifier
+
+    Returns
+    -------
+    str
+        New filter query
+    """
+
+    if n is not None:
+        if not isinstance(n, int):
+            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if superpopulation is not None:
+        if not isinstance(superpopulation, str):
+            raise TypeError(f"Expected {str.__name__}, got {type(superpopulation).__name__}")
+    if population is not None:
+        if not isinstance(population, str):
+            raise TypeError(f"Expected {str.__name__}, got {type(population).__name__}")
+    if sample is not None:
+        if not isinstance(sample, str):
+            raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     if n is None:
         raise PreventUpdate
-    return (
-        str(superpopulation)
-        + ","
-        + str(population)
-        + ","
-        + str(sample).replace(" ", "").upper()
+    # prevent page updates when at least one filter element is none
+    if any(
+        [
+            field is None for field in [superpopulation, population, sample]
+        ]
+    ):
+        raise PreventUpdate
+    filter_new = ",".join(
+        [
+            superpopulation, population, sample.replace(" ", "").upper()
+        ]
     )
+    return filter_new
 
 
 # Callback to update the sample based on population selected
@@ -3905,44 +3994,6 @@ def generate_table_position(
             )
 
     return html.Table(header + data, style={"display": "inline-block"}, id=id_table)
-
-
-def generate_table_samples(dataframe, id_table, page, guide="", job_id="", max_rows=10):
-    """
-    Per generare una html table. NOTE è diversa da una dash dataTable
-    """
-    dataframe = dataframe.astype(str)
-    rows_remaining = len(dataframe) - (page - 1) * max_rows
-    return html.Table(
-        # Header
-        [html.Tr([html.Th(col) for col in dataframe.columns])] +
-        # Body
-        [
-            html.Tr(
-                [
-                    html.Td(
-                        html.A(
-                            dataframe.iloc[i + (page - 1) * max_rows][col],
-                            href="result?job="
-                            + job_id
-                            + "#"
-                            + guide
-                            + "-Sample-"
-                            + dataframe.iloc[i + \
-                                             (page - 1) * max_rows]["Sample"],
-                            target="_blank",
-                        )
-                    )
-                    if col == ""
-                    else html.Td(dataframe.iloc[i + (page - 1) * max_rows][col])
-                    for col in dataframe.columns
-                ]
-            )
-            for i in range(min(rows_remaining, max_rows))
-        ],
-        style={"display": "inline-block"},
-        id=id_table,
-    )
 
 
 def generate_table(
