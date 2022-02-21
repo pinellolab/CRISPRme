@@ -279,14 +279,8 @@ else:
 
 for nline, line in enumerate(inCrispritzResults):
     target = line.strip().split('\t')
-    # print(line)
     # file annotation reported after gencode association with gene
     annotationLine = inAnnotationFile.readline().strip().split('\t')
-
-    # try:
-    #     annotationLine = inAnnotationFile.readline().strip().split('\t')
-    # except:
-    #     annotationLine = 'NA'
 
     lowestEmpirical = 100
 
@@ -308,54 +302,27 @@ for nline, line in enumerate(inCrispritzResults):
                     if 'gene_name' in name:
                         saveDict['Annotation_closest_gene_name'] = name.strip().split('=')[
                             1]
-                    # if 'gene_type' in name:
-                    #     tipo = str(annotationLine[11])
-                    #     if 'codon' in tipo or 'exon' in tipo:
-                    #         tipo = 'CDS'
-                    #     elif 'gene' in tipo or 'transcript' in tipo:
-                    #         tipo = 'intron'
-                    #     elif 'five_prime_UTR' in tipo:
-                    #         tipo = "5'UTR"
-                    #     elif 'three_prime_UTR' in tipo:
-                    #         tipo = "3'UTR"
-                    # saveDict['gene_annotation'] = str(annotationLine[11])
-                        # saveDict['Annotation_GENCODE'] = str(
-                        #     annotationLine[11])
         saveDict['Annotation_closest_gene_distance_(kb)'] = str(
             float(annotationLine[len(annotationLine)-1])/1000)
         if float(annotationLine[len(annotationLine)-1]) != 0:
             saveDict['Annotation_GENCODE'] = 'intergenic'
 
-    # origin = ''
-    # if 'n' in str(target[13]):
-    #     origin = 'ref'
-    # else:
-    #     origin = 'alt'
-
     variantList = ['NA']
-    if str(target[13]) != 'NA' and str(target[13]) != 'n' and str(target[20]) != str(target[21]):
+    if str(target[18]) != 'NA':  # check if target has variants reported (CFD)
         variantList = str(target[18]).strip().split(',')
-        if len(variantList) > 1 and checkVCF:
-            samples = target[13]
-            target[17] = createBedforMultiAlternative(variantList, samples)
-            target[17] = str(target[17])[:7]
         # generate variant nucleotide reverse complemented always in positive strand
         for count, elem in enumerate(variantList):
             split = str(elem).strip().split('_')
             split_one_len = len(split[2])
             split_second_len = len(split[3])
-            # if split_one_len != split_second_len:
-            #     correction = split_second_len
             correction = 0
-            if '+' in str(target[7]):
+            if '+' in str(target[7]):  # strand
                 # var pos is equal to pos_of_variant-real_position
-                var_pos = int(split[1])-int(target[5])
+                var_pos = int(split[1])-int(target[5])  # real_position
                 if var_pos < 1:
                     var_pos = 1
                 variantList[count] = str(
                     var_pos)+str(split[2])+'>'+str(split[3])
-                # variantList[count] = str(
-                #     split[2])+str(var_pos)+str(split[3])
             else:
                 firstcomp = ''
                 secondcomp = ''
@@ -377,12 +344,8 @@ for nline, line in enumerate(inCrispritzResults):
     variantList_highest_cfd = variantList
 
     variantList = ['NA']
-    if str(target[37]) != 'NA' and str(target[37]) != 'n' and str(target[44]) != str(target[45]):
+    if str(target[42]) != 'NA':  # check if target has variants reported (MMBUL)
         variantList = str(target[42]).strip().split(',')
-        if len(variantList) > 1 and checkVCF:
-            samples = target[37]
-            target[41] = createBedforMultiAlternative(variantList, samples)
-            target[41] = str(target[41])[:7]
         var_pos = []
         # generate variant position corrected to be in the positive strand
         for count, elem in enumerate(variantList):
@@ -390,29 +353,25 @@ for nline, line in enumerate(inCrispritzResults):
             split_one_len = len(split[2])
             split_second_len = len(split[3])
             correction = 0
-            # if split_one_len != split_second_len:
-            #     correction = split_second_len
-            if '+' in str(target[7]):
+            if '+' in str(target[31]):
                 # var pos is equal to pos_of_variant-real_position
-                var_pos = int(split[1])-int(target[5])
+                var_pos = int(split[1])-int(target[29])
                 if var_pos < 1:
                     var_pos = 1
                 variantList[count] = str(
                     var_pos)+str(split[2])+'>'+str(split[3])
-                # variantList[count] = str(
-                #     split[2])+str(var_pos)+str(split[3])
             else:
                 firstcomp = ''
                 secondcomp = ''
-                var_pos = int(split[1])-int(target[5])
+                var_pos = int(split[1])-int(target[29])
                 if var_pos < 1:
-                    var_pos = len(target[1])
+                    var_pos = len(target[25])  # aligned_sgRNA
                 else:
                     # if var pos non negative, count the position in reverse strand so starting from end of the sequence that is been reversed complemented
                     if split_second_len < split_one_len:
                         correction = split_one_len-split_second_len
                     var_pos = abs(
-                        int(split[1])-int(target[5])-1-len(target[1])+correction)
+                        int(split[1])-int(target[29])-1-len(target[25])+correction)
                 for piece in str(split[2]):
                     firstcomp += rev_comp(piece)
                 for piece in str(split[3]):
@@ -420,6 +379,43 @@ for nline, line in enumerate(inCrispritzResults):
                 variantList[count] = str(var_pos)+''.join(
                     reversed(firstcomp))+'>'+''.join(reversed(secondcomp))
     variantList_fewest_mm_b = variantList
+
+    variantList = ['NA']
+    if str(target[66]) != 'NA':  # check if target has variants reported (CRISTA)
+        variantList = str(target[66]).strip().split(',')
+        var_pos = []
+        # generate variant position corrected to be in the positive strand
+        for count, elem in enumerate(variantList):
+            split = str(elem).strip().split('_')
+            split_one_len = len(split[2])
+            split_second_len = len(split[3])
+            correction = 0
+            if '+' in str(target[55]):
+                # var pos is equal to pos_of_variant-real_position
+                var_pos = int(split[1])-int(target[53])
+                if var_pos < 1:
+                    var_pos = 1
+                variantList[count] = str(
+                    var_pos)+str(split[2])+'>'+str(split[3])
+            else:
+                firstcomp = ''
+                secondcomp = ''
+                var_pos = int(split[1])-int(target[53])
+                if var_pos < 1:
+                    var_pos = len(target[49])  # aligned_sgRNA
+                else:
+                    # if var pos non negative, count the position in reverse strand so starting from end of the sequence that is been reversed complemented
+                    if split_second_len < split_one_len:
+                        correction = split_one_len-split_second_len
+                    var_pos = abs(
+                        int(split[1])-int(target[53])-1-len(target[49])+correction)
+                for piece in str(split[2]):
+                    firstcomp += rev_comp(piece)
+                for piece in str(split[3]):
+                    secondcomp += rev_comp(piece)
+                variantList[count] = str(var_pos)+''.join(
+                    reversed(firstcomp))+'>'+''.join(reversed(secondcomp))
+    variantList_highest_crista = variantList
 
     saveDict['Spacer+PAM'] = str(target[15])
     saveDict['Strand_(highest_CFD)'] = str(target[7])
@@ -521,7 +517,7 @@ for nline, line in enumerate(inCrispritzResults):
     saveDict['CRISTA_score_ALT_(highest_CRISTA)'] = str(target[68])
     saveDict['CRISTA_risk_score_(highest_CRISTA)'] = str(target[70])
     saveDict['Variant_info_spacer+PAM_(highest_CRISTA)'] = ','.join(
-        variantList_highest_cfd)
+        variantList_highest_crista)
     saveDict['Variant_info_genome_(highest_CRISTA)'] = str(target[66])
 
     maf_list = list()
@@ -551,33 +547,33 @@ for nline, line in enumerate(inCrispritzResults):
         saveDict['Aligned_protospacer+PAM_REF_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)']
         saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)'] = 'NA'
 
-    change_alt_ref_highest_cfd = False
-    if saveDict['Not_found_in_REF'] == 'NA' and saveDict['REF/ALT_origin_(highest_CFD)'] == 'alt' and saveDict['CFD_score_REF_(highest_CFD)'] != '-1.0' and saveDict['CFD_score_REF_(highest_CFD)'] == saveDict['CFD_score_ALT_(highest_CFD)']:
-        change_alt_ref_highest_cfd = True
+    # change_alt_ref_highest_cfd = False
+    # if saveDict['Not_found_in_REF'] == 'NA' and saveDict['REF/ALT_origin_(highest_CFD)'] == 'alt' and saveDict['CFD_score_REF_(highest_CFD)'] != '-1.0' and saveDict['CFD_score_REF_(highest_CFD)'] == saveDict['CFD_score_ALT_(highest_CFD)']:
+    #     change_alt_ref_highest_cfd = True
 
-    change_alt_ref_highest_crista = False
-    if saveDict['Not_found_in_REF'] == 'NA' and saveDict['REF/ALT_origin_(highest_CRISTA)'] == 'alt' and saveDict['CRISTA_score_REF_(highest_CRISTA)'] != '-1.0' and saveDict['CRISTA_score_REF_(highest_CRISTA)'] == saveDict['CRISTA_score_ALT_(highest_CRISTA)']:
-        change_alt_ref_highest_crista = True
+    # change_alt_ref_highest_crista = False
+    # if saveDict['Not_found_in_REF'] == 'NA' and saveDict['REF/ALT_origin_(highest_CRISTA)'] == 'alt' and saveDict['CRISTA_score_REF_(highest_CRISTA)'] != '-1.0' and saveDict['CRISTA_score_REF_(highest_CRISTA)'] == saveDict['CRISTA_score_ALT_(highest_CRISTA)']:
+    #     change_alt_ref_highest_crista = True
 
-    if change_alt_ref_highest_cfd:
-        saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'] = 'NA'
-        saveDict['REF/ALT_origin_(highest_CFD)'] = 'ref'
-        saveDict['Variant_info_spacer+PAM_(highest_CFD)'] = 'NA'
-        saveDict['Variant_info_genome_(highest_CFD)'] = 'NA'
-        saveDict['Variant_MAF_(highest_CFD)'] = 'NA'
-        saveDict['Variant_rsID_(highest_CFD)'] = 'NA'
-        saveDict['Variant_samples_(highest_CFD)'] = 'NA'
-        saveDict['PAM_creation_(highest_CFD)'] = 'NA'
+    # if change_alt_ref_highest_cfd:
+    #     saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'] = 'NA'
+    #     saveDict['REF/ALT_origin_(highest_CFD)'] = 'ref'
+    #     saveDict['Variant_info_spacer+PAM_(highest_CFD)'] = 'NA'
+    #     saveDict['Variant_info_genome_(highest_CFD)'] = 'NA'
+    #     saveDict['Variant_MAF_(highest_CFD)'] = 'NA'
+    #     saveDict['Variant_rsID_(highest_CFD)'] = 'NA'
+    #     saveDict['Variant_samples_(highest_CFD)'] = 'NA'
+    #     saveDict['PAM_creation_(highest_CFD)'] = 'NA'
 
-    if change_alt_ref_highest_crista:
-        saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)'] = 'NA'
-        saveDict['REF/ALT_origin_(highest_CRISTA)'] = 'ref'
-        saveDict['Variant_info_spacer+PAM_(highest_CRISTA)'] = 'NA'
-        saveDict['Variant_info_genome_(highest_CRISTA)'] = 'NA'
-        saveDict['Variant_MAF_(highest_CRISTA)'] = 'NA'
-        saveDict['Variant_rsID_(highest_CRISTA)'] = 'NA'
-        saveDict['Variant_samples_(highest_CRISTA)'] = 'NA'
-        saveDict['PAM_creation_(highest_CRISTA)'] = 'NA'
+    # if change_alt_ref_highest_crista:
+    #     saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)'] = 'NA'
+    #     saveDict['REF/ALT_origin_(highest_CRISTA)'] = 'ref'
+    #     saveDict['Variant_info_spacer+PAM_(highest_CRISTA)'] = 'NA'
+    #     saveDict['Variant_info_genome_(highest_CRISTA)'] = 'NA'
+    #     saveDict['Variant_MAF_(highest_CRISTA)'] = 'NA'
+    #     saveDict['Variant_rsID_(highest_CRISTA)'] = 'NA'
+    #     saveDict['Variant_samples_(highest_CRISTA)'] = 'NA'
+    #     saveDict['PAM_creation_(highest_CRISTA)'] = 'NA'
 
     # check how long is the pam counting Ns in the guide
     count_N_in_guide = str(target[15]).count('N')
@@ -763,19 +759,19 @@ for nline, line in enumerate(inCrispritzResults):
     # highestCFD
     if saveDict['REF/ALT_origin_(highest_CFD)'] == 'ref':
         if pam_at_start:  # save pam sequence extracting directly from the ref sequence
-            saveDict['PAM_(highest_CFD)'] = saveDict['Aligned_protospacer+PAM_REF_(highest_CFD)'][: count_N_in_guide]
+            saveDict['PAM_(highest_CFD)'] = saveDict['Aligned_protospacer+PAM_REF_(highest_CFD)'][:count_N_in_guide]
         else:
             saveDict['PAM_(highest_CFD)'] = saveDict['Aligned_protospacer+PAM_REF_(highest_CFD)'][-count_N_in_guide:]
     else:
         if pam_at_start:  # save pam sequence extracting directly from the var sequence
-            saveDict['PAM_(highest_CFD)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'][: count_N_in_guide]
+            saveDict['PAM_(highest_CFD)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'][:count_N_in_guide]
         else:
             saveDict['PAM_(highest_CFD)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'][-count_N_in_guide:]
 
     # fewest_mm+b
     if saveDict['REF/ALT_origin_(fewest_mm+b)'] == 'ref':
         if pam_at_start:  # save pam sequence extracting directly from the ref sequence
-            saveDict['PAM_(fewest_mm+b)'] = saveDict['Aligned_protospacer+PAM_REF_(fewest_mm+b)'][: count_N_in_guide]
+            saveDict['PAM_(fewest_mm+b)'] = saveDict['Aligned_protospacer+PAM_REF_(fewest_mm+b)'][:count_N_in_guide]
         else:
             saveDict['PAM_(fewest_mm+b)'] = saveDict['Aligned_protospacer+PAM_REF_(fewest_mm+b)'][-count_N_in_guide:]
     else:
@@ -787,12 +783,12 @@ for nline, line in enumerate(inCrispritzResults):
     # highest_CRISTA
     if saveDict['REF/ALT_origin_(highest_CRISTA)'] == 'ref':
         if pam_at_start:  # save pam sequence extracting directly from the ref sequence
-            saveDict['PAM_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_REF_(highest_CRISTA)'][: count_N_in_guide]
+            saveDict['PAM_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_REF_(highest_CRISTA)'][:count_N_in_guide]
         else:
             saveDict['PAM_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_REF_(highest_CRISTA)'][-count_N_in_guide:]
     else:
         if pam_at_start:  # save pam sequence extracting directly from the var sequence
-            saveDict['PAM_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)'][: count_N_in_guide]
+            saveDict['PAM_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)'][:count_N_in_guide]
         else:
             saveDict['PAM_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)'][-count_N_in_guide:]
 
@@ -835,8 +831,7 @@ for nline, line in enumerate(inCrispritzResults):
             newkey = str(key)+'_mm+bul'
             saveDict[newkey] = empiricalDict[key]
 
-    save = ''
-    save += '\t'.join(list(saveDict.values()))
+    save = '\t'.join(list(saveDict.values()))
     save += '\n'
     outFile.write(save)
 
