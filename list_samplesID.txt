@@ -1,7 +1,0 @@
-hg38_1000G.samplesID.txt
-
-
-
-
-
-
