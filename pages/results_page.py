@@ -682,7 +682,7 @@ def downloadLinkSample(n, file_to_load, search):  # file to load =
     # file_to_load = file_to_load + '.zip'
     file_to_load = file_to_load + ".txt"
     file_to_load = file_to_load.strip().split("/")[-1]
-    # ###print(file_to_load)
+    
     if os.path.exists(
         current_working_directory + "Results/" + job_id + "/" + file_to_load
     ):
@@ -711,7 +711,7 @@ def downloadGeneralTable(n, file_to_load, search):  # file to load =
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
-    # ###print(file_to_load)
+   
     if os.path.exists(
         current_working_directory + "Results/" + job_id + "/" + file_to_load
     ):
@@ -743,7 +743,7 @@ def downloadGeneralTable(n, file_to_load, search):  # file to load =
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
-    # ###print(file_to_load)
+    
     if os.path.exists(
         current_working_directory + "Results/" + job_id + "/" + file_to_load
     ):
@@ -823,8 +823,7 @@ def downloadLinkGuide(n, file_to_load, search):  # file to load = job_id.RNA.1.0
 
 @app.server.route("/Results/<path:path>")
 def download_file(path):
-    # ###print(current_working_directory)
-    # ###print('test', path)
+    
     return flask.send_from_directory(
         os.path.join(current_working_directory, "Results/"), path, as_attachment=True
     )
@@ -1080,7 +1079,7 @@ def clusterPage(job_id, hash):
             for i, t in zip(COL_BOTH, COL_BOTH_TYPE)
         ]
         file_to_grep = ".bestMerge.txt"
-    # ###print('qui cluster before grep')
+    
 
     cluster_grep_result = (
         current_working_directory
@@ -1108,7 +1107,7 @@ def clusterPage(job_id, hash):
         + cluster_grep_result
         + " ; "
     )
-    # ###print('esiste cluster?' , str(os.path.exists(cluster_grep_result)) )
+    
     # Example    job_id.chr3_100.guide.txt
     if not os.path.exists(cluster_grep_result):
         # os.system(f'touch {cluster_grep_result}')
@@ -1159,7 +1158,7 @@ def clusterPage(job_id, hash):
                 + cluster_grep_result
             ).read()
         else:
-            # ###print('qui cluster in grep')     #NOTE HEADER NON SALVATO
+            #NOTE HEADER NON SALVATO
             os.popen(
                 put_header
                 + " grep -F "
@@ -1508,7 +1507,7 @@ def update_table_sample(page_current, page_size, sort_by, filter, search, hash):
 
 
 def samplePage(job_id, hash):
-    # ###print("SAMPLE PAGE LOADED FOR", job_id, hash)
+    
     guide = hash[: hash.find("-Sample-")]
     sample = str(hash[hash.rfind("-") + 1:])
     if not isdir(current_working_directory + "Results/" + job_id):
@@ -2660,7 +2659,6 @@ def filterPositionTable(
         assert len(filter_q) == 2  # we should have just two elements
         filter_criterion = filter_q[1]  # recover table filtering criterion
         filter_q = filter_q[0].split(",")  # query genomic coordinates
-    print(filter_criterion)
     assert filter_criterion in FILTERING_CRITERIA
     chrom = filter_q[0]
     if chrom == "None":
@@ -3625,9 +3623,9 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
 
     # convert sample to str to avoid concatenation errrors
     sample = str(sample)
-    # print('leggo sample')
+    
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
-    # print('leggo gen table')
+    
     job_id = search.split("=")[-1]
     job_directory = current_working_directory + "Results/" + job_id + "/"
     file_to_grep = job_directory + "." + job_id + ".bestMerge.txt"
@@ -3687,7 +3685,6 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
     c = conn.cursor()
 
     query_cols = get_query_column(filter_criterion)
-    print(query_cols)
 
     result_personal = pd.read_sql_query(
         "SELECT * FROM final_table WHERE \"{}\"='{}' AND \"{}\" LIKE '%{}%'".format(
@@ -3717,11 +3714,9 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
     os.system(f"zip -j {integrated_private_zip} {integrated_private}")
 
     # plot for images in personal card
-    # print('faccio personal')
     os.system(
         f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
     )
-    # print('faccio private')
     os.system(
         f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
     )
@@ -3771,9 +3766,8 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
     filter_criterion = read_json(job_id)
 
     try:
-        # file_to_load = job_id + '.' + sample + '.' + guide + '.private.zip'
         file_to_load = job_id + "." + sample + "." + guide + ".private_targets.zip"
-        # #print(file_to_load)
+        
         # ans = ans[COL_BOTH]
         out_1 = [
             html.A(
@@ -4324,7 +4318,7 @@ def updateContentTab(
                 style={"width": "50%"},
             )
         )
-        # ###print('Position dataframe ready', time.time() - start_time)
+        
         # Folr keep current filter:  chr,pos_start,pos_end
         fl.append(
             html.Div(
@@ -4741,7 +4735,7 @@ def updateContentTab(
             ]
         )
         fl.append(query_tab_content)
-        # ##print('table query', dff)
+        
         # fl.append(
 
         return fl
@@ -5245,7 +5239,7 @@ def update_output(
             ]
     else:
         raise PreventUpdate
-    # ##print('query table', data)
+    
     return columns, data, tooltip_data, alert
 
 
@@ -5302,7 +5296,7 @@ def set_columns_options(selected_target):
             }
         )
     # return gi
-    # ###print(main_order_dict)
+    
     return gi
 
 
