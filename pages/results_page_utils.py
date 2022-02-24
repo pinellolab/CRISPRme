@@ -170,6 +170,8 @@ LOG_FILE = "log.txt"
 GUIDES_FILE = ".guides.txt"
 # data directory
 DATA_DIR = "data"
+# report images directory
+IMGS_DIR = "imgs"
 # guide column name
 GUIDE_COLUMN = "Spacer+PAM"
 # chromosome column name

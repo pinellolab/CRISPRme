@@ -58,6 +58,7 @@ from .results_page_utils import (
     SAMPLES_FEWEST_COLUMN,
     RESULTS_DIR,
     DATA_DIR,
+    IMGS_DIR,
     FILTERING_CRITERIA,
     PARAMS_FILE,
     drop_columns,
@@ -3946,22 +3947,55 @@ def check_existance_sample(
 )
 def update_images_tabs(
     mm: int, sel_cel: List, filter_criterion: str, search: str, all_guides: List
-) -> Tuple:
+) -> Tuple[List, List, List, List]:
+    """Compute the plots displayed when watching at the Graphical Reports
+    tab in the main CRISPRme results webpage.
+
+    The plots are computed at execution time.
+
+    ...
+
+    Parameters
+    ----------
+    mm : str
+        Mismatches
+    sel_cel : List
+        Selected table cells
+    filter_criterion : str
+        Filter criterion selected by the user via the global drop-down bar
+    search : str
+        Search
+    all_guides : List
+        All CRISPR guides
+
+    Returns 
+    -------
+    Tuple[List, List, List, List]
+        HTML page containing the plots
+    """
+
+    if not isinstance(mm, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(mm).__name__}")
+    if not isinstance(filter_criterion, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+    if filter_criterion not in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     bulge = 0
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
-
-    # search for getting job id
-    # get guide with sel_cel and all_data
+    # define plot containers
     # radar_chart_images = list()
-    radar_chart_encode_gencode = list()
+    radar_chart_encode_gencode = []
     # radar_chart_gencode = list()
-    population_barplots = list()
-    guide_images = list()
-    sample_images = list()
-
+    population_barplots = []
+    guide_images = []
+    sample_images = []
+    # begin graphical reports page construction
     try:
+        # population barplot
         population_barplots.extend(
             [
                 html.A(
@@ -3969,38 +4003,31 @@ def update_images_tabs(
                         src="data:image/png;base64,{}".format(
                             base64.b64encode(
                                 open(
-                                    current_working_directory
-                                    + "Results/"
-                                    + job_id
-                                    + "/imgs/populations_distribution_"
-                                    + guide
-                                    + "_"
-                                    + str(int(mm) + int(bulge))
-                                    + "total"
-                                    + "_"
-                                    + filter_criterion
-                                    + ".png",
-                                    "rb",
+                                    os.path.join(
+                                        current_working_directory,
+                                        RESULTS_DIR,
+                                        job_id,
+                                        IMGS_DIR,
+                                        str(
+                                            f"populations_distribution_{guide}"
+                                            f"_{int(mm) + int(bulge)}total_{filter_criterion}.png"
+                                        )
+                                    ),
+                                    mode="rb"
                                 ).read()
                             ).decode()
                         ),
-                        id="distribution-population" +
-                        str(int(mm) + int(bulge)),
+                        id=f"distribution-population{int(mm) + int(bulge)}",
                         width="100%",
                         height="auto",
                     ),
                     target="_blank",
-                    href="/Results/"
-                    + job_id
-                    + "/imgs/"
-                    + "populations_distribution_"
-                    + guide
-                    + "_"
-                    + str(int(mm) + int(bulge))
-                    + "total"
-                    + "_"
-                    + filter_criterion
-                    + ".png",
+                    href=os.path.join(
+                        f"/{RESULTS_DIR}", job_id, IMGS_DIR, str(
+                            f"populations_distribution_{guide}_"
+                            f"{int(mm) + int(bulge)}total_{filter_criterion}.png"
+                        )
+                    ),
                 ),
             ]
         )
@@ -4008,50 +4035,49 @@ def update_images_tabs(
         population_barplots = [
             html.Div(
                 html.H2(
-                    "No result found for this combination of mismatches and bulges")
+                    "No result found for this combination of mismatches and bulges"
+                )
             )
         ]
-
+    # radar chart
     radar_img_encode_gencode = (
-        "/imgs/summary_single_guide_"
-        + guide
-        + "_"
-        + str(mm)
-        + "."
-        + str(bulge)
-        + "_TOTAL_"
-        + filter_criterion
-        + ".ENCODE+GENCODE.png"
+        os.path.join(
+            f"{IMGS_DIR}",
+            str(
+                f"summary_single_guide_{guide}_{mm}."
+                f"{bulge}_TOTAL_{filter_criterion}.ENCODE+GENCODE.png"
+            )
+        )
     )
-    os.system(
-        f"python {app_main_directory}/PostProcess/generate_img_radar_chart.py {guide} {job_directory}/.guide_dict_{guide}_{filter_criterion}.json {job_directory}/.motif_dict_{guide}_{filter_criterion}.json {mm} {bulge} TOTAL_{filter_criterion} {job_directory}/imgs/"
-    )
-
-    img_found = False
+    # TODO: do not call python script, rather define functions
+    cmd = f"python {app_main_directory}/PostProcess/generate_img_radar_chart.py {guide} {job_directory}/.guide_dict_{guide}_{filter_criterion}.json {job_directory}/.motif_dict_{guide}_{filter_criterion}.json {mm} {bulge} TOTAL_{filter_criterion} {job_directory}/imgs/"
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise ValueError(f"An error occurred while running \"{cmd}\"")
+    img_found = False  # look for radar chart image
     try:
         radar_src_encode_gencode = "data:image/png;base64,{}".format(
             base64.b64encode(
                 open(
-                    current_working_directory
-                    + "Results/"
-                    + job_id
-                    + "/"
-                    + radar_img_encode_gencode,
-                    "rb",
+                    os.path.join(
+                        current_working_directory,
+                        RESULTS_DIR,
+                        job_id,
+                        radar_img_encode_gencode
+                    ),
+                    mode="rb"
                 ).read()
             ).decode()
         )
         img_found = True
     except:
-        pass
-
+        pass  # ignore
     try:
         radar_href_encode_gencode = (
             "/Results/" + job_id + "/" + radar_img_encode_gencode
         )
     except:
         radar_href = ""
-
     if img_found:
         radar_chart_encode_gencode.append(
             html.A(
@@ -4065,18 +4091,19 @@ def update_images_tabs(
                 href=radar_href_encode_gencode,
             )
         )
-
-    if len(radar_chart_encode_gencode) == 0:
+    if len(radar_chart_encode_gencode) == 0:  # no radar chart
         radar_chart_encode_gencode.append(
-            html.H2("No result found for this combination of mismatches and bulges")
+            html.H2(
+                "No result found for this combination of mismatches and bulges"
+            )
         )
-
-    # reverse list to print plots in correct order since they are append in reverse order into main sample_images list
+    # reverse list to print plots in correct order 
+    # NB plots are appended in reverse order into main sample_images list
     reversed_sample_images = sample_images[::-1]
     return (
         radar_chart_encode_gencode,
         population_barplots,
-        guide_images,
+        guide_images,  # always empty?
         reversed_sample_images,
     )
 
