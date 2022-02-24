@@ -56,35 +56,15 @@ def plot_with_MMvBUL(df, out_folder, guide):
     df['Mismatches+bulges_REF_(fewest_mm+b)'] = 0
     df['Mismatches+bulges_ALT_(fewest_mm+b)'] = 0
 
-    # compute analysis to reference_count_analysis
-    df = df.apply(reference_count_analysis, axis=1)
-    # df = df.apply(
-    #     lambda row: reference_count_analysis(row), axis=1)
-
-    # if col is alt calculate score for ref and alt, if ref skip
-    # for index in df.index:
-    #     if df.loc[index, 'REF/ALT_origin_(fewest_mm+b)'] == 'alt':
-    #         refTarget = str(
-    #             df.loc[index, 'Aligned_protospacer+PAM_REF_(fewest_mm+b)'])
-    #         countMM = 0
-    #         for nt in refTarget:
-    #             if nt.islower():
-    #                 countMM += 1
-    #         df.loc[index, 'Mismatches+bulges_REF_(fewest_mm+b)'] = countMM + \
-    #             int(df.loc[index, 'Bulges_(fewest_mm+b)'])
-    #         df.loc[index, 'Mismatches+bulges_ALT_(fewest_mm+b)'] = df.loc[index,
-    #                                                                       'Mismatches+bulges_(fewest_mm+b)']
-    #     else:
-    #         df.loc[index, 'Mismatches+bulges_REF_(fewest_mm+b)'] = df.loc[index,
-    #                                                                       'Mismatches+bulges_(fewest_mm+b)']
-    #         df.loc[index, 'Mismatches+bulges_ALT_(fewest_mm+b)'] = df.loc[index,
-    #                                                                       'Mismatches+bulges_(fewest_mm+b)']
-
     # sort in order to have highest REF mm+bul on top
     df.sort_values('Mismatches+bulges_(fewest_mm+b)',
                    ascending=True, inplace=True)
     # top1000 targets
     df = df.head(1000)
+
+    # compute analysis to reference_count_analysis
+    df = df.apply(reference_count_analysis, axis=1)
+
     # Make index column that numbers the OTs starting from 1
     df.reset_index(inplace=True)
     index_count = 1

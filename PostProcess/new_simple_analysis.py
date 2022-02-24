@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from math import trunc
+from operator import index
 import sys
 import json
 import os
@@ -134,8 +135,7 @@ def revcom(s):
 
 
 def get_mm_pam_scores():
-    # print((os.path.dirname(
-    #     os.path.realpath(__file__))))
+    # print(os.path.dirname(os.path.realpath(__file__)))
     try:
         mm_scores = pickle.load(open(os.path.dirname(
             os.path.realpath(__file__)) + '/mismatch_score.pkl', 'rb'))
@@ -565,6 +565,52 @@ def calculate_scores(cluster_to_save):
     # process score for each target in cluster, at the same time to improve execution time
     cluster_with_CRISTA_score = preprocess_CRISTA_score(cluster_to_save)
 
+    # analyze CFD scored targets, returning for each guide,chr,cluster_pos the highest scoring target (or multiple in case of equal)
+    df_CFD = pd.DataFrame(cluster_with_CFD_score, columns=['Bulge_type', 'crRNA', 'DNA', 'Chromosome',
+                                                           'Position', 'Cluster_Position', 'Direction', 'Mismatches',
+                                                           'Bulge_Size', 'Total', 'PAM_gen', 'Var_uniq', 'Samples', 'Annotation_Type',
+                                                           'Real_Guide', 'rsID', 'AF', 'SNP', 'Reference_target', 'CFD',
+                                                           'Seq_in_cluster', 'CFD_ref'])
+    # group by over real_guide,chr,cluster_pos to avoid mixing targets
+    # select lowest count of mm+bul
+    idx_fewest_mm_bul = df_CFD.groupby(['Real_Guide', 'Chromosome', 'Cluster_Position', 'SNP', 'Samples'])[
+        'Total'].transform(min) == df_CFD['Total']
+    df_CFD_fewest = df_CFD[idx_fewest_mm_bul]
+    df_CFD_fewest.drop_duplicates(
+        ['Real_Guide', 'Chromosome', 'Cluster_Position', 'SNP', 'Samples', 'Mismatches', 'Bulge_Size'], inplace=True)
+    # select highest score
+    idx_max_score = df_CFD.groupby(['Real_Guide', 'Chromosome', 'Cluster_Position', 'SNP', 'Samples'])[
+        'CFD'].transform(max) == df_CFD['CFD']
+    df_CFD_best_score = df_CFD[idx_max_score]
+    # remove duplicate rows (possible due to haplotypes and variants)
+    df_CFD_best_score.drop_duplicates(['Real_Guide', 'Chromosome',
+                                       'Cluster_Position', 'SNP', 'Samples', 'CFD'], inplace=True)
+    frames = [df_CFD_fewest, df_CFD_best_score]
+    df_CFD = pd.concat(frames)
+    cluster_with_CFD_score = df_CFD.values.tolist()
+
+    df_CRISTA = pd.DataFrame(cluster_with_CRISTA_score, columns=['Bulge_type', 'crRNA', 'DNA', 'Chromosome',
+                                                                 'Position', 'Cluster_Position', 'Direction', 'Mismatches',
+                                                                 'Bulge_Size', 'Total', 'PAM_gen', 'Var_uniq', 'Samples', 'Annotation_Type',
+                                                                 'Real_Guide', 'rsID', 'AF', 'SNP', 'Reference_target', 'CFD',
+                                                                 'Seq_in_cluster', 'CFD_ref'])
+    # select lowest count of mm+bul
+    idx_fewest_mm_bul = df_CRISTA.groupby(['Real_Guide', 'Chromosome', 'Cluster_Position', 'SNP', 'Samples'])[
+        'Total'].transform(min) == df_CRISTA['Total']
+    df_CRISTA_fewest = df_CRISTA[idx_fewest_mm_bul]
+    df_CRISTA_fewest.drop_duplicates(
+        ['Real_Guide', 'Chromosome', 'Cluster_Position', 'SNP', 'Samples', 'Mismatches', 'Bulge_Size'], inplace=True)
+    # select highest score
+    idx_max_score = df_CRISTA.groupby(['Real_Guide', 'Chromosome', 'Cluster_Position', 'SNP', 'Samples'])[
+        'CFD'].transform(max) == df_CRISTA['CFD']
+    df_CRISTA_best_score = df_CRISTA[idx_max_score]
+    # remove duplicate rows (possible due to haplotypes and variants)
+    df_CRISTA_best_score.drop_duplicates(['Real_Guide', 'Chromosome',
+                                          'Cluster_Position', 'SNP', 'Samples', 'CFD'], inplace=True)
+    frames = [df_CRISTA_fewest, df_CRISTA_best_score]
+    df_CRISTA = pd.concat(frames)
+    cluster_with_CRISTA_score = df_CRISTA.values.tolist()
+
     return [cluster_with_CFD_score, cluster_with_CRISTA_score]
 
 
@@ -675,7 +721,7 @@ for line in inTarget:
     split = line.strip().split('\t')
     # sgRNA sequence (with bulges and PAM)
     guide = split[1]
-    # found target on DNA (with bulges,mismatches and PAM)
+    # found target on DNA (with bulges, mismatches and PAM)
     target = split[2]
     guide_no_bulge = split[1].replace('-', '')
     guide_no_pam = guide[pos_beg:pos_end]

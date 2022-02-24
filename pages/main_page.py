@@ -97,7 +97,7 @@ def split_filter_part(filter_part):
     [Input('load-example-button', 'n_clicks')]
 )
 def load_example_data(load_button_click):
-    return ["CTAACAGTTGCTTTTATCAC", 'SpCas9', '20bp-NNN-SpCas9', 'hg38', ['1000G'], '6', '2', '2']
+    return ["CTAACAGTTGCTTTTATCAC", 'SpCas9', '20bp-NGG-SpCas9', 'hg38', ['1000G'], '6', '2', '2']
 
 
 # Submit Job, change url

@@ -24,9 +24,13 @@ def rev_comp(a):
 # process seed analisys
 
 
-def seed_processing(seed_ref, seed_alt, non_seed_ref, non_seed_alt,
-                    count_seed_ref, count_seed_alt, count_non_seed_ref, count_non_seed_alt):
+def seed_processing(seed_ref: str, seed_alt: str, non_seed_ref: str, non_seed_alt: str):
     # count mm and bulges for seed and non-seed target
+    count_seed_ref = 0
+    count_seed_alt = 0
+    count_non_seed_ref = 0
+    count_non_seed_alt = 0
+
     for elem in seed_ref:
         if elem.islower():
             count_seed_ref += 1
@@ -536,17 +540,6 @@ for nline, line in enumerate(inCrispritzResults):
         target[64]) == '.' else str(target[64])
     saveDict['Variant_samples_(highest_CRISTA)'] = str(target[61])
 
-    # correct ref and var origin, changing the reported sequence
-    if saveDict['REF/ALT_origin_(highest_CFD)'] == 'ref':
-        saveDict['Aligned_protospacer+PAM_REF_(highest_CFD)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)']
-        saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'] = 'NA'
-    if saveDict['REF/ALT_origin_(fewest_mm+b)'] == 'ref':
-        saveDict['Aligned_protospacer+PAM_REF_(fewest_mm+b)'] = saveDict['Aligned_protospacer+PAM_ALT_(fewest_mm+b)']
-        saveDict['Aligned_protospacer+PAM_ALT_(fewest_mm+b)'] = 'NA'
-    if saveDict['REF/ALT_origin_(highest_CRISTA)'] == 'ref':
-        saveDict['Aligned_protospacer+PAM_REF_(highest_CRISTA)'] = saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)']
-        saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)'] = 'NA'
-
     # change_alt_ref_highest_cfd = False
     # if saveDict['Not_found_in_REF'] == 'NA' and saveDict['REF/ALT_origin_(highest_CFD)'] == 'alt' and saveDict['CFD_score_REF_(highest_CFD)'] != '-1.0' and saveDict['CFD_score_REF_(highest_CFD)'] == saveDict['CFD_score_ALT_(highest_CFD)']:
     #     change_alt_ref_highest_cfd = True
@@ -624,8 +617,8 @@ for nline, line in enumerate(inCrispritzResults):
         seed_alt == 'NA'
         non_seed_alt == 'NA'
 
-    seed_list = seed_processing(seed_ref, seed_alt, non_seed_ref, non_seed_alt,
-                                0, 0, 0, 0)  # count_seed_ref, count_seed_alt, count_non_seed_ref, count_non_seed_alt
+    # count_seed_ref, count_seed_alt, count_non_seed_ref, count_non_seed_alt
+    seed_list = seed_processing(seed_ref, seed_alt, non_seed_ref, non_seed_alt)
 
     saveDict['Seed_mismatches+bulges_REF_(highest_CFD)'] = str(
         int(seed_list[0])+dna_bulge_count_seed)
@@ -677,8 +670,8 @@ for nline, line in enumerate(inCrispritzResults):
         seed_alt == 'NA'
         non_seed_alt == 'NA'
 
-    seed_list = seed_processing(seed_ref, seed_alt, non_seed_ref, non_seed_alt,
-                                0, 0, 0, 0)  # count_seed_ref, count_seed_alt, count_non_seed_ref, count_non_seed_alt
+    # count_seed_ref, count_seed_alt, count_non_seed_ref, count_non_seed_alt
+    seed_list = seed_processing(seed_ref, seed_alt, non_seed_ref, non_seed_alt)
 
     saveDict['Seed_mismatches+bulges_REF_(fewest_mm+b)'] = str(
         seed_list[0])
@@ -730,8 +723,8 @@ for nline, line in enumerate(inCrispritzResults):
         seed_alt == 'NA'
         non_seed_alt == 'NA'
 
-    seed_list = seed_processing(seed_ref, seed_alt, non_seed_ref, non_seed_alt,
-                                0, 0, 0, 0)  # count_seed_ref, count_seed_alt, count_non_seed_ref, count_non_seed_alt
+    # count_seed_ref, count_seed_alt, count_non_seed_ref, count_non_seed_alt
+    seed_list = seed_processing(seed_ref, seed_alt, non_seed_ref, non_seed_alt)
 
     saveDict['Seed_mismatches+bulges_REF_(highest_CRISTA)'] = str(
         int(seed_list[0])+dna_bulge_count_seed)

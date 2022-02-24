@@ -175,7 +175,7 @@ def refreshSearch(n, dir_name):
                 else:
                     return {'visibility': 'hidden'}, index_status, search_status, post_process_status, merge_status, images_status, integrate_status, database_status, '', '', True
         elif 'queue.txt' in onlyfile:
-            return {'visibility': 'hidden'}, html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), html.P('To do', style={'color': 'red'}), html.P('To do', style={'color': 'red'}), html.P('To do', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), '', dbc.Alert("Job submitted. Current status: in queue", color="info"), True
+            return {'visibility': 'hidden'}, html.P('Queue', style={'color': 'red'}), html.P('Queue', style={'color': 'red'}), html.P('Queue', style={'color': 'red'}), html.P('Queue', style={'color': 'red'}), html.P('Queue', style={'color': 'red'}), html.P('Queue', style={'color': 'red'}), html.P('Queue', style={'color': 'red'}), '', dbc.Alert("Job submitted. Current status: IN QUEUE", color="info"), True
     return {'visibility': 'hidden'},  html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), html.P('Not available', style={'color': 'red'}), '', dbc.Alert("The selected result does not exist", color="danger"), True
 
 
@@ -213,7 +213,7 @@ def load_page():
                             style={'border-radius': '5px', 'border': '2px solid', 'border-color': 'blue',
                                    'width': '100%', 'display': 'inline-block', 'margin': '5px'}
                         ),
-                        # html.P('Results will be kept available for 3 days')
+                        html.P('Results will be kept available for 3 days')
                     ],
                     style={'display': 'inline-block'}
                 ),

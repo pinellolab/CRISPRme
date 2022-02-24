@@ -3703,6 +3703,10 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
         [query_cols['sort']], ascending=[order])
     # extract sample private targets
     result_private = result_personal[result_personal[query_cols['samples']] == sample]
+    print('result prima', result_private)
+    drop_cols = drop_columns(result_private, filter_criterion)
+    result_private = result_private.drop(drop_cols, axis=1)
+    # print('result dopo', result_private)
 
     # print(result_personal)
     # print(result_private)
