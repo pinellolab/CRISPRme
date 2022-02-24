@@ -355,7 +355,7 @@ def generate_table_results(
     return final_list
 
 
-def historyPage():
+def history_page():
     """Construct CRISPRme history webpage.
 
     ...

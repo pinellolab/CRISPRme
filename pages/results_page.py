@@ -65,10 +65,12 @@ from .results_page_utils import (
     read_json,
     get_query_column,
     split_filter_part,
-    generate_table_samples
+    generate_table,
+    generate_table_samples,
+    generate_table_position
 )
 
-from typing import Dict, List, Optional, Tuple 
+from typing import Dict, List, Optional, Tuple, Type 
 from glob import glob
 
 import os
@@ -3803,26 +3805,46 @@ def update_sample_filter(
 
 
 # Callback to update the sample based on population selected
-
-
 @app.callback(
     [Output("dropdown-sample", "options"), Output("dropdown-sample", "value")],
     [Input("dropdown-population-sample", "value")],
     [State("url", "search")],
 )
-def updateSampleDrop(pop, search):
+def updateSampleDrop(pop: str, search: str) -> Tuple[List, None]:
+    """Update Summary by Sample data table accordingly to the selected
+    population.
+
+    ...
+
+    Parameters
+    ----------
+    pop : str
+        Population
+    search: str
+        Search
+
+    Returns
+    -------
+    Tuple[List, None]
+    """
+
+    if not isinstance(pop, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(pop).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if pop is None or pop == "":
-        return [], None
+        return [], None  # no update required
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-    dict_pop = associateSample.loadSampleAssociation(
-        job_directory + ".sampleID.txt")[3]
-    return [{"label": sam, "value": sam} for sam in dict_pop[pop]], None
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id
+    )
+    pop_dict = associateSample.loadSampleAssociation(
+        os.path.join(job_directory, ".sampleID.txt")
+    )[3]
+    return [{"label":sample, "value":sample} for sample in pop_dict[pop]], None
 
 
 # Callback to update the population tab based on superpopulation selected
-
-
 @app.callback(
     [
         Output("dropdown-population-sample", "options"),
@@ -3831,272 +3853,83 @@ def updateSampleDrop(pop, search):
     [Input("dropdown-superpopulation-sample", "value")],
     [State("url", "search")],
 )
-def updatePopulationDrop(superpop, search):
+def updatePopulationDrop(superpop: str, search: str) -> Tuple[Dict, None]:
+    """Update Summary by Sample data table accordingly to the selected
+    superpopulation.
+
+    ...
+
+    Parameters
+    ----------
+    pop : str
+        Population
+    search: str
+        Search
+
+    Returns
+    -------
+    Tuple[List, None]
+    """
+
+    if not isinstance(superpop, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(superpop).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if superpop is None or superpop == "":
-        raise PreventUpdate
+        raise PreventUpdate  # no update required
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id
+    )
     population_1000gp = associateSample.loadSampleAssociation(
-        job_directory + ".sampleID.txt"
+        os.path.join(job_directory, ".sampleID.txt")
     )[2]
     return [{"label": i, "value": i} for i in population_1000gp[superpop]], None
 
 
-def generate_table_position(
-    dataframe, id_table, page, mms, bulges, guide="", job_id="", max_rows=10
-):
-    rows_remaining = len(dataframe) - (page - 1) * max_rows
-    header = [
-        html.Tr(
-            [
-                html.Th(
-                    "Chromosome",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Position",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Best Target",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Min Mismatch",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Min Bulge",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Bulge",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Targets in Cluster by Mismatch Value",
-                    colSpan=str(mms + 1),
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th("", rowSpan="2"),
-            ]
-        )
-    ]
-    mms_header = []
-    for mm in range(mms + 1):
-        mms_header.append(
-            html.Th(
-                str(mm) + " MM",
-                style={"vertical-align": "middle", "text-align": "center"},
-            )
-        )
-    header.append(html.Tr(mms_header))
+def check_existance_sample(
+    job_directory: str, job_id: str, sample: str
+) -> bool:
+    """Check if the selected sample exists in the dataset.
 
-    data = []
-    for i in range(min(rows_remaining, max_rows)):
-        first_cells = [
-            html.Td(
-                dataframe.iloc[i + (page - 1) * max_rows]["Chromosome"],
-                rowSpan=str(bulges + 1),
-                style={"vertical-align": "middle", "text-align": "center"},
-            ),
-            html.Td(
-                dataframe.iloc[i + (page - 1) * max_rows]["Position"],
-                rowSpan=str(bulges + 1),
-                style={"vertical-align": "middle", "text-align": "center"},
-            ),
-            html.Td(
-                dataframe.iloc[i + (page - 1) * max_rows]["Best Target"],
-                rowSpan=str(bulges + 1),
-                style={"vertical-align": "middle", "text-align": "center"},
-            ),
-            html.Td(
-                dataframe.iloc[i + (page - 1) * max_rows]["Min Mismatch"],
-                rowSpan=str(bulges + 1),
-                style={"vertical-align": "middle", "text-align": "center"},
-            ),
-            html.Td(
-                dataframe.iloc[i + (page - 1) * max_rows]["Min Bulge"],
-                rowSpan=str(bulges + 1),
-                style={"vertical-align": "middle", "text-align": "center"},
-            ),
-            html.Th(
-                "0 Bulge",
-                style={
-                    "vertical-align": "middle",
-                    "text-align": "center",
-                    "padding-left": "0",
-                },
-            ),
-        ]
+    ...
 
-        mm_cells = [
-            html.Td(
-                dataframe.iloc[i + (page - 1) * max_rows][col],
-                style={"vertical-align": "middle", "text-align": "center"},
-            )
-            for col in dataframe.columns[5: 5 + mms + 1]
-        ]
-        data.append(
-            html.Tr(
-                first_cells
-                + mm_cells
-                + [
-                    html.Td(
-                        html.A(
-                            "Show Targets",
-                            href="result?job="
-                            + job_id
-                            + "#"
-                            + guide
-                            + "-Pos-"
-                            + str(
-                                dataframe.iloc[i + (page - 1)
-                                               * max_rows]["Chromosome"]
-                            )
-                            + "-"
-                            + str(
-                                dataframe.iloc[i + (page - 1)
-                                               * max_rows]["Position"]
-                            ),
-                            target="_blank",
-                        ),
-                        rowSpan=str(bulges + 1),
-                        style={"vertical-align": "middle",
-                               "text-align": "center"},
-                    )
-                ]
-            )
-        )
-        for b in range(bulges):
-            data.append(
-                html.Tr(
-                    [
-                        html.Th(
-                            str(b + 1) + " Bulge",
-                            style={"vertical-align": "middle",
-                                   "text-align": "center"},
-                        )
-                    ]
-                    + [
-                        html.Td(dataframe.iloc[i + (page - 1) * max_rows][col])
-                        for col in dataframe.columns[
-                            5 + (b + 1) * (mms + 1): 5 + (b + 1) * (mms + 1) + mms + 1
-                        ]
-                    ]
-                )
-            )
-
-    return html.Table(header + data, style={"display": "inline-block"}, id=id_table)
-
-
-def generate_table(
-    dataframe, id_table, genome_type, guide="", job_id="", max_rows=2600
-):
+    Parameters
+    ----------
+    job_directory : str
+        Path to job results
+    job_id : str
+        Unique job identifier
+    sample : str
+        Sample
+    
+    Returns
+    -------
+    bool
     """
-    Per generare una html table. NOTE è diversa da una dash dataTable
-    """
-    # if genome_type == 'both':
-    header = [
-        html.Tr(
-            [
-                html.Th(
-                    "Bulge type",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Mismatches",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Bulge Size",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "Targets found in Genome",
-                    colSpan=str(3),
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th(
-                    "PAM Creation",
-                    rowSpan="2",
-                    style={"vertical-align": "middle", "text-align": "center"},
-                ),
-                html.Th("", rowSpan="2"),
-            ]
-        )
-    ]
-
-    header.append(
-        html.Tr(
-            [
-                html.Th(x, style={"vertical-align": "middle",
-                        "text-align": "center"})
-                for x in ["Reference", "Variant", "Combined"]
-            ]
-        )
+    
+    if not isinstance(job_directory, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_directory).__name__}")
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(sample, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+    dataset = pd.read_csv(
+        os.path.join(job_directory, job_id, ".sampleID.txt"), 
+        sep="\t", 
+        na_filter=False
     )
-    return html.Table(
-        header +
-        # Body
-        [
-            html.Tr(
-                [
-                    html.Td(
-                        html.A(
-                            dataframe.iloc[i][col],
-                            href="result?job="
-                            + job_id
-                            + "#"
-                            + guide
-                            + "new"
-                            + dataframe.iloc[i]["Bulge Type"]
-                            + str(dataframe.iloc[i]["Bulge Size"])
-                            + str(dataframe.iloc[i]["Mismatches"]),
-                            target="_blank",
-                        ),
-                        style={"vertical-align": "middle",
-                               "text-align": "center"},
-                    )
-                    if col == ""
-                    else html.Td(
-                        dataframe.iloc[i][col],
-                        style={"vertical-align": "middle",
-                               "text-align": "center"},
-                    )
-                    for col in dataframe.columns
-                ]
-            )
-            for i in range(min(len(dataframe), max_rows))
-        ],
-        style={"display": "inline-block"},
-        id=id_table,
-    )
-
-
-def check_existance_sample(job_directory, job_id, sample):
-    df = pd.read_csv(
-        job_directory + job_id + ".sampleID.txt", sep="\t", na_filter=False
-    )
-    samples = df.iloc[:, 0]
-    if sample in samples.values:
+    samples = dataset.iloc[:,0].tolist()
+    if sample in samples:
         return True
-    else:
-        return False
+    return False
 
+
+#-------------------------------------------------------------------------------
+# Graphical Reports tab
+#
 
 # Select figures on mms value, sample value
-
-
 @app.callback(
     [
         Output("div-radar-chart-encode_gencode", "children"),
@@ -4111,7 +3944,9 @@ def check_existance_sample(job_directory, job_id, sample):
     ],
     [State("url", "search"), State("general-profile-table", "data")],
 )
-def updateImagesTabs(mm, sel_cel, filter_criterion, search, all_guides):
+def update_images_tabs(
+    mm: int, sel_cel: List, filter_criterion: str, search: str, all_guides: List
+) -> Tuple:
     bulge = 0
     job_id = search.split("=")[-1]
     job_directory = current_working_directory + "Results/" + job_id + "/"

@@ -2,8 +2,11 @@
 used throughout CRISPRme's result page. 
 """
 
-from typing import Dict, List, Optional, Tuple
+
+from sre_constants import MAXREPEAT
 from app import current_working_directory, operators
+
+from typing import Dict, List, Optional, Tuple\
 
 import dash_html_components as html
 import pandas as pd
@@ -420,6 +423,136 @@ def split_filter_part(filter_part: str) -> Tuple[str, str, str]:
     return [None] * 3
 
 
+def generate_table(
+    dataframe: pd.DataFrame, 
+    id_table: str, 
+    genome_type: str, 
+    guide: Optional[str] = "", 
+    job_id: Optional[str] = "", 
+    max_rows: Optional[int] = 2600
+) -> html.Table:
+    """Generate a html table from a given pandas DataFrame.
+
+    ...
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        Input dataframe
+    id_table : str
+        HTML table identifier
+    genome_type: str
+        Genome type
+    guide : str
+        Guide
+    job_id : str
+        Unique job identifier
+    max_rows : int
+        Maximum number of rows to display
+
+    Returns
+    -------
+    html.Table
+        HTML table
+    """
+
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+    if not isinstance(id_table, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
+    if not isinstance(genome_type, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_type).__name__}")
+    if not isinstance(guide, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(max_rows, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
+    # build table header
+    header = [
+        html.Tr(
+            [
+                html.Th(
+                    "Bulge type",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Mismatches",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Bulge Size",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Targets found in Genome",
+                    colSpan=str(3),
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "PAM Creation",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th("", rowSpan="2"),
+            ]
+        )
+    ]
+    header.append(
+        html.Tr(
+            [
+                html.Th(
+                    x, style={"vertical-align":"middle", "text-align":"center"}
+                )
+                for x in ["Reference", "Variant", "Combined"]
+            ]
+        )
+    )
+    # add body to html table
+    table_html = html.Table(
+        header +
+        # append body
+        [
+            html.Tr(
+                [
+                    html.Td(
+                        html.A(
+                            dataframe.loc[i,col],
+                            href="".join(
+                                [
+                                    "result?job=",
+                                    f"{job_id}#{guide}new",
+                                    dataframe.loc[i,"Bulge Type"],
+                                    str(dataframe.loc[i,"Bulge Size"]),
+                                    str(dataframe.loc[i,"Mismatches"]),
+                                ]
+                            ),
+                            target="_blank",
+                        ),
+                        style={"vertical-align": "middle",
+                               "text-align": "center"},
+                    )
+                    if col == ""
+                    else html.Td(
+                        dataframe.iloc[i][col],
+                        style={
+                            "vertical-align":"middle", "text-align":"center"
+                        },
+                    )
+                    for col in dataframe.columns
+                ]
+            )
+            for i in range(min(dataframe.shape[0], max_rows))
+        ],
+        style={"display": "inline-block"},
+        id=id_table,
+    )
+    return table_html
+
+
 def generate_table_samples(
     dataframe: pd.DataFrame, 
     id_table: str, 
@@ -429,6 +562,9 @@ def generate_table_samples(
     max_rows: Optional[int] = 10
 ) -> html.Table:
     """Generate a html table from a given pandas DataFrame.
+
+    The table will be displayed when selecting the targets for a specific
+    sample.
 
     ...
 
@@ -505,3 +641,220 @@ def generate_table_samples(
         style={"display": "inline-block"},
         id=id_table,
     )
+
+
+def generate_table_position(
+    dataframe: pd.DataFrame, 
+    id_table: str, 
+    page: int, 
+    mms: int, 
+    bulges: int, 
+    guide: Optional[str] = "", 
+    job_id: Optional[str] = "", 
+    max_rows: Optional[int] = 10
+):
+    """Generate a html table from a given pandas DataFrame.
+
+    The table will be displayed when selecting the targets found in a 
+    specific genomic region.
+
+    ...
+
+    Parameters
+    ----------
+    dataframe : pd.DataFrame
+        Input dataframe
+    id_table : str
+        HTML table identifier
+    page : int
+        Current page
+    mms : int
+        Mismatches
+    bulges : int
+        Bulges
+    guide : str
+        Guide
+    job_id : str
+        Unique job identifier
+    max_rows : int
+        Maximum number of rows to display
+
+    Returns
+    -------
+    html.Table
+        HTML table
+    """
+
+    if not isinstance(dataframe, pd.DataFrame):
+        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+    if not isinstance(id_table, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
+    if not isinstance(page, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
+    if not isinstance(mms, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(mms).__name__}")
+    if not isinstance(bulges, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(bulges).__name__}")
+    if not isinstance(guide, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
+    if not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if not isinstance(max_rows, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
+    if max_rows < 1:
+        raise ValueError(f"Forbidden number of rows to display ({max_rows})")
+    rows_remaining = dataframe.shape[0] - (page - 1) * max_rows
+    # build table header
+    header = [
+        html.Tr(
+            [
+                html.Th(
+                    "Chromosome",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Position",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Best Target",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Min Mismatch",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Min Bulge",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Bulge",
+                    rowSpan="2",
+                    style={"vertical-align":"middle", "text-align":"center"},
+                ),
+                html.Th(
+                    "Targets in Cluster by Mismatch Value",
+                    colSpan=str(mms + 1),
+                    style={"vertical-align":"middle","text-align":"center"},
+                ),
+                html.Th("", rowSpan="2"),
+            ]
+        )
+    ]
+    # add mismatches to header
+    mms_header = []
+    for mm in range(mms + 1):
+        mms_header.append(
+            html.Th(
+                f"{mm} MM",
+                style={"vertical-align":"middle", "text-align":"center"},
+            )
+        )
+    header.append(html.Tr(mms_header))
+    # build table body
+    data = []
+    for i in range(min(rows_remaining, max_rows)):
+        first_cells = [
+            html.Td(
+                dataframe.loc[(i + (page - 1) * max_rows),"Chromosome"],
+                rowSpan=str(bulges + 1),
+                style={"vertical-align":"middle", "text-align":"center"},
+            ),
+            html.Td(
+                dataframe.loc[(i + (page - 1) * max_rows),"Position"],
+                rowSpan=str(bulges + 1),
+                style={"vertical-align":"middle", "text-align":"center"},
+            ),
+            html.Td(
+                dataframe.loc[(i + (page - 1) * max_rows),"Best Target"],
+                rowSpan=str(bulges + 1),
+                style={"vertical-align":"middle", "text-align":"center"},
+            ),
+            html.Td(
+                dataframe.loc[(i + (page - 1) * max_rows),"Min Mismatch"],
+                rowSpan=str(bulges + 1),
+                style={"vertical-align":"middle", "text-align":"center"},
+            ),
+            html.Td(
+                dataframe.loc[(i + (page - 1) * max_rows),"Min Bulge"],
+                rowSpan=str(bulges + 1),
+                style={"vertical-align":"middle", "text-align":"center"},
+            ),
+            html.Th(
+                "0 Bulge",
+                style={
+                    "vertical-align":"middle",
+                    "text-align":"center",
+                    "padding-left":"0",
+                },
+            ),
+        ]
+        mm_cells = [
+            html.Td(
+                dataframe.loc[(i + (page - 1) * max_rows),col],
+                style={"vertical-align":"middle", "text-align":"center"},
+            )
+            for col in dataframe.columns[5: 5 + mms + 1]
+        ]
+        data.append(
+            html.Tr(
+                first_cells
+                + mm_cells
+                + [
+                    html.Td(
+                        html.A(
+                            "Show Targets",
+                            href="".join(
+                                [
+                                    "result?job=",
+                                    f"{job_id}#{guide}-Pos-",
+                                    str(
+                                        dataframe.loc[
+                                            (i + (page - 1) * max_rows),"Chromosome"
+                                        ]
+                                    ), 
+                                    "-",
+                                    str(
+                                        dataframe.loc[
+                                            (i + (page - 1) * max_rows), "Position"
+                                        ]
+                                    )
+                                ]
+                            ),
+                            target="_blank",
+                        ),
+                        rowSpan=str(bulges + 1),
+                        style={
+                            "vertical-align":"middle", "text-align":"center"
+                        },
+                    )
+                ]
+            )
+        )
+        for b in range(bulges):
+            data.append(
+                html.Tr(
+                    [
+                        html.Th(
+                            f"{b + 1} Bulge",
+                            style={
+                                "vertical-align":"middle", "text-align":"center"
+                            },
+                        )
+                    ]
+                    + [
+                        html.Td(dataframe.loc[(i + (page - 1) * max_rows),col])
+                        for col in dataframe.columns[
+                            5 + (b + 1) * (mms + 1): 5 + (b + 1) * (mms + 1) + mms + 1
+                        ]
+                    ]
+                )
+            )
+    return html.Table(header + data, style={"display":"inline-block"}, id=id_table)
+
