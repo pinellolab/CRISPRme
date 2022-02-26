@@ -30,7 +30,6 @@ TODO: complete doc string with missing info --> read paper carefully
 """
 
 
-from multiprocessing.sharedctypes import Value
 from operator import mod
 from .results_page_utils import (
     GUIDES_FILE,
@@ -4109,7 +4108,6 @@ def update_images_tabs(
     )
 
 
-# trigger generation of sample card
 @app.callback(
     [
         Output("download-link-personal-card", "children"),
@@ -4128,201 +4126,173 @@ def update_images_tabs(
         State("url", "search"),
     ],
 )
-def generate_sample_card(
-    n: int, 
-    filter_criterion: str, 
-    sample: str, 
-    sel_cel: List, 
-    all_guides: List, 
-    search: str
-) -> List:
-    """Generate lollipop plots dispalyed in the ersonal Risk Card tab.
-    
-    Create the Personal Risk Card webpage and fill it with the corresponding
-    images and tables.
-
-    ...
-
-    Parameters
-    ----------
-    n : int
-        Clicks
-    filter_criterion : str
-        Filter criterion chosen by the user through the global drop-down bar
-    sample : str
-        Sample identifier
-    sel_cel : List
-        Selected cells
-    all_guides : List
-        Guides list
-    search : str
-        Search
-
-    Returns
-    -------
-    List
-        Personal Risk Card HTML webpage
-    """
-
-    if n is not None:
-        if not isinstance(n, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
-    if not isinstance(filter_criterion, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
-    if filter_criterion not in FILTERING_CRITERIA:
-        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
-    if not isinstance(sample, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
-    if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+# FUNCTION TO GENERATE SAMPLE CARD, UPDATE WITH FILTER DROPDOWN
+def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, search):
     if n is None:
-        raise PreventUpdate  # do not do anything
-    # recover guide
+        raise PreventUpdate
+
+    # convert sample to str to avoid concatenation errrors
+    sample = str(sample)
+    # print('leggo sample')
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
+    # print('leggo gen table')
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
-    # read analysis results
+    job_directory = current_working_directory + "Results/" + job_id + "/"
+    file_to_grep = job_directory + "." + job_id + ".bestMerge.txt"
+    sample_grep_result = (
+        current_working_directory
+        + "Results/"
+        + job_id
+        + "/"
+        + job_id
+        + "."
+        + sample
+        + "."
+        + guide
+        + ".private.txt"
+    )
+
+    # if not os.path.exists(current_working_directory + 'Results/' + job_id + '/' + job_id + '.' + sample + '.' + guide + '.sample_card.txt'):
     df = pd.read_csv(
-        os.path.join(
-            job_directory,
-            f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
-        ),
+        job_directory
+        + job_id
+        + ".summary_by_samples."
+        + guide
+        + "_"
+        + filter_criterion
+        + ".txt",
         sep="\t",
         skiprows=2,
         index_col=0,
         header=None,
-        na_filter=False
+        na_filter=False,
     )
-    # if possible convert sample to int type (sample index)
     try:
         int_sample = int(sample)
     except:
         int_sample = sample
-    # personal = df.loc[int_sample, 4]
-    pam_creation = df.loc[int_sample, 7]  # use df's 7th column
+
+    personal = df.loc[int_sample, 4]
+    pam_creation = df.loc[int_sample, 7]
+
     # file_to_grep = job_directory + '.' + job_id + '.bestMerge.txt'
-    integrated_fname = glob(os.path.join(job_directory, "*integrated*"))[0]
-    assert isinstance(integrated_fname, str)
-    integrated_personal = os.path.join(
-        job_directory,
-        f"{job_id}.{sample}.{guide}.personal_targets.txt"
+    integrated_file_name = glob(job_directory + "*integrated*")[0]
+    integrated_file_name = str(integrated_file_name)
+    # integrated_to_grep = job_directory+job_id + \
+    #     '.bestMerge.txt.integrated_results.tsv'
+    integrated_to_grep = integrated_file_name
+    integrated_personal = (
+        job_directory + job_id + "." + sample + "." + guide + ".personal_targets.txt"
     )
-    integrated_private = os.path.join(
-        job_directory,
-        f"{job_id}.{sample}.{guide}.private_targets.tsv"
+    integrated_private = (
+        job_directory + job_id + "." + sample + "." + guide + ".private_targets.tsv"
     )
-    # connect to db
-    db_path = glob(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db")
-    )[0]
-    assert isinstance(db_path, str)
-    conn = sqlite3.connect(db_path)
+
+    path_db = glob(current_working_directory +
+                   "Results/" + job_id + "/.*.db")[0]
+    path_db = str(path_db)
+    conn = sqlite3.connect(path_db)
     c = conn.cursor()
+
     query_cols = get_query_column(filter_criterion)
+    print(query_cols)
+
     result_personal = pd.read_sql_query(
         "SELECT * FROM final_table WHERE \"{}\"='{}' AND \"{}\" LIKE '%{}%'".format(
-            GUIDE_COLUMN, guide, query_cols["samples"], sample
+            GUIDE_COLUMN, guide, query_cols['samples'], sample
         ),
         conn,
     )
     # sort personal data targets
     order = False
-    if filter_criterion == "fewest":
+    if filter_criterion == 'fewest':
         order = True
     result_personal = result_personal.sort_values(
-        [query_cols["sort"]], ascending=order
-    )
+        [query_cols['sort']], ascending=[order])
     # extract sample private targets
-    result_private = result_personal[result_personal[query_cols["samples"]] == sample]
-    # close db connection
+    result_private = result_personal[result_personal[query_cols['samples']] == sample]
+
+    # print(result_personal)
+    # print(result_private)
+
     conn.commit()
     conn.close()
-    # store results in TSV files
+
     result_personal.to_csv(integrated_personal, sep="\t", index=False)
     result_private.to_csv(integrated_private, sep="\t", index=False)
-    # create the ZIP file
+
     integrated_private_zip = integrated_private.replace("tsv", "zip")
-    cmd = f"zip -j {integrated_private_zip} {integrated_private}"
-    code = subprocess.call(cmd, shell=True)
-    if code != 0:
-        raise ValueError(f"An error occurred while running {cmd}")
-    # plot images (personal card)
-    # TODO: avoid calling python scripts, use functions instead
-    cmd = f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
-    code = subprocess.call(cmd, shell=True)
-    if code != 0:
-        raise ValueError(f"An error occurred while running {cmd}")
-    cmd = f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
-    code = subprocess.call(cmd, shell=True)
-    if code != 0:
-        raise ValueError(f"An error occurred while running {cmd}")
-    cmd = f"rm -f {integrated_personal}"
-    code = subprocess.call(cmd, shell=True)
-    if code != 0:
-        raise ValueError(f"An error occurred while running {cmd}")
-    # create dataframe with results
+
+    os.system(f"zip -j {integrated_private_zip} {integrated_private}")
+
+    # plot for images in personal card
+    # print('faccio personal')
+    os.system(
+        f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
+    )
+    # print('faccio private')
+    os.system(
+        f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
+    )
+    os.system(f"rm -f {integrated_personal}")
+
+    private = result_private.shape[0]
+
     results_table = pd.DataFrame(
         [[len(result_personal.index), pam_creation, len(result_private.index)]],
         columns=["Personal", "PAM Creation", "Private"],
-    ).astype(str)  # force data type to string
-    try:  # read the private targets file, if not created, pass
+    ).astype(str)
+    # else:
+    #     pass
+
+    try:  # to read the private targets file, if not created, pass
         ans = result_private
     except:
         pass
-    # image for personal and private targets (lollipop plots)
+
+    # image for personal and private
     try:
         image_personal_top = "data:image/png;base64,{}".format(
             base64.b64encode(
                 open(
-                    os.path.join(
-                        current_working_directory,
-                        RESULTS_DIR,
-                        job_id,
-                        IMGS_DIR,
-                        str(
-                            f"CRISPRme_{filter_criterion}_top_1000_log_for_main_"
-                            f"text_{guide}.{sample}.personal.png"
-                        )
-                    ),
-                    mode="rb"
+                    current_working_directory
+                    + "Results/"
+                    + job_id
+                    + f"/imgs/CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.personal.png",
+                    "rb",
                 ).read()
             ).decode()
         )
         image_private_top = "data:image/png;base64,{}".format(
             base64.b64encode(
                 open(
-                    os.path.join(
-                        current_working_directory,
-                        RESULTS_DIR,
-                        job_id,
-                        IMGS_DIR,
-                        str(
-                            f"CRISPRme_{filter_criterion}_top_1000_log_for_main_"
-                            f"text_{guide}.{sample}.private.png"
-                        )
-                    ),
-                    mode="rb"
+                    current_working_directory
+                    + "Results/"
+                    + job_id
+                    + f"/imgs/CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.private.png",
+                    "rb",
                 ).read()
             ).decode()
         )
     except:
         sys.stderr.write("PERSONAL AND PRIVATE LOLLIPOP PLOTS NOT GENERATED")
-    # recover filtering criterion from drop-down
-    filter_criterion = read_json(job_id)  
-    # create the personal risk card page
+
+    filter_criterion = read_json(job_id)
+
     try:
-        file_to_load = f"{job_id}.{sample}.{guide}.private_targets.zip"
+        # file_to_load = job_id + '.' + sample + '.' + guide + '.private.zip'
+        file_to_load = job_id + "." + sample + "." + guide + ".private_targets.zip"
+        # #print(file_to_load)
+        # ans = ans[COL_BOTH]
         out_1 = [
-            # link to download the ZIP file
             html.A(
                 "Download private targets",
-                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
+                href=URL + "/Results/" + job_id + "/" + file_to_load,
                 target="_blank",
             ),
             False,
             [
-                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
-                # load image
+                html.P("Top 100 Personal Targets ordered by "+filter_criterion),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4334,7 +4304,7 @@ def generate_sample_card(
                 ),
             ],
             [
-                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
+                html.P("Top 100 Private Targets ordered by "+filter_criterion),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4346,76 +4316,77 @@ def generate_sample_card(
                 ),
             ],
             dash_table.DataTable(
-                css=[{"selector":".row", "rule":"margin: 0"}],
+                css=[{"selector": ".row", "rule": "margin: 0"}],
                 id="results-table",
-                columns=[{"name":i, "id":i} for i in results_table.columns],
+                columns=[{"name": i, "id": i} for i in results_table.columns],
                 data=results_table.to_dict("records"),
                 style_cell_conditional=[
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CFD)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(fewest_mm+b)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CRISTA)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                 ],
             ),
-            # define data table
             dash_table.DataTable(
-                css=[{"selector":".row", "rule":"margin: 0"}],
+                css=[{"selector": ".row", "rule": "margin: 0"}],
                 id="results-table-risk",
+                # columns=[{"name": COL_BOTH[count], "id": i, 'hideable':True}
+                #          for count, i in enumerate(ans.columns)],
                 columns=[
-                    {"name":i, "id":i, "hideable":True}
+                    {"name": i, "id": i, "hideable": True}
                     for count, i in enumerate(ans.columns)
                 ],
                 data=ans.to_dict("records"),
                 style_cell_conditional=[
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CFD)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(fewest_mm+b)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CRISTA)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                 ],
                 style_table={
-                    "overflowX":"scroll",
-                    "overflowY":"scroll",
-                    "max-height":"300px",
+                    "overflowX": "scroll",
+                    "overflowY": "scroll",
+                    "max-height": "300px",
                 },
             ),
         ]
@@ -4423,12 +4394,12 @@ def generate_sample_card(
         out_1 = [
             html.A(
                 "Download private targets",
-                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
+                href=URL + "/Results/" + job_id + "/" + file_to_load,
                 target="_blank",
             ),
             True,
             [
-                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
+                html.P("Top 100 Personal Targets ordered by "+filter_criterion),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4440,7 +4411,7 @@ def generate_sample_card(
                 ),
             ],
             [
-                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
+                html.P("Top 100 Private Targets ordered by "+filter_criterion),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4452,43 +4423,46 @@ def generate_sample_card(
                 ),
             ],
             dash_table.DataTable(
-                css=[{"selector":".row", "rule":"margin: 0"}],
+                css=[{"selector": ".row", "rule": "margin: 0"}],
                 id="results-table",
                 style_cell_conditional=[
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CFD)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(fewest_mm+b)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CRISTA)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                 ],
-                columns=[{"name":i, "id":i} for i in results_table.columns],
+                columns=[{"name": i, "id": i} for i in results_table.columns],
                 data=results_table.to_dict("records"),
             ),
             [],
         ]
-    return list(out_1)  # force output to be of list type
+
+    return list(out_1)
 
 
 # Load the table/children under the tab value
+
+
 @app.callback(
     Output("div-tab-content", "children"),
     [
@@ -4814,7 +4788,7 @@ def updateContentTab(
                     for chr_name in chr_file]
 
         # Colonne tabella: chr, pos, target migliore, min mm, min bulges, num target per ogni categoria di mm e bulge, show targets; ordine per total, poi mm e poi bulge
-        # TODO: inserire failsafe se non ci sono chr, esempio elenco chr da 1 a 22
+        # TODO inserire failsafe se non ci sono chr, esempio elenco chr da 1 a 22
         fl.append(
             html.Div(
                 [
@@ -5905,11 +5879,8 @@ def set_display_children(selected_order):
 
 
 @app.callback(
-    Output("maxdrop", "options"), 
-    [
-        Input("sholddrop", "value"), 
-        Input("order", "value"),
-    ]
+    Output("maxdrop", "options"), [
+        Input("sholddrop", "value"), Input("order", "value")]
 )
 def maxdrop(sholddrop, order):
     if order == "Mismatches":
@@ -5962,7 +5933,6 @@ def maxdrop(sholddrop, order):
     return data
 
 
-# trigger filters reset
 @app.callback(
     [
         Output("order", "value"),
@@ -5973,23 +5943,8 @@ def maxdrop(sholddrop, order):
     ],
     [Input("reset-val", "n_clicks")],
 )
-def resetbutton(n_clicks: int) -> Tuple[None, None, None, None, None]:
-    """Reset the filters chosen to display general results.
-
-    ...
-
-    Parameters
-    ----------
-    n_clicks : int
-        Clicks
-    
-    Returns
-    -------
-    Tuple[None, None, None, None, None]
-        Reset filters
-    """
-
-    assert isinstance(n_clicks, int)
+def resetbutton(n_clicks):
     if n_clicks > 0:
         return None, None, None, None, None
-    return None, None, None, None, None
+    else:
+        return None, None, None, None, None
