@@ -1478,6 +1478,7 @@ def indexPage():
                                                  'margin-left': '30%'}),
 
                                         terms_and_conditions_content
+                                        # test update in main
                                     ],
                                     id='column-three-step-3',
                                     # style={'flex': '0 0 30%', 'tex-align': 'center'}
