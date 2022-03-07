@@ -1471,10 +1471,12 @@ def indexPage():
                                         html.Br(),
                                         mail_content,
                                         job_name_content,
-                                        html.Div(submit_content, style={
-                                                 'margin-left': '30%'}),
                                         html.Div(example_content, style={
                                                  'margin-left': '20%'}),
+                                        html.Br(),
+                                        html.Div(submit_content, style={
+                                                 'margin-left': '30%'}),
+
                                         terms_and_conditions_content
                                     ],
                                     id='column-three-step-3',
