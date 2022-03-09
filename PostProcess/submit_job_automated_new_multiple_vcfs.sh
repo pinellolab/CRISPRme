@@ -518,13 +518,13 @@ echo -e 'Merging Targets\tStart\t'$(date) >>$log
 #SORT FILE TO HAVE CHR AND POS IN PROXIMITY TO MERGE THEM
 #sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
 head -1 $final_res.bestCFD.txt >$final_res.tmp
-tail -n +2 $final_res.bestCFD.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T ./ >>$final_res.tmp && mv $final_res.tmp $final_res.bestCFD.txt
+tail -n +2 $final_res.bestCFD.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T output_folder/ >>$final_res.tmp && mv $final_res.tmp $final_res.bestCFD.txt
 #sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
 head -1 $final_res.bestCRISTA.txt >$final_res.tmp
-tail -n +2 $final_res.bestCRISTA.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T ./ >>$final_res.tmp && mv $final_res.tmp $final_res.bestCRISTA.txt
+tail -n +2 $final_res.bestCRISTA.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T output_folder/ >>$final_res.tmp && mv $final_res.tmp $final_res.bestCRISTA.txt
 #sort using guide_seq,chr,cluster_pos,total(mm+bul)
 head -1 $final_res.bestmmblg.txt >$final_res.tmp
-tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T ./ >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
+tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T output_folder/ >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
 
 # cp $final_res.bestCFD.txt $final_res.sorted.bestCFD.txt
 #MERGE BEST FILES TARGETS TO REMOVE CONTIGOUS
