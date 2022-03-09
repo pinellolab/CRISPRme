@@ -1400,7 +1400,7 @@ def indexPage():
     submit_content = html.Div(
         [
             html.Button('Submit', id='check-job',
-                        style={'background-color': '#E6E6E6'}),
+                        style={'background-color': '#E6E6E6','width': '260px'}),
             html.Button('', id='submit-job', style={'display': 'none'}),
         ]
     )
@@ -1408,7 +1408,7 @@ def indexPage():
     example_content = html.Div(
         [
             html.Button('Load Example', id='load-example-button',
-                        style={'background-color': '#E6E6E6'}),
+                        style={'background-color': '#E6E6E6','width': '260px'}),
         ]
     )
 
@@ -1429,62 +1429,100 @@ def indexPage():
                         dbc.Col(
                             [
                                 modal,
-                                html.Div(
-                                    [
-                                        tab_guides_content,
-                                        cas_protein_content,
-                                        pam_content
-                                    ],
-                                    id='column-one-step-1',
-                                    # style={'flex': '0 0 30%', 'tex-align': 'center'}
-                                    # style={'tex-align': 'center'}
-                                    # style={'margin': '1px'}
-                                    # style={'margin-left': '-60px'}
+                                dbc.Row(
+                                    dbc.Col(tab_guides_content)
                                 ),
-                            ],
-                            width="auto"
-                        ),
-                        dbc.Col(
-                            [
-                                html.Div(
-                                    [
-                                        genome_content,
-                                        # html.Br(),
-                                        # html.Br(),
-                                        thresholds_content
-                                    ],
-                                    id='column-two-step-2',
-                                    # style={'flex': '0 0 30%', 'tex-align': 'center'}
-                                    # style={'tex-align': 'center'}
-                                    # style={'margin': '1px'}
-                                    # style={'margin-left': '-100px'}
+                                dbc.Row(
+                                    dbc.Col(cas_protein_content)
+                                ),
+                                dbc.Row(
+                                    dbc.Col(pam_content)
                                 )
+                                # html.Div(
+                                #     [
+                                #         tab_guides_content,
+                                #         cas_protein_content,
+                                #         pam_content
+                                #     ],
+                                #     id='column-one-step-1',
+                                #     # style={'flex': '0 0 30%', 'tex-align': 'center'}
+                                #     # style={'tex-align': 'center'}
+                                #     # style={'margin': '1px'}
+                                #     # style={'margin-left': '-60px'}
+                                # ),
                             ],
                             width="auto"
                         ),
                         dbc.Col(
                             [
-                                html.Div(
-                                    [
-                                        annotation_content,
-                                        html.Br(),
-                                        html.Br(),
-                                        mail_content,
-                                        job_name_content,
-                                        html.Div(example_content, style={
-                                                 'margin-left': '20%'}),
-                                        html.Br(),
-                                        html.Div(submit_content, style={
-                                                 'margin-left': '30%'}),
+                                dbc.Row(
+                                    dbc.Col(genome_content)
+                                ),
+                                dbc.Row(
+                                    dbc.Col(thresholds_content)
+                                ),
+                                html.Br(),
+                                dbc.Row(
+                                    dbc.Col(example_content)
+                                )
+                                # html.Div(
+                                #     [
+                                #         genome_content,
+                                #         # html.Br(),
+                                #         # html.Br(),
+                                #         thresholds_content
+                                #     ],
+                                #     id='column-two-step-2',
+                                #     # style={'flex': '0 0 30%', 'tex-align': 'center'}
+                                #     # style={'tex-align': 'center'}
+                                #     # style={'margin': '1px'}
+                                #     # style={'margin-left': '-100px'}
+                                # )
+                            ],
+                            width="auto"
+                        ),
+                        dbc.Col(
+                            [
+                                dbc.Row(
+                                    annotation_content
+                                ),
+                                dbc.Row(
+                                    mail_content
+                                ),
+                                dbc.Row(
+                                    job_name_content
+                                ),
+                                # dbc.Row(
+                                #     dbc.Col(example_content)
+                                # ),
+                                html.Br(),
+                                dbc.Row(
+                                    dbc.Col(submit_content)
+                                ),
+                                dbc.Row(
+                                    terms_and_conditions_content
+                                )
+                                # html.Div(
+                                #     [
+                                #         annotation_content,
+                                #         html.Br(),
+                                #         html.Br(),
+                                #         mail_content,
+                                #         job_name_content,
+                                #         html.Div(example_content, style={
+                                #                  'margin-left': '20%'}),
+                                #         html.Br(),
+                                #         html.Div(submit_content, style={
+                                #                  'margin-left': '30%'}),
 
-                                        terms_and_conditions_content
-                                        # test update in main
-                                    ],
-                                    id='column-three-step-3',
-                                    # style={'flex': '0 0 30%', 'tex-align': 'center'}
-                                    # style={'tex-align': 'center'}
-                                    # style={'margin-right': '40px'}
-                                )
+                                #         terms_and_conditions_content
+                                #         # test update in main
+                                #     ],
+                                #     id='column-three-step-3',
+                                #     # style={'flex': '0 0 30%', 'tex-align': 'center'}
+                                #     # style={'tex-align': 'center'}
+                                #     # style={'margin-right': '40px'}
+                                # )
                             ],
                             width="auto"
                         )
