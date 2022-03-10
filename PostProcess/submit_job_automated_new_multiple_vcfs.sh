@@ -540,12 +540,17 @@ mv $final_res.bestmmblg.txt.trimmed.discarded_samples $final_res_alt.bestmmblg.t
 mv $final_res.bestCRISTA.txt.trimmed $final_res.bestCRISTA.txt
 mv $final_res.bestCRISTA.txt.trimmed.discarded_samples $final_res_alt.bestCRISTA.txt
 
+#sort ALT files to avoid as much as possible duplicates
+sort -T output_folder/ -u $final_res_alt.bestCFD.txt -o $final_res_alt.bestCFD.txt
+sort -T output_folder/ -u $final_res_alt.bestmmblg.txt -o $final_res_alt.bestmmblg.txt
+sort -T output_folder/ -u $final_res_alt.bestCRISTA.txt -o $final_res_alt.bestCRISTA.txt
+
 echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 
 echo -e 'Annotating results\tStart\t'$(date) >>$log
 
 #ANNOTATE BEST TARGETS
-./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
+./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_rqes.bestCFD.txt.annotated &
 ./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
 ./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
 wait
