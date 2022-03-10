@@ -550,7 +550,7 @@ echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 echo -e 'Annotating results\tStart\t'$(date) >>$log
 
 #ANNOTATE BEST TARGETS
-./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_rqes.bestCFD.txt.annotated &
+./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
 ./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
 ./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
 wait
