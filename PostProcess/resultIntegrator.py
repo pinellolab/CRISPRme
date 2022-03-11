@@ -435,6 +435,12 @@ for nline, line in enumerate(inCrispritzResults):
     saveDict['Bulge_type_(highest_CFD)'] = str(target[0])
     saveDict['REF/ALT_origin_(highest_CFD)'] = 'ref' if str(
         target[13]) == 'NA' else 'alt'
+    
+    #switch ref with alt alignment if target is ref
+    if saveDict['REF/ALT_origin_(highest_CFD)']=='ref':
+        saveDict['Aligned_protospacer+PAM_REF_(highest_CFD)'] = str(target[2])
+        saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)']='NA'
+        
     saveDict['PAM_creation_(highest_CFD)'] = str(target[11])
     saveDict['CFD_score_(highest_CFD)'] = str(target[20]) if float(
         target[20]) > float(target[21]) else str(target[21])
@@ -476,6 +482,12 @@ for nline, line in enumerate(inCrispritzResults):
     saveDict['Bulge_type_(fewest_mm+b)'] = str(target[24])
     saveDict['REF/ALT_origin_(fewest_mm+b)'] = 'ref' if str(
         target[37]) == 'NA' else 'alt'
+    
+    #switch ref with alt alignment if target is ref
+    if saveDict['REF/ALT_origin_(fewest_mm+b)']=='ref':
+        saveDict['Aligned_protospacer+PAM_REF_(fewest_mm+b)'] = str(target[26])
+        saveDict['Aligned_protospacer+PAM_ALT_(fewest_mm+b)']='NA'
+        
     saveDict['PAM_creation_(fewest_mm+b)'] = str(target[35])
     saveDict['CFD_score_(fewest_mm+b)'] = str(target[44]
                                               ) if float(target[44]) > float(target[45]) else str(target[45])
@@ -514,6 +526,12 @@ for nline, line in enumerate(inCrispritzResults):
     saveDict['Bulge_type_(highest_CRISTA)'] = str(target[48])
     saveDict['REF/ALT_origin_(highest_CRISTA)'] = 'ref' if str(
         target[61]) == 'NA' else 'alt'
+    
+    #switch ref with alt alignment if target is ref
+    if saveDict['REF/ALT_origin_(highest_CRISTA)']=='ref':
+        saveDict['Aligned_protospacer+PAM_REF_(highest_CRISTA)'] = str(target[50])
+        saveDict['Aligned_protospacer+PAM_ALT_(highest_CRISTA)']='NA'
+        
     saveDict['PAM_creation_(highest_CRISTA)'] = str(target[59])
     saveDict['CRISTA_score_(highest_CRISTA)'] = str(target[68]
                                                     ) if float(target[68]) > float(target[69]) else str(target[69])
