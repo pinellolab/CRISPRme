@@ -246,7 +246,6 @@ saveDict = {
     'Annotation_closest_gene_ID': 'NA',
     'Annotation_closest_gene_distance_(kb)': 'NA',
     'Annotation_ENCODE': 'NA',
-    'target:transcript':'NA',
     'Annotation_personal': 'NA'
 }
 
@@ -296,11 +295,8 @@ for nline, line in enumerate(inCrispritzResults):
         empiricalDict[key] = 50
         valueDict[key] = 'NA'
 
-    annotation_strand='NA'
     if 'NA' not in annotationLine and check == 'TRUE':
         for elem in annotationLine:
-            if '+' in elem or '-' in elem:
-                annotation_strand=elem
             if 'gene_id' in elem:
                 temp = elem.strip().split(';')
                 for name in temp:
@@ -312,7 +308,6 @@ for nline, line in enumerate(inCrispritzResults):
                             1]
         saveDict['Annotation_closest_gene_distance_(kb)'] = str(
             float(annotationLine[len(annotationLine)-1])/1000)
-        saveDict['Annotation_GENCODE']=str(annotationLine[11])
         if float(annotationLine[len(annotationLine)-1]) != 0:
             saveDict['Annotation_GENCODE'] = 'intergenic'
 
@@ -846,11 +841,6 @@ for nline, line in enumerate(inCrispritzResults):
             saveDict[key] = str(valueDict[key])
             newkey = str(key)+'_mm+bul'
             saveDict[newkey] = empiricalDict[key]
-            
-    if annotation_strand==saveDict['Strand_(fewest_mm+b)']:
-        saveDict['target:transcript']='same_strand'
-    else:
-        saveDict['target:transcript']='opposite_strand'
 
     save = '\t'.join(list(saveDict.values()))
     save += '\n'
