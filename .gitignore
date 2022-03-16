@@ -13,4 +13,3 @@ samplesIDs/*
 guides/
 *.csv
 PostProcess/CRISTA_predictors.pkl
-*.txt

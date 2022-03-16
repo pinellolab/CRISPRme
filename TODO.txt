@@ -1,0 +1,8 @@
+-update PAM extraction to avoid memory corruption with PAM seq longer than 4bp
+-change indexing for non-PAM search (accept no PAM as input, PAM len=0)
+use this as notes:
+    positive strand - standard FASTA
+    negative strand - reverse complemented FASTA
+    try to use only one index for any sequence with len<=fix_length(30-40bp)
+-update transcript annotation to report strand (transcript(-), transcript(+))
+-update annotation phase to use strand in global BED file
