@@ -30,7 +30,6 @@ TODO: complete doc string with missing info --> read paper carefully
 """
 
 
-from operator import mod
 from .results_page_utils import (
     GUIDES_FILE,
     PAGE_SIZE,
@@ -3811,7 +3810,7 @@ def update_sample_filter(
     [Input("dropdown-population-sample", "value")],
     [State("url", "search")],
 )
-def updateSampleDrop(pop: str, search: str) -> Tuple[List, None]:
+def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
     """Update Summary by Sample data table accordingly to the selected
     population.
 
@@ -3829,8 +3828,9 @@ def updateSampleDrop(pop: str, search: str) -> Tuple[List, None]:
     Tuple[List, None]
     """
 
-    if not isinstance(pop, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(pop).__name__}")
+    if pop is not None:
+        if not isinstance(pop, str):
+            raise TypeError(f"Expected {str.__name__}, got {type(pop).__name__}")
     if not isinstance(search, str):
         raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if pop is None or pop == "":
@@ -3854,7 +3854,7 @@ def updateSampleDrop(pop: str, search: str) -> Tuple[List, None]:
     [Input("dropdown-superpopulation-sample", "value")],
     [State("url", "search")],
 )
-def updatePopulationDrop(superpop: str, search: str) -> Tuple[Dict, None]:
+def update_population_drop(superpop: str, search: str) -> Tuple[Dict, None]:
     """Update Summary by Sample data table accordingly to the selected
     superpopulation.
 
@@ -3872,8 +3872,9 @@ def updatePopulationDrop(superpop: str, search: str) -> Tuple[Dict, None]:
     Tuple[List, None]
     """
 
-    if not isinstance(superpop, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(superpop).__name__}")
+    if superpop is not None:
+        if not isinstance(superpop, str):
+            raise TypeError(f"Expected {str.__name__}, got {type(superpop).__name__}")
     if not isinstance(search, str):
         raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if superpop is None or superpop == "":
