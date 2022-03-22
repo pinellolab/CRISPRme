@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Tuple\
 import dash_html_components as html
 import pandas as pd
 
+import base64
 import os
 
 # number of entries in report table (for each table page)
@@ -168,6 +169,8 @@ PARAMS_FILE = ".Params.txt"
 LOG_FILE = "log.txt"
 # CRISPR guides file
 GUIDES_FILE = ".guides.txt"
+# sample IDs file
+SAMPLE_FILE = ".sampleID.txt"
 # data directory
 DATA_DIR = "data"
 # report images directory
@@ -214,6 +217,8 @@ MAIL_SUBJECT = "CRISPRme - Job completed"
 MAIL_SENDER = "<SENDER OF RESULT MAIL>"
 # SSL port (gmail account)
 SSL_PORT = 465
+# SpCas9 nuclease
+CAS9 = "SpCas9"
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
@@ -859,4 +864,27 @@ def generate_table_position(
                 )
             )
     return html.Table(header + data, style={"display":"inline-block"}, id=id_table)
+
+
+def parse_contents(contents: str) -> bytearray:
+    """Read the content of uploaded files and encode it into bits.
+
+    ...
+
+    Parameters
+    ---------
+    contents : str
+        Contents to encode
+
+    Returns
+    -------
+    bytearray
+        byte-like object
+    """
+
+    if not isinstance(contents, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(contents).__name__}")
+    content_type, content_string = contents.split(",")
+    decoded = base64.b64decode(content_string)  # decode data
+    return decoded
 

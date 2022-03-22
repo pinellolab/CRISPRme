@@ -30,6 +30,8 @@ TODO: complete doc string with missing info --> read paper carefully
 """
 
 
+from html.entities import html5
+from sqlite3 import dbapi2
 from .results_page_utils import (
     GUIDES_FILE,
     PAGE_SIZE,
@@ -60,6 +62,8 @@ from .results_page_utils import (
     IMGS_DIR,
     FILTERING_CRITERIA,
     PARAMS_FILE,
+    SAMPLE_FILE,
+    CAS9,
     drop_columns,
     write_json,
     read_json,
@@ -67,7 +71,8 @@ from .results_page_utils import (
     split_filter_part,
     generate_table,
     generate_table_samples,
-    generate_table_position
+    generate_table_position,
+    parse_contents,
 )
 
 from typing import Dict, List, Optional, Tuple, Type 
@@ -93,9 +98,8 @@ import dash_table
 from app import current_working_directory, cache, app_main_directory, operators
 from PostProcess import CFDGraph
 from PostProcess.supportFunctions.loadSample import associateSample
-from os.path import isfile, isdir, join  # for getting directories
+from os.path import isdir, join  # for getting directories
 
-from os import listdir
 import subprocess
 import math
 import base64  # for decoding upload content
@@ -156,7 +160,7 @@ def result_page(job_id: str) -> html.Div:
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     count_guides = 0
     guides_file = os.path.join(
-        current_working_directory, "Results", f"{value}", ".guides.txt"
+        current_working_directory, "Results", f"{value}", GUIDES_FILE
     )
     assert os.path.isfile(guides_file)
     try:
@@ -248,7 +252,6 @@ def result_page(job_id: str) -> html.Div:
         raise e
     finally:
         handle.close()
-
     guides_error_file = os.path.join(
         current_working_directory, RESULTS_DIR, job_id, "guides_error.txt"
     )
@@ -1220,7 +1223,7 @@ def update_table_cluster(
             dict_sample_to_pop,
             dict_pop_to_superpop,
         ) = associateSample.loadSampleAssociation(
-            job_directory + ".sampleID.txt"
+            os.path.join(job_directory, SAMPLE_FILE)
         )[:2]
         for row in data_to_send:
             summarized_sample_cell = dict()
@@ -1758,7 +1761,7 @@ def update_table_sample(
                 current_working_directory,
                 RESULTS_DIR,
                 job_id,
-                ".Params.txt"
+                PARAMS_FILE
             )
         ) as handle:
             all_params = handle.read()
@@ -3538,7 +3541,7 @@ def filter_sample_table(
     job_id = search.split("=")[-1]
     job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, ".sampleID.txt")
+        os.path.join(job_directory, SAMPLE_FILE)
     )[2]
     # read CRISPRme run parameters
     try:
@@ -3840,7 +3843,7 @@ def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
         current_working_directory, RESULTS_DIR, job_id
     )
     pop_dict = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, ".sampleID.txt")
+        os.path.join(job_directory, SAMPLE_FILE)
     )[3]
     return [{"label":sample, "value":sample} for sample in pop_dict[pop]], None
 
@@ -3884,7 +3887,7 @@ def update_population_drop(superpop: str, search: str) -> Tuple[Dict, None]:
         current_working_directory, RESULTS_DIR, job_id
     )
     population_1000gp = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, ".sampleID.txt")
+        os.path.join(job_directory, SAMPLE_FILE)
     )[2]
     return [{"label": i, "value": i} for i in population_1000gp[superpop]], None
 
@@ -3917,7 +3920,7 @@ def check_existance_sample(
     if not isinstance(sample, str):
         raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     dataset = pd.read_csv(
-        os.path.join(job_directory, job_id, ".sampleID.txt"), 
+        os.path.join(job_directory, job_id, SAMPLE_FILE), 
         sep="\t", 
         na_filter=False
     )
@@ -4128,172 +4131,202 @@ def update_images_tabs(
     ],
 )
 # FUNCTION TO GENERATE SAMPLE CARD, UPDATE WITH FILTER DROPDOWN
-def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, search):
+def generate_sample_card(
+    n: int, 
+    filter_criterion: str,
+    sample: str, 
+    sel_cel: List, 
+    all_guides: List, 
+    search: str
+) -> List:
+    """Generate the sample risk card for each CRISPR guide analyzed. 
+
+    The webpage plots the top 1000 personal and private targets, showing their
+    allelic frequency. The results can be filtered by the user selecting one 
+    criterion from the general drop-down bar.
+
+    ...
+
+    Parameters
+    ----------
+    n : int
+        Clicks
+    filter_criterion : str
+        Filtering criterion
+    sample : str
+        Sample ID
+    sel_cel : List
+        Selected cells
+    all_guides : List
+        All CRISPR guides
+    search : str
+        Search
+
+    Returns
+    -------
+    List
+        Sample card webpage
+    """
+
+    if n is not None:
+        if not isinstance(n, int):
+            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if not isinstance(filter_criterion, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+    if not filter_criterion in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
+    if not isinstance(sample, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
-        raise PreventUpdate
-
-    # convert sample to str to avoid concatenation errrors
-    sample = str(sample)
-    # print('leggo sample')
+        raise PreventUpdate  # do not do anything
+    # recover guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
-    # print('leggo gen table')
+    # recover job id
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-    file_to_grep = job_directory + "." + job_id + ".bestMerge.txt"
-    sample_grep_result = (
-        current_working_directory
-        + "Results/"
-        + job_id
-        + "/"
-        + job_id
-        + "."
-        + sample
-        + "."
-        + guide
-        + ".private.txt"
-    )
-
-    # if not os.path.exists(current_working_directory + 'Results/' + job_id + '/' + job_id + '.' + sample + '.' + guide + '.sample_card.txt'):
-    df = pd.read_csv(
-        job_directory
-        + job_id
-        + ".summary_by_samples."
-        + guide
-        + "_"
-        + filter_criterion
-        + ".txt",
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    # read summary by sample data
+    samples_summary = pd.read_csv(
+        os.path.join(
+            job_directory, 
+            f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+        ),
         sep="\t",
         skiprows=2,
         index_col=0,
         header=None,
         na_filter=False,
     )
+    # try to cast sample to int
     try:
-        int_sample = int(sample)
+        sample_idx = int(sample)
     except:
-        int_sample = sample
-
-    personal = df.loc[int_sample, 4]
-    pam_creation = df.loc[int_sample, 7]
-
-    # file_to_grep = job_directory + '.' + job_id + '.bestMerge.txt'
-    integrated_file_name = glob(job_directory + "*integrated*")[0]
-    integrated_file_name = str(integrated_file_name)
-    # integrated_to_grep = job_directory+job_id + \
-    #     '.bestMerge.txt.integrated_results.tsv'
-    integrated_to_grep = integrated_file_name
-    integrated_personal = (
-        job_directory + job_id + "." + sample + "." + guide + ".personal_targets.txt"
+        sample_idx = sample  # maybe already int?
+    personal = samples_summary.loc[sample_idx, 4]  # personal data in 4th col
+    pam_creation = samples_summary.loc[sample_idx, 7]  # pam in 7th col
+    integrated_fname = glob(os.path.join(job_directory, "*integrated*"))[0]
+    assert isinstance(integrated_fname, str)
+    # integrated file with personal targets
+    integrated_personal = os.path.join(
+        job_directory, f"{job_id}.{sample}.{guide}.personal_targets.txt"
     )
-    integrated_private = (
-        job_directory + job_id + "." + sample + "." + guide + ".private_targets.tsv"
+    # integrated file with private targets
+    integrated_private = os.path.join(
+        job_directory, f"{job_id}.{sample}.{guide}.private_targets.tsv"
     )
-
-    path_db = glob(current_working_directory +
-                   "Results/" + job_id + "/.*.db")[0]
-    path_db = str(path_db)
-    conn = sqlite3.connect(path_db)
+    # path to database
+    db_path = glob(
+        os.path.join(
+            current_working_directory, RESULTS_DIR, job_id, ".*.db"
+        )
+    )[0]
+    assert isinstance(db_path, str)
+    if not os.path.isfile(db_path):
+        raise FileNotFoundError(f"Unable to locate {db_path}")
+    # open connection to database
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
-
+    # get query columns
     query_cols = get_query_column(filter_criterion)
-    print(query_cols)
-
+    # perform the query
     result_personal = pd.read_sql_query(
         "SELECT * FROM final_table WHERE \"{}\"='{}' AND \"{}\" LIKE '%{}%'".format(
             GUIDE_COLUMN, guide, query_cols['samples'], sample
         ),
         conn,
     )
-    # sort personal data targets
+    # sort personal targets data 
     order = False
-    if filter_criterion == 'fewest':
+    if filter_criterion == "fewest":
         order = True
     result_personal = result_personal.sort_values(
-        [query_cols['sort']], ascending=[order])
+        [query_cols["sort"]], ascending=order
+    )
     # extract sample private targets
-    result_private = result_personal[result_personal[query_cols['samples']] == sample]
-
-    # print(result_personal)
-    # print(result_private)
-
+    result_private = result_personal[
+        result_personal[query_cols["samples"]] == sample
+    ]
     conn.commit()
-    conn.close()
-
+    conn.close()  # close connection to db
+    # store personal and private targets
     result_personal.to_csv(integrated_personal, sep="\t", index=False)
     result_private.to_csv(integrated_private, sep="\t", index=False)
-
+    # zip target files
     integrated_private_zip = integrated_private.replace("tsv", "zip")
-
-    os.system(f"zip -j {integrated_private_zip} {integrated_private}")
-
-    # plot for images in personal card
-    # print('faccio personal')
+    cmd = f"zip -j {integrated_private_zip} {integrated_private}"
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise ValueError(f"An error occurred while running \"{cmd}\"")
+    # plot images in personal card tab
+    # TODO: avoid calling scripts, use functions instead
     os.system(
         f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
     )
-    # print('faccio private')
     os.system(
         f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
     )
-    os.system(f"rm -f {integrated_personal}")
-
-    private = result_private.shape[0]
-
+    cmd = f"rm -rf {integrated_personal}"
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise ValueError(f"An error occurred while running \"{cmd}\"")
+    # recover final results table
     results_table = pd.DataFrame(
         [[len(result_personal.index), pam_creation, len(result_private.index)]],
         columns=["Personal", "PAM Creation", "Private"],
     ).astype(str)
-    # else:
-    #     pass
-
-    try:  # to read the private targets file, if not created, pass
+    # read the private targets file, if not created, pass
+    try: 
         ans = result_private
     except:
         pass
-
-    # image for personal and private
+    # put images for personal and private in HTML
     try:
         image_personal_top = "data:image/png;base64,{}".format(
             base64.b64encode(
                 open(
-                    current_working_directory
-                    + "Results/"
-                    + job_id
-                    + f"/imgs/CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.personal.png",
-                    "rb",
+                    os.path.join(
+                        current_working_directory, 
+                        RESULTS_DIR, 
+                        job_id,
+                        IMGS_DIR,
+                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.personal.png"
+                    ),
+                    mode="rb"
                 ).read()
             ).decode()
         )
         image_private_top = "data:image/png;base64,{}".format(
             base64.b64encode(
                 open(
-                    current_working_directory
-                    + "Results/"
-                    + job_id
-                    + f"/imgs/CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.private.png",
-                    "rb",
+                    os.path.join(
+                        current_working_directory,
+                        RESULTS_DIR,
+                        job_id,
+                        IMGS_DIR,
+                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.private.png"
+                    ),
+                    mode="rb"
                 ).read()
             ).decode()
         )
     except:
-        sys.stderr.write("PERSONAL AND PRIVATE LOLLIPOP PLOTS NOT GENERATED")
-
+        raise ValueError("Personal and Private Lollipop plots not generated")
+    # recover filtering criterion selected via drop-down bar
     filter_criterion = read_json(job_id)
-
+    assert filter_criterion in FILTERING_CRITERIA
+    # create personal risk card page
     try:
-        # file_to_load = job_id + '.' + sample + '.' + guide + '.private.zip'
-        file_to_load = job_id + "." + sample + "." + guide + ".private_targets.zip"
-        # #print(file_to_load)
-        # ans = ans[COL_BOTH]
+        file_to_load = f"{job_id}.{sample}.{guide}.private_targets.zip"
         out_1 = [
             html.A(
                 "Download private targets",
-                href=URL + "/Results/" + job_id + "/" + file_to_load,
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
             False,
             [
-                html.P("Top 100 Personal Targets ordered by "+filter_criterion),
+                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4305,7 +4338,7 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
                 ),
             ],
             [
-                html.P("Top 100 Private Targets ordered by "+filter_criterion),
+                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4351,8 +4384,6 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
             dash_table.DataTable(
                 css=[{"selector": ".row", "rule": "margin: 0"}],
                 id="results-table-risk",
-                # columns=[{"name": COL_BOTH[count], "id": i, 'hideable':True}
-                #          for count, i in enumerate(ans.columns)],
                 columns=[
                     {"name": i, "id": i, "hideable": True}
                     for count, i in enumerate(ans.columns)
@@ -4395,12 +4426,12 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
         out_1 = [
             html.A(
                 "Download private targets",
-                href=URL + "/Results/" + job_id + "/" + file_to_load,
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
             True,
             [
-                html.P("Top 100 Personal Targets ordered by "+filter_criterion),
+                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4412,7 +4443,7 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
                 ),
             ],
             [
-                html.P("Top 100 Private Targets ordered by "+filter_criterion),
+                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4457,13 +4488,14 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
             ),
             [],
         ]
-
-    return list(out_1)
-
-
-# Load the table/children under the tab value
+    assert isinstance(out_1, list)
+    return out_1
 
 
+# ------------------------------------------------------------------------------
+# main page layout
+
+# update the main content table
 @app.callback(
     Output("div-tab-content", "children"),
     [
@@ -4477,87 +4509,154 @@ def generate_sample_card(n, filter_criterion, sample, sel_cel, all_guides, searc
         State("div-genome-type", "children"),
     ],
 )
-def updateContentTab(
-    value, sel_cel, filter_criterion, all_guides, search, genome_type
-):
+def update_content_tab(
+    value: str, 
+    sel_cel: List, 
+    filter_criterion: str, 
+    all_guides: List, 
+    search: str, 
+    genome_type: str
+) -> List:
+    """Build and update the layout of the results page.
+
+    ...
+
+    Parameters
+    ----------
+    value : str
+        HTML identifier
+    sel_cel : List
+        Selected cells
+    filetr_criterion : str
+        Filtering criterion
+    all_guides : List
+        All CRISPR guides
+    search : str
+        Search
+    genome_type : str
+        Selected genome type
+
+    Returns
+    -------
+    List
+        Results page layout
+    """
+
+    if value is not None:
+        if not isinstance(value, str):
+            raise TypeError(f"Expected {str.__name__}, got {type(value).__name__}")
+    if not isinstance(filter_criterion, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+    if filter_criterion not in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filtering criterion selected ({filter_criterion})")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if not isinstance(genome_type, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_type).__name__}")
     if value is None or sel_cel is None or not sel_cel or not all_guides:
-        raise PreventUpdate
-
+        raise PreventUpdate  # do not do anything
+    # recover current guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
+    # recover job ID
     job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-
-    with open(current_working_directory + "Results/" + job_id + "/.Params.txt") as p:
-        all_params = p.read()
-        mms = (next(s for s in all_params.split("\n") if "Mismatches" in s)).split(
-            "\t"
-        )[-1]
-        genome_selected = (
-            next(s for s in all_params.split("\n") if "Genome_selected" in s)
-        ).split("\t")[-1]
-        max_bulges = (
-            next(s for s in all_params.split("\n") if "Max_bulges" in s)
-        ).split("\t")[-1]
-        pam = (next(s for s in all_params.split(
-            "\n") if "Pam" in s)).split("\t")[-1]
-        nuclease = (next(s for s in all_params.split("\n") if "Nuclease" in s)).split(
-            "\t"
-        )[-1]
-
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    # read parameters file
+    try:
+        with open(os.path.join(job_directory, PARAMS_FILE)) as handle_params:
+            params = handle_params.read()
+            mms = (
+                next(
+                    s for s in params.split("\n") if "Mismatches" in s
+                )
+            ).split("\t")[-1]
+            genome_selected = (
+                next(
+                    s for s in params.split("\n") if "Genome_selected" in s
+                )
+            ).split("\t")[-1]
+            max_bulges = (
+                next(
+                    s for s in params.split("\n") if "Max_bulges" in s
+                )
+            ).split("\t")[-1]
+            pam = (
+                next(
+                    s for s in params.split("\n") if "Pam" in s
+                )
+            ).split("\t")[-1]
+            nuclease = (
+                next(
+                    s for s in params.split("\n") if "Nuclease" in s
+                )
+            ).split("\t")[-1]
+    except OSError as e:
+        raise e
+    # initialize page layout list
     fl = []
     fl.append(html.Br())
-
+    # check the selected nuclease
     if nuclease != "SpCas9":
         CFD_notification = html.Div(
             "CFD score is not calculated if the used nuclease is not SpCas9"
         )
-        filter_criterion = "fewest"
+        # if nuclease is not SpCas9 filter only by fewest mm + bulges
+        filter_criterion = FILTERING_CRITERIA[0]  # fewest mm + b  
     else:
         CFD_notification = html.Div("", hidden=True)
-
+    if nuclease != CAS9 and filter_criterion != FILTERING_CRITERIA[0]:
+        raise ValueError(
+            f"Wrong filtering criterion selected for nuclease {nuclease}"
+        )
+    # PAM(s)
     pam_at_start = False
-    if str(guide)[0] == "N":
+    assert isinstance(guide, str)
+    if guide[0] == "N":
         pam_at_start = True
     if pam_at_start:
-        fl.append(html.H5("Focus on: " + str(pam) +
-                  str(guide).replace("N", "")))
+        fl.append(html.H5(f"Focus on: {pam}{guide.replace('N', '')}"))
     else:
-        fl.append(html.H5("Focus on: " + str(guide).replace("N", "") + str(pam)))
-
-    if (
-        value == "tab-summary-by-guide"
-    ):  # BUG se cambio guida selezionata due volte mi cambia il mms mettendo a 0, provare con un div nascosto
-        # Show Summary by Guide table
+        fl.append(html.H5(f"Focus on: {guide.replace('N', '')}{pam}"))
+    # BUG changing the selected guide two times, drop mms to 0
+    # TODO: add hidden div ?
+    if value == "tab-summary-by-guide":  
+        # Show Summary by Mismatches/Bulges
+        # NOTE use old id (summary-by-guide -> summary by mm+b)
         fl.append(
             html.P(
                 [
-                    "Summary table counting the number of targets found in the Reference and Variant Genome for each combination of Bulge Type, Bulge Size and Mismatch. Select 'Show Targets' to view the corresponding list of targets. ",
+                    str(
+                        "Summary table counting the number of targets found in "
+                        "the Reference and Variant Genome for each combination "
+                        "of Bulge Type, Bulge Size and Mismatch. Select \"Show "
+                        "Targets\" to view the corresponding list of targets."
+                    ),
                 ]
             )
         )
         fl.append(html.Br())
-        df = pd.read_csv(
-            job_directory
-            + job_id
-            + ".summary_by_guide."
-            + guide
-            + "_"
-            + filter_criterion
-            + ".txt",
+        # load summary by guide table
+        guides_summary = pd.read_csv(
+            os.path.join(
+                job_directory,
+                f"{job_id}.summary_by_guide.{guide}_{filter_criterion}.txt"
+            ),
             sep="\t",
             na_filter=False,
         )
         more_info_col = []
         total_col = []
-        for i in range(df.shape[0]):
+        for _ in range(guides_summary.shape[0]):
             more_info_col.append("Show Targets")
-            total_col.append(df["Bulge Size"])
-        df[""] = more_info_col
-
+            total_col.append(guides_summary["Bulge Size"])
+        guides_summary[""] = more_info_col
         fl.append(
             html.Div(
                 generate_table(
-                    df, "table-summary-by-guide", genome_type, guide, job_id
+                    guides_summary, 
+                    "table-summary-by-guide", 
+                    genome_type, 
+                    guide, 
+                    job_id,
                 ),
                 style={"text-align": "center"},
             )
@@ -4566,12 +4665,16 @@ def updateContentTab(
     elif value == "tab-summary-by-sample":
         # Show Summary by Sample table
         fl.append(
-            html.P(
-                "Summary table counting the number of targets found in the Variant Genome for each sample. Filter the table by selecting the Population or Superpopulation desired from the dropdowns."
+            html.P(    
+                str(
+                    "Summary table counting the number of targets found in the "
+                    "Variant Genome for each sample. Filter the table by "
+                    "selecting the Population or Superpopulation desired from "
+                    "the dropdowns."
+                )
             )
         )
         if genome_type == "both":
-            # col_names_sample = ['Sample', 'Sex', 'Population', 'Super Population',  'Targets in Reference', 'Targets in Enriched', 'Targets in Population', 'Targets in Super Population', 'PAM Creation', 'Class']
             col_names_sample = [
                 "Sample",
                 "Sex",
@@ -4582,20 +4685,6 @@ def updateContentTab(
                 "Targets in Super Population",
                 "PAM Creation",
             ]
-            df = pd.read_csv(
-                job_directory
-                + job_id
-                + ".summary_by_samples."
-                + guide
-                + "_"
-                + filter_criterion
-                + ".txt",
-                sep="\t",
-                names=col_names_sample,
-                skiprows=2,
-                na_filter=False,
-            )
-            df = df.sort_values("Targets in Variant", ascending=False)
         else:
             col_names_sample = [
                 "Sample",
@@ -4607,40 +4696,40 @@ def updateContentTab(
                 "Targets in Super Population",
                 "PAM Creation",
             ]
-            df = pd.read_csv(
-                job_directory
-                + job_id
-                + ".summary_by_samples."
-                + guide
-                + "_"
-                + filter_criterion
-                + ".txt",
-                sep="\t",
-                names=col_names_sample,
-                skiprows=2,
-                na_filter=False,
-            )
-            df = df.sort_values("Targets in Variant", ascending=False)
-
-        more_info_col = []
-        for i in range(df.shape[0]):
-            more_info_col.append("Show Targets")
-        df[""] = more_info_col
+        # load summary by samples table
+        samples_summary = pd.read_csv(
+            os.path.join(
+                job_directory,
+                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+            ),
+            sep="\t",
+            names=col_names_sample,
+            skiprows=2,
+            na_filter=False,
+        )
+        samples_summary = samples_summary.sort_values(
+            "Targets in Variant", ascending=False
+        )
+        more_info_col = ["Show Targets" for _ in range(samples_summary.shape[0])]
+        samples_summary[""] = more_info_col
 
         population_1000gp = associateSample.loadSampleAssociation(
-            job_directory + ".sampleID.txt"
+            os.path.join(job_directory, SAMPLE_FILE)
         )[2]
-        super_populations = [{"label": i, "value": i}
-                             for i in population_1000gp.keys()]
+        super_populations = [
+            {"label": i, "value": i} for i in population_1000gp.keys()
+        ]
         populations = []
-        for k in population_1000gp.keys():
-            for i in population_1000gp[k]:
+        for pop in population_1000gp.keys():
+            for i in population_1000gp[pop]:
                 populations.append({"label": i, "value": i})
         fl.append(
             html.Div(
                 [
                     html.Div(
-                        job_directory + job_id + ".summary_by_samples." + guide,
+                        os.path.join(
+                            job_directory, f"{job_id}.summary_by_samples.{guide}"
+                        ),
                         style={"display": "none"},
                         id="div-info-summary_by_sample",
                     ),
@@ -4664,18 +4753,19 @@ def updateContentTab(
                                     )
                                 )
                             ),
-                            # dbc.Col(html.Div(dcc.Dropdown( id = 'dropdown-sample', placeholder = 'Select a Sample'))),
                             dbc.Col(
                                 html.Div(
                                     dcc.Input(
-                                        id="input-sample", placeholder="Select a Sample"
+                                        id="input-sample", 
+                                        placeholder="Select a Sample",
                                     )
                                 )
                             ),
                             dbc.Col(
                                 html.Div(
                                     html.Button(
-                                        "Filter", id="button-filter-population-sample"
+                                        "Filter", 
+                                        id="button-filter-population-sample",
                                     )
                                 )
                             ),
@@ -4690,7 +4780,7 @@ def updateContentTab(
                                         id="download-link-summary_by_sample",
                                     ),
                                     dcc.Interval(
-                                        interval=1 * 1000,
+                                        interval=(1 * 1000),
                                         id="interval-summary_by_sample",
                                     ),
                                 ]
@@ -4707,10 +4797,12 @@ def updateContentTab(
                 id="div-sample-filter-query",
                 style={"display": "none"},
             )
-        )  # Folr keep current filter:  Superpop,Pop
+        )  # keep current filter:  Superpop + Pop
         fl.append(
             html.Div(
-                generate_table_samples(df, "table-samples", 1, guide, job_id),
+                generate_table_samples(
+                    samples_summary, "table-samples", 1, guide, job_id
+                ),
                 style={"text-align": "center"},
                 id="div-table-samples",
             )
@@ -4724,48 +4816,59 @@ def updateContentTab(
                 style={"text-align": "center"},
             )
         )
-        max_page = len(df.index)
+        max_page = samples_summary.shape[0]
         max_page = math.floor(max_page / 10) + 1
-        fl.append(html.Div("1/" + str(max_page),
-                  id="div-current-page-table-samples"))
+        fl.append(html.Div(f"1/{max_page}", id="div-current-page-table-samples"))
         return fl
     elif value == "tab-summary-by-position":
-        # Show Summary by position table
+        # Show Summary by position table (Query Genomic regions tab)
         fl.append(
             html.P(
-                "Summary table containing all the targets found in a specific range of positions (chr, start, end) of the genome."
+                str(
+                    "Summary table containing all the targets found in a "
+                    "specific range of positions (chr, start, end) of the "
+                    "genome."
+                )
             )
         )
-
         fl.append(
             html.P(
-                "Filter the table by selecting the chromosome of interest and writing the start and end position of the region to view."
+                str(
+                    "Filter the table by selecting the chromosome of interest, "
+                    "and writing the start and end position of the region to "
+                    "view."
+                )
             )
         )
         # Dropdown chromosomes
         try:
+            # read chromosomes from FASTA files
             onlyfile = [
                 f
-                for f in listdir(
-                    current_working_directory + "Genomes/" + genome_selected
+                for f in os.listdir(
+                    os.path.join(
+                        current_working_directory, "Genomes", genome_selected
+                    )
                 )
                 if (
-                    isfile(
-                        join(
-                            current_working_directory + "Genomes/" + genome_selected, f
+                    os.path.isfile(
+                        os.path.join(
+                            current_working_directory, 
+                            "Genomes", 
+                            genome_selected, 
+                            f
                         )
                     )
                     and (f.endswith(".fa") or f.endswith(".fasta"))
                 )
             ]
         except:
-            onlyfile = ["chr" + str(i) + ".fa" for i in range(1, 23)]
-            onlyfile.append("chrX.fa")
-            # NOTE in case no chr in GENOMES/ i put 22 chr + X Y M
-            onlyfile.append("chrY.fa")
-            onlyfile.append("chrM.fa")
-        # removed .fa for better visualization
-        onlyfile = [x[: x.rfind(".")] for x in onlyfile]
+            # guess chromosomes
+            onlyfile = [f"chr{i}.fa" for i in range(1, 23)]
+            # NOTE in case no chr in "Genomes", put 22 chr + X Y M
+            onlyfile += ["chrX.fa", "chrY.fa", "chrM"]
+        # remove file extension (.fa)
+        onlyfile = [x[:x.rfind(".")] for x in onlyfile]
         chr_file = []
         chr_file_unset = []
         for chr_name in onlyfile:
@@ -4785,11 +4888,10 @@ def updateContentTab(
             ]
         )
         chr_file += chr_file_unset
-        chr_file = [{"label": chr_name, "value": chr_name}
-                    for chr_name in chr_file]
-
-        # Colonne tabella: chr, pos, target migliore, min mm, min bulges, num target per ogni categoria di mm e bulge, show targets; ordine per total, poi mm e poi bulge
-        # TODO inserire failsafe se non ci sono chr, esempio elenco chr da 1 a 22
+        chr_file = [
+            {"label": chr_name, "value": chr_name} for chr_name in chr_file
+        ]
+        # TODO: insert failsafe if no chromosome is found
         fl.append(
             html.Div(
                 [
@@ -4823,19 +4925,18 @@ def updateContentTab(
                             dbc.Col(
                                 html.Div(
                                     html.Button(
-                                        "Filter", id="button-filter-position")
+                                        "Filter", 
+                                        id="button-filter-position")
                                 )
                             ),
                             html.Br()
-                            # )
                         ]
                     ),
                 ],
                 style={"width": "50%"},
             )
         )
-        # ###print('Position dataframe ready', time.time() - start_time)
-        # Folr keep current filter:  chr,pos_start,pos_end
+        # keep current filter:  chr,pos_start,pos_end
         fl.append(
             html.Div(
                 "None,None,None",
@@ -4843,39 +4944,41 @@ def updateContentTab(
                 style={"display": "none"},
             )
         )
-        # start_time = time.time()
         fl.append(html.Br())
         fl.append(
-            html.Div(style={"text-align": "center"}, id="div-table-position"))
-        max_page = 1
-        fl.append(html.Div("1/" + str(max_page),
-                  id="div-current-page-table-position"))
+            html.Div(style={"text-align": "center"}, id="div-table-position")
+        )
+        max_page = 1  # maximum one single page
+        fl.append(
+            html.Div(f"1/{max_page}", id="div-current-page-table-position")
+        )
         fl.append(
             html.Div(
-                mms + "-" + max_bulges,
+                f"{mms}-{max_bulges}",
                 id="div-mms-bulges-position",
                 style={"display": "none"},
             )
         )
         return fl
     elif value == "tab-graphical-sample-card":
-        df = pd.read_csv(
-            job_directory
-            + job_id
-            + ".summary_by_samples."
-            + guide
-            + "_"
-            + filter_criterion
-            + ".txt",
+        # Show Personal Risk Cards table
+        samples_summary = pd.read_csv(
+            os.path.join(
+                job_directory,
+                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+            ),
             skiprows=2,
             sep="\t",
             header=None,
             na_filter=False,
         )
-        samples = df.iloc[:, 0]
+        samples = samples_summary.iloc[:, 0]  # samples on 1st column
         fl.append(
             html.P(
-                "Summary page containing the single Personal Risk card to be inspected and downloaded"
+                str(
+                    "Summary page containing the single Personal Risk card to " 
+                    "be inspected and downloaded"
+                )
             )
         )
         fl.append(
@@ -4898,12 +5001,15 @@ def updateContentTab(
                             dbc.Col(
                                 html.Div(
                                     html.Button(
-                                        "Generate", id="button-sample-card")
+                                        "Generate", id="button-sample-card"
+                                    )
                                 )
                             ),
                             dbc.Col(
                                 html.Div(
-                                    id="download-link-personal-card", hidden=True)
+                                    id="download-link-personal-card", 
+                                    hidden=True
+                                )
                             ),
                         ]
                     ),
@@ -4949,9 +5055,14 @@ def updateContentTab(
         fl.append(html.Div("", id="div-sample-card"))
         return fl
     elif value == "tab-query-table":
+        # Show Custom Ranking table 
         fl.append(
             html.P(
-                "Summary page to query the final result file selecting one/two column to group by the table and extract requested targets"
+                str(
+                    "Summary page to query the final result file selecting "
+                    "one/two column to group by the table and extract "
+                    "requested targets"
+                )
             )
         )
         all_value = {
@@ -4986,28 +5097,13 @@ def updateContentTab(
                 " Risk Score",
             ],
         }  # , ' Absolute Risk Score'
-
         label = [{"label": lab} for lab in all_options.keys()]
         value = [{"value": val} for val in all_value.keys()]
         target_opt = [label, value]
-
         query_tab_content = html.Div(
             [
-                # dbc.Row(
-                #     dbc.Col(
-                #         html.Div(
-                #             [
-                #                 html.H4('Select filter criteria for targets'),
-                #                 dcc.Dropdown(options=[
-                #                     {'label': 'Fewest Mismatches and Bulges',
-                #                         'value': 'fewest'},
-                #                     {'label': 'CFD score', 'value': 'CFD'},
-                #                     {'label': 'CRISTA Score', 'value': 'CRISTA'}
-                #                 ], value='CFD',
-                #                     id='target_filter_dropdown'
-                #                 )
-                #             ]))),
-                dbc.Row(  # row with main group by, secondo group by and thresholds
+                # row with the first and second group by and thresholds
+                dbc.Row(  
                     [
                         dbc.Col(  # col0 phantom target select
                             [
@@ -5017,7 +5113,6 @@ def updateContentTab(
                                         dcc.RadioItems(
                                             id="target",
                                             options=target_opt,
-                                            # options=[{'label': k, 'value': k} for k in all_options.keys()],
                                             value="Target1 :with highest CFD",
                                         ),
                                     ]
@@ -5072,7 +5167,8 @@ def updateContentTab(
                                                         [
                                                             html.H6("Max"),
                                                             dcc.Dropdown(
-                                                                id="maxdrop"),
+                                                                id="maxdrop"
+                                                            ),
                                                         ]
                                                     )
                                                 ]
@@ -5090,10 +5186,14 @@ def updateContentTab(
                                     dcc.RadioItems(
                                         id="Radio-asc-1",
                                         options=[
-                                            {"label": " Ascending",
-                                                "value": "ASC"},
-                                            {"label": " Descending",
-                                                "value": "DESC"},
+                                            {
+                                                "label": " Ascending",
+                                                "value": "ASC"
+                                            },
+                                            {
+                                                "label": " Descending",
+                                                "value": "DESC"
+                                            },
                                         ],
                                         value="DESC",
                                         labelStyle={
@@ -5117,8 +5217,6 @@ def updateContentTab(
                                         "Submit",
                                         id="submit-val",
                                         n_clicks=0,
-                                        # style={
-                                        #     'position': 'absolute', 'center': '50%'}
                                     ),
                                 )
                             ],
@@ -5131,8 +5229,6 @@ def updateContentTab(
                                         "Reset",
                                         id="reset-val",
                                         n_clicks=0,
-                                        # style={'position': 'absolute',
-                                        #        'center': '50%'}
                                     )
                                 )
                             ],
@@ -5156,9 +5252,12 @@ def updateContentTab(
                         dbc.Col(
                             [
                                 CFD_notification,
-                                # html.Br(),
                                 html.P(
-                                    "Export will download 1000 lines contained in the current view of the table"
+                                    str(
+                                        "Export will download 1000 lines "
+                                        "contained in the current view of the "
+                                        "table"
+                                    )
                                 ),
                                 html.Div(
                                     dash_table.DataTable(
@@ -5168,14 +5267,12 @@ def updateContentTab(
                                                 "line-break": "anywhere",
                                                 "overflow-wrap": "break-word",
                                                 "selector": ".row",
-                                                # 'rule': 'margin: 0',
                                                 "rule": "margin: 0; overflow: inherit; word-break: break-all; overflow-wrap: break-word; line-break: anywhere;",
                                             }
                                         ],
                                         style_cell={
                                             "height": "auto",
                                             "textAlign": "left",
-                                            # 'maxWidth': '500px'
                                         },
                                         export_format="xlsx",
                                         id="live_table",
@@ -5251,36 +5348,27 @@ def updateContentTab(
             ]
         )
         fl.append(query_tab_content)
-        # ##print('table query', dff)
-        # fl.append(
-
         return fl
-    else:  # tab-graphical
-        # Show Report images
+    else:  
+        # Show Graphical Report images
         samp_style = {}
         if genome_type == "ref":
             samp_style = {"display": "none"}
-
-        # fl.append(html.Br())
         fl.append(
             html.P(
-                "Summary Graphical report collecting all the plots and images produced during the search"
+                str(
+                    "Summary Graphical report collecting all the plots and "
+                    "images produced during the search"
+                )
             )
         )
-
-        opt_mm = []
         total = int(mms) + int(max_bulges)
-        for i in range(total + 1):
-            opt_mm.append({"label": str(i), "value": str(i)})
-        opt_blg = []
-        for i in range(int(max_bulges) + 1):
-            opt_blg.append({"label": str(i), "value": str(i)})
-
+        opt_mm = [{"label": str(i), "value": str(i)} for i in range(total + 1)]
+        opt_blg = [{"label": str(i), "value": str(i)} for i in range(int(max_bulges) + 1)]
         if genome_type != "ref":
             population_1000gp = associateSample.loadSampleAssociation(
-                job_directory + ".sampleID.txt"
+                os.path.join(job_directory, SAMPLE_FILE)
             )[2]
-
             super_populations = [
                 {"label": i, "value": i} for i in population_1000gp.keys()
             ]
@@ -5291,20 +5379,22 @@ def updateContentTab(
         else:
             super_populations = []
             populations = []
-        # CRISPRme_top_1000_log_for_main_text_{guide}_MMvBUL.png
         try:
-            # if nuclease == 'SpCas9':  # IMPLEMENTARE DROPDOWN PER VISUALIZZARE CFD,CRISTA,MMBUL
+            # try load main image of graphical reports
             top1000_image = html.Div(
                 html.A(
                     html.Img(
                         src="data:image/png;base64,{}".format(
                             base64.b64encode(
                                 open(
-                                    current_working_directory
-                                    + "Results/"
-                                    + job_id
-                                    + f"/imgs/CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.png",
-                                    "rb",
+                                    os.path.join(
+                                        current_working_directory,
+                                        RESULTS_DIR,
+                                        job_id,
+                                        IMGS_DIR,
+                                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.png"
+                                    ),
+                                    mode="rb"
                                 ).read()
                             ).decode()
                         ),
@@ -5315,22 +5405,18 @@ def updateContentTab(
                     target="_blank",
                 )
             )
-            # else:
-            #     top1000_image = html.Div(
-            #         html.A(html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(
-            #                         current_working_directory + 'Results/' + job_id + f'/imgs/CRISPRme_top_1000_log_for_main_text_{guide}_MMvBUL.png', 'rb').read()).decode()),
-            #                         id='top-1000-score', width="80%", height="auto"),
-            #                target="_blank")
-            #     )
         except:
+            # let it empty
             top1000_image = html.Div("")
-
         total_buttons = [
             dbc.Col(
                 html.Div(
                     [
                         html.P(
-                            "Select total number of mismatches and/or bulges to consider, up to"
+                            str(
+                                "Select total number of mismatches and/or "
+                                "bulges to consider, up to"
+                            )
                         ),
                         dcc.Dropdown(
                             id="mm-dropdown",
@@ -5395,29 +5481,23 @@ def updateContentTab(
             html.Div(
                 [
                     CFD_notification,
-                    dbc.Row(dbc.Col(top1000_image, width={
-                            "size": 10, "offset": 2})),
+                    dbc.Row(
+                        dbc.Col(top1000_image, width={"size": 10, "offset": 2})
+                    ),
                     dbc.Row(total_buttons, justify="center"),
                     html.Br(),
                 ]
             )
         )
-
         radar_chart_encode_gencode = dbc.Col(
             html.Div(id="div-radar-chart-encode_gencode")
         )
         populations_barplots = dbc.Col(html.Div(id="div-population-barplot"))
-        radar_chart_sample_content = dbc.Row(id="row-radar-chart-sample")
-        sample_image_content = html.Div(id="div-sample-image")
-
         if genome_type != "ref":
-            graph_summary_both = [
-                populations_barplots, radar_chart_encode_gencode]
+            graph_summary_both = [populations_barplots, radar_chart_encode_gencode]
         else:
             graph_summary_both = [radar_chart_encode_gencode]
-
         fl.append(html.Div([dbc.Row(graph_summary_both)]))
-
         fl.append(
             dbc.Row(
                 dbc.Col(
@@ -5441,26 +5521,16 @@ def updateContentTab(
                 )
             )
         )
-
-        cfd_path = job_directory + job_id + ".CFDGraph.txt"
-        if not isfile(cfd_path):  # No file found
+        cfd_path = os.path.join(job_directory, f"{job_id}.CFDGraph.txt")
+        if not os.path.isfile(cfd_path):  # No file found to display CFD graph
             return fl
-
         fl.extend(CFDGraph.CFDGraph(cfd_path))
-
         return fl
-        # return guide + value
     raise PreventUpdate
 
 
 # Read the uploaded file and converts into bit
 
-
-def parse_contents(contents):
-    content_type, content_string = contents.split(",")
-
-    decoded = base64.b64decode(content_string)
-    return decoded
 
 
 # Perform expensive loading of a dataframe and save result into 'global store'
