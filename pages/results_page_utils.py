@@ -203,6 +203,12 @@ SAMPLES_COLUMN = "Variant_samples_(highest_CFD)"
 SAMPLES_CRISTA_COLUMN = "Variant_samples_(highest_CRISTA)"
 # variant fewest mm+b samples column name
 SAMPLES_FEWEST_COLUMN = "Variant_samples_(fewest_mm+b)"
+# variant genome CRISTA column name
+VARIANTS_CRISTA = "Variant_info_genome_(highest_CRISTA)"
+# variant genome CFD columns name
+VARIANTS_CFD = "Variant_info_genome_(highest_CFD)"
+# variant genome mm+b column name
+VARIANTS_FEWEST = "Variant_info_genome_(fewest_mm+b)"
 # results filtering criteria
 FILTERING_CRITERIA = ["fewest", "CFD", "CRISTA"]
 # filter mms + bulges
@@ -219,6 +225,8 @@ MAIL_SENDER = "<SENDER OF RESULT MAIL>"
 SSL_PORT = 465
 # SpCas9 nuclease
 CAS9 = "SpCas9"
+# pandas series operator methods names
+PANDAS_OPERATORS = ("eq", "ne", "lt", "le", "gt", "ge")
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
@@ -277,9 +285,9 @@ def write_json(dropdown_value: str, job_id: str) -> None:
     """Write auxiliary file to keep track of filetring criterion
     when displaying tables in Summary by Mismatches and Bulges and
     Summary by Sample tabs.
-    
+
     ...
-    
+
     Parameters
     ----------
     dropdown_value : str
@@ -309,9 +317,9 @@ def write_json(dropdown_value: str, job_id: str) -> None:
 def read_json(job_id: str) -> str:
     """Read the auxiliary file to recover the filtering criterion
     selected by the user with the dropdown.
-    
+
     ...
-    
+
     Parameters
     ----------
     job_id : str
@@ -350,14 +358,20 @@ def get_query_column(filter_criterion: str) -> Dict[str, str]:
 
     Parameters
     ----------
-    filter_crietrion : str
+    filter_criterion : str
         Table filtering criterion
-    
+
     Returns
     -------
     Dict[str, str]
         Columns to keep in the summary table after filtering
     """
+
+    if not isinstance(filter_criterion, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+    if filter_criterion not in FILTERING_CRITERIA:
+        raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     query_columns = {
         "start": "Start_coordinate",
         "mm": "Mismatches",
@@ -371,22 +385,22 @@ def get_query_column(filter_criterion: str) -> Dict[str, str]:
             query_columns[key] = "_".join(
                 [query_columns[key], f"({MMBULGES_FILTER})"]
             )
-            query_columns['sort'] = TOTAL_FEWEST_COLUMN
-            query_columns['samples'] = SAMPLES_FEWEST_COLUMN
+            query_columns["sort"] = TOTAL_FEWEST_COLUMN
+            query_columns["samples"] = SAMPLES_FEWEST_COLUMN
     elif filter_criterion == FILTERING_CRITERIA[1]:
         for key in query_columns.keys():
             query_columns[key] = "_".join(
                 [query_columns[key], f"({CFD_FILTER})"]
             )
-            query_columns['sort'] = CFD_COLUMN
-            query_columns['samples'] = SAMPLES_COLUMN
+            query_columns["sort"] = CFD_COLUMN
+            query_columns["samples"] = SAMPLES_COLUMN
     elif filter_criterion == FILTERING_CRITERIA[2]:
         for key in query_columns.keys():
             query_columns[key] = "_".join(
                 [query_columns[key], f"({CRISTA_FILTER})"]
             )
-            query_columns['sort'] = CRISTA_COLUMN
-            query_columns['samples'] = SAMPLES_CRISTA_COLUMN
+            query_columns["sort"] = CRISTA_COLUMN
+            query_columns["samples"] = SAMPLES_CRISTA_COLUMN
     else:
         raise ValueError
     return query_columns
@@ -409,12 +423,14 @@ def split_filter_part(filter_part: str) -> Tuple[str, str, str]:
     """
 
     if not isinstance(filter_part, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_part).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_part).__name__}")
     for operator_type in operators:
         for operator in operator_type:
             if operator in filter_part:
                 name_part, value_part = filter_part.split(operator, 1)
-                name = name_part[(name_part.find("{") + 1):name_part.rfind("}")]
+                name = name_part[(name_part.find(
+                    "{") + 1):name_part.rfind("}")]
                 value_part = value_part.strip()
                 v0 = value_part[0]
                 if v0 == value_part[-1] and v0 in ("'", '"', "`"):
@@ -431,11 +447,11 @@ def split_filter_part(filter_part: str) -> Tuple[str, str, str]:
 
 
 def generate_table(
-    dataframe: pd.DataFrame, 
-    id_table: str, 
-    genome_type: str, 
-    guide: Optional[str] = "", 
-    job_id: Optional[str] = "", 
+    dataframe: pd.DataFrame,
+    id_table: str,
+    genome_type: str,
+    guide: Optional[str] = "",
+    job_id: Optional[str] = "",
     max_rows: Optional[int] = 2600
 ) -> html.Table:
     """Generate a html table from a given pandas DataFrame.
@@ -464,17 +480,22 @@ def generate_table(
     """
 
     if not isinstance(dataframe, pd.DataFrame):
-        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+        raise TypeError(
+            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
     if not isinstance(id_table, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(id_table).__name__}")
     if not isinstance(genome_type, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(genome_type).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(genome_type).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(max_rows, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(max_rows).__name__}")
     # build table header
     header = [
         html.Tr(
@@ -482,27 +503,27 @@ def generate_table(
                 html.Th(
                     "Bulge type",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Mismatches",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Bulge Size",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Targets found in Genome",
                     colSpan=str(3),
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "PAM Creation",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th("", rowSpan="2"),
             ]
@@ -512,7 +533,8 @@ def generate_table(
         html.Tr(
             [
                 html.Th(
-                    x, style={"vertical-align":"middle", "text-align":"center"}
+                    x, style={"vertical-align": "middle",
+                              "text-align": "center"}
                 )
                 for x in ["Reference", "Variant", "Combined"]
             ]
@@ -527,14 +549,14 @@ def generate_table(
                 [
                     html.Td(
                         html.A(
-                            dataframe.loc[i,col],
+                            dataframe.loc[i, col],
                             href="".join(
                                 [
                                     "result?job=",
                                     f"{job_id}#{guide}new",
-                                    dataframe.loc[i,"Bulge Type"],
-                                    str(dataframe.loc[i,"Bulge Size"]),
-                                    str(dataframe.loc[i,"Mismatches"]),
+                                    dataframe.loc[i, "Bulge Type"],
+                                    str(dataframe.loc[i, "Bulge Size"]),
+                                    str(dataframe.loc[i, "Mismatches"]),
                                 ]
                             ),
                             target="_blank",
@@ -546,7 +568,7 @@ def generate_table(
                     else html.Td(
                         dataframe.iloc[i][col],
                         style={
-                            "vertical-align":"middle", "text-align":"center"
+                            "vertical-align": "middle", "text-align": "center"
                         },
                     )
                     for col in dataframe.columns
@@ -561,11 +583,11 @@ def generate_table(
 
 
 def generate_table_samples(
-    dataframe: pd.DataFrame, 
-    id_table: str, 
-    page: int, 
-    guide: Optional[str] = "", 
-    job_id: Optional[str] = "", 
+    dataframe: pd.DataFrame,
+    id_table: str,
+    page: int,
+    guide: Optional[str] = "",
+    job_id: Optional[str] = "",
     max_rows: Optional[int] = 10
 ) -> html.Table:
     """Generate a html table from a given pandas DataFrame.
@@ -597,17 +619,21 @@ def generate_table_samples(
     """
 
     if not isinstance(dataframe, pd.DataFrame):
-        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+        raise TypeError(
+            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
     if not isinstance(id_table, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(id_table).__name__}")
     if not isinstance(page, int):
         raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(max_rows, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(max_rows).__name__}")
     if max_rows < 1:
         raise ValueError(f"Forbidden number of rows to display ({max_rows})")
     # force dataframe fields to be of str type
@@ -651,13 +677,13 @@ def generate_table_samples(
 
 
 def generate_table_position(
-    dataframe: pd.DataFrame, 
-    id_table: str, 
-    page: int, 
-    mms: int, 
-    bulges: int, 
-    guide: Optional[str] = "", 
-    job_id: Optional[str] = "", 
+    dataframe: pd.DataFrame,
+    id_table: str,
+    page: int,
+    mms: int,
+    bulges: int,
+    guide: Optional[str] = "",
+    job_id: Optional[str] = "",
     max_rows: Optional[int] = 10
 ):
     """Generate a html table from a given pandas DataFrame.
@@ -693,21 +719,26 @@ def generate_table_position(
     """
 
     if not isinstance(dataframe, pd.DataFrame):
-        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+        raise TypeError(
+            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
     if not isinstance(id_table, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(id_table).__name__}")
     if not isinstance(page, int):
         raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if not isinstance(mms, int):
         raise TypeError(f"Expected {int.__name__}, got {type(mms).__name__}")
     if not isinstance(bulges, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(bulges).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(bulges).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(max_rows, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(max_rows).__name__}")
     if max_rows < 1:
         raise ValueError(f"Forbidden number of rows to display ({max_rows})")
     rows_remaining = dataframe.shape[0] - (page - 1) * max_rows
@@ -718,37 +749,37 @@ def generate_table_position(
                 html.Th(
                     "Chromosome",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Position",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Best Target",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Min Mismatch",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Min Bulge",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Bulge",
                     rowSpan="2",
-                    style={"vertical-align":"middle", "text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th(
                     "Targets in Cluster by Mismatch Value",
                     colSpan=str(mms + 1),
-                    style={"vertical-align":"middle","text-align":"center"},
+                    style={"vertical-align": "middle", "text-align": "center"},
                 ),
                 html.Th("", rowSpan="2"),
             ]
@@ -760,7 +791,7 @@ def generate_table_position(
         mms_header.append(
             html.Th(
                 f"{mm} MM",
-                style={"vertical-align":"middle", "text-align":"center"},
+                style={"vertical-align": "middle", "text-align": "center"},
             )
         )
     header.append(html.Tr(mms_header))
@@ -769,43 +800,43 @@ def generate_table_position(
     for i in range(min(rows_remaining, max_rows)):
         first_cells = [
             html.Td(
-                dataframe.loc[(i + (page - 1) * max_rows),"Chromosome"],
+                dataframe.loc[(i + (page - 1) * max_rows), "Chromosome"],
                 rowSpan=str(bulges + 1),
-                style={"vertical-align":"middle", "text-align":"center"},
+                style={"vertical-align": "middle", "text-align": "center"},
             ),
             html.Td(
-                dataframe.loc[(i + (page - 1) * max_rows),"Position"],
+                dataframe.loc[(i + (page - 1) * max_rows), "Position"],
                 rowSpan=str(bulges + 1),
-                style={"vertical-align":"middle", "text-align":"center"},
+                style={"vertical-align": "middle", "text-align": "center"},
             ),
             html.Td(
-                dataframe.loc[(i + (page - 1) * max_rows),"Best Target"],
+                dataframe.loc[(i + (page - 1) * max_rows), "Best Target"],
                 rowSpan=str(bulges + 1),
-                style={"vertical-align":"middle", "text-align":"center"},
+                style={"vertical-align": "middle", "text-align": "center"},
             ),
             html.Td(
-                dataframe.loc[(i + (page - 1) * max_rows),"Min Mismatch"],
+                dataframe.loc[(i + (page - 1) * max_rows), "Min Mismatch"],
                 rowSpan=str(bulges + 1),
-                style={"vertical-align":"middle", "text-align":"center"},
+                style={"vertical-align": "middle", "text-align": "center"},
             ),
             html.Td(
-                dataframe.loc[(i + (page - 1) * max_rows),"Min Bulge"],
+                dataframe.loc[(i + (page - 1) * max_rows), "Min Bulge"],
                 rowSpan=str(bulges + 1),
-                style={"vertical-align":"middle", "text-align":"center"},
+                style={"vertical-align": "middle", "text-align": "center"},
             ),
             html.Th(
                 "0 Bulge",
                 style={
-                    "vertical-align":"middle",
-                    "text-align":"center",
-                    "padding-left":"0",
+                    "vertical-align": "middle",
+                    "text-align": "center",
+                    "padding-left": "0",
                 },
             ),
         ]
         mm_cells = [
             html.Td(
-                dataframe.loc[(i + (page - 1) * max_rows),col],
-                style={"vertical-align":"middle", "text-align":"center"},
+                dataframe.loc[(i + (page - 1) * max_rows), col],
+                style={"vertical-align": "middle", "text-align": "center"},
             )
             for col in dataframe.columns[5: 5 + mms + 1]
         ]
@@ -823,9 +854,10 @@ def generate_table_position(
                                     f"{job_id}#{guide}-Pos-",
                                     str(
                                         dataframe.loc[
-                                            (i + (page - 1) * max_rows),"Chromosome"
+                                            (i + (page - 1) *
+                                             max_rows), "Chromosome"
                                         ]
-                                    ), 
+                                    ),
                                     "-",
                                     str(
                                         dataframe.loc[
@@ -838,7 +870,7 @@ def generate_table_position(
                         ),
                         rowSpan=str(bulges + 1),
                         style={
-                            "vertical-align":"middle", "text-align":"center"
+                            "vertical-align": "middle", "text-align": "center"
                         },
                     )
                 ]
@@ -851,19 +883,20 @@ def generate_table_position(
                         html.Th(
                             f"{b + 1} Bulge",
                             style={
-                                "vertical-align":"middle", "text-align":"center"
+                                "vertical-align": "middle", "text-align": "center"
                             },
                         )
                     ]
                     + [
-                        html.Td(dataframe.loc[(i + (page - 1) * max_rows),col])
+                        html.Td(
+                            dataframe.loc[(i + (page - 1) * max_rows), col])
                         for col in dataframe.columns[
                             5 + (b + 1) * (mms + 1): 5 + (b + 1) * (mms + 1) + mms + 1
                         ]
                     ]
                 )
             )
-    return html.Table(header + data, style={"display":"inline-block"}, id=id_table)
+    return html.Table(header + data, style={"display": "inline-block"}, id=id_table)
 
 
 def parse_contents(contents: str) -> bytearray:
@@ -883,8 +916,8 @@ def parse_contents(contents: str) -> bytearray:
     """
 
     if not isinstance(contents, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(contents).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(contents).__name__}")
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)  # decode data
     return decoded
-

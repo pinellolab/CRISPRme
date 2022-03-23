@@ -30,8 +30,8 @@ TODO: complete doc string with missing info --> read paper carefully
 """
 
 
-from html.entities import html5
-from sqlite3 import dbapi2
+from numpy import isin
+from soupsieve import select
 from .results_page_utils import (
     GUIDES_FILE,
     PAGE_SIZE,
@@ -57,6 +57,9 @@ from .results_page_utils import (
     SAMPLES_COLUMN,
     SAMPLES_CRISTA_COLUMN,
     SAMPLES_FEWEST_COLUMN,
+    VARIANTS_CRISTA,
+    VARIANTS_CFD,
+    VARIANTS_FEWEST,
     RESULTS_DIR,
     DATA_DIR,
     IMGS_DIR,
@@ -64,6 +67,7 @@ from .results_page_utils import (
     PARAMS_FILE,
     SAMPLE_FILE,
     CAS9,
+    PANDAS_OPERATORS,
     drop_columns,
     write_json,
     read_json,
@@ -75,7 +79,7 @@ from .results_page_utils import (
     parse_contents,
 )
 
-from typing import Dict, List, Optional, Tuple, Type 
+from typing import Any, Dict, List, Optional, Tuple, Type
 from glob import glob
 
 import os
@@ -111,8 +115,8 @@ from PostProcess import query_manager
 import flask
 
 
-#-------------------------------------------------------------------------------
-# Result page layout 
+# -------------------------------------------------------------------------------
+# Result page layout
 #
 
 def result_page(job_id: str) -> html.Div:
@@ -272,35 +276,35 @@ def result_page(job_id: str) -> html.Div:
     col_targetfor = " ".join([col_targetfor, "Mismatches + Bulges)"])
     # Column of headers. Remove the entries accordingly when checking genome type
     columns_profile_table = [
-        {"name":["", "gRNA (spacer+PAM)"], "id":"Guide","type": "text"},
-        {"name":["", "Nuclease", ""], "id":"Nuclease", "type":"text"},
+        {"name": ["", "gRNA (spacer+PAM)"], "id":"Guide", "type": "text"},
+        {"name": ["", "Nuclease", ""], "id":"Nuclease", "type":"text"},
         {
-            "name":["", "Aggregated Specificity Score (0-100)"],
+            "name": ["", "Aggregated Specificity Score (0-100)"],
             "id":"CFD",
             "type":"text",
         },
         {
-            "name":["Off-targets for Mismatch (MM) and Bulge (B) Value", "Total"],
+            "name": ["Off-targets for Mismatch (MM) and Bulge (B) Value", "Total"],
             "id":"Total",
             "type":"text",
         },
     ]
     columns_profile_table.append(
         {
-            "name":["Off-targets for Mismatch (MM) and Bulge (B) Value", "# Bulges"],
-            "id":"# Bulges",
-            "type":"text",
+            "name": ["Off-targets for Mismatch (MM) and Bulge (B) Value", "# Bulges"],
+            "id": "# Bulges",
+            "type": "text",
         }
     )
     for i in range(mms + 1):
         columns_profile_table.append(
             {
-                "name":[
+                "name": [
                     "Off-targets for Mismatch (MM) and Bulge (B) Value",
                     "".join([str(i), "MM"]),
                 ],
-                "id":"".join([str(i), "MM"]),
-                "type":"text",
+                "id": "".join([str(i), "MM"]),
+                "type": "text",
             }
         )
     remove_indices = set()
@@ -308,7 +312,7 @@ def result_page(job_id: str) -> html.Div:
         # remove CFD and Doench header from table
         remove_indices.add("CFD", "Doench 2016", "Reference", "Enriched")
     if genome_type == "ref":
-        # remove reference header 
+        # remove reference header
         remove_indices.update(["Reference", "Enriched"])
     else:
         # remove reference and reference target headers
@@ -335,7 +339,8 @@ def result_page(job_id: str) -> html.Div:
                     "Warning: Some guides have too many targets! ",
                     html.A(
                         "Click here",
-                        href=os.path.join(URL, DATA_DIR, job_id, "guides_error.txt"),
+                        href=os.path.join(
+                            URL, DATA_DIR, job_id, "guides_error.txt"),
                         className="alert-link",
                     ),
                     " to view them",
@@ -384,7 +389,8 @@ def result_page(job_id: str) -> html.Div:
                 "mismatches count and bulge size."
             )
         )
-    final_list.append(add_to_description)  # add description line to page layout
+    # add description line to page layout
+    final_list.append(add_to_description)
     # define upper page box
     final_list.append(
         html.Div(
@@ -407,7 +413,7 @@ def result_page(job_id: str) -> html.Div:
                                         job_id,
                                         ".".join([job_id, "general_table.txt"])
                                     ),
-                                    style={"display":"none"},
+                                    style={"display": "none"},
                                     id="div-info-general-table"
                                 ),
                             ]
@@ -444,18 +450,18 @@ def result_page(job_id: str) -> html.Div:
                     merge_duplicate_headers=True,
                     # fixed_rows={ 'headers': True, 'data': 0 },
                     # data = profile.to_dict('records'),
-                    selected_cells=[{"row":0, "column":0}],
+                    selected_cells=[{"row": 0, "column": 0}],
                     # layout CSS style
                     css=[
                         {
-                            "selector":".row",
-                            "rule":"margin: 0",
-                            "selector":"td.cell--selected, td.focused",
-                            "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                            "selector": ".row",
+                            "rule": "margin: 0",
+                            "selector": "td.cell--selected, td.focused",
+                            "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                         },
                         {
-                            "selector":"td.cell--selected *, td.focused *",
-                            "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                            "selector": "td.cell--selected *, td.focused *",
+                            "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                         },
                     ],
                     page_current=0,
@@ -469,23 +475,23 @@ def result_page(job_id: str) -> html.Div:
                     sort_by=[],
                     style_table={
                         # 'margin-left': "10%",
-                        "max-height":"260px",
-                        "overflowY":"scroll",
+                        "max-height": "260px",
+                        "overflowY": "scroll",
                         # 'overflowX': 'hidden',
                     },
                     style_data={
-                        "whiteSpace":"pre",
-                        "height":"auto",
-                        "font-size":"1.30rem",
+                        "whiteSpace": "pre",
+                        "height": "auto",
+                        "font-size": "1.30rem",
                     },
                     # style_cell={
                     #    'width':f'{1/len(columns_profile_table)*100}%'
                     # },
                     style_data_conditional=[
                         {
-                            "if":{"column_id":"Genome"},
-                            "font-weight":"bold",
-                            "textAlign":"center",
+                            "if": {"column_id": "Genome"},
+                            "font-weight": "bold",
+                            "textAlign": "center",
                         },
                         # {'if': {'column_id': 'Guide'},
                         #                    'width': '10%',
@@ -493,24 +499,24 @@ def result_page(job_id: str) -> html.Div:
                     ],
                     style_cell_conditional=[
                         {
-                            "if":{"column_id": "Guide"},
-                            "width":"20%",
+                            "if": {"column_id": "Guide"},
+                            "width": "20%",
                         },
                         {
-                            "if":{"column_id": "Total"},
-                            "width":"15%",
+                            "if": {"column_id": "Total"},
+                            "width": "15%",
                         },
                         {
-                            "if":{"column_id": "Doench 2016"},
-                            "width":"5%",
+                            "if": {"column_id": "Doench 2016"},
+                            "width": "5%",
                         },
                         {
-                            "if":{"column_id": "# Bulges"},
-                            "width":"5%",
+                            "if": {"column_id": "# Bulges"},
+                            "width": "5%",
                         },
                         {
-                            "if":{"column_id": "Nuclease"},
-                            "width":"5%",
+                            "if": {"column_id": "Nuclease"},
+                            "width": "5%",
                         },
                     ],
                     #                        {'if': {'column_id': 'Reference'},
@@ -518,11 +524,11 @@ def result_page(job_id: str) -> html.Div:
                     #                        }],
                 ),
                 id="div-general-profile-table",
-                style={"margin-left":"5%", "margin-right":"5%"},
+                style={"margin-left": "5%", "margin-right": "5%"},
             )
         )
     )
-    final_list.append(html.Br()) # add space between HTML lines
+    final_list.append(html.Br())  # add space between HTML lines
     # drop-down bar (filetring criterion selection)
     final_list.append(
         html.Div(
@@ -533,11 +539,11 @@ def result_page(job_id: str) -> html.Div:
                             html.H4("Select filter criteria for targets"),
                             dcc.Dropdown(
                                 options=[
-                                    {"label":"CFD score", "value":"CFD"},
-                                    {"label":"CRISTA Score", "value":"CRISTA"},
+                                    {"label": "CFD score", "value": "CFD"},
+                                    {"label": "CRISTA Score", "value": "CRISTA"},
                                     {
-                                        "label":"Fewest Mismatches and Bulges",
-                                        "value":"fewest",
+                                        "label": "Fewest Mismatches and Bulges",
+                                        "value": "fewest",
                                     },
                                 ],
                                 value="CFD",
@@ -631,9 +637,9 @@ def result_page(job_id: str) -> html.Div:
     final_list.append(html.Div(id="div-tab-content"))
 
     final_list.append(
-        html.Div(genome_type, style={"display":"none"}, id="div-genome-type")
+        html.Div(genome_type, style={"display": "none"}, id="div-genome-type")
     )
-    result_page = html.Div(final_list, style={"margin":"1%"})
+    result_page = html.Div(final_list, style={"margin": "1%"})
     return result_page
 
 
@@ -650,7 +656,7 @@ def sendto_write_json(filter_criterion: str, search: str) -> None:
 
     The function is triggered by the user, when choosing the filtering
     criterion from the drop-down bar.
-    
+
     ...
 
     Parameters
@@ -665,16 +671,18 @@ def sendto_write_json(filter_criterion: str, search: str) -> None:
     None
     """
     if not isinstance(filter_criterion, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
     if not filter_criterion in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     job_id = search.split("=")[-1]
     write_json(filter_criterion, job_id)
 
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Download links generation and actions definition
 #
 
@@ -691,7 +699,7 @@ def download_link_sample(
     n: int, file_to_load: str, search: str
 ) -> Tuple[str, bool]:  # file to load =
     """Create the link to download CRISPRme result files.
-    
+
     ...
 
     Parameters
@@ -709,9 +717,11 @@ def download_link_sample(
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate  # nothing to do
     job_id = search.split("=")[-1]
@@ -719,7 +729,8 @@ def download_link_sample(
     file_to_load = file_to_load.strip().split("/")[-1]
     # print(file_to_load)
     if os.path.exists(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -745,7 +756,7 @@ def download_general_table(
     n: int, file_to_load: str, search: str
 ) -> Tuple[str, bool]:  # file to load =
     """Create the link to download CRISPRme result summary table.
-    
+
     ...
 
     Parameters
@@ -763,16 +774,19 @@ def download_general_table(
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
     # print(file_to_load)
     if os.path.exists(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -798,7 +812,7 @@ def download_general_table(
     n: int, file_to_load: str, search: str
 ) -> Tuple[str, bool]:  # file to load =
     """Create the link to download CRISPRme integrated result table.
-    
+
     ...
 
     Parameters
@@ -816,16 +830,19 @@ def download_general_table(
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
     # print(file_to_load)
     if os.path.exists(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -851,7 +868,7 @@ def download_link_sample(
     n: int, file_to_load: str, search: str
 ) -> Tuple[str, bool]:  # file to load = job_id.HG001.guide
     """Create the link to download CRISPRme results by sample table.
-    
+
     ...
 
     Parameters
@@ -869,15 +886,18 @@ def download_link_sample(
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = ".".join([file_to_load, "zip"])
     if os.path.exists(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -903,7 +923,7 @@ def downloadLinkGuide(
     n: int, file_to_load: str, search: str
 ) -> Tuple[str, bool]:  # file to load = job_id.RNA.1.0.guide
     """Create the link to download CRISPRme results by sample table.
-    
+
     ...
 
     Parameters
@@ -921,15 +941,18 @@ def downloadLinkGuide(
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = ".".join([file_to_load, "zip"])
     if os.path.exists(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -946,7 +969,7 @@ def downloadLinkGuide(
 @app.server.route("/Results/<path:path>")
 def download_file(path: str) -> flask.Response:
     """Download the chosen file.
-    
+
     ...
 
     Parameters
@@ -958,7 +981,7 @@ def download_file(path: str) -> flask.Response:
     -------
     flask.Response
     """
-    
+
     if not isinstance(path, str):
         raise TypeError(f"Expected {str.__name__}, got {type(path).__name__}")
     # print(current_working_directory)
@@ -980,10 +1003,10 @@ def download_file(path: str) -> flask.Response:
     [State("url", "search"), State("url", "hash")],
 )
 def update_iupac_decomposition_table_cluster(
-    page_current: int, 
-    page_size: int, 
-    filter_criterion: str, 
-    search: str, 
+    page_current: int,
+    page_size: int,
+    filter_criterion: str,
+    search: str,
     hash_term: str
 ) -> Dict[str, str]:
     """
@@ -1009,15 +1032,20 @@ def update_iupac_decomposition_table_cluster(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(filter_criterion, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
     hash_term = hash_term.split("#")[1]
     guide = hash_term[:hash_term.find("-Pos-")]
@@ -1026,11 +1054,13 @@ def update_iupac_decomposition_table_cluster(
     position = chr_pos.split("-")[1]
     try:
         with open(
-            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory,
+                         RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle:
             all_params = handle.read()
             genome_type_f = (
-                next(s for s in all_params.split("\n") if "Genome_selected" in s)
+                next(s for s in all_params.split(
+                    "\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             ref_comp = (
                 next(s for s in all_params.split("\n") if "Ref_comp" in s)
@@ -1050,15 +1080,16 @@ def update_iupac_decomposition_table_cluster(
     )
     # load data and cache the data table (in pd.DataFrame)
     df_cached = global_store_general(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, decomp_fname)
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, decomp_fname)
     )
-    if df_cached is None:  #  nothing to display and do not update the page
+    if df_cached is None:  # nothing to display and do not update the page
         raise PreventUpdate
     df_cached.rename(columns=COL_BOTH_RENAME, inplace=True)
     # filter data table
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
-        if operator in ("eq", "ne", "lt", "le", "gt", "ge"):
+        if operator in PANDAS_OPERATORS:
             # these operators match pandas series operator method names
             df_cached = df_cached.loc[
                 getattr(df_cached[col_name], operator)(filter_value)
@@ -1092,12 +1123,12 @@ def update_iupac_decomposition_table_cluster(
     [State("url", "search"), State("url", "hash")],
 )
 def update_table_cluster(
-    page_current: int, 
-    page_size: int, 
-    sort_by: List[str], 
-    filter_criterion: str, 
-    hide_reference: str, 
-    search: str, 
+    page_current: int,
+    page_size: int,
+    sort_by: List[str],
+    filter_criterion: str,
+    hide_reference: str,
+    search: str,
     hash_term: str
 ) -> Dict[str, str]:
     """
@@ -1125,23 +1156,31 @@ def update_table_cluster(
     -------
     Dict[str, str]
     """
-    
+
     if not isinstance(page_current, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(f"Exepcted {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(
+            f"Exepcted {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(sort_by, list):
-        raise TypeError(f"Expected {list.__name__}, got {type(sort_by).__name__}")
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(sort_by).__name__}")
     if not isinstance(filter_criterion, str):
-        raise TypeError(f"Exepcted {str.__name__}, got {type(filter_criterion).__name__}")
+        raise TypeError(
+            f"Exepcted {str.__name__}, got {type(filter_criterion).__name__}")
     if not isinstance(hide_reference, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hide_reference).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hide_reference).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id)
     hash_term = hash_term.split("#")[1]
     guide = hash_term[: hash_term.find("-Pos-")]
     chr_pos = hash_term[hash_term.find("-Pos-") + 5:]
@@ -1155,7 +1194,8 @@ def update_table_cluster(
         ) as handle:
             all_params = handle.read()
             genome_type_f = (
-                next(s for s in all_params.split("\n") if "Genome_selected" in s)
+                next(s for s in all_params.split(
+                    "\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             ref_comp = (
                 next(s for s in all_params.split("\n") if "Ref_comp" in s)
@@ -1171,7 +1211,8 @@ def update_table_cluster(
     guide_fname = job_id + "." + chromosome + "_" + position + "." + guide + ".txt"
     # cache guide data table
     df_cached = global_store_general(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, guide_fname)
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, guide_fname)
     )
     if df_cached is None:  # empty file -> nothing cached and nothing to do
         raise PreventUpdate
@@ -1189,7 +1230,7 @@ def update_table_cluster(
         df_cached = df_cached.head(1)
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
-        if operator in ("eq", "ne", "lt", "le", "gt", "ge"):
+        if operator in PANDAS_OPERATORS:
             # these operators match pandas series operator method names
             df_cached = df_cached.loc[
                 getattr(df_cached[col_name], operator)(filter_value)
@@ -1269,9 +1310,11 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hash_term).__name__}")
     guide = hash_term[:hash_term.find("-Pos-")]
     chr_pos = hash_term[(hash_term.find("-Pos-") + 5):]
     chromosome = chr_pos.split("-")[0]
@@ -1298,14 +1341,15 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     except OSError as e:
         raise e
     genome_type = "ref"
-    style_hide_reference = {"display":"none"}  # display reference data
+    style_hide_reference = {"display": "none"}  # display reference data
     value_hide_reference = []
     if "+" in genome_type_f:
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
         style_hide_reference = {}
-        value_hide_reference = ["hide-ref", "hide-cluster"]  # hide reference data
+        value_hide_reference = ["hide-ref",
+                                "hide-cluster"]  # hide reference data
     # begin page body construction
     final_list = []  # HTML page handler
     assert isinstance(chromosome, str)
@@ -1315,13 +1359,13 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     )
     if genome_type == "ref":
         cols = [
-            {"name":i, "id":i, "type":t, "hideable":True}
+            {"name": i, "id": i, "type": t, "hideable": True}
             for i, t in zip(COL_BOTH, COL_BOTH_TYPE)
         ]
         file_to_grep = ".bestMerge.txt"
     else:
         cols = [
-            {"name":i, "id":i, "type":t, "hideable":True}
+            {"name": i, "id": i, "type": t, "hideable": True}
             for i, t in zip(COL_BOTH, COL_BOTH_TYPE)
         ]
         file_to_grep = ".bestMerge.txt"
@@ -1335,8 +1379,8 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
         [
             "head -1",
             os.path.join(
-                current_working_directory, 
-                RESULTS_DIR, 
+                current_working_directory,
+                RESULTS_DIR,
                 job_id,
                 f".{job_id}{file_to_grep}"
             ),
@@ -1410,12 +1454,12 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                         cluster_grep_result
                     ]
                 )
-            ).read()  
-            # NOTE top1 will have sample and annotation, other targets will 
-            # have '.'-> 18/03 all samples and annotation are already writter 
+            ).read()
+            # NOTE top1 will have sample and annotation, other targets will
+            # have '.'-> 18/03 all samples and annotation are already writter
             # for all targets
 
-        # TODO: review this part    
+        # TODO: review this part
         os.system(
             f"python {app_main_directory}/PostProcess/change_headers_bestMerge.py {cluster_grep_result} {cluster_grep_result}.tmp"
         )
@@ -1430,7 +1474,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     final_list.append(
         html.Div(
             f"{job_id}.{chromosome}_{position}.{guide}",
-            style={"display":"none"},
+            style={"display": "none"},
             id="div-info-sumbyposition-targets",
         )
     )
@@ -1440,7 +1484,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
         job_id,
         f"{job_id}.{chromosome}_{position}.{guide}.scomposition.txt"
     )
-    iupac_decomp_visibility = {"display":"none"}
+    iupac_decomp_visibility = {"display": "none"}
     if genome_type != "ref":
         iupac_decomp_visibility = {}
         # Example    job_id.chr_pos.guide.scomposition.txt
@@ -1472,8 +1516,8 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 ),
                 dcc.Checklist(
                     options=[
-                        {"label":"Hide Reference Targets", "value":"hide-ref"},
-                        {"label":"Show only TOP1 Target", "value":"hide-cluster"},
+                        {"label": "Hide Reference Targets", "value": "hide-ref"},
+                        {"label": "Show only TOP1 Target", "value": "hide-cluster"},
                     ],
                     id="hide-reference-targets",
                     value=value_hide_reference,
@@ -1495,7 +1539,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     )
     cols_for_decomp = cols.copy()
     cols_for_decomp.append(
-        {"name":"Samples", "id":"Samples", "type":"text", "hideable":True}
+        {"name": "Samples", "id": "Samples", "type": "text", "hideable": True}
     )
     final_list.append(
         html.Div(
@@ -1505,7 +1549,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 id="table-scomposition-cluster",
                 columns=cols_for_decomp,
                 virtualization=True,
-                fixed_rows={"headers":True, "data":0},
+                fixed_rows={"headers": True, "data": 0},
                 page_current=0,
                 page_size=PAGE_SIZE,
                 page_action="custom",
@@ -1517,39 +1561,39 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 style_table={"max-height": "600px"},
                 style_cell_conditional=[
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CFD)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(fewest_mm+b)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if": {"column_id":"Variant_samples_(highest_CRISTA)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                 ],
                 css=[
-                    {"selector":".row", "rule":"margin: 0"},
+                    {"selector": ".row", "rule": "margin: 0"},
                     {
-                        "selector":"td.cell--selected, td.focused",
-                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector": "td.cell--selected, td.focused",
+                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                     {
-                        "selector":"td.cell--selected *, td.focused *",
-                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector": "td.cell--selected *, td.focused *",
+                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                 ],
             ),
@@ -1559,11 +1603,11 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     final_list.append(html.Hr())
     # Build cluster Table
     final_list.append(
-        # if rows are highlighted in red, the target was found only in 
+        # if rows are highlighted in red, the target was found only in
         # non-reference genome (enriched with variants)
         str(
             "List of Targets found for the selected position. Other possible "
-            "configurations of the target are listed in the table above, along " 
+            "configurations of the target are listed in the table above, along "
             "with the corresponding samples list."
         ),
     )
@@ -1573,7 +1617,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 id="table-position-target",
                 columns=cols,
                 virtualization=True,
-                fixed_rows={"headers":True, "data":0},
+                fixed_rows={"headers": True, "data": 0},
                 page_current=0,
                 page_size=PAGE_SIZE,
                 page_action="custom",
@@ -1583,54 +1627,54 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 filter_action="custom",
                 filter_query="",
                 style_table={
-                    "max-height":"600px",
-                    "overflowY":"scroll",
+                    "max-height": "600px",
+                    "overflowY": "scroll",
                 },
                 style_cell_conditional=[
                     {
-                        "if":{"column_id": "Variant_samples_(highest_CFD)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if": {"column_id":"Variant_samples_(fewest_mm+b)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CRISTA)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                 ],
                 css=[
-                    {"selector":".row", "rule":"margin: 0"},
+                    {"selector": ".row", "rule": "margin: 0"},
                     {
-                        "selector":"td.cell--selected, td.focused",
-                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector": "td.cell--selected, td.focused",
+                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                     {
-                        "selector":"td.cell--selected *, td.focused *",
-                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector": "td.cell--selected *, td.focused *",
+                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                 ],
             ),
             id="div-result-table",
         )
     )
-    return html.Div(final_list, style={"margin":"1%"})
+    return html.Div(final_list, style={"margin": "1%"})
 
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Summary by Sample tab
 #
 
@@ -1656,7 +1700,7 @@ def global_get_sample_targets(
         CRISPR guide
     page : int
         Current page 
-    
+
     Returns
     -------
     pd.DataFrame
@@ -1665,9 +1709,11 @@ def global_get_sample_targets(
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(sample, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(sample).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(page, int):
@@ -1685,11 +1731,11 @@ def global_get_sample_targets(
     # query the db
     result = pd.read_sql_query(
         "SELECT * FROM final_table WHERE \"{}\"='{}' AND \"{}\" LIKE '%{}%' LIMIT {} OFFSET {}".format(
-            GUIDE_COLUMN, 
-            guide, 
-            query_cols["samples"], 
-            sample, 
-            PAGE_SIZE, 
+            GUIDE_COLUMN,
+            guide,
+            query_cols["samples"],
+            sample,
+            PAGE_SIZE,
             page * PAGE_SIZE
         ),
         conn,
@@ -1697,7 +1743,7 @@ def global_get_sample_targets(
     return result
 
 
-# callback to update the samples table 
+# callback to update the samples table
 @app.callback(
     [Output("table-sample-target", "data"),
      Output("table-sample-target", "columns")],
@@ -1710,12 +1756,12 @@ def global_get_sample_targets(
     [State("url", "search"), State("url", "hash")],
 )
 def update_table_sample(
-    page_current: int, 
-    page_size: int, 
-    sort_by: str, 
-    filter_criterion: str, 
-    search: str, 
-    hash_term : str
+    page_current: int,
+    page_size: int,
+    sort_by: str,
+    filter_criterion: str,
+    search: str,
+    hash_term: str
 ) -> Tuple[Dict[str, str], pd.DataFrame]:
     """Update the sample table accordingly to the filtering criterion 
     selected in the drop-down bar.
@@ -1743,11 +1789,14 @@ def update_table_sample(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
     filter_criterion = read_json(job_id)  # recover filter criterion
     assert isinstance(filter_criterion, str)
@@ -1766,7 +1815,8 @@ def update_table_sample(
         ) as handle:
             all_params = handle.read()
             genome_type_f = (
-                next(s for s in all_params.split("\n") if "Genome_selected" in s)
+                next(s for s in all_params.split(
+                    "\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             ref_comp = (
                 next(s for s in all_params.split("\n") if "Ref_comp" in s)
@@ -1806,12 +1856,12 @@ def update_table_sample(
         "tsv", "zip"
     )
     # zip operation, non blocking
-    cmd =  f"zip -j {integrated_sample_personal_zip_fname} {integrated_sample_personal_fname} &"
+    cmd = f"zip -j {integrated_sample_personal_zip_fname} {integrated_sample_personal_fname} &"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
         raise ValueError(f"An error occurred while running \"{cmd}\"")
     columns_df = [
-        {"name":i, "id":i, "hideable":True} 
+        {"name": i, "id": i, "hideable": True}
         for col, i in enumerate(sample_df.columns)
     ]
     return sample_df.to_dict("records"), columns_df
@@ -1833,7 +1883,7 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
         Unique job identifier
     hash_term : str
         Hashing
-    
+
     Returns
     -------
     html.Div
@@ -1841,9 +1891,11 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hash_term).__name__}")
     guide = hash_term[:hash_term.find("-Sample-")]
     sample = str(hash_term[(hash_term.rfind("-") + 1):])
     if not os.path.isdir(
@@ -1854,7 +1906,8 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
         )
     try:
         with open(
-            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory,
+                         RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
@@ -1882,7 +1935,7 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
     final_list.append(
         html.P(
             [
-                # if rows are highlghted in red, the CRISPR target was found 
+                # if rows are highlghted in red, the CRISPR target was found
                 # only in non reference genome (enriched with variants)
                 "List of Targets found for the selected sample.",
                 html.Div(
@@ -1944,9 +1997,9 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
         os.path.join(
             current_working_directory, RESULTS_DIR, job_id, ".*.db"
         )
-    )[0] 
+    )[0]
     assert isinstance(db_path, str)
-    # initialize db for queries 
+    # initialize db for queries
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
     total_private_sample = f"SELECT * FROM final_table LIMIT 1"
@@ -1955,65 +2008,67 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
     conn.commit()
     conn.close()  # close db connection
     # define columns
-    cols = [{"name":i, "id":i, "hideable":True} for i in header]
+    cols = [{"name": i, "id": i, "hideable": True} for i in header]
     final_list.append(
         html.Div(
             dash_table.DataTable(
                 id="table-sample-target",
                 columns=cols,
-                style_cell={"textAlign":"left"},
+                style_cell={"textAlign": "left"},
                 page_current=0,
                 page_size=PAGE_SIZE,
                 page_action="custom",
                 style_table={
-                    "overflowX":"scroll",
-                    "overflowY":"scroll",
-                    "max-height":"300px",
+                    "overflowX": "scroll",
+                    "overflowY": "scroll",
+                    "max-height": "300px",
                 },
                 style_cell_conditional=[
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CFD)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CFD)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(fewest_mm+b)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(fewest_mm+b)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                     {
-                        "if":{"column_id":"Variant_samples_(highest_CRISTA)"},
-                        "textAlign":"left",
-                        "minWidth":"180px",
-                        "width":"180px",
-                        "maxWidth":"180px",
-                        "overflow":"hidden",
+                        "if": {"column_id": "Variant_samples_(highest_CRISTA)"},
+                        "textAlign": "left",
+                        "minWidth": "180px",
+                        "width": "180px",
+                        "maxWidth": "180px",
+                        "overflow": "hidden",
                     },
                 ],
                 css=[
-                    {"selector":".row", "rule":"margin: 0"},
+                    {"selector": ".row", "rule": "margin: 0"},
                     {
-                        "selector":"td.cell--selected, td.focused",
-                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector": "td.cell--selected, td.focused",
+                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                     {
-                        "selector":"td.cell--selected *, td.focused *",
-                        "rule":"background-color: rgba(0, 0, 255,0.15) !important;",
+                        "selector": "td.cell--selected *, td.focused *",
+                        "rule": "background-color: rgba(0, 0, 255,0.15) !important;",
                     },
                 ],
             ),
             id="div-result-table",
         )
     )
-    return html.Div(final_list, style={"margin":"1%"})
+    return html.Div(final_list, style={"margin": "1%"})
 
 # TODO: move auxiliary functions close to each other in this file
+
+
 @cache.memoize()
 def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     """Cache target files to improve results visualization and get better
@@ -2033,7 +2088,8 @@ def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     """
 
     if not isinstance(path_file_to_load, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(path_file_to_load).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(path_file_to_load).__name__}")
     if path_file_to_load is not None and not os.path.isfile(path_file_to_load):
         raise FileNotFoundError(f"Unable to locate {path_file_to_load}")
     if path_file_to_load is None:
@@ -2043,7 +2099,7 @@ def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     else:
         rows_to_skip = 1  # Skip header
     # make sure file to cache is not empty
-    if os.path.getsize(path_file_to_load) > 0:  
+    if os.path.getsize(path_file_to_load) > 0:
         # TSV format -> sep="\t"
         df = pd.read_csv(
             path_file_to_load, sep="\t", index_col=False, na_filter=False
@@ -2053,7 +2109,7 @@ def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     return df
 
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Summary by Mismatches/Bulges tab
 #
 
@@ -2086,7 +2142,7 @@ def update_table_subset(
 ) -> List:
     """The function splits the results according to user-defined filtering
     or sorting criteria.
-    
+
     The function also updates the visualized results when the user clicks
     the button next/prev page.
 
@@ -2121,19 +2177,24 @@ def update_table_subset(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(hide_reference, list):
-        raise TypeError(f"Expected {list.__name__}, got {type(hide_reference).__name__}")
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(hide_reference).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_guide, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hash_guide).__name__}")  
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hash_guide).__name__}")
     # recover job identifier
     job_id = search.split("=")[-1]
     # recover the filtering criterion from drop-down bar
-    filter_criterion = read_json(job_id)  
+    filter_criterion = read_json(job_id)
     try:
         with open(
             os.path.join(
@@ -2202,7 +2263,7 @@ def update_table_subset(
     if code != 0:
         raise ValueError(f"An error occurred while running {cmd}")
     columns_result = [
-        {"name":i, "id":i, "hideable":True} 
+        {"name": i, "id": i, "hideable": True}
         for col, i in enumerate(result.columns.tolist())
     ]
     data_to_send = result.to_dict("records")
@@ -2421,19 +2482,22 @@ def global_store_subset_no_ref(
         Guide
     page : int
         Current page
-    
+
     Returns
     -------
     pd.DataFrame
         Results table
     """
-    
+
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(bulge_t, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(bulge_t).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(bulge_t).__name__}")
     if not isinstance(bulge_s, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(bulge_s).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(bulge_s).__name__}")
     if not isinstance(mms, str):
         raise TypeError(f"Expected {str.__name__}, got {type(mms).__name__}")
     if not isinstance(guide, str):
@@ -2499,7 +2563,7 @@ def global_store_subset(
         Guide
     page : int
         Current page
-    
+
     Returns
     -------
     pd.DataFrame
@@ -2507,11 +2571,14 @@ def global_store_subset(
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(bulge_t, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(bulge_t).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(bulge_t).__name__}")
     if not isinstance(bulge_s, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(bulge_s).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(bulge_s).__name__}")
     if not isinstance(mms, str):
         raise TypeError(f"Expected {str.__name__}, got {type(mms).__name__}")
     if not isinstance(guide, str):
@@ -2520,7 +2587,7 @@ def global_store_subset(
         raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if job_id is None:
         return ""  # do not do anything
-    # recover path to db 
+    # recover path to db
     db_path = glob(
         os.path.join(
             current_working_directory, RESULTS_DIR, job_id, ".*.db"
@@ -2594,9 +2661,11 @@ def load_distribution_populations(
     """
 
     if not isinstance(sel_cel, list):
-        raise TypeError(f"Expected {list.__name__}, got {type(sel_cel).__name__}")
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(sel_cel).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if sel_cel is None or not sel_cel or not all_guides:
         raise PreventUpdate  # do not do anything
     # get the guide
@@ -2674,7 +2743,7 @@ def load_distribution_populations(
                                     ),
                                     target="_blank",
                                     href=os.path.join(
-                                        RESULTS_DIR, 
+                                        RESULTS_DIR,
                                         job_id,
                                         "imgs",
                                         "_".join(
@@ -2730,7 +2799,7 @@ def toggle_collapse_distribution_populations(n, is_open):
     return is_open
 
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Custom Ranking tab
 #
 
@@ -2750,11 +2819,11 @@ def toggle_collapse_distribution_populations(n, is_open):
     [State("url", "search")],
 )
 def update_table_general_profile(
-    page_current: int, 
-    page_size: int, 
-    sort_by: List[str], 
-    filter_term: str, 
-    filter_criterion: str, 
+    page_current: int,
+    page_size: int,
+    sort_by: List[str],
+    filter_term: str,
+    filter_criterion: str,
     search: str
 ) -> Tuple[Dict, List]:
     """Construct the custom ranking tab page.
@@ -2787,27 +2856,33 @@ def update_table_general_profile(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(sort_by, list):
-        raise TypeError(f"Expected {list.__name__}, got {type(sort_by).__name__}")
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(sort_by).__name__}")
     if not isinstance(filter_term, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_term).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_term).__name__}")
     if not isinstance(filter_criterion, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
     if filter_criterion not in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filter criterion ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     # recover job identifier
     job_id = search.split("=")[-1]
-    try:  
+    try:
         with open(
             os.path.join(
                 current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
             )
-        ) as handle_params:  
+        ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
                 next(
@@ -2850,13 +2925,13 @@ def update_table_general_profile(
         os.path.join(
             current_working_directory, RESULTS_DIR, job_id, "guides_error.txt"
         )
-    ): 
+    ):
         try:
             with open(
                 os.path.join(
-                    current_working_directory, 
-                    RESULTS_DIR, 
-                    job_id, 
+                    current_working_directory,
+                    RESULTS_DIR,
+                    job_id,
                     "guides_error.txt"
                 )
             ) as handle_guide_error:
@@ -2950,7 +3025,8 @@ def update_table_general_profile(
             data_guides["CFD"] = acfd[i]
             table_to_file.append(f"CFD: {acfd[i]}")  # append CFD to table
             table_to_file.append("\t\t\t\tMismatches")
-            table_to_file.append(data_general_count_copy.to_string(index=False))
+            table_to_file.append(
+                data_general_count_copy.to_string(index=False))
             if genome_type == "both":
                 data_guides["Doench 2016"] = doench[i]
             else:
@@ -2970,7 +3046,7 @@ def update_table_general_profile(
                         data_guides["Total"].append(
                             "\t".join(
                                 [
-                                    "REFERENCE", 
+                                    "REFERENCE",
                                     str(sum(data_general_count.iloc[j, :]))
                                 ]
                             )
@@ -2984,7 +3060,7 @@ def update_table_general_profile(
                         data_guides["Total"].append(
                             "\t\t".join(
                                 [
-                                    "VARIANT", 
+                                    "VARIANT",
                                     str(sum(data_general_count.iloc[j, :]))
                                 ]
                             )
@@ -3045,7 +3121,7 @@ def update_table_general_profile(
                     data_guides["Total"].append(
                         "\t".join(
                             [
-                                "REFERENCE", 
+                                "REFERENCE",
                                 str(sum(data_general_count.iloc[j, :]))
                             ]
                         )
@@ -3062,7 +3138,8 @@ def update_table_general_profile(
         else:
             for j in range(mms + 1):
                 tmp = [
-                    data_general_count.iloc[:(max_bulges + 1), j].values.astype(str)
+                    data_general_count.iloc[:(
+                        max_bulges + 1), j].values.astype(str)
                 ]
                 # tmp.insert(len(tmp)//2, "")
                 data_guides[str(j) + "MM"] = "\n".join(tmp)
@@ -3093,7 +3170,7 @@ def update_table_general_profile(
     )[0]
     assert isinstance(integrated_fname, str)
     integrated_file = integrated_fname
-    # zip integrated file 
+    # zip integrated file
     integrated_to_zip = integrated_fname.replace("tsv", "zip")
     if not os.path.exists(integrated_to_zip):
         cmd = f"zip -j {integrated_to_zip} {integrated_file} &"
@@ -3106,7 +3183,8 @@ def update_table_general_profile(
                 ["CFD", "Doench 2016"], ascending=[False, False]
             )
         except:  # for BOTH
-            dff = dff.sort_values(["CFD", "Enriched"], ascending=[False, False])
+            dff = dff.sort_values(["CFD", "Enriched"],
+                                  ascending=[False, False])
     else:
         try:
             dff = dff.sort_values("On-Targets Reference", ascending=True)
@@ -3114,7 +3192,7 @@ def update_table_general_profile(
             dff = dff.sort_values("On-Targets Enriched", ascending=True)
     for filter_part in filtering_expressions:
         col_name, operator, filter_value = split_filter_part(filter_part)
-        if operator in ("eq", "ne", "lt", "le", "gt", "ge"):
+        if operator in PANDAS_OPERATORS:
             # these operators match pandas series operator method names
             dff = dff.loc[getattr(dff[col_name], operator)(filter_value)]
         elif operator == "contains":
@@ -3176,8 +3254,8 @@ def color_selected_row(sel_cel: List, all_guides: List) -> List:
             "background-color": "rgba(0, 0, 255,0.15)",  # rgb(255, 102, 102)
         },
         {
-            "if": {"column_id": "Genome"}, 
-            "font-weight": "bold", 
+            "if": {"column_id": "Genome"},
+            "font-weight": "bold",
             "textAlign": "center"
         },
     ]
@@ -3262,7 +3340,7 @@ def filter_position_table(
         raise PreventUpdate
     if n is None:
         raise PreventUpdate
-    # recover filter query fields; 
+    # recover filter query fields;
     # if there are NULL fields -> prevent table update
     # query structure: chrom,start,stop
     if isinstance(filter_q, str):  # simple regular query
@@ -3281,7 +3359,7 @@ def filter_position_table(
         raise PreventUpdate  # invalid start
     end = filter_q[2]
     if end == "None":
-        raise PreventUpdate  # invalid stop 
+        raise PreventUpdate  # invalid stop
     current_page = int(current_page.split("/")[0])
     job_id = search.split("=")[-1]
     # recover the guide
@@ -3500,19 +3578,24 @@ def filter_sample_table(
 
     if n_prev is not None:
         if not isinstance(n_prev, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n_prev).__name__}")
+            raise TypeError(
+                f"Expected {int.__name__}, got {type(n_prev).__name__}")
     if n_next is not None:
         if not isinstance(n_next, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n_next).__name__}")
+            raise TypeError(
+                f"Expected {int.__name__}, got {type(n_next).__name__}")
     if not isinstance(filter_q, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_q).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_q).__name__}")
     if n is not None:
         if not isinstance(n, int):
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(current_page, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(current_page).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(current_page).__name__}")
     if sel_cel is None:
         raise PreventUpdate  # do not do anything
     if n_prev is None and n_next is None and n is None:
@@ -3539,7 +3622,8 @@ def filter_sample_table(
     btn_sample_section = [n, n_prev, n_next]
     # get job identifier
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLE_FILE)
     )[2]
@@ -3592,7 +3676,7 @@ def filter_sample_table(
             "Targets in Super Population",
             "PAM Creation",
         ]  # , 'Class']
-    # Last button pressed is filtering, return the first page of the 
+    # Last button pressed is filtering, return the first page of the
     # filtered table
     if max(btn_sample_section) == n:
         df = pd.read_csv(
@@ -3616,9 +3700,9 @@ def filter_sample_table(
             if sample is None or sample == "":
                 if pop is None or pop == "":
                     df.drop(
-                    df[(~(df["Population"].isin(population_1000gp[sup_pop])))].index,
-                    inplace=True,
-                )
+                        df[(~(df["Population"].isin(population_1000gp[sup_pop])))].index,
+                        inplace=True,
+                    )
                 else:
                     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
             else:
@@ -3657,7 +3741,7 @@ def filter_sample_table(
             current_page += 1
             df = pd.read_csv(
                 os.path.join(
-                    job_directory, 
+                    job_directory,
                     f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
                 ),
                 sep="\t",
@@ -3668,7 +3752,7 @@ def filter_sample_table(
             if genome_type == "both":
                 df = df.sort_values("Targets in Variant", ascending=False)
             else:
-               df = df.sort_values("Targets in Reference", ascending=False)
+                df = df.sort_values("Targets in Reference", ascending=False)
             more_info_col = ["Show Targets" for _ in range(df.shape[0])]
             df[""] = more_info_col
             # Active filter
@@ -3688,7 +3772,8 @@ def filter_sample_table(
                             inplace=True,
                         )
                     else:
-                        df.drop(df[(df["Population"] != pop)].index, inplace=True)
+                        df.drop(df[(df["Population"] != pop)].index,
+                                inplace=True)
                 else:
                     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
             if ((current_page - 1) * 10) > len(df):
@@ -3731,7 +3816,8 @@ def filter_sample_table(
                             inplace=True,
                         )
                     else:
-                        df.drop(df[(df["Population"] != pop)].index, inplace=True)
+                        df.drop(df[(df["Population"] != pop)].index,
+                                inplace=True)
                 else:
                     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
         max_page = len(df.index)
@@ -3758,7 +3844,7 @@ def update_sample_filter(
     n: int, superpopulation: str, population: str, sample: str
 ) -> str:
     """Update the filter for the samples table.
-    
+
     ...
 
     Parameters
@@ -3783,13 +3869,16 @@ def update_sample_filter(
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if superpopulation is not None:
         if not isinstance(superpopulation, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(superpopulation).__name__}")
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(superpopulation).__name__}")
     if population is not None:
         if not isinstance(population, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(population).__name__}")
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(population).__name__}")
     if sample is not None:
         if not isinstance(sample, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(sample).__name__}")
     if n is None:
         raise PreventUpdate
     # prevent page updates when at least one filter element is none
@@ -3833,9 +3922,11 @@ def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
 
     if pop is not None:
         if not isinstance(pop, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(pop).__name__}")
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(pop).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if pop is None or pop == "":
         return [], None  # no update required
     job_id = search.split("=")[-1]
@@ -3845,7 +3936,7 @@ def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
     pop_dict = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLE_FILE)
     )[3]
-    return [{"label":sample, "value":sample} for sample in pop_dict[pop]], None
+    return [{"label": sample, "value": sample} for sample in pop_dict[pop]], None
 
 
 # Callback to update the population tab based on superpopulation selected
@@ -3877,9 +3968,11 @@ def update_population_drop(superpop: str, search: str) -> Tuple[Dict, None]:
 
     if superpop is not None:
         if not isinstance(superpop, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(superpop).__name__}")
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(superpop).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if superpop is None or superpop == "":
         raise PreventUpdate  # no update required
     job_id = search.split("=")[-1]
@@ -3907,30 +4000,33 @@ def check_existance_sample(
         Unique job identifier
     sample : str
         Sample
-    
+
     Returns
     -------
     bool
     """
-    
+
     if not isinstance(job_directory, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_directory).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_directory).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(sample, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(sample).__name__}")
     dataset = pd.read_csv(
-        os.path.join(job_directory, job_id, SAMPLE_FILE), 
-        sep="\t", 
+        os.path.join(job_directory, job_id, SAMPLE_FILE),
+        sep="\t",
         na_filter=False
     )
-    samples = dataset.iloc[:,0].tolist()
+    samples = dataset.iloc[:, 0].tolist()
     if sample in samples:
         return True
     return False
 
 
-#-------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # Graphical Reports tab
 #
 
@@ -3981,14 +4077,17 @@ def update_images_tabs(
     if not isinstance(mm, str):
         raise TypeError(f"Expected {str.__name__}, got {type(mm).__name__}")
     if not isinstance(filter_criterion, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
     if filter_criterion not in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     bulge = 0
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id)
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # define plot containers
     # radar_chart_images = list()
@@ -4101,7 +4200,7 @@ def update_images_tabs(
                 "No result found for this combination of mismatches and bulges"
             )
         )
-    # reverse list to print plots in correct order 
+    # reverse list to print plots in correct order
     # NB plots are appended in reverse order into main sample_images list
     reversed_sample_images = sample_images[::-1]
     return (
@@ -4132,11 +4231,11 @@ def update_images_tabs(
 )
 # FUNCTION TO GENERATE SAMPLE CARD, UPDATE WITH FILTER DROPDOWN
 def generate_sample_card(
-    n: int, 
+    n: int,
     filter_criterion: str,
-    sample: str, 
-    sel_cel: List, 
-    all_guides: List, 
+    sample: str,
+    sel_cel: List,
+    all_guides: List,
     search: str
 ) -> List:
     """Generate the sample risk card for each CRISPR guide analyzed. 
@@ -4172,24 +4271,28 @@ def generate_sample_card(
         if not isinstance(n, int):
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(filter_criterion, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
     if not filter_criterion in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(sample, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(sample).__name__}")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate  # do not do anything
     # recover guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover job id
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id)
     # read summary by sample data
     samples_summary = pd.read_csv(
         os.path.join(
-            job_directory, 
+            job_directory,
             f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
         ),
         sep="\t",
@@ -4236,7 +4339,7 @@ def generate_sample_card(
         ),
         conn,
     )
-    # sort personal targets data 
+    # sort personal targets data
     order = False
     if filter_criterion == "fewest":
         order = True
@@ -4276,7 +4379,7 @@ def generate_sample_card(
         columns=["Personal", "PAM Creation", "Private"],
     ).astype(str)
     # read the private targets file, if not created, pass
-    try: 
+    try:
         ans = result_private
     except:
         pass
@@ -4286,8 +4389,8 @@ def generate_sample_card(
             base64.b64encode(
                 open(
                     os.path.join(
-                        current_working_directory, 
-                        RESULTS_DIR, 
+                        current_working_directory,
+                        RESULTS_DIR,
                         job_id,
                         IMGS_DIR,
                         f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.personal.png"
@@ -4326,7 +4429,8 @@ def generate_sample_card(
             ),
             False,
             [
-                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
+                html.P(
+                    f"Top 100 Personal Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4338,7 +4442,8 @@ def generate_sample_card(
                 ),
             ],
             [
-                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
+                html.P(
+                    f"Top 100 Private Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4431,7 +4536,8 @@ def generate_sample_card(
             ),
             True,
             [
-                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
+                html.P(
+                    f"Top 100 Personal Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4443,7 +4549,8 @@ def generate_sample_card(
                 ),
             ],
             [
-                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
+                html.P(
+                    f"Top 100 Private Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4510,11 +4617,11 @@ def generate_sample_card(
     ],
 )
 def update_content_tab(
-    value: str, 
-    sel_cel: List, 
-    filter_criterion: str, 
-    all_guides: List, 
-    search: str, 
+    value: str,
+    sel_cel: List,
+    filter_criterion: str,
+    all_guides: List,
+    search: str,
     genome_type: str
 ) -> List:
     """Build and update the layout of the results page.
@@ -4544,22 +4651,28 @@ def update_content_tab(
 
     if value is not None:
         if not isinstance(value, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(value).__name__}")
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(value).__name__}")
     if not isinstance(filter_criterion, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
     if filter_criterion not in FILTERING_CRITERIA:
-        raise ValueError(f"Forbidden filtering criterion selected ({filter_criterion})")
+        raise ValueError(
+            f"Forbidden filtering criterion selected ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(genome_type, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(genome_type).__name__}")
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(genome_type).__name__}")
     if value is None or sel_cel is None or not sel_cel or not all_guides:
         raise PreventUpdate  # do not do anything
     # recover current guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover job ID
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id)
     # read parameters file
     try:
         with open(os.path.join(job_directory, PARAMS_FILE)) as handle_params:
@@ -4600,7 +4713,7 @@ def update_content_tab(
             "CFD score is not calculated if the used nuclease is not SpCas9"
         )
         # if nuclease is not SpCas9 filter only by fewest mm + bulges
-        filter_criterion = FILTERING_CRITERIA[0]  # fewest mm + b  
+        filter_criterion = FILTERING_CRITERIA[0]  # fewest mm + b
     else:
         CFD_notification = html.Div("", hidden=True)
     if nuclease != CAS9 and filter_criterion != FILTERING_CRITERIA[0]:
@@ -4618,7 +4731,7 @@ def update_content_tab(
         fl.append(html.H5(f"Focus on: {guide.replace('N', '')}{pam}"))
     # BUG changing the selected guide two times, drop mms to 0
     # TODO: add hidden div ?
-    if value == "tab-summary-by-guide":  
+    if value == "tab-summary-by-guide":
         # Show Summary by Mismatches/Bulges
         # NOTE use old id (summary-by-guide -> summary by mm+b)
         fl.append(
@@ -4652,10 +4765,10 @@ def update_content_tab(
         fl.append(
             html.Div(
                 generate_table(
-                    guides_summary, 
-                    "table-summary-by-guide", 
-                    genome_type, 
-                    guide, 
+                    guides_summary,
+                    "table-summary-by-guide",
+                    genome_type,
+                    guide,
                     job_id,
                 ),
                 style={"text-align": "center"},
@@ -4665,7 +4778,7 @@ def update_content_tab(
     elif value == "tab-summary-by-sample":
         # Show Summary by Sample table
         fl.append(
-            html.P(    
+            html.P(
                 str(
                     "Summary table counting the number of targets found in the "
                     "Variant Genome for each sample. Filter the table by "
@@ -4710,7 +4823,8 @@ def update_content_tab(
         samples_summary = samples_summary.sort_values(
             "Targets in Variant", ascending=False
         )
-        more_info_col = ["Show Targets" for _ in range(samples_summary.shape[0])]
+        more_info_col = ["Show Targets" for _ in range(
+            samples_summary.shape[0])]
         samples_summary[""] = more_info_col
 
         population_1000gp = associateSample.loadSampleAssociation(
@@ -4756,7 +4870,7 @@ def update_content_tab(
                             dbc.Col(
                                 html.Div(
                                     dcc.Input(
-                                        id="input-sample", 
+                                        id="input-sample",
                                         placeholder="Select a Sample",
                                     )
                                 )
@@ -4764,7 +4878,7 @@ def update_content_tab(
                             dbc.Col(
                                 html.Div(
                                     html.Button(
-                                        "Filter", 
+                                        "Filter",
                                         id="button-filter-population-sample",
                                     )
                                 )
@@ -4818,7 +4932,8 @@ def update_content_tab(
         )
         max_page = samples_summary.shape[0]
         max_page = math.floor(max_page / 10) + 1
-        fl.append(html.Div(f"1/{max_page}", id="div-current-page-table-samples"))
+        fl.append(html.Div(f"1/{max_page}",
+                           id="div-current-page-table-samples"))
         return fl
     elif value == "tab-summary-by-position":
         # Show Summary by position table (Query Genomic regions tab)
@@ -4853,9 +4968,9 @@ def update_content_tab(
                 if (
                     os.path.isfile(
                         os.path.join(
-                            current_working_directory, 
-                            "Genomes", 
-                            genome_selected, 
+                            current_working_directory,
+                            "Genomes",
+                            genome_selected,
                             f
                         )
                     )
@@ -4925,7 +5040,7 @@ def update_content_tab(
                             dbc.Col(
                                 html.Div(
                                     html.Button(
-                                        "Filter", 
+                                        "Filter",
                                         id="button-filter-position")
                                 )
                             ),
@@ -4976,7 +5091,7 @@ def update_content_tab(
         fl.append(
             html.P(
                 str(
-                    "Summary page containing the single Personal Risk card to " 
+                    "Summary page containing the single Personal Risk card to "
                     "be inspected and downloaded"
                 )
             )
@@ -5007,7 +5122,7 @@ def update_content_tab(
                             ),
                             dbc.Col(
                                 html.Div(
-                                    id="download-link-personal-card", 
+                                    id="download-link-personal-card",
                                     hidden=True
                                 )
                             ),
@@ -5055,7 +5170,7 @@ def update_content_tab(
         fl.append(html.Div("", id="div-sample-card"))
         return fl
     elif value == "tab-query-table":
-        # Show Custom Ranking table 
+        # Show Custom Ranking table
         fl.append(
             html.P(
                 str(
@@ -5103,7 +5218,7 @@ def update_content_tab(
         query_tab_content = html.Div(
             [
                 # row with the first and second group by and thresholds
-                dbc.Row(  
+                dbc.Row(
                     [
                         dbc.Col(  # col0 phantom target select
                             [
@@ -5349,7 +5464,7 @@ def update_content_tab(
         )
         fl.append(query_tab_content)
         return fl
-    else:  
+    else:
         # Show Graphical Report images
         samp_style = {}
         if genome_type == "ref":
@@ -5364,7 +5479,8 @@ def update_content_tab(
         )
         total = int(mms) + int(max_bulges)
         opt_mm = [{"label": str(i), "value": str(i)} for i in range(total + 1)]
-        opt_blg = [{"label": str(i), "value": str(i)} for i in range(int(max_bulges) + 1)]
+        opt_blg = [{"label": str(i), "value": str(i)}
+                   for i in range(int(max_bulges) + 1)]
         if genome_type != "ref":
             population_1000gp = associateSample.loadSampleAssociation(
                 os.path.join(job_directory, SAMPLE_FILE)
@@ -5494,7 +5610,8 @@ def update_content_tab(
         )
         populations_barplots = dbc.Col(html.Div(id="div-population-barplot"))
         if genome_type != "ref":
-            graph_summary_both = [populations_barplots, radar_chart_encode_gencode]
+            graph_summary_both = [
+                populations_barplots, radar_chart_encode_gencode]
         else:
             graph_summary_both = [radar_chart_encode_gencode]
         fl.append(html.Div([dbc.Row(graph_summary_both)]))
@@ -5529,42 +5646,63 @@ def update_content_tab(
     raise PreventUpdate
 
 
-# Read the uploaded file and converts into bit
-
-
-
+# TODO: move auxiliary functions close to each other in this file
 # Perform expensive loading of a dataframe and save result into 'global store'
 # Cache are in the Cache directory
 
 
 @cache.memoize()
-def global_store(value):
+def global_store(job_id: str) -> pd.DataFrame:
+    """Perform once dataframe loading and cache data in Cache directory.
+
+    ...
+
+    Parameters
+    ----------
+    value : str
+        Job ID
+
+    Returns 
+    -------
+    pd.DataFrame
     """
-    Caching dei file targets per una miglior performance di visualizzazione
-    """
-    if value is None:
-        return ""
+
+    if job_id is not None:
+        if not isinstance(job_id, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if job_id is None:
+        return ""  # nothing to return
     target = [
         f
-        for f in listdir(current_working_directory + "Results/" + value)
-        if isfile(join(current_working_directory + "Results/" + value, f))
+        for f in os.listdir(
+            os.path.join(current_working_directory, RESULTS_DIR, job_id)
+        )
+        if os.path.isfile(
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, f)
+        )
         and f.endswith("scores.txt")
     ]
+    # use targets file
     if not target:
         target = [
             f
-            for f in listdir(current_working_directory + "Results/" + value)
-            if isfile(join(current_working_directory + "Results/" + value, f))
+            for f in os.listdir(
+                os.path.join(current_working_directory, RESULTS_DIR, job_id)
+            )
+            if os.path.isfile(
+                os.path.join(current_working_directory, RESULTS_DIR, job_id, f)
+            )
             and f.endswith("targets.txt")
         ]
-
-    df = pd.read_csv(
-        current_working_directory + "Results/" + value + "/" + target[0],
+    targets_summary = pd.read_csv(
+        os.path.join(current_working_directory,
+                     RESULTS_DIR, job_id, target[0]),
         sep="\t",
         usecols=range(0, 38),
         na_filter=False,
     )
-    df.rename(
+    targets_summary.rename(
         columns={
             "#Bulge type": "BulgeType",
             "#Bulge_type": "BulgeType",
@@ -5575,9 +5713,10 @@ def global_store(value):
         },
         inplace=True,
     )
-    return df
+    return targets_summary
 
 
+# trigger tables update
 @app.callback(
     Output("result-table", "data"),
     [
@@ -5588,48 +5727,107 @@ def global_store(value):
     ],
     [State("url", "search"), State("url", "hash")],
 )
-def update_table(page_current, page_size, sort_by, filter, search, hash_guide):
+def update_table(
+    page_current: int,
+    page_size: int,
+    sort_by: str,
+    filter_term: str,
+    search: str,
+    hash_guide: str
+) -> Dict:
+    """Split the results according to a filtering or sorting criterion selected
+    by the user.
+
+    Update the shown results once the user clicks on the "next page"/"prev page"
+    buttons.
+
+    Load the targets or scores (if available) files, and store it in a pandas 
+    DataFrame object. The column names are changed in order to match those
+    of the table displayed within the webpage.
+
+    If no targets are found a warning message is returned.
+
+    ...
+
+    Parameters
+    ----------
+    page_current : int
+        Current page
+    page_size : int
+        Page size
+    sort_by : List
+        Sorting criterion
+    filter_term : str
+        Filtering 
+    search : str
+        Search
+    hash_guide : str
+        Guide hashing 
+
+    Returns
+    -------
+    Dict
     """
-    La funzione ritorna uno split dei risultati in base ad un filtering o a un sort da parte dell'utente. Inoltre aggiorna i risultati
-    visualizzati quando il bottone next page / prev page è cliccato. (Codice preso dalla pagina dash datatable sul sorting con python)
-    Inoltre carica i file targets, o scores se presente, e lo trasforma in un dataframe, cambiando il nome delle colonne per farle corrispondere
-    all'id delle colonne della tabella nella pagina.
-    Se non ci sono targets ritorna un avviso di errore
-    """
-    job_id = search.split("=")[-1]
-    job_directory = current_working_directory + "Results/" + job_id + "/"
-    guide = hash_guide.split("#")[1]
-    value = job_id
+
+    if not isinstance(page_current, int):
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_current).__name__}")
+    if not isinstance(page_size, int):
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_size).__name__}")
+    if not isinstance(sort_by, list):
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(sort_by).__name__}")
+    if not isinstance(filter_term, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_term).__name__}")
+    if search is not None:
+        if not isinstance(search, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(search).__name__}")
+    if not isinstance(hash_guide, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(hash_guide).__name__}")
     if search is None:
-        raise PreventUpdate
-
-    filtering_expressions = filter.split(" && ")
-    # filtering_expressions.append(['{crRNA} = ' + guide])
-    df = global_store(value)
-    dff = df[df["crRNA"] == guide]
-
+        raise PreventUpdate  # do not do anything
+    # recover job ID
+    job_id = search.split("=")[-1]
+    # recover job directory
+    job_directory = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id)
+    # recover guide
+    guide = hash_guide.split("#")[1]
+    filtering_expressions = filter_term.split(" && ")
+    # keep data for the current guide
+    df = global_store(job_id)
+    df_filtered = df[df["crRNA"] == guide]
+    # insert sorting criteria
     sort_by.insert(0, {"column_id": "Mismatches", "direction": "asc"})
     sort_by.insert(1, {"column_id": "BulgeSize", "direction": "asc"})
-    # sort_by.insert(2, {'column_id': 'CFD', 'direction':'desc'})
-    for filter_part in filtering_expressions:
-        col_name, operator, filter_value = split_filter_part(filter_part)
-
-        if operator in ("eq", "ne", "lt", "le", "gt", "ge"):
+    # get filters
+    for f in filtering_expressions:
+        col_name, operator, filter_value = split_filter_part(f)
+        if operator in PANDAS_OPERATORS:
             # these operators match pandas series operator method names
-            dff = dff.loc[getattr(dff[col_name], operator)(filter_value)].sort_values(
+            df_filtered = df_filtered.loc[
+                getattr(df_filtered[col_name], operator)(filter_value)
+            ].sort_values(
                 [col["column_id"] for col in sort_by],
                 ascending=[col["direction"] == "asc" for col in sort_by],
                 inplace=False,
             )
         elif operator == "contains":
-            dff = dff.loc[dff[col_name].str.contains(filter_value)]
+            df_filtered = df_filtered.loc[
+                df_filtered[col_name].str.contains(filter_value)
+            ]
         elif operator == "datestartswith":
             # this is a simplification of the front-end filtering logic,
             # only works with complete fields in standard format
-            dff = dff.loc[dff[col_name].str.startswith(filter_value)]
-
-    if len(sort_by):
-        dff = dff.sort_values(
+            df_filtered = df_filtered.loc[
+                df_filtered[col_name].str.startswith(filter_value)
+            ]
+    if sort_by:
+        df_filtered = df_filtered.sort_values(
             [
                 "Samples" if col["column_id"] == "Samples Summary" else col["column_id"]
                 for col in sort_by
@@ -5637,30 +5835,32 @@ def update_table(page_current, page_size, sort_by, filter, search, hash_guide):
             ascending=[col["direction"] == "asc" for col in sort_by],
             inplace=False,
         )
-
-    # Check if results are not 0
+    # Check if we have some results
     warning_no_res = ""
-    with open(job_directory + job_id + ".targets.txt") as t:
-        no_result = False
-        t.readline()
-        last_line = t.readline()
-        if last_line == "" or last_line == "\n":
-            no_result = True
-
-    if no_result:
+    try:
+        with open(
+            os.path.join(job_directory, f"{job_id}.targets.txt")
+        ) as handle_targets:
+            no_result = False
+            handle_targets.readline()  # consume buffer
+            line = handle_targets.readline().strip()  # last line
+            if not line:
+                no_result = True
+    except OSError as e:
+        raise e
+    if no_result:  # display warning message
         warning_no_res = dbc.Alert(
             "No results were found with the given parameters", color="warning"
         )
-
-    return dff.iloc[page_current * page_size: (page_current + 1) * page_size].to_dict(
-        "records"
-    )
-
-
-# Callbacks for querying part--------------------------------------------------------------
+    return df_filtered.iloc[
+        page_current * page_size: (page_current + 1) * page_size
+    ].to_dict("records")
 
 
-# Return the table with the result of the query
+# ------------------------------------------------------------------------------
+# Callbacks for querying part
+
+# Return the table with the query's result
 @app.callback(
     # [Output('live_table', 'data'),
     [
@@ -5688,35 +5888,94 @@ def update_table(page_current, page_size, sort_by, filter, search, hash_guide):
         State("message-alert", "is_open"),
     ],
 )
-# see here
 def update_output(
-    n_clicks,
-    page_current,
-    filter_target_value,
-    page_size,
-    sel_cel,
-    target,
-    radio_order,
-    all_guides,
-    orderdrop,
-    sholddrop,
-    asc1,
-    maxdrop,
-    url,
-    alert,
-):
-    guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
+    n_clicks: int,
+    page_current: int,
+    filter_target_value: str,
+    page_size: int,
+    sel_cel: List,
+    target: str,
+    radio_order: str,
+    all_guides: List,
+    order_drop: str,
+    thresh_drop: str,
+    asc1: str,
+    maxdrop: int,
+    url: str,
+    alert: bool,
+) -> Tuple:
+    """Update the dispalyed table according to the query performed by the user.
 
+    ...
+
+    Paramters
+    ---------
+    n_clicks : int
+        Clicks
+    page_current : int
+        Current page
+    filter_target_values : str
+        Targets filter
+    page_size : int
+        Page size
+    sel_cel : List
+        Selected cells
+    target : str
+        Current target
+    radio_order : str
+        First group by criterion
+    all_guides : List
+        All CRISPR guides
+    order_drop : str
+        Second group by criterion
+    thresh_drop : str
+        Threshold value
+    asc1 : str
+        Sorting in ascending or descending order
+    maxdrop : int
+        Maximum number of dropped rows
+    alert : bool
+        Alert
+
+    Returns
+    -------
+    Tuple
+    """
+
+    if not isinstance(n_clicks, int):
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(n_clicks).__name__}")
+    if not isinstance(page_current, int):
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_current).__name__}")
+    if not isinstance(filter_target_value, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(filter_target_value).__name__}")
+    if not isinstance(page_size, int):
+        raise TypeError(
+            f"Expected {int.__name__}, got {type(page_size).__name__}")
+    if not isinstance(target, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(target).__name__}")
+    # prevent update on None inputs
+    if (
+        radio_order is None or
+        (order_drop is None and thresh_drop is None and asc1 is None)
+    ):
+        raise PreventUpdate   # do not do anything
+    # recover guide
+    guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # target is the filter value to query on the db
     target = filter_target_value
-
     if n_clicks > 0:
+        # no input by user
         if radio_order == None:
             data = []
             tooltip_data = []
-            return data, tooltip_data, not alert
+            return (data, tooltip_data, not alert)
         else:
-            if sholddrop != None:
+            # perform queries on data
+            if thresh_drop != None:
                 alert = False
                 data = query_manager.shold(
                     target,
@@ -5724,8 +5983,8 @@ def update_output(
                     page_current,
                     page_size,
                     radio_order,
-                    orderdrop,
-                    sholddrop,
+                    order_drop,
+                    thresh_drop,
                     maxdrop,
                     asc1,
                     url,
@@ -5739,51 +5998,28 @@ def update_output(
                     page_current,
                     page_size,
                     radio_order,
-                    orderdrop,
+                    order_drop,
                     asc1,
                     url,
                     guide,
                     current_working_directory,
                 )
-
-            # find col to drop using the user filter
-            # COPIARE PER FARE DROP COLONNE NON VOLUTE IN TARGET FILTER
-            drop_col = list()
-            for elem in list(data.columns):
-                if filter_target_value == "fewest" and (
-                    "highest_CFD" in elem or "highest_CRISTA" in elem
-                ):
-                    drop_col.append(elem)
-                if filter_target_value == "CFD" and (
-                    "fewest" in elem or "highest_CRISTA" in elem
-                ):
-                    drop_col.append(elem)
-                if filter_target_value == "CRISTA" and (
-                    "fewest" in elem or "highest_CFD" in elem
-                ):
-                    drop_col.append(elem)
+            # find columns to drop (use user's filter)
+            drop_cols = drop_columns(data, filter_target_value)
             # drop column from datatable to show
-            data.drop(drop_col, inplace=True, axis=1)
+            data.drop(drop_cols, inplace=True, axis=1)
             # extract cols for datatable
             columns = [
                 {"name": i, "id": i, "hideable": True}
                 for count, i in enumerate(data.columns)
             ]
-
-            # selct SNPs col to filter
-            if filter_target_value == "fewest":
-                snps = pd.DataFrame(data["Variant_info_genome_(fewest_mm+b)"]).to_dict(
-                    "records"
-                )
-            if filter_target_value == "CFD":
-                snps = pd.DataFrame(data["Variant_info_genome_(highest_CFD)"]).to_dict(
-                    "records"
-                )
-            if filter_target_value == "CRISTA":
-                snps = pd.DataFrame(
-                    data["Variant_info_genome_(highest_CRISTA)"]
-                ).to_dict("records")
-
+            # select SNPs columns to filter
+            if filter_target_value == FILTERING_CRITERIA[0]:  # fewest
+                snps = pd.DataFrame(data[VARIANTS_FEWEST]).to_dict("records")
+            if filter_target_value == FILTERING_CRITERIA[1]:
+                snps = pd.DataFrame(data[VARIANTS_CFD]).to_dict("records")
+            if filter_target_value == FILTERING_CRITERIA[2]:
+                snps = pd.DataFrame(data[VARIANTS_CRISTA]).to_dict("records")
             # extract data and list datas
             data = data.to_dict("records")
             tooltip_data = [
@@ -5794,23 +6030,57 @@ def update_output(
                 for row in snps
             ]
     else:
-        raise PreventUpdate
-    # ##print('query table', data)
-    return columns, data, tooltip_data, alert
+        raise PreventUpdate  # do not do anything
+    return (columns, data, tooltip_data, alert)
 
 
-# to get correct number of page
+# trigger page number reset
 @app.callback(Output("live_table", "page_current"), [Input("submit-val", "n_clicks")])
-def reset_pagenumber(n):
+def reset_pagenumber(n: int) -> int:
+    """Reset page number.
+
+    ...
+
+    Paramters
+    ---------
+    n : int
+        Current page number
+
+    Returns
+    -------
+    Reset page number
+    """
+
+    if not isinstance(n, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if n > 0:
-        a = 0
-        return a
+        number_reset = 0
+        return number_reset
     else:
-        raise PreventUpdate
+        raise PreventUpdate  # page number already reset
 
 
+# trigger columns options selection
 @app.callback(Output("order", "options"), [Input("target", "value")])
-def set_columns_options(selected_target):
+def set_columns_options(selected_target: str) -> List[Dict]:
+    """Set options to be selected by the user.
+
+    ...
+
+    Parameters
+    ----------
+    selected_target : str
+        Selected columns
+
+    Returns
+    -------
+    List[Dict]
+    """
+
+    if not isinstance(selected_target, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(selected_target).__name__}")
+    # all possible column values
     all_value = {
         "Target1 :with highest CFD": [
             "Mismatches",
@@ -5827,6 +6097,7 @@ def set_columns_options(selected_target):
             "CFD_risk_score",
         ],
     }  # , 'CFD_Absolute_Risk_Score'
+    # all possible columns options
     all_options = {
         "Target1 :with highest CFD": [
             " Mismatches",
@@ -5843,16 +6114,13 @@ def set_columns_options(selected_target):
             " Risk Score",
         ],
     }  # , ' Absolute Risk Score'
-    gi = []
-    for count in range(0, len(all_value[selected_target])):
-        gi.append(
-            {
-                "label": all_options[selected_target][count],
-                "value": all_value[selected_target][count],
-            }
-        )
-    # return gi
-    # ###print(main_order_dict)
+    gi = [
+        {
+            "label": all_options[selected_target][count],
+            "value": all_value[selected_target][count],
+        } for count in range(len(all_value[selected_target]))
+
+    ]
     return gi
 
 
