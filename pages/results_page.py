@@ -5270,7 +5270,7 @@ def update_content_tab(
                                                         [
                                                             html.H6("Min"),
                                                             dcc.Dropdown(
-                                                                id="sholddrop"
+                                                                id="thresh_drop"
                                                             ),
                                                         ]
                                                     ),
@@ -5881,7 +5881,7 @@ def update_table(
         State("order", "value"),
         State("general-profile-table", "data"),
         State("multiorder", "value"),
-        State("sholddrop", "value"),
+        State("thresh_drop", "value"),
         State("Radio-asc-1", "value"),
         State("maxdrop", "value"),
         State("url", "search"),
@@ -6128,12 +6128,30 @@ def set_columns_options(selected_target: str) -> List[Dict]:
 @app.callback(
     [
         Output("multiorder", "options"),
-        Output("sholddrop", "options"),
+        Output("thresh_drop", "options"),
         Output(component_id="secondtext", component_property="style"),
     ],
     [Input("order", "value")],
 )
-def set_display_children(selected_order):
+def set_display_children(selected_order: str) -> Tuple:
+    """Display table options.
+
+    ...
+
+    Parameters
+    ----------
+    selected_order : str
+        Selected ordering
+
+    Returns
+    -------
+    Tuple
+    """
+
+    if selected_order is not None:
+        if not isinstance(selected_order, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(selected_order).__name__}")
     target_value = {
         "Mismatches": ["Bulges", "Mismatches+bulges", "CFD"],
         "Bulges": ["Mismatches", "Mismatches+bulges", "CFD_score"],
@@ -6151,138 +6169,158 @@ def set_display_children(selected_order):
         "CFD_risk_score": [],
         "CFD Absolute Risk Score": [],
     }
+    if selected_order is None:
+        gi = []
+        data = []
+    else:  # selected order is not None
+        gi = [
+            {
+                "label": target_label[selected_order][count],
+                "value": target_value[selected_order][count],
+            } for count in range(len(target_value[selected_order]))
 
-    gi = []
-    if selected_order is not None:
-        for count in range(0, len(target_value[selected_order])):
-            gi.append(
-                {
-                    "label": target_label[selected_order][count],
-                    "value": target_value[selected_order][count],
-                }
-            )
-
-    if selected_order == None:
-        return [], [], {"display": "block"}
-    elif selected_order == "Mismatches":
-        data = [
-            {"label": "0", "value": "0"},
-            {"label": "1", "value": "1"},
-            {"label": "2", "value": "2"},
-            {"label": "3", "value": "3"},
-            {"label": "4", "value": "4"},
-            {"label": "5", "value": "5"},
-            {"label": "6", "value": "6"},
         ]
-        # return [{'label': i, 'value': i} for i in target_options[selected_order]], data, {'display': 'none'}
-        return gi, data, {"display": "none"}
-    elif selected_order == "CFD_score":
-        data = [
-            {"label": "0.01", "value": "0.01"},
-            {"label": "0.1", "value": "0.1"},
-            {"label": "0.2", "value": "0.2"},
-            {"label": "0.3", "value": "0.3"},
-            {"label": "0.4", "value": "0.4"},
-            {"label": "0.5", "value": "0.5"},
-            {"label": "0.6", "value": "0.6"},
-            {"label": "0.7", "value": "0.7"},
-            {"label": "0.8", "value": "0.8"},
-            {"label": "0.9", "value": "0.9"},
-        ]
-        # return [{'label': i, 'value': i} for i in target_options[selected_order]], data, {'display': 'none'}
-        return gi, data, {"display": "none"}
-    elif selected_order == "Mismatches+bulges":
-        data = [
-            {"label": "0", "value": "0"},
-            {"label": "1", "value": "1"},
-            {"label": "2", "value": "2"},
-            {"label": "3", "value": "3"},
-            {"label": "4", "value": "4"},
-            {"label": "5", "value": "5"},
-            {"label": "6", "value": "6"},
-            {"label": "7", "value": "7"},
-            {"label": "8", "value": "8"},
-        ]
-        # return [{'label': i, 'value': i} for i in target_options[selected_order]], data, {'display': 'none'}
-        return gi, data, {"display": "none"}
-    elif selected_order == "Bulges":
-        data = [
-            {"label": "0", "value": "0"},
-            {"label": "1", "value": "1"},
-            {"label": "2", "value": "2"},
-        ]
-        # return [{'label': i, 'value': i} for i in target_options[selected_order]], data, {'display': 'none'}
-        return gi, data, {"display": "none"}
-    else:
-        return [], [], {"display": "none"}
+        if selected_order == "Mismatches":
+            data = [
+                {"label": "0", "value": "0"},
+                {"label": "1", "value": "1"},
+                {"label": "2", "value": "2"},
+                {"label": "3", "value": "3"},
+                {"label": "4", "value": "4"},
+                {"label": "5", "value": "5"},
+                {"label": "6", "value": "6"},
+            ]
+        elif selected_order == "CFD_score":
+            data = [
+                {"label": "0.01", "value": "0.01"},
+                {"label": "0.1", "value": "0.1"},
+                {"label": "0.2", "value": "0.2"},
+                {"label": "0.3", "value": "0.3"},
+                {"label": "0.4", "value": "0.4"},
+                {"label": "0.5", "value": "0.5"},
+                {"label": "0.6", "value": "0.6"},
+                {"label": "0.7", "value": "0.7"},
+                {"label": "0.8", "value": "0.8"},
+                {"label": "0.9", "value": "0.9"},
+            ]
+        elif selected_order == "Mismatches+bulges":
+            data = [
+                {"label": "0", "value": "0"},
+                {"label": "1", "value": "1"},
+                {"label": "2", "value": "2"},
+                {"label": "3", "value": "3"},
+                {"label": "4", "value": "4"},
+                {"label": "5", "value": "5"},
+                {"label": "6", "value": "6"},
+                {"label": "7", "value": "7"},
+                {"label": "8", "value": "8"},
+            ]
+        elif selected_order == "Bulges":
+            data = [
+                {"label": "0", "value": "0"},
+                {"label": "1", "value": "1"},
+                {"label": "2", "value": "2"},
+            ]
+        else:
+            gi = []
+            data = []
+    return gi, data, {"display": "none"}
 
 
+# drop columns according to threshold
 @app.callback(
     Output("maxdrop", "options"), [
-        Input("sholddrop", "value"), Input("order", "value")]
+        Input("thresh_drop", "value"), Input("order", "value")]
 )
-def maxdrop(sholddrop, order):
+def maxdrop(thresh_drop: str, order: str) -> List:
+    """Filter the targets table, using the selected threshold value on the 
+    scores.
+
+    ...
+
+    Parameters
+    ----------
+    thresh_drop : str
+        Threshold value
+    order : str
+        Ordering criterion
+
+    Returns
+    -------
+    List
+        Filtered data
+    """
+
+    if thresh_drop is not None:
+        if not isinstance(thresh_drop, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(thresh_drop).__name__}")
+    if order is not None:
+        if not isinstance(order, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(order).__name__}")
     if order == "Mismatches":
-        if sholddrop:
-            start_value = int(sholddrop)
-            data = [{"label": str(i), "value": str(i)}
-                    for i in range(start_value, 7)]
+        if thresh_drop:
+            start_value = int(thresh_drop)
+            data = [
+                {"label": str(i), "value": str(i)} for i in range(start_value, 7)
+            ]
         else:
             data = []
-
     elif order == "CFD_score":
-        if sholddrop:
-            start_value = int(float(sholddrop) * 10)
+        if thresh_drop:
+            start_value = int(float(thresh_drop) * 10)
+            small_value = False
             if start_value < 1:
+                small_value = True
                 start_value = 1
-                small = True
-            else:
-                small = False
             if start_value < 10:
                 data = [
                     {"label": f"0.{i}", "value": f"0.{i}"}
                     for i in range(start_value, 10)
                 ]
                 data.append({"label": "1", "value": "1"})
-                if small:
+                if small_value:
                     data.insert(0, {"label": "0.01", "value": "0.01"})
             else:
                 data = []
         else:
             data = []
-
     elif order == "Bulges":
-        if sholddrop:
-            start_value = int(sholddrop)
-            data = [{"label": str(i), "value": str(i)}
-                    for i in range(start_value, 3)]
+        if thresh_drop:
+            start_value = int(thresh_drop)
+            data = [
+                {"label": str(i), "value": str(i)}
+                for i in range(start_value, 3)
+            ]
         else:
             data = []
-
     elif order == "Mismatches+bulges":
-        if sholddrop:
-            start_value = int(sholddrop)
-            data = [{"label": str(i), "value": str(i)}
-                    for i in range(start_value, 9)]
+        if thresh_drop:
+            start_value = int(thresh_drop)
+            data = [
+                {"label": str(i), "value": str(i)}
+                for i in range(start_value, 9)
+            ]
         else:
             data = []
-
     else:
         data = []
     return data
 
 
+# reset buttons
 @app.callback(
     [
         Output("order", "value"),
         Output("multiorder", "value"),
         Output("maxdrop", "value"),
-        Output("sholddrop", "value "),
+        Output("thresh_drop", "value "),
         Output("Radio-asc-1", "value"),
     ],
     [Input("reset-val", "n_clicks")],
 )
-def resetbutton(n_clicks):
+def resetbutton(n_clicks: int) -> Tuple:
     if n_clicks > 0:
         return None, None, None, None, None
     else:
