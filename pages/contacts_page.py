@@ -12,7 +12,6 @@ Contacts list:
 Contacts list for bug reports and maintainers:
     - Samuele Cancellieri, PhD <samuele.cancellieri@univr.it>
     - Manuel Tognon <manuel.tognon@univr.it>
-    - Rosalba Giugno, PhD <rosalba.giugno@univr.it>
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 
 CRISPRme developers:

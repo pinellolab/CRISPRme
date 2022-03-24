@@ -29,34 +29,15 @@ The results could be sorted and filtered according to 3 criteria:
 TODO: complete doc string with missing info --> read paper carefully
 """
 
-
-from numpy import isin
-from soupsieve import select
 from .results_page_utils import (
     GUIDES_FILE,
     PAGE_SIZE,
     BARPLOT_LEN,
-    COL_REF,
-    COL_REF_TYPE,
-    COL_REF_RENAME,
     COL_BOTH,
     COL_BOTH_TYPE,
     COL_BOTH_RENAME,
-    GENOME_DATABASE,
     GUIDE_COLUMN,
     CHR_COLUMN,
-    POS_COLUMN,
-    MM_COLUMN,
-    BLG_COLUMN,
-    TOTAL_COLUMN,
-    TOTAL_FEWEST_COLUMN,
-    BLG_T_COLUMN,
-    CFD_COLUMN,
-    CRISTA_COLUMN,
-    RISK_COLUMN,
-    SAMPLES_COLUMN,
-    SAMPLES_CRISTA_COLUMN,
-    SAMPLES_FEWEST_COLUMN,
     VARIANTS_CRISTA,
     VARIANTS_CFD,
     VARIANTS_FEWEST,
@@ -75,44 +56,36 @@ from .results_page_utils import (
     split_filter_part,
     generate_table,
     generate_table_samples,
-    generate_table_position,
-    parse_contents,
 )
+from app import (
+    app,
+    cache,
+    app_main_directory,
+    current_working_directory,
+    operators,
+    URL, 
+)
+from PostProcess.supportFunctions.loadSample import associateSample
+from PostProcess import CFDGraph, query_manager
 
-from typing import Any, Dict, List, Optional, Tuple, Type
-from glob import glob
-
-import os
-
-from sqlite3.dbapi2 import Row
-import sys
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from numpy.lib.function_base import _diff_dispatcher
-from app import URL, app
+from typing import Dict, List, Tuple
+from glob import glob
 
-# from app import app
-import pandas as pd
-
-# from datatable import dt, f, sort
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
-import dash_table
-from app import current_working_directory, cache, app_main_directory, operators
-from PostProcess import CFDGraph
-from PostProcess.supportFunctions.loadSample import associateSample
-from os.path import isdir, join  # for getting directories
+import pandas as pd
 
 import subprocess
 import math
 import base64  # for decoding upload content
-import time
-import re
-import webbrowser as wb
+import dash_table
 import sqlite3
-from PostProcess import query_manager
 import flask
+import re
+import os
 
 
 # -------------------------------------------------------------------------------
@@ -2284,7 +2257,7 @@ def guidePagev3(job_id, hash):
     if bulge_t != "X":
         add_header += " - " + str(bulge_t) + " " + str(bulge_s)
     value = job_id
-    if not isdir(current_working_directory + "Results/" + job_id):
+    if not os.path.isdir(current_working_directory + "Results/" + job_id):
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     with open(current_working_directory + "Results/" + value + "/.Params.txt") as p:
         all_params = p.read()
