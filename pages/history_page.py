@@ -11,7 +11,7 @@ on the job identifier.
 
 from .results_page_utils import RESULTS_DIR, PARAMS_FILE, LOG_FILE, GUIDES_FILE
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 from app import app, current_working_directory, URL
@@ -73,8 +73,21 @@ def support_filter_history(
     [Input('results-table', 'selected_cells')],
     [State('results-table', 'data')]
 )
-def highlight_row(sel_cel, all_guides) -> List[Dict[str, str]]:
-    """
+def highlight_row(sel_cel: List, all_guides: List) -> List[Dict[str, str]]:
+    """Highlight the Job ID.
+
+    ...
+
+    Parameters
+    ----------
+    sel_cel : List
+        Selected cells
+    all_guides : List
+        All CRISPR guides
+
+    Returns
+    -------
+    List[Dict[str, str]]
     """
 
     if sel_cel is None or not sel_cel or not all_guides:

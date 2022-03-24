@@ -26,15 +26,11 @@ Current CRISPRme maintainers:
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 """
 
-from dash.dependencies import Input, Output, State
-from dash.exceptions import PreventUpdate
 
-import dash_bootstrap_components as dbc
-import dash_core_components as dcc
+from typing import List
+
 import dash_html_components as html
-import dash_daq as daq
 
-import dash_table
 
 # the following list could be changed during time
 # TODO: maintain the following list up to date as much as possible
@@ -53,7 +49,7 @@ BAUERLAB_DEVS = [
     "Daniel Bauer"
 ]
 
-def contact_page():
+def contact_page() -> List:
     """Create the layout of CRISPRme contacts page.
     
     ...
@@ -64,7 +60,8 @@ def contact_page():
 
     Returns
     -------
-    None
+    List
+        Contacts webpage
     """
 
     infomics_p = str(

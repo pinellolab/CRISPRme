@@ -163,6 +163,8 @@ GENOME_DATABASE = [
 ]
 # results directory
 RESULTS_DIR = "Results"
+# assets directory
+ASSETS_DIR = "assets"
 # Run parameters file
 PARAMS_FILE = ".Params.txt"
 # Log file
