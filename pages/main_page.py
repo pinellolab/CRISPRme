@@ -1088,8 +1088,15 @@ def availablePAM():
     + **pam_file** (*list* of {'label': pam, 'value': pam}): list containing a series of dictionaries, one for each PAM file found in
         the 'PAM' directory. Used as input parameter for the 'options' element of a Dash Droplist
     '''
-    onlyfile = [f for f in listdir(
-        current_working_directory + 'PAMs') if isfile(join(current_working_directory + 'PAMs', f))]
+    onlyfile = [
+        f for f in os.listdir(os.path.join(current_working_directory, "PAMs"))
+        if (
+            not f.startswith(".") and 
+            os.path.isfile(
+                os.path.join(current_working_directory, "PAMs", f)
+            )
+        )
+    ]
     # removed .txt for better visualization
     onlyfile = [x.replace('.txt', '') for x in onlyfile]
     pam_file = []
