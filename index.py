@@ -27,7 +27,7 @@ from pages import contacts_page
 # from pages import genome_database
 
 
-navbar = navbar_creation.Navbar()
+navbar = navbar_creation.navbar()
 # For multipage
 app.layout = html.Div([
     navbar,
@@ -67,22 +67,22 @@ def changePage(href, path, search, hash_guide):
     if path == '/result':
         job_id = search.split('=')[-1]
         if hash_guide is None or hash_guide == '':
-            return results_page.resultPage(job_id), URL + '/load' + search
+            return results_page.result_page(job_id), URL + '/load' + search
         if 'new' in hash_guide:  # TODO cambiare nome alla pagina delle guide
             return results_page.guidePagev3(job_id, hash_guide.split('#')[1]), URL + '/load' + search
         if '-Sample-' in hash_guide:
-            return results_page.samplePage(job_id, hash_guide.split('#')[1]), URL + '/load' + search
+            return results_page.sample_page(job_id, hash_guide.split('#')[1]), URL + '/load' + search
         if '-Pos-' in hash_guide:
-            return results_page.clusterPage(job_id, hash_guide.split('#')[1]), URL + '/load' + search
-        return results_page.resultPage(job_id), URL + '/load' + search
+            return results_page.cluster_page(job_id, hash_guide.split('#')[1]), URL + '/load' + search
+        return results_page.result_page(job_id), URL + '/load' + search
     # if path == '/genome-dictionary-management':
         # return personalization_page.genomeAndDictionaryManagement(), URL + '/load' + search
     if path == '/user-guide':
         return help_page.helpPage(), URL + '/load' + search
     if path == '/contacts':
-        return contacts_page.contactPage(), URL + '/load' + search
+        return contacts_page.contact_page(), URL + '/load' + search
     if path == '/history':
-        return history_page.historyPage(), URL + '/load' + search
+        return history_page.history_page(), URL + '/load' + search
     # if path == '/genomes':
     #     genomes_page = html.Div(genome_database.get_genomes(
     #         current_working_directory), style={'margin': '1%'})
