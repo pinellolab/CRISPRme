@@ -1102,8 +1102,15 @@ def availablePAM():
 
 
 def availableCAS():
-    onlyfile = [f for f in listdir(
-        current_working_directory + 'PAMs') if isfile(join(current_working_directory + 'PAMs', f))]
+    onlyfile = [
+        f for f in os.listdir(os.path.join(current_working_directory, "PAMs"))
+        if (
+            not f.startswith(".") and 
+            os.path.isfile(
+                os.path.join(current_working_directory, "PAMs", f)
+            )
+        )
+    ]
     # removed .txt for better visualization
     onlyfile = [x.replace('.txt', '') for x in onlyfile]
     cas_file = []
