@@ -21,9 +21,26 @@ def rev_comp(a):
         return 'G'
     return 'C'
 
+
+#count A and C presence in user window
+def base_counting(target_sequence:str,start:int,end:int)->list:
+    countA=0
+    countC=0
+       
+    for elem in target_sequence[start:end]:
+        #skip if gap
+        if elem=='-':
+            continue
+        #check if elem is A or C
+        if elem.upper() == 'A':
+            countA+=1
+        if elem.upper() == 'C':
+            countC+=1
+    
+    return [countA,countC]
+
+    
 # process seed analisys
-
-
 def seed_processing(seed_ref: str, seed_alt: str, non_seed_ref: str, non_seed_alt: str):
     # count mm and bulges for seed and non-seed target
     count_seed_ref = 0
@@ -246,6 +263,8 @@ saveDict = {
     'Annotation_closest_gene_ID': 'NA',
     'Annotation_closest_gene_distance_(kb)': 'NA',
     'Annotation_ENCODE': 'NA',
+    'Susceptible_to_ABE':'NA',
+    'Susceptible_to_CBE':'NA',
     'Annotation_personal': 'NA'
 }
 
@@ -286,7 +305,6 @@ for nline, line in enumerate(inCrispritzResults):
     # file annotation reported after gencode association with gene
     annotationLine = inAnnotationFile.readline().strip().split('\t')
 
-    lowestEmpirical = 100
 
     for key in saveDict:
         saveDict[key] = 'NA'
@@ -841,6 +859,26 @@ for nline, line in enumerate(inCrispritzResults):
             saveDict[key] = str(valueDict[key])
             newkey = str(key)+'_mm+bul'
             saveDict[newkey] = empiricalDict[key]
+         
+    #fixed value for base editor analysis, should be made variables         
+    start=4
+    end=8
+    if saveDict['REF/ALT_origin_(highest_CFD)'] == 'alt':
+        value=base_counting(saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'],start-1,end)
+        #check count A
+        if value[0]:
+            saveDict['Susceptible_to_ABE']='y'
+        #check count C
+        if value[1]:
+            saveDict['Susceptible_to_CBE']='y'
+    else:
+        value=base_counting(saveDict['Aligned_protospacer+PAM_REF_(highest_CFD)'],start-1,end)
+        #check count A
+        if value[0]:
+            saveDict['Susceptible_to_ABE']='y'
+        #check count C
+        if value[1]:
+            saveDict['Susceptible_to_CBE']='y'
 
     save = '\t'.join(list(saveDict.values()))
     save += '\n'
