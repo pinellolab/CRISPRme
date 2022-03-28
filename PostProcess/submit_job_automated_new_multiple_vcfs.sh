@@ -524,7 +524,7 @@ head -1 $final_res.bestCRISTA.txt >$final_res.tmp
 tail -n +2 $final_res.bestCRISTA.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestCRISTA.txt
 #sort using guide_seq,chr,cluster_pos,total(mm+bul)
 head -1 $final_res.bestmmblg.txt >$final_res.tmp
-tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T $output_folder/ >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
+tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
 
 # cp $final_res.bestCFD.txt $final_res.sorted.bestCFD.txt
 #MERGE BEST FILES TARGETS TO REMOVE CONTIGOUS
@@ -743,6 +743,7 @@ fi
 #keep log_error but no block visualization
 mv $output_folder/log_error.txt $output_folder/log_error_no_check.txt
 #removing single best files after use
-rm $final_res.bestCFD.txt
-rm $final_res.bestmmblg.txt
-rm $final_res.bestCRISTA.txt
+# rm $final_res.bestCFD.txt
+# rm $final_res.bestmmblg.txt
+# rm $final_res.bestCRISTA.txt
+#KEEP FILE TO TEST
