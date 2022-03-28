@@ -1,86 +1,88 @@
-import collections
-import filecmp
+"""
+"""
+
+
 from seq_script import extract_seq, convert_pam
+from .pages_utils import VALID_CHARS
+from app import (
+    URL, 
+    app, 
+    operators,
+    current_working_directory, 
+    app_main_directory, 
+    DISPLAY_OFFLINE,
+    ONLINE,
+    exeggutor
+)
+
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from app import URL, app, operators
-import pandas as pd
+from typing import List, Tuple
+from datetime import datetime
+
+import dash_bootstrap_components as dbc
 import dash_html_components as html
 import dash_core_components as dcc
-import dash_bootstrap_components as dbc
-import dash_table
-from os.path import isfile, isdir, join  # for getting directories
-from os import error, listdir  # for getting directories
-import os
+
+import collections
 import subprocess
+import filecmp
+import random
 import string
 import glob
-import random
-from datetime import datetime
-from app import current_working_directory, app_main_directory, DISPLAY_OFFLINE, DISPLAY_ONLINE, ONLINE, exeggutor
+import os
 
-VALID_CHARS = {'a', 'A', 't', 'T', 'c', 'C', 'g', 'G',
-               "R",
-               "Y",
-               "S",
-               "W",
-               "K",
-               "M",
-               "B",
-               "D",
-               "H",
-               "V",
-               "r",
-               "y",
-               "s",
-               "w",
-               "k",
-               "m",
-               "b",
-               "d",
-               "h",
-               "v"
-               }
-# Available mismatches and bulges
+
+# Allowed mismatches and bulges
 # ONLINE = False  # NOTE change to True for online version, False for offline
 if ONLINE:
-    set_max_mms = 7
-    set_max_bulges = 3
+    MAX_MMS = 7  # max allowed mismatches
+    MAX_BULGES = 3  # max allowed bulges
 else:
-    set_max_mms = 7  # NOTE modify value for increasing/decreasing max mms or bulges available on Dropdown selection
-    set_max_bulges = 3
+    # NOTE modify value for increasing/decreasing max mms or bulges available on 
+    # Dropdown selection
+    MAX_MMS = 7  # max allowed mismatches
+    MAX_BULGES = 3  # max allowed bulges
+# mismatches, bulges and guides values
+AV_MISMATCHES = [{"label": i, "value": i} for i in range(MAX_MMS)]
+AV_BULGES = [{"label": i, "value": i} for i in range(MAX_BULGES)]
+AV_GUIDE_SEQUENCE = [{"label": i, "value": i} for i in range(15, 26)]
 
-av_mismatches = [{'label': i, 'value': i} for i in range(0, set_max_mms)]
-av_bulges = [{'label': i, 'value': i} for i in range(0, set_max_bulges)]
-av_guide_sequence = [{'label': i, 'value': i} for i in range(15, 26)]
 
-# For filtering
+def split_filter_part(filter_part: str) -> Tuple:
+    """Recover filtering operator.
 
+    ...
 
-def split_filter_part(filter_part):
-    '''
-    Preso dal sito di dash sul filtering datatables con python
-    '''
+    Paramters
+    --------
+    filter_part : str
+        Filter
+    
+    Returns
+    -------
+    Tuple
+    """
+
+    if not isinstance(filter_part, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_part).__name__}")
     for operator_type in operators:
         for operator in operator_type:
             if operator in filter_part:
                 name_part, value_part = filter_part.split(operator, 1)
-                name = name_part[name_part.find('{') + 1: name_part.rfind('}')]
-
+                name = name_part[(name_part.find("{") + 1):name_part.rfind("}")]
                 value_part = value_part.strip()
                 v0 = value_part[0]
                 if (v0 == value_part[-1] and v0 in ("'", '"', '`')):
-                    value = value_part[1: -1].replace('\\' + v0, v0)
+                    value = value_part[1:-1].replace(f"\\{v0}", v0)
                 else:
                     try:
                         value = float(value_part)
-                    except ValueError:
+                    except:
                         value = value_part
-
                 # word operators need spaces after them in the filter string,
                 # but we don't want these later
                 return name, operator_type[0].strip(), value
-
     return [None] * 3
 
 
@@ -96,8 +98,32 @@ def split_filter_part(filter_part):
      Output('rna', 'value')],
     [Input('load-example-button', 'n_clicks')]
 )
-def load_example_data(load_button_click):
-    return ["CTAACAGTTGCTTTTATCAC", 'SpCas9', '20bp-NGG-SpCas9', 'hg38', ['1000G'], '6', '2', '2']
+def load_example_data(load_button_click: int) -> List[str]:
+    """Load data for CRISPRme example run.
+
+    ...
+
+    Parameters
+    ----------
+    load_button_click : int
+        Click on "Load Example" button
+
+    Returns
+    -------
+    List
+        Example parameters
+    """
+
+    return [
+        "CTAACAGTTGCTTTTATCAC", 
+        "SpCas9", 
+        "20bp-NGG-SpCas9", 
+        "hg38", 
+        ["1000G"], 
+        "6", 
+        "2", 
+        "2",
+    ]
 
 
 # Submit Job, change url
@@ -1169,8 +1195,8 @@ def availableGenomes():
     + **gen_dir** (*list* of {'label': genome, 'value': genome}): list containing a series of dictionaries, one for each directory (genome) found in
     the 'Genomes' directory. Used as input parameter for the 'options' element of a Dash Droplist
     '''
-    onlydir = [f for f in listdir(current_working_directory + 'Genomes')
-               if isdir(join(current_working_directory + 'Genomes', f))]
+    onlydir = [f for f in os.listdir(current_working_directory + 'Genomes')
+               if os.path.isdir(os.path.join(current_working_directory + 'Genomes', f))]
     onlydir = [x.replace('_', ' ') for x in onlydir]
     gen_dir = []
     for dir in onlydir:
@@ -1192,8 +1218,8 @@ def get_more_annotations():
 
 
 def get_more_VCF(genome_value):
-    onlydir = [f for f in listdir(current_working_directory + 'VCFs')
-               if isdir(join(current_working_directory + 'VCFs', f))]
+    onlydir = [f for f in os.listdir(current_working_directory + 'VCFs')
+               if os.path.isdir(os.path.join(current_working_directory + 'VCFs', f))]
     vcf_dir = []
     genome_value = genome_value.replace(" ", "_")
     for dir in onlydir:
@@ -1332,7 +1358,7 @@ def indexPage():
             html.Div(
                 [
                     html.P('Mismatches'),
-                    dcc.Dropdown(options=av_mismatches, clearable=False, id='mms', style={
+                    dcc.Dropdown(options=AV_MISMATCHES, clearable=False, id='mms', style={
                         'width': '60px'})
                 ],
                 style={'display': 'inline-block',
@@ -1345,7 +1371,7 @@ def indexPage():
                             'DNA', html.Br(), 'Bulges'
                         ]
                     ),
-                    dcc.Dropdown(options=av_bulges, clearable=False, id='dna', style={
+                    dcc.Dropdown(options=AV_BULGES, clearable=False, id='dna', style={
                         'width': '60px'})
                 ],
                 style={'display': 'inline-block',
@@ -1359,7 +1385,7 @@ def indexPage():
                             'RNA', html.Br(), 'Bulges'
                         ]
                     ),
-                    dcc.Dropdown(options=av_bulges, clearable=False, id='rna', style={
+                    dcc.Dropdown(options=AV_BULGES, clearable=False, id='rna', style={
                         'width': '60px'}),
                 ],
                 style={'display': 'inline-block'}

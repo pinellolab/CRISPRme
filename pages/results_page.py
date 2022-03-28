@@ -29,7 +29,7 @@ The results could be sorted and filtered according to 3 criteria:
 TODO: complete doc string with missing info --> read paper carefully
 """
 
-from .results_page_utils import (
+from .pages_utils import (
     GUIDES_FILE,
     PAGE_SIZE,
     BARPLOT_LEN,
@@ -62,7 +62,6 @@ from app import (
     cache,
     app_main_directory,
     current_working_directory,
-    operators,
     URL, 
 )
 from PostProcess.supportFunctions.loadSample import associateSample

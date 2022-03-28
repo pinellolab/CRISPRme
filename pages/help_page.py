@@ -9,7 +9,7 @@ the webapp.
 """
 
 
-from .results_page_utils import ASSETS_DIR
+from .pages_utils import ASSETS_DIR
 from app import app_main_directory
 
 import dash_html_components as html

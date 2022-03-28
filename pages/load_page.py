@@ -1,9 +1,17 @@
-"""
+"""Define the layout of the webpage displayed while CRISPRme is running the
+analysis.
+
+The webpage shows the status of each step of CRISPRme analysis, e.g. "done", 
+"queued", etc. Moreover, the page provide the user the opportunity to check 
+dinamically the state of the submitted job. 
+
+The analysis results are kept in storage for 3 days. After 3 days the results
+are automatically deleted and could not be accessed anymore.
 """
 
 
 from app import app, current_working_directory, URL
-from .results_page_utils import RESULTS_DIR, GUIDES_FILE, LOG_FILE, PARAMS_FILE
+from .pages_utils import RESULTS_DIR, GUIDES_FILE, LOG_FILE, PARAMS_FILE
 
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate

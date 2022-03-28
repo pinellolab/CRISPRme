@@ -1,5 +1,5 @@
-"""Python script containing static variables and utilities functions
-used throughout CRISPRme's result page. 
+"""Define static variables and utilities functions used throughout CRISPRme's 
+webpages. 
 """
 
 
@@ -14,6 +14,38 @@ import pandas as pd
 import base64
 import os
 
+
+# define IUPAC alphabet as valid characters for CRISPRme queries
+VALID_CHARS = { 
+    "A", 
+    "T", 
+    "C", 
+    "G", 
+    "R",
+    "Y",
+    "S",
+    "W",
+    "K",
+    "M",
+    "B",
+    "D",
+    "H",
+    "V",
+    "a",
+    "t", 
+    "c",
+    "g",
+    "r",
+    "y",
+    "s",
+    "w",
+    "k",
+    "m",
+    "b",
+    "d",
+    "h",
+    "v"
+}
 # number of entries in report table (for each table page)
 PAGE_SIZE = 10
 # number of barplots in each row of Populations Distributions

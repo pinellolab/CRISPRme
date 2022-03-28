@@ -9,7 +9,7 @@ on the job identifier.
 """
 
 
-from .results_page_utils import RESULTS_DIR, PARAMS_FILE, LOG_FILE, GUIDES_FILE
+from .pages_utils import RESULTS_DIR, PARAMS_FILE, LOG_FILE, GUIDES_FILE
 
 from typing import Dict, List, Optional, Tuple
 from dash.dependencies import Input, Output, State
