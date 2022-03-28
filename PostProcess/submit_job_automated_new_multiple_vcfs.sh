@@ -541,9 +541,10 @@ mv $final_res.bestCRISTA.txt.trimmed $final_res.bestCRISTA.txt
 mv $final_res.bestCRISTA.txt.trimmed.discarded_samples $final_res_alt.bestCRISTA.txt
 
 #sort ALT files to avoid as much as possible duplicates
-sort -T $output_folder -u $final_res_alt.bestCFD.txt -o $final_res_alt.bestCFD.txt
-sort -T $output_folder -u $final_res_alt.bestmmblg.txt -o $final_res_alt.bestmmblg.txt
-sort -T $output_folder -u $final_res_alt.bestCRISTA.txt -o $final_res_alt.bestCRISTA.txt
+#REMOVED SINCE CAN RETURN DIFFERENT DIMENSION FILES
+# sort -T $output_folder -u $final_res_alt.bestCFD.txt -o $final_res_alt.bestCFD.txt
+# sort -T $output_folder -u $final_res_alt.bestmmblg.txt -o $final_res_alt.bestmmblg.txt
+# sort -T $output_folder -u $final_res_alt.bestCRISTA.txt -o $final_res_alt.bestCRISTA.txt
 
 echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 
