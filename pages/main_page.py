@@ -3,7 +3,7 @@
 
 
 from seq_script import extract_seq, convert_pam
-from .pages_utils import VALID_CHARS
+from .pages_utils import ANNOTATIONS_DIR, JOBID_ITERATIONS_MAX, JOBID_MAXLEN, RESULTS_DIR, VALID_CHARS
 from app import (
     URL, 
     app, 
@@ -126,7 +126,7 @@ def load_example_data(load_button_click: int) -> List[str]:
     ]
 
 
-# Submit Job, change url
+# Job submission and results URL definition
 @app.callback(
     [Output('url', 'pathname'),
      Output('url', 'search')],
@@ -149,141 +149,256 @@ def load_example_data(load_button_click: int) -> List[str]:
      State('job-name', 'value')
      ]
 )
-# , active_tab, len_guide_sequence, dest_email, text_sequence
-def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_input, annotation_input, pam, guide_type, text_guides, mms, dna, rna, adv_opts, dest_email, job_name):
-    '''
-    Main function that generates the inputs for the Post/Process/submit_job.final.sh script and launches the search analysis.
+def change_url(
+    n: int, 
+    href: str, 
+    nuclease: str, 
+    genome_selected: str, 
+    ref_var: List, 
+    annotation_var: List, 
+    vcf_input: str, 
+    annotation_input: str, 
+    pam: str, 
+    guide_type: str, 
+    text_guides: List[str], 
+    mms: int, 
+    dna: int, 
+    rna: int, 
+    adv_opts: List, 
+    dest_email: str, 
+    job_name: str
+) -> Tuple[str, str]:
+    """Launch the targets search and generates the input files for 
+    post-processing operations, and results visualization.
 
-    ***Args***
+    It manages the input data given by the user in the main webpage of CRISPRme 
+    and run the search, notify the user by sending an email when the job is
+    completed, and produce the link to the webpage used to visualize the results.
 
-    + [**n**] **submit-job** (*n_clicks*): this value comes from the output of the `checkInput()` function. If `1`, it means that the inputs are
-    correct, and the function can proceed. If `None` it means that some inputs are missing, so a `raise PreventUpdate` is returned.
-    + [**href**] **url** (*href*): string for the href part of the url. NOTE not used
-    + [**genome_selected**] **available-genome** (*value*): string for the selected genome
-    + [**pam**] **available-pam** (*value*): string for the selected PAM
-    + [**text_guides**] **text-guides** (*value*): string for the input guides
-    + [**mms**] **mms** (*value*): int for the mismatch selected
-    + [**dna**] **dna** (*value*): int for the DNA bulge selected
-    + [**rna**] **rna** (*value*): int for the RNA bbulge selected
-    + [**gecko_opt**] **checkbox-gecko** (*checked*): bool for the GeCKO Checkbox
-    + [**genoma_ref_opt**] **checkbox-ref-comp** (*checked*): bool for the reference genome comparison
-    + [**adv_opts**] **checklist-mail** (*value*): list of advanced options selected (NOTE only email)
-    + [**dest_email**] **example-email** (*value*): string of the input email
-    + [**active_tab**] **tabs** (*active_tab*): string of the ID of the active tab ('Guide' or 'Sequence')
-    + [**text_sequence**] **text-sequence** (*value*): string of the input sequence
-    + [**len_guide_sequence**] **len-guide-sequence-ver** (*value*): int of the selected guide len (available only if 'Sequence' tab is active)
+    ** Further details **
+    
+    Perform checks on input parameters' consistency.
 
-    ***Returns***
+    To each received job is assigned a different identifier (or job name). This 
+    allows to easily recognize different job submissions. The job IDs consist
+    in alpha-numeric strings of 10 characters (A-z 0-9). The IDs are randomly 
+    generated. If the generated ID is already assigned to some other job, 
+    compute another ID. Every 7 iterations, add +1 to ID length (up to 20 chars 
+    as max length). Once generated the ID, create the job directory. Within the
+    job directory, create the `queue.txt` file (for job queueing).
 
-    + **url** (*pathname*): string '/load' to go to the Load Page
-    + **url** (*search*): string '?job=' + the job ID, to check the status of the specific job
+    If the input parameters match those of an already processed search, the 
+    current job ID is modified to match that of the available analysis (even if
+    completed/currently submitted/in queue). Update the email address associated 
+    to the job and reset the 3 days availability of the results.
 
-    ***Details***
+    The current policy of CRISPRme allows up to 2 jobs to run concurrently. The 
+    others are put in queue.
 
-    + 1) (NOTE already done in `checkInput()`) The function checks the validity of the input parameters.
-    + 2) In order to differentiante various analysis submissions, an ID is given to each analysis (Job ID), consisting of a string of 10 alphanumeric
-    characters (A-Z 0-9). If a generated ID is already assigned, retry and compute another one. Every 7 iterations, add +1 to the length of the
-    ID, up to a maximum of 20 chars. Then the JobID directory is created and inside is created a `queue.txt` file in order to implement a job queue
-    + 3) The parameters used as input for the submit_job.final.sh script are created based on user input:
-        + Email: the email address, link for the results and start date are written in `Genomes/JobID/email.txt`
-        + PAM: get PAM len and direction (beginning or end), in order to write the correct files for pam and guides used in Crispritz.
-        + Guides: if the 'Sequence' tab is selected, the input is processed in the `extract_seq` module, that returns a list of guides. Non valid
-        characters are then eliminated, along with the exceeding guides (only 1000 guides are acceptable). The guides are then modified by adding
-        N characters, following PAM type input (check Crispritz), and saved into file `Genomes/JobID/guides.txt`. The PAM is also saved in the
-        `Genomes/JobID/pam.txt` file, following the Crispritz standard
-        + Indexing: if the selected Genome-PAM has no index in `genome_library`, set a flag to calculate the index when submitting the job. The PAM
-        used for indexing is `Genomes/JobID/pam_indexing.txt`
-        + Params file: the informations about the job are saved into the `.Params.txt` file
-        + Annotation: based on the selected genome reference part, the annotation is chosen from the `annotations` directory
-        + Sample: based on the enriched genome selected, the sampleID file is chosen from the `samplesID` directory
-        + Dictionary: based on the enriched genome selected, the Dictionary for sample extraction is selected from the `dictionaries` directory
-    + 4) If the input is equal to an already calculated analysis, then the function modify the job id to the one of the already existing analysis
-    (even if it's completed/currently submitted/in queue), update the `email` file and the `log` file (in order to reset the 3 days availability on the server)
-    + Launch the submit_job.final.sh script using `exeggutor`, to a max of 2 concurrent jobs, the others are put into a queue
-    '''
+    ...
+
+    Parameters
+    ----------
+    n : int
+        Clicks
+    href : str
+        URL 
+    nuclease : str
+        Selected nuclease
+    genome_selected : str
+        Selected genome
+    ref_var : List
+        Reference variants
+    annotation_var : str
+        Annotation variants
+    vcf_input : str
+        Input VCF
+    annotation_input : str
+        Annotation file
+    pam : str
+        Selected PAM
+    guide_type : str
+        RNA guide type
+    text_guides : str
+        Input guides
+    mms : int
+        Number of mismatches 
+    dna : int
+        Number of DNA bulges
+    rna : int
+        Number of RNA bulges
+    adv_opts : List
+        Selected advanced options
+    dest_email : str
+        User mail address
+    job_name : str
+        Submitted job ID
+
+    Returns
+    -------
+    Tuple[str, str]
+        URL to retrieve CRISPRme analysis results
+    """
+
+    if n is not None:
+        if not isinstance(n, int):
+            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if not isinstance(href, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(href).__name__}")
+    if not isinstance(nuclease, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(nuclease).__name__}"
+        )
+    if genome_selected is not None:
+        if not isinstance(genome_selected, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(genome_selected).__name__}"
+            )
+    if not isinstance(ref_var, list):
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(ref_var).__name__}"
+        )
+    if pam is not None:
+        if not isinstance(pam, str):
+            raise TypeError(
+                f"Exepcted {str.__name__}, got {type(pam).__name__}"
+            )
+    if text_guides is not None:
+        if not isinstance(text_guides, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(text_guides).__name__}"
+            )
+    if job_name is not None:
+        if not isinstance(job_name, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(job_name).__name__}"
+            )
+
     if n is None:
-        raise PreventUpdate
+        raise PreventUpdate  # do not update the page
+    # job start
     print("Launching JOB")
-    # 1) Check input, else give simple input
-    if genome_selected is None or genome_selected == '':
-        genome_selected = 'hg38_ref'
-    if pam is None or pam == '':
-        pam = '20bp-NGG-SpCas9'
-        len_guide_sequence = 20
+    # ---- Check input. If fails, give simple input
+    if (genome_selected is None) or (not genome_selected):
+        genome_selected = "hg38_ref"  # use hg38 by default
+    if( pam is None) or (not pam):
+        pam = "20bp-NGG-SpCas9"  # use Cas9 PAM
+        guide_seqlen = 20
     else:
-        for elem in pam.split('-'):
-            if 'bp' in elem:
-                len_guide_sequence = int(elem.replace('bp', ''))
-    if text_guides is None or text_guides == '':
-        text_guides = 'A'*len_guide_sequence
-        # text_guides = 'GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC'
-    elif guide_type != 'GS':
+        for c in pam.split("-"):
+            if "bp" in c:  # use length specified in PAM
+                guide_seqlen = int(c.replace("bp", ""))  
+    if (text_guides is None) or (not text_guides):
+        text_guides = "A" * guide_seqlen
+    elif guide_type != "GS":
         text_guides = text_guides.strip()
-        if (not all(len(elem) == len(text_guides.split('\n')[0]) for elem in text_guides.split('\n'))):
-            text_guides = selectSameLenGuides(text_guides)
-    temp_guide = ''
-    for elem in text_guides.split('\n'):
-        temp_guide += elem.replace('N', '')+'\n'
-    text_guides = temp_guide.strip()
-    # if (len_guide_sequence is None or str(len_guide_sequence) == '') and ('sequence-tab' in active_tab):
-    #    len_guide_sequence = 20
-    # print('guide len', len_guide_sequence)
-    # if (text_sequence is None or text_sequence == '') and ('sequence-tab' in active_tab):
-    #    text_sequence = '>sequence\nTACCCCAAACGCGGAGGCGCCTCGGGAAGGCGAGGTGGGCAAGTTCAATGCCAAGCGTGACGGGGGA'
-
-    # 2) Get random string for job id
-    n_it = 10
-    len_id = 10
-    for i in range(n_it):
-        assigned_ids = [o for o in os.listdir(current_working_directory + 'Results/') if os.path.isdir(
-            os.path.join(current_working_directory + 'Results/', o))]
-        job_id = ''.join(random.choices(
-            string.ascii_uppercase + string.digits, k=len_id))
-        if job_id not in assigned_ids:
+        if (
+            not all(
+                [
+                    len(c) == len(text_guides.split("\n")[0]) 
+                    for c in text_guides.split("\n")
+                ]
+            )
+        ):
+            text_guides = select_same_len_guides(text_guides)
+    # remove Ns from guides
+    guides_tmp = "\n".join(
+        [guide.replace("N", "") for guide in text_guides.split("\n")]
+    )
+    text_guides = guides_tmp.strip()
+    # ---- Generate random job ids
+    id_len = 10
+    for i in range(JOBID_ITERATIONS_MAX):
+        # get already assigned job ids
+        assigned_ids = [
+            d for d in os.listdir(
+                os.path.join(current_working_directory, RESULTS_DIR)
+            )
+            if (
+                os.path.isdir(
+                    os.path.join(current_working_directory, RESULTS_DIR, d)
+                ) and not d.startswith(".")  # avoid hidden files/directories
+            )
+        ]
+        job_id = "".join(
+            random.choices(string.ascii_uppercase + string.digits, k=id_len)
+        )
+        if job_id not in assigned_ids:  # suitable job id
             break
         if i > 7:
-            i = 0
-            len_id += 1
-            if len_id > 20:
+            i = 0  # restart
+            id_len += 1  # increase ID length
+            if id_len > JOBID_MAXLEN:  # reached maximum length
                 break
-    if job_name and job_name != '' and job_name != 'None':
-        job_id = str(job_name)+'_'+job_id
-    result_dir = current_working_directory + 'Results/' + job_id
-    subprocess.run(['mkdir ' + result_dir], shell=True)
-    # NOTE test command per queue
-    subprocess.run(['touch ' + current_working_directory +
-                    'Results/' + job_id + '/queue.txt'], shell=True)
-
-    # 3) Set parameters
-
+    if job_name:
+        assert isinstance(job_name, str)
+        job_id = f"{job_name}_{job_id}"
+    result_dir = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    # create results directory
+    cmd = f"mkdir {result_dir}"
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise ValueError(f"An error occurred while running {cmd}")
+    # NOTE test command for queue
+    cmd = f"touch {os.path.join(current_working_directory, RESULTS_DIR, job_id, 'queue.txt')}"
+    subprocess.call(cmd, shell=True)
+    # ---- Set search parameters
     # ANNOTATION CHECK
-    # annotation_name = current_working_directory+'/PostProcess/vuoto.txt'
-    gencode_name = 'gencode.protein_coding.bed'
-    annotation_name = '.dummy.bed'  # necessary to process without annotation
-    if 'EN' in annotation_var:
-        # annotation_name = 'hg38_ref.annotations.bed'
-        annotation_name = 'encode+gencode.hg38.bed'
+    gencode_name = "gencode.protein_coding.bed"
+    annotation_name = ".dummy.bed"  # to proceed without annotation file
+    if "EN" in annotation_var:
+        annotation_name = "encode+gencode.hg38.bed"
         if "MA" in annotation_var:
-            annotation_name = 'encode+gencode.hg38.bed+' + \
-                "".join(annotation_input.split('.')[:-1]) + '.bed'
-            os.system(
-                f"cp {current_working_directory}/Annotations/encode+gencode.hg38.bed {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
-            os.system(
-                f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} > {current_working_directory}/Annotations/{annotation_input}.tmp')
-            os.system(
-                f'mv {current_working_directory}/Annotations/{annotation_input}.tmp {current_working_directory}/Annotations/{annotation_input}')
-            os.system(
-                f"tail -n +1 {current_working_directory}/Annotations/{annotation_input} >> {current_working_directory}/Annotations/ann_tmp_{job_id}.bed")
-            os.system(
-                f"mv {current_working_directory}/Annotations/ann_tmp_{job_id}.bed {current_working_directory}/Annotations/{annotation_name}")
-    elif 'MA' in annotation_var:
-        # annotation_name = annotation_input
-        os.system(
-            f'awk \'$4 = $4\"_personal\"\' {current_working_directory}/Annotations/{annotation_input} > {current_working_directory}/Annotations/{annotation_input}.tmp')
-        annotation_name = annotation_input+'.tmp'
-    if 'EN' not in annotation_var:
-        os.system(f"rm -f {current_working_directory}/Annotations/.dummy.bed")
-        os.system(f"touch {current_working_directory}/Annotations/.dummy.bed")
+            annotation_name = "".join(
+                [
+                    f"{annotation_name}+",
+                    "".join(annotation_input.split(".")[:-1]),
+                    ".bed"
+                ]
+            )
+            annotation_dir = os.path.join(
+                current_working_directory, ANNOTATIONS_DIR
+            )
+            annotation_tmp = os.path.join(
+                annotation_dir, f"ann_tmp_{job_id}.bed"
+            )
+            cmd = f"cp {os.path.join(annotation_dir, annotation_name)} {annotation_tmp}"
+            code = subprocess.call(cmd, shell=True)
+            if code != 0:
+                raise ValueError(f"An error occurred while running {cmd}")
+            annotation_input_tmp = f"{os.path.join(annotation_dir, annotation_input)}.tmp"
+            cmd = f"awk '$4 = $4\"_personal\"' {os.path.join(annotation_dir, annotation_input)} > {annotation_input_tmp}"
+            code = subprocess.call(cmd, shell=True)
+            if code != 0:
+                raise ValueError(f"An error occurred while running {cmd}")
+            cmd = f"mv {annotation_input_tmp} {os.path.join(annotation_dir, annotation_input)}"
+            code = subprocess.call(cmd, shell=True)
+            if code != 0:
+                raise ValueError(f"An error occurred while running {cmd}")
+            cmd = f"tail -n +1 {os.path.join(annotation_dir, annotation_input)} >> {annotation_tmp}"
+            code = subprocess.call(cmd, shell=True)
+            if code != 0:
+                raise ValueError(f"An error occurred while running {cmd}")
+            cmd = f"mv {annotation_tmp} {os.path.join(annotation_dir, annotation_name)}"
+            code = subprocess.call(cmd, shell=True)
+            if code != 0:
+                raise ValueError(f"An error occurred while running {cmd}")
+    elif "MA" in annotation_var:
+        annotation_input_tmp = f"{os.path.join(annotation_dir, annotation_input)}.tmp"
+        cmd = f"awk '$4 = $4\"_personal\"' {os.path.join(annotation_dir, annotation_input)} > {annotation_input_tmp}"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"an error occurred while running {cmd}")
+        annotation_name = f"{annotation_input}.tmp"
+    if "EN" not in annotation_var:
+        cmd = f"rm -rf {os.path.join(annotation_dir, '.dummy.bed')}"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"An error occurred while running {cmd}")
+        cmd = f"touch {os.path.join(annotation_dir, '.dummy.bed')}"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"An error occurred while running {cmd}")
         gencode_name = '.dummy.bed'
 
     # GENOME TYPE CHECK
@@ -425,29 +540,29 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
                     extracted_seq = extract_seq.extractSequence(
                         name, seq_to_extract, genome_ref.replace(' ', '_'))
                     guides.extend(convert_pam.getGuides(
-                        extracted_seq, pam_char, len_guide_sequence, pam_begin))
+                        extracted_seq, pam_char, guide_seqlen, pam_begin))
             else:
                 seq = seq.split()
                 seq = ''.join(seq)
                 extracted_seq = seq.strip()
                 guides.extend(convert_pam.getGuides(
-                    extracted_seq, pam_char, len_guide_sequence, pam_begin))
+                    extracted_seq, pam_char, guide_seqlen, pam_begin))
             # print('extracted seq', extracted_seq)
             # guides.extend(convert_pam.getGuides(
             #     extracted_seq, pam_char, len_guide_sequence, pam_begin))
         guides = list(set(guides))
         if not guides:
-            guides = 'A'*len_guide_sequence
+            guides = 'A'*guide_seqlen
         text_guides = '\n'.join(guides).strip()
     # print(text_guides, 'and', guides, 'and', pam_char)
     # exit()
     text_guides = text_guides.upper()
     new_test_guides = list()
     for guide in text_guides.split('\n'):
-        if len(guide) == len_guide_sequence:
+        if len(guide) == guide_seqlen:
             new_test_guides.append(guide)
     if not new_test_guides:
-        new_test_guides.append('A'*len_guide_sequence)
+        new_test_guides.append('A'*guide_seqlen)
     text_guides = '\n'.join(new_test_guides)
     for g in text_guides.split('\n'):
         for c in g:
@@ -456,7 +571,7 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     if len(text_guides.split('\n')) > 100:  # set limit to 100 guides per run in the website
         text_guides = '\n'.join(text_guides.split('\n')[:100]).strip()
     # len_guides = len(text_guides.split('\n')[0])
-    len_guides = len_guide_sequence
+    len_guides = guide_seqlen
 
     # if 'A'*len_guide_sequence in text_guides:
     #     error_in_seq_extract = True
@@ -1092,16 +1207,30 @@ def changePlaceholderGuideTextArea(value):
         return ['>sequence1\nAAGTCCCAGGACTTCAGAAGagctgtgagaccttggc\n>sequence_bed\nchr1 11130540 11130751\nchr1 1023000 1024000']
 
 
-def selectSameLenGuides(list_guides):
-    '''
-    Se l'utente mette guide di lunghezza diversa, la funzione prende la lunghezza della prima guida e salva solo le guide con quella lunghezza
-    '''
-    selected_length = len(list_guides.split('\n')[0])
-    same_len_guides_list = []
-    for guide in list_guides.split('\n'):
-        if len(guide) == selected_length:
-            same_len_guides_list.append(guide)
-    same_len_guides = '\n'.join(same_len_guides_list).strip()
+def select_same_len_guides(guides: str) -> str:
+    """If the user provides guides of different lengths, compute the length of 
+    the first given guide and keep only those with the same length.
+
+    ...
+
+    Parameters
+    ----------
+    guides : str
+        Guides
+
+    Returns
+    -------
+    str
+        Selected guides
+    """
+
+    if not isinstance(guides, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guides).__name__}")
+    length = len(guides.split("\n")[0])
+    same_len_guides = [
+        guide for guide in guides.split("\n") if len(guide) == length
+    ]
+    same_len_guides = "\n".join(same_len_guides).strip()
     return same_len_guides
 
 

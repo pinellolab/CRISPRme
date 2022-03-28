@@ -197,6 +197,8 @@ GENOME_DATABASE = [
 RESULTS_DIR = "Results"
 # assets directory
 ASSETS_DIR = "assets"
+# annotations directory
+ANNOTATIONS_DIR = "Annotations"
 # Run parameters file
 PARAMS_FILE = ".Params.txt"
 # Log file
@@ -261,6 +263,10 @@ SSL_PORT = 465
 CAS9 = "SpCas9"
 # pandas series operator methods names
 PANDAS_OPERATORS = ("eq", "ne", "lt", "le", "gt", "ge")
+# job ID maximum length
+JOBID_MAXLEN = 20
+# maximum number of iterations to generate job ID
+JOBID_ITERATIONS_MAX = 10
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
