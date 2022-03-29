@@ -199,6 +199,10 @@ RESULTS_DIR = "Results"
 ASSETS_DIR = "assets"
 # annotations directory
 ANNOTATIONS_DIR = "Annotations"
+# PAMs directory
+PAMS_DIR = "PAMs"
+# Post-process directory
+POSTPROCESS_DIR = "PostProcess"
 # Run parameters file
 PARAMS_FILE = ".Params.txt"
 # Log file
@@ -206,7 +210,13 @@ LOG_FILE = "log.txt"
 # CRISPR guides file
 GUIDES_FILE = ".guides.txt"
 # sample IDs file
-SAMPLE_FILE = ".sampleID.txt"
+SAMPLES_FILE = ".sampleID.txt"
+# PAMs file
+PAMS_FILE = ".pam.txt"
+# email file
+EMAIL_FILE = "email.txt"
+# queue file
+QUEUE_FILE = "queue.txt"
 # data directory
 DATA_DIR = "data"
 # report images directory
@@ -267,6 +277,8 @@ PANDAS_OPERATORS = ("eq", "ne", "lt", "le", "gt", "ge")
 JOBID_MAXLEN = 20
 # maximum number of iterations to generate job ID
 JOBID_ITERATIONS_MAX = 10
+# allowed variants datasets (1000 genomes, human diversity project, custom data)
+VARIANTS_DATA = ["1000G", "HGDP", "PV"]  
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:

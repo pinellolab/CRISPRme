@@ -46,7 +46,7 @@ from .pages_utils import (
     IMGS_DIR,
     FILTERING_CRITERIA,
     PARAMS_FILE,
-    SAMPLE_FILE,
+    SAMPLES_FILE,
     CAS9,
     PANDAS_OPERATORS,
     drop_columns,
@@ -1236,7 +1236,7 @@ def update_table_cluster(
             dict_sample_to_pop,
             dict_pop_to_superpop,
         ) = associateSample.loadSampleAssociation(
-            os.path.join(job_directory, SAMPLE_FILE)
+            os.path.join(job_directory, SAMPLES_FILE)
         )[:2]
         for row in data_to_send:
             summarized_sample_cell = dict()
@@ -3597,7 +3597,7 @@ def filter_sample_table(
     job_directory = os.path.join(
         current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, SAMPLE_FILE)
+        os.path.join(job_directory, SAMPLES_FILE)
     )[2]
     # read CRISPRme run parameters
     try:
@@ -3906,7 +3906,7 @@ def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
         current_working_directory, RESULTS_DIR, job_id
     )
     pop_dict = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, SAMPLE_FILE)
+        os.path.join(job_directory, SAMPLES_FILE)
     )[3]
     return [{"label": sample, "value": sample} for sample in pop_dict[pop]], None
 
@@ -3952,7 +3952,7 @@ def update_population_drop(superpop: str, search: str) -> Tuple[Dict, None]:
         current_working_directory, RESULTS_DIR, job_id
     )
     population_1000gp = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, SAMPLE_FILE)
+        os.path.join(job_directory, SAMPLES_FILE)
     )[2]
     return [{"label": i, "value": i} for i in population_1000gp[superpop]], None
 
@@ -3988,7 +3988,7 @@ def check_existance_sample(
         raise TypeError(
             f"Expected {str.__name__}, got {type(sample).__name__}")
     dataset = pd.read_csv(
-        os.path.join(job_directory, job_id, SAMPLE_FILE),
+        os.path.join(job_directory, job_id, SAMPLES_FILE),
         sep="\t",
         na_filter=False
     )
@@ -4800,7 +4800,7 @@ def update_content_tab(
         samples_summary[""] = more_info_col
 
         population_1000gp = associateSample.loadSampleAssociation(
-            os.path.join(job_directory, SAMPLE_FILE)
+            os.path.join(job_directory, SAMPLES_FILE)
         )[2]
         super_populations = [
             {"label": i, "value": i} for i in population_1000gp.keys()
@@ -5455,7 +5455,7 @@ def update_content_tab(
                    for i in range(int(max_bulges) + 1)]
         if genome_type != "ref":
             population_1000gp = associateSample.loadSampleAssociation(
-                os.path.join(job_directory, SAMPLE_FILE)
+                os.path.join(job_directory, SAMPLES_FILE)
             )[2]
             super_populations = [
                 {"label": i, "value": i} for i in population_1000gp.keys()

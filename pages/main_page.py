@@ -3,7 +3,24 @@
 
 
 from seq_script import extract_seq, convert_pam
-from .pages_utils import ANNOTATIONS_DIR, JOBID_ITERATIONS_MAX, JOBID_MAXLEN, RESULTS_DIR, VALID_CHARS
+from .pages_utils import (
+    ANNOTATIONS_DIR,
+    EMAIL_FILE,
+    GENOMES_DIR, 
+    GUIDES_FILE, 
+    JOBID_ITERATIONS_MAX, 
+    JOBID_MAXLEN,
+    LOG_FILE, 
+    PAMS_DIR, 
+    PAMS_FILE, 
+    PARAMS_FILE,
+    POSTPROCESS_DIR,
+    QUEUE_FILE, 
+    RESULTS_DIR,
+    SAMPLES_FILE, 
+    VALID_CHARS, 
+    VARIANTS_DATA
+)
 from app import (
     URL, 
     app, 
@@ -208,7 +225,7 @@ def change_url(
     genome_selected : str
         Selected genome
     ref_var : List
-        Reference variants
+        Variants 
     annotation_var : str
         Annotation variants
     vcf_input : str
@@ -240,6 +257,7 @@ def change_url(
         URL to retrieve CRISPRme analysis results
     """
 
+
     if n is not None:
         if not isinstance(n, int):
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
@@ -268,12 +286,31 @@ def change_url(
             raise TypeError(
                 f"Expected {str.__name__}, got {type(text_guides).__name__}"
             )
+    if rna is not None:
+        if not isinstance(rna, int):
+            raise TypeError(
+                f"Expected {int.__name__}, got {type(rna).__name__}"
+            )
+    if dna is not None:
+        if not isinstance(dna, int):
+            raise TypeError(
+                f"Expected {int.__name__}, got {type(dna).__name__}"
+            )
+    if adv_opts is not None:
+        if not isinstance(adv_opts, list):
+            raise TypeError(
+                f"Expected {list.__name__}, got {type(adv_opts).__name__}"
+            )
+    if dest_email is not None:
+        if not isinstance(dest_email, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(dest_email).__name__}"
+            )
     if job_name is not None:
         if not isinstance(job_name, str):
             raise TypeError(
                 f"Expected {str.__name__}, got {type(job_name).__name__}"
             )
-
     if n is None:
         raise PreventUpdate  # do not update the page
     # job start
@@ -283,7 +320,7 @@ def change_url(
         genome_selected = "hg38_ref"  # use hg38 by default
     if( pam is None) or (not pam):
         pam = "20bp-NGG-SpCas9"  # use Cas9 PAM
-        guide_seqlen = 20
+        guide_seqlen = 20  # set guide length to 20
     else:
         for c in pam.split("-"):
             if "bp" in c:  # use length specified in PAM
@@ -295,8 +332,8 @@ def change_url(
         if (
             not all(
                 [
-                    len(c) == len(text_guides.split("\n")[0]) 
-                    for c in text_guides.split("\n")
+                    len(guide) == len(text_guides.split("\n")[0]) 
+                    for guide in text_guides.split("\n")
                 ]
             )
         ):
@@ -340,7 +377,7 @@ def change_url(
     if code != 0:
         raise ValueError(f"An error occurred while running {cmd}")
     # NOTE test command for queue
-    cmd = f"touch {os.path.join(current_working_directory, RESULTS_DIR, job_id, 'queue.txt')}"
+    cmd = f"touch {os.path.join(current_working_directory, RESULTS_DIR, job_id, QUEUE_FILE)}"
     subprocess.call(cmd, shell=True)
     # ---- Set search parameters
     # ANNOTATION CHECK
@@ -400,393 +437,529 @@ def change_url(
         if code != 0:
             raise ValueError(f"An error occurred while running {cmd}")
         gencode_name = '.dummy.bed'
-
     # GENOME TYPE CHECK
     ref_comparison = False
-    genome_type = 'ref'  # Indicates if search is 'ref' or 'both'
-    if len(ref_var) > 0:
+    genome_type = "ref"  # search is 'ref' or 'both'
+    if ref_var > 0:
         ref_comparison = True
-        genome_type = 'both'
-    # if '+' in genome_selected:
-    #     genome_type = 'var'
-    # if ref_comparison:
-    #     genome_type = 'both'
-    # generate_index_ref = False
-    # generate_index_enr = False
+        genome_type = "both"
     search_index = True
-    # search = True
-    # annotation = True
-    # report = True
-    genome_selected = genome_selected.replace(' ', '_')
-    # genome_ref = genome_selected.split('+')[0]              # + char to separate ref and enr, eg Human_Genome_ref+Human_Genome_1000_genome_project
-    # if genome_ref == genome_selected:
-    #    ref_comparison = False
+    genome_selected = genome_selected.replace(" ", "_")
     genome_ref = genome_selected
-    # NOTE Indexed genomes names are PAM + _ + bMax + _ + genome_selected
-
+    # NOTE indexed genomes names format: 
+    # PAM + _ + bMax + _ + genome_selected
     # VCF CHECK
-    if genome_type == 'ref':
+    # TODO: check here
+    if genome_type == "ref":
         sample_list = None
-        # dictionary_directory = None
-    # else:
-    #    sample_list = current_working_directory + \
-    #        'samplesID/samples_' + genome_selected + '.txt'
-    #    dictionary_directory = current_working_directory + \
-    #        'dictionaries/dictionary_' + genome_selected
-
-    # print('valore del vcf', ref_var)
     sample_list = []
-    with open(result_dir+"/.list_vcfs.txt", 'w') as vcf_file:
-        if len(ref_var) == 0:
-            vcf_folder = "_"
-            vcf_file.write(vcf_folder+"\n")
-        if '1000G' in ref_var:
-            # vcf_folder = current_working_directory+"/VCFs/hg38_1000G/"
-            vcf_folder = "hg38_1000G/"
-            vcf_file.write(vcf_folder+"\n")
-            # sample_list.append(current_working_directory +                               'samplesIDs/hg38_1000G.samplesID.txt')
-            sample_list.append('hg38_1000G.samplesID.txt')
-            # dictionary_directory = current_working_directory + \
-            #     'dictionaries/dictionary_VCFs_1000_genome_project'
-        if 'HGDP' in ref_var:
-            # vcf_folder = current_working_directory+"/VCFs/hg38_HGDP/"
-            vcf_folder = "hg38_HGDP/"
-            vcf_file.write(vcf_folder+"\n")
-            # sample_list.append(current_working_directory +'samplesIDs/hg38_HGDP.samplesID.txt')
-            sample_list.append('hg38_HGDP.samplesID.txt')
-            # dictionary_directory = current_working_directory + \
-            #     'dictionaries/dictionary_VCFs_1000_genome_project'
-        if "PV" in ref_var:
-            # genome_selected = data_personal_genome[sel_cel_genome['row']
-            #                                       ]["Personal Genomes"]
-            # vcf_folder = current_working_directory+"/VCFs/" + vcf_input
-            vcf_folder = vcf_input
-            vcf_file.write(vcf_folder+"\n")
-            # genome_ref = genome_selected.split("+")[0].replace(" ", "_")
-            # sample_list = current_working_directory + 'samplesID/' + vcf_input
-            # sample_list.append(current_working_directory + "/samplesID/" + vcf_input + "/" + [f for f in listdir(
-            #     current_working_directory + 'samplesID/' + vcf_input) if isfile(join(current_working_directory + 'samplesID/' + vcf_input, f))][0])
-            # sample_list.append(current_working_directory + "/samplesIDs/" + vcf_input + ".samplesID.txt")
-            sample_list.append(vcf_input + ".samplesID.txt")
-            # dictionary_directory = current_working_directory + \
-            #     'dictionaries/'+genome_ref+'+'+vcf_input
-
-    with open(result_dir+"/.samplesID.txt", 'w') as sampleID_file:
-        for ele in sample_list:
-            sampleID_file.write(ele+"\n")
-    # for ele in sample_list:
-    #     os.system(f"tail -n +2 {ele} >> {result_dir}/sampleID.txt")
-    # os.system(f"sed -i 1i\"#SAMPLE_ID\tPOPULATION_ID\tSUPERPOPULATION_ID\tGENDER\" {result_dir}/sampleID.txt")
-
+    try:
+        with open(
+            os.path.join(result_dir, ".list_vcfs.txt"), mode="w"
+        ) as handle_vcf:
+            if not ref_var:
+                vcf_folder = "_"
+            if VARIANTS_DATA[0] in ref_var:  # 1000 genomes
+                vcf_folder = "hg38_1000G"
+                sample_list.append("hg38_1000G.samplesID.txt")  # 1KGP samples
+                handle_vcf.write(f"{vcf_folder}\n")
+            if VARIANTS_DATA[1] in ref_var:  # human genome diversity project
+                vcf_folder = "hg38_HGDP"
+                sample_list.append("hg38_HGDP.samplesID.txt")  # HGDP samples
+                handle_vcf.write(f"{vcf_folder}\n")
+            if VARIANTS_DATA[2] in ref_var:  # custom data
+                vcf_folder = vcf_input
+                sample_list.append(f"{vcf_input}.samplesID.txt")  # custom samples
+                handle_vcf.write(f"{vcf_folder}\n")
+    except OSError as e:
+        raise e
+    try:
+        with open(
+            os.path.join(result_dir, ".samplesID.txt"), mode="w"
+        ) as handle_samples:
+            for e in sample_list:
+                handle_samples.write(f"{e}\n")
+    except OSError as e:
+        raise e
+    # manage email sending
     send_email = False
     if adv_opts is None:
         adv_opts = []
-
-    if 'email' in adv_opts and dest_email is not None and len(dest_email.split('@')) > 1 and dest_email.split('@')[-1] != '':
+    if ("email" in adv_opts and check_mail_address(dest_email)):
         send_email = True
-        with open(result_dir + '/email.txt', 'w') as e:
-            e.write(dest_email + '\n')
-            # e.write(URL + '/load?job=' + job_id + '\n')
-            e.write(''.join(href.split('/')[:-1]
-                            ) + '/load?job=' + job_id + '\n')
-            e.write(datetime.utcnow().strftime("%m/%d/%Y, %H:%M:%S") + '\n')
-            # e.write('Job done. Parameters: etc etc')
-            e.close()
+        try:
+            with open(
+                os.path.join(result_dir, EMAIL_FILE), mode="w"
+            ) as handle_mail:
+                handle_mail.write(f"{dest_email}\n")
+                handle_mail.write(
+                    f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
+                )
+                handle_mail.write(
+                    f"{datetime.utcnow().strftime('%m/%d/%Y, %H:%M:%S')}\n"
+                )
+        except OSError as e:
+            raise e
     else:
-        dest_email = "_"
-
+        dest_email = "_"  # null value
+    # manage PAM
     pam_len = 0
-    with open(current_working_directory + 'PAMs/' + pam + '.txt') as pam_file:
-        pam_char = pam_file.readline()
-        index_pam_value = pam_char.split(' ')[-1]
-        if int(pam_char.split(' ')[-1]) < 0:
-            end_idx = int(pam_char.split(' ')[-1]) * (-1)
-            pam_char = pam_char.split(' ')[0][0: end_idx]
+    pam_begin = False
+    try:
+        with open(
+            os.path.join(current_working_directory, PAMS_DIR, f"{pam}.txt")
+        ) as handle_pam:
+            pam_char = handle_pam.readline()
+            index_pam_value = pam_char.split()[-1]
+            if int(pam_char.split()[-1]) < 0:
+                end_idx = int(pam_char.split()[-1]) * (-1)
+                pam_char = pam_char.split()[0][:end_idx]
+                pam_begin = True
+            else:
+                end_idx = int(pam_char.split()[-1])
+                pam_char = pam_char.split()[0][(end_idx * (-1)):]
             pam_len = end_idx
-            pam_begin = True
-        else:
-            end_idx = int(pam_char.split(' ')[-1])
-            pam_char = pam_char.split(' ')[0][end_idx * (-1):]
-            pam_len = end_idx
-            pam_begin = False
-
-    if guide_type == 'GS':
-        text_sequence = text_guides
-        # print(text_sequence)
-        # exit()
+    except OSError as e:
+        raise e
+    # manage guide type
+    if guide_type == "GS":
+        # text_sequence = text_guides
         # Extract sequence and create the guides
         guides = []
-        # extracted_seqs = list()
-        # for lines in text_sequence:
-        #     print('linea', lines)
-        for name_and_seq in text_sequence.split('>'):
-            if '' == name_and_seq:
+        for seqname_and_seq in text_guides.split(">"):
+            if not seqname_and_seq:
                 continue
-            name = name_and_seq[:name_and_seq.find('\n')]
-            seq = name_and_seq[name_and_seq.find('\n'):]
-            # seq = seq.strip().split()
-            # seq = ''.join(seq)
-            seq = seq.strip()
-            # name, seq = name_and_seq.strip().split('\n')
-            if 'chr' in seq:
-                # extracted_seq = extract_seq.extractSequence(
-                #         name, seq, genome_ref.replace(' ', '_'))
-                for single_row in seq.split('\n'):
-                    if '' == single_row:
+            seqname = seqname_and_seq[:seqname_and_seq.find("\n")]
+            seq = seqname_and_seq[seqname_and_seq.find("\n"):]
+            seq = seq.strip()  # remove endline
+            if "chr" in seq:
+                for line in seq.split("\n"):
+                    if not line:
                         continue
-                    pieces_of_row = single_row.strip().split()
-                    seq_to_extract = pieces_of_row[0]+":" + \
-                        pieces_of_row[1]+"-"+pieces_of_row[2]
-                    extracted_seq = extract_seq.extractSequence(
-                        name, seq_to_extract, genome_ref.replace(' ', '_'))
-                    guides.extend(convert_pam.getGuides(
-                        extracted_seq, pam_char, guide_seqlen, pam_begin))
+                    line_split = line.strip().split()
+                    seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
+                    assert bool(seqname)
+                    assert bool(seq_read)
+                    assert bool(genome_ref)
+                    seq_read = extract_seq.extractSequence(
+                        seqname, seq_read, genome_ref.replace(" ", "_")
+                    )
+                    
             else:
-                seq = seq.split()
-                seq = ''.join(seq)
-                extracted_seq = seq.strip()
-                guides.extend(convert_pam.getGuides(
-                    extracted_seq, pam_char, guide_seqlen, pam_begin))
-            # print('extracted seq', extracted_seq)
-            # guides.extend(convert_pam.getGuides(
-            #     extracted_seq, pam_char, len_guide_sequence, pam_begin))
-        guides = list(set(guides))
+                seq_read = "".join(seq.split()).strip()
+            guides.append(
+                convert_pam.getGuides(
+                    seq_read, pam_char, guide_seqlen, pam_begin
+                )
+            )
+        guides = list(set(guides))  # remove potential duplicate guides
+        # create new guides dataset
         if not guides:
-            guides = 'A'*guide_seqlen
-        text_guides = '\n'.join(guides).strip()
-    # print(text_guides, 'and', guides, 'and', pam_char)
-    # exit()
+            guides = "A" * guide_seqlen
+        text_guides = "\n".join(guides).strip()
+        assert bool(guides)
+    # force guides to be upper case
     text_guides = text_guides.upper()
-    new_test_guides = list()
-    for guide in text_guides.split('\n'):
-        if len(guide) == guide_seqlen:
-            new_test_guides.append(guide)
-    if not new_test_guides:
-        new_test_guides.append('A'*guide_seqlen)
-    text_guides = '\n'.join(new_test_guides)
-    for g in text_guides.split('\n'):
-        for c in g:
-            if c not in VALID_CHARS:
-                text_guides = text_guides.replace(c, '')
-    if len(text_guides.split('\n')) > 100:  # set limit to 100 guides per run in the website
-        text_guides = '\n'.join(text_guides.split('\n')[:100]).strip()
-    # len_guides = len(text_guides.split('\n')[0])
-    len_guides = guide_seqlen
-
-    # if 'A'*len_guide_sequence in text_guides:
-    #     error_in_seq_extract = True
-    #     return '/index', ''
-    #     error = dbc.Alert(
-    #         "The input spacer(s) or sequence is not a valid input, please check your input and retry.", color="danger")
-    #     visibility = {'display': 'true'}
-    #     return '/index', '', error, visibility
-
-    # Adjust guides by adding Ns to make compatible with Crispritz
-    if (pam_begin):
-        pam_to_file = pam_char + ('N' * len_guides) + ' ' + index_pam_value
-        pam_to_indexing = pam_char + ('N' * 25) + ' ' + index_pam_value
+    text_guides_tmp = [
+        guide for guide in text_guides.split("\n") if len(guide) == guide_seqlen
+    ]
+    if not text_guides_tmp:  # no suitable guide found
+        text_guides_tmp.append("A" * guide_seqlen)
+    text_guides = "\n".join(text_guides_tmp)
+    for guide in text_guides.split("\n"):
+        for nt in guide:
+            if nt not in VALID_CHARS:
+                # remove forbidden characters from guide
+                text_guides = text_guides.replace(nt, "")  
+    # set limit to 100 guides per run in the website
+    if len(text_guides.split("\n")) > 100:  
+        text_guides = "\n".join(text_guides.split("\n")[:100]).strip()
+    # Adjust guides by adding Ns (compatible with Crispritz)
+    if pam_begin:
+        pam_to_file = pam_char + ("N" * guide_seqlen) + " " + index_pam_value
+        pam_to_indexing = pam_char + ("N" * 25) + " " + index_pam_value
     else:
-        pam_to_file = ('N' * len_guides) + pam_char + ' ' + index_pam_value
-        pam_to_indexing = ('N' * 25) + pam_char + ' ' + index_pam_value
-
-    save_pam_file = open(result_dir + '/.pam.txt', 'w')
-    save_pam_file.write(pam_to_file)
-    save_pam_file.close()
-    pam = result_dir + '/.pam.txt'
-
-    guides_file = result_dir + '/.guides.txt'
-    if text_guides is not None and text_guides != '':
-        save_guides_file = open(result_dir + '/.guides.txt', 'w')
-        if (pam_begin):
-            text_guides = 'N' * pam_len + \
-                text_guides.replace('\n', '\n' + 'N' * pam_len)
-        else:
-            text_guides = text_guides.replace(
-                '\n', 'N' * pam_len + '\n') + 'N' * pam_len
-        save_guides_file.write(text_guides)
-        save_guides_file.close()
-
-    # if (int(dna) == 0 and int(rna) == 0):
-    #     search_index = False
+        pam_to_file = ("N" * guide_seqlen) + pam_char + " " + index_pam_value
+        pam_to_indexing = ("N" * 25) + pam_char + " " + index_pam_value
+    # store PAMs file
+    try:
+        with open(os.path.join(result_dir, PAMS_FILE), mode="w") as handle_pam:
+            handle_pam.write(pam_to_file)
+    except OSError as e:
+        raise e
+    pams_file = os.path.join(result_dir, PAMS_FILE)
+    guides_file = os.path.join(result_dir, GUIDES_FILE)
+    if text_guides:
+        try:
+            with open(guides_file, mode="w") as handle_guides:
+                if pam_begin:
+                    text_guides = "N" * pam_len + text_guides.replace(
+                        "\n", "\n" + "N" * pam_len
+                    )
+                else:
+                    text_guides = text_guides.replace(
+                        "\n", "N" * pam_len + "\n"
+                    ) + "N" * pam_len
+                handle_guides.write(text_guides)
+        except OSError as e:
+            raise e
+    # bulges
     max_bulges = rna
-    if (int(dna) > int(rna)):
+    assert isinstance(dna, int)
+    assert isinstance(rna, int)
+    if (dna > rna):
         max_bulges = dna
-
-    if (search_index):
+    if search_index:
         search = False
-
     # Check if index exists, otherwise set generate_index to true
-    # genome_indices_created = [f for f in listdir(
-        # current_working_directory + 'genome_library') if isdir(join(current_working_directory + 'genome_library', f))]
     genome_idx_list = []
-    if genome_type == 'ref':
-        genome_idx = pam_char + '_' + str(max_bulges) + '_' + genome_selected
+    if genome_type == "ref":
+        genome_idx = f"{pam_char}_{max_bulges}_{genome_selected}"
         genome_idx_list.append(genome_idx)
     else:
-        if "1000G" in ref_var:
-            genome_idx = pam_char + '_' + \
-                str(max_bulges) + '_' + genome_selected + \
-                '+hg38_1000G'
+        if VARIANTS_DATA[0] in ref_var:
+            genome_idx = f"{pam_char}_{max_bulges}_{genome_selected}+hg38_1000G"
             genome_idx_list.append(genome_idx)
-        if 'HGDP' in ref_var:
-            genome_idx = pam_char + '_' + \
-                str(max_bulges) + '_' + genome_selected + \
-                '+hg38_HGDP'
+        if VARIANTS_DATA[1] in ref_var:
+            genome_idx = f"{pam_char}_{max_bulges}_{genome_selected}+hg38_HGDP"
             genome_idx_list.append(genome_idx)
-        if "PV" in ref_var:
-            genome_idx = pam_char + '_' + \
-                str(max_bulges) + '_' + genome_selected + '+' + vcf_input
+        if VARIANTS_DATA[2] in ref_var:
+            genome_idx = f"{pam_char}_{max_bulges}_{genome_selected}+{vcf_input}"
             genome_idx_list.append(genome_idx)
-    genome_idx = ','.join(genome_idx_list)
-    # genome_idx = ''
-    # genome_idx_ref = ''
-    # for gidx in genome_indices_created:
-    # if pam_char in gidx and genome_selected in gidx:
-    # if int(gidx.split('_')[1]) >= int(max_bulges):
-    # if '+' in gidx:
-    # genome_idx = gidx
-    # genome_idx_ref = gidx.split('+')[0]
-
-    # if genome_idx == '':
-    # if int(max_bulges) > 0:
-    # generate_index_enr = True
-    # with open(result_dir + '/pam_indexing.txt', 'w+') as pam_id_file:
-    # pam_id_file.write(pam_to_indexing)
-    # genome_idx = pam_char + '_' + str(max_bulges) + '_' + genome_selected
-    # if genome_idx_ref == '':
-    # if int(max_bulges) > 0:
-    # generate_index_ref = True
-    # with open(result_dir + '/pam_indexing.txt', 'w+') as pam_id_file:
-    # pam_id_file.write(pam_to_indexing)
-    # genome_idx_ref = pam_char + '_' + \
-    # str(max_bulges) + '_' + genome_selected.split('+')[0]
-
-    # if ref_var != '':
-    #     generate_index_enr = False
-    # genome_idx = pam_char + '_' + '2' + '_' + genome_selected
-    # genome_idx_ref = genome_idx.split('+')[0]
-
+    genome_idx = ",".join(genome_idx_list)
     # Create .Params.txt file
-    with open(result_dir + '/.Params.txt', 'w') as p:
-        p.write('Genome_selected\t' + genome_selected + '\n')
-        p.write('Genome_ref\t' + genome_ref + '\n')
-        if search_index:
-            p.write('Genome_idx\t' + genome_idx + '\n')
-        else:
-            p.write('Genome_idx\t' + 'None\n')
-        p.write('Pam\t' + pam_char + '\n')
-        p.write('Max_bulges\t' + str(max_bulges) + '\n')
-        p.write('Mismatches\t' + str(mms) + '\n')
-        p.write('DNA\t' + str(dna) + '\n')
-        p.write('RNA\t' + str(rna) + '\n')
-        p.write('Annotation\t' + str(annotation_name) + '\n')
-        p.write('Nuclease\t' + str(nuclease) + '\n')
-        # p.write('Gecko\t' + str(gecko_comp) + '\n')
-        p.write('Ref_comp\t' + str(ref_comparison) + '\n')
-        p.close()
-
-    # 4) Check if input parameters (mms, bulges, pam, guides, genome) are the same as a previous search
-    all_result_dirs = [f for f in listdir(
-        current_working_directory + 'Results') if isdir(join(current_working_directory + 'Results', f))]
-    all_result_dirs.remove(job_id)
-    # all_result_dirs.remove('test')
-    for check_param_dir in all_result_dirs:
-        if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/.Params.txt'):
-            # if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/log.txt'):
-            # with open(current_working_directory + 'Results/' + check_param_dir + '/log.txt') as log:
-            # if ('Job\tDone' in log.read()):
-            if (filecmp.cmp(current_working_directory + 'Results/' + check_param_dir + '/.Params.txt', result_dir + '/.Params.txt')):
-                guides1 = open(current_working_directory + 'Results/' +
-                               check_param_dir + '/.guides.txt').read().split('\n')
-                guides2 = open(current_working_directory + 'Results/' +
-                               job_id + '/.guides.txt').read().split('\n')
-                if (collections.Counter(guides1) == collections.Counter(guides2)):
-                    if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/log.txt'):
+    try:
+        with open(
+            os.path.join(result_dir, PARAMS_FILE), mode="w"
+        ) as handle_params:
+            handle_params.write(f"Genome_selected\t{genome_selected}\n")
+            handle_params.write(f"Genome_ref\t{genome_ref}\n")
+            if search_index:
+                handle_params.write(f"Genome_idx\t{genome_idx}\n")
+            else:
+                handle_params.write(f"Genome_idx\tNone\n")
+            handle_params.write(f"Pam\t{pam_char}\n")
+            handle_params.write(f"Max_bulges\t{max_bulges}\n")
+            handle_params.write(f"Mismatches\t{mms}\n")
+            handle_params.write(f"DNA\t{dna}\n")
+            handle_params.write(f"RNA\t{rna}\n")
+            handle_params.write(f"Annotation\t{annotation_name}\n")
+            handle_params.write(f"Nuclease\t{nuclease}\n")
+            handle_params.write(f"Ref_comp\t{ref_comparison}\n")
+    except OSError as e:
+        raise e
+    # ---- Check if input parameters (mms, bulges, pam, guides, genome) match 
+    # those of previous searches
+    computed_results_dirs = [
+        d for d in os.listdir(
+            os.path.join(current_working_directory, RESULTS_DIR)
+        )
+        if (
+            os.path.isdir(
+                os.path.join(current_working_directory, RESULTS_DIR, d)
+            ) 
+            and not d.startswith(".")  # ignore hidden directories
+        )
+    ]
+    computed_results_dirs.remove(job_id)  # remove current job results
+    for res_dir in computed_results_dirs:
+        if os.path.exists(
+            os.path.join(
+                current_working_directory, RESULTS_DIR, res_dir, PARAMS_FILE
+            )
+        ):
+            if (
+                filecmp.cmp(
+                    os.path.join(
+                        current_working_directory, RESULTS_DIR, res_dir, PARAMS_FILE
+                    ),
+                    os.path.join(
+                        result_dir, PARAMS_FILE
+                    )
+                )
+            ):
+                try:
+                    # old job guides
+                    guides_old = open(
+                        os.path.join(
+                            current_working_directory, 
+                            RESULTS_DIR, 
+                            res_dir, 
+                            GUIDES_FILE
+                        )
+                    ).read().split("\n")
+                    # current job guides
+                    guides_current = open(
+                        os.path.join(
+                            current_working_directory, 
+                            RESULTS_DIR, 
+                            job_id, 
+                            GUIDES_FILE
+                        )
+                    ).read().split("\n")
+                except OSError as e:
+                    raise e
+                if (
+                    collections.Counter(guides_old) == collections.Counter(guides_current)
+                ):
+                    if os.path.exists(
+                        os.path.join(
+                            current_working_directory, 
+                            RESULTS_DIR,
+                            res_dir,
+                            LOG_FILE
+                        )
+                    ):
                         adj_date = False
-                        with open(current_working_directory + 'Results/' + check_param_dir + '/log.txt') as log:
-                            log_content = log.read().strip()
-                            if ('Job\tDone' in log_content):
-                                adj_date = True
-                                log_content = log_content.split('\n')
-                                new_date = subprocess.Popen(
-                                    ['echo $(date)'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                                out, err = new_date.communicate()
-                                rewrite = '\n'.join(
-                                    log_content[:-1]) + '\nJob\tDone\t' + out.decode('UTF-8').strip()
+                        try:
+                            with open(
+                                os.path.join(
+                                    current_working_directory, 
+                                    RESULTS_DIR,
+                                    res_dir,
+                                    LOG_FILE
+                                )
+                            ) as handle_log:
+                                log_data = handle_log.read().strip()
+                                if "Job\tDone" in log_data:
+                                    adj_date = True
+                                    log_data = log_data.split("\n")
+                                    cmd = "echo $(date)"
+                                    date_new = subprocess.Popen(
+                                        [cmd], 
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE,
+                                        shell=True
+                                    )
+                                    out, err = date_new.communicate()
+                                    date_write = "\n".join(log_data[:-1])
+                                    date_write += f"\nJob\tDone\t{out.decode('UTF-8').strip()}"
+                        except OSError as e:
+                            raise e
                         if adj_date:
-                            with open(current_working_directory + 'Results/' + check_param_dir + '/log.txt', 'w+') as log:
-                                log.write(rewrite)
-                                # Send mail
+                            try:
+                                with open(
+                                    os.path.join(
+                                        current_working_directory, 
+                                        RESULTS_DIR,
+                                        res_dir,
+                                        LOG_FILE
+                                    ),
+                                    mode="w+"
+                                ) as handle_log:
+                                    assert date_write
+                                    handle_log.write(date_write)
+                            except OSError as e:
+                                raise e
                             if send_email:
-                                with open(current_working_directory + 'Results/' + job_id + '/email.txt', 'w+') as e:
-                                    e.write(dest_email + '\n')
-                                    e.write(
-                                        ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
-                                    e.write(datetime.utcnow().strftime(
-                                        "%m/%d/%Y, %H:%M:%S") + '\n')
-                                # Send mail with file in job_id dir with link to job already done, note that job_id directory will be deleted
-                                # subprocess.call(['python ' + app_main_directory + 'send_mail.py ' +
-                                #                  current_working_directory + 'Results/' + job_id], shell=True)
-
+                                # Send mail with file in job_id dir with link to 
+                                # job already done, note that job_id directory 
+                                # will be deleted
+                                try:
+                                    with open(
+                                        os.path.join(
+                                            current_working_directory,
+                                            RESULTS_DIR,
+                                            res_dir,
+                                            EMAIL_FILE
+                                        ),
+                                        mode="w+"
+                                    ) as handle_email:
+                                        handle_email.write(f"{dest_email}\n")
+                                        handle_email.write(
+                                            f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
+                                        )
+                                        handle_email.write(
+                                            "".join(
+                                                [
+                                                    datetime.utcnow().strftime(
+                                                        "%m/%d/%Y, %H:%M:%S"
+                                                    ),
+                                                    "\n"
+                                                ]
+                                            )
+                                        )
+                                except OSError as e:
+                                    raise e
                         elif send_email:
-                            # Job is not finished, add this user email to email.txt and when job is done send to both
-                            if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/email.txt'):
-                                with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'a+') as e:
-                                    e.write('--OTHEREMAIL--')
-                                    e.write(dest_email + '\n')
-                                    e.write(
-                                        ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
-                                    e.write(datetime.utcnow().strftime(
-                                        "%m/%d/%Y, %H:%M:%S") + '\n')
+                            # Job is not finished yet. Add current user's email 
+                            # to email.txt
+                            if os.path.exists(
+                                os.path.join(
+                                    current_working_directory,
+                                    RESULTS_DIR,
+                                    res_dir,
+                                    EMAIL_FILE
+                                )
+                            ):
+                                try:
+                                    with open(
+                                        os.path.join(
+                                            current_working_directory,
+                                            RESULTS_DIR, res_dir,
+                                            EMAIL_FILE
+                                        ),
+                                        mode="a+"
+                                    ) as handle_email:
+                                        handle_email.write("--OTHEREMAIL--")
+                                        handle_email.write(f"{dest_email}\n")
+                                        handle_email.write(
+                                            f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
+                                        )
+                                        handle_email.write(
+                                            "".join(
+                                                [
+                                                    datetime.utcnow().strftime(
+                                                        "%m/%d/%Y, %H:%M:%S"
+                                                    ),
+                                                    "\n"
+                                                ]
+                                            )
+                                        )
+                                except OSError as e:
+                                    raise e
                             else:
-                                with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'w+') as e:
-                                    e.write(dest_email + '\n')
-                                    e.write(
-                                        ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
-                                    e.write(datetime.utcnow().strftime(
-                                        "%m/%d/%Y, %H:%M:%S") + '\n')
-
-                        subprocess.call(
-                            ['rm -r ' + current_working_directory + 'Results/' + job_id], shell=True)
-                        return '/load', '?job=' + check_param_dir
-                    else:
-                        # We may have entered a jobdir that was in queue
-                        if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/queue.txt'):
-                            if send_email:
-                                if os.path.exists(current_working_directory + 'Results/' + check_param_dir + '/email.txt'):
-                                    with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'a+') as e:
-                                        e.write('--OTHEREMAIL--')
-                                        e.write(dest_email + '\n')
-                                        e.write(
-                                            ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
-                                        e.write(datetime.utcnow().strftime(
-                                            "%m/%d/%Y, %H:%M:%S") + '\n')
-                                else:
-                                    with open(current_working_directory + 'Results/' + check_param_dir + '/email.txt', 'w+') as e:
-                                        e.write(dest_email + '\n')
-                                        e.write(
-                                            ''.join(href.split('/')[:-1]) + '/load?job=' + job_id + '\n')
-                                        e.write(datetime.utcnow().strftime(
-                                            "%m/%d/%Y, %H:%M:%S") + '\n')
-                            return '/load', '?job=' + check_param_dir
-
-    '''
-    command = app_main_directory + 'PostProcess/./submit_job.final.sh ' + current_working_directory + 'Results/' + job_id + ' ' + current_working_directory +  'Genomes/' + genome_selected + ' ' + current_working_directory + 'Genomes/' + genome_ref + ' ' + current_working_directory + 'genome_library/' + genome_idx + (
-        ' ' + pam + ' ' + guides_file + ' ' + str(mms) + ' ' + str(dna) + ' ' + str(rna) + ' ' + str(search_index) + ' ' + str(search) + ' ' + str(annotation) + (
-            ' ' + str(report) + ' ' + str(gecko_comp) + ' ' + str(ref_comparison) + ' ' + current_working_directory +  'genome_library/' + genome_idx_ref + ' ' + str(send_email) + ' '  + current_working_directory +  'Annotations/' + annotation_file +
-            ' ' + genome_type + ' ' + app_main_directory + ' ' + str(dictionary_directory) + ' ' + str(sample_list) + ' ' + str(generate_index_ref) + ' ' + str(generate_index_enr) + ' ' + current_working_directory))
-    '''
+                                try:
+                                    with open(
+                                        os.path.join(
+                                            current_working_directory,
+                                            RESULTS_DIR,
+                                            res_dir,
+                                            EMAIL_FILE
+                                        ),
+                                        mode="w+"
+                                    ) as handle_email:
+                                        handle_email.write(f"{dest_email}\n")
+                                        handle_email.write(
+                                            f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
+                                        )
+                                        handle_email.write(
+                                            "".join(
+                                                [
+                                                    datetime.utcnow().strftime(
+                                                        "%m/%d/%Y, %H:%M:%S"
+                                                    ),
+                                                    "\n"
+                                                ]
+                                            )
+                                        )
+                                except OSError as e:
+                                    raise e
+                        current_job_dir = os.path.join(
+                            current_working_directory, RESULTS_DIR, job_id
+                        )
+                        cmd = f"rm -r {current_job_dir}"
+                        code = subprocess.call(cmd, shell=True)
+                        if code != 0:
+                            raise ValueError(
+                                f"An error occurred while running {cmd}"
+                            )
+                else:  # We may have entered a job directory that was in queue
+                    if os.path.exists(
+                        os.path.join(
+                            current_working_directory, 
+                            RESULTS_DIR, 
+                            res_dir, 
+                            QUEUE_FILE
+                        )
+                    ):
+                        if send_email:
+                            if os.path.exists(
+                                os.path.join(
+                                    current_working_directory,
+                                    RESULTS_DIR,
+                                    res_dir, 
+                                    EMAIL_FILE
+                                )
+                            ):
+                                try:
+                                    with open(
+                                        os.path.join(
+                                            current_working_directory,
+                                            RESULTS_DIR, 
+                                            res_dir, 
+                                            EMAIL_FILE
+                                        ),
+                                        mode="a+"
+                                    ) as handle_email:
+                                        handle_email.write("--OTHEREMAIL--")
+                                        handle_email.write(f"{dest_email}\n")
+                                        handle_email.write(
+                                            f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n")
+                                        handle_email.write(
+                                            "".join(
+                                                [
+                                                    datetime.utcnow().strftime(
+                                                        "%m/%d/%Y, %H:%M:%S"
+                                                    ),
+                                                    "\n"
+                                                ]
+                                            )
+                                        )
+                                except OSError as e:
+                                    raise e
+                            else:
+                                try:
+                                    with open(
+                                        os.path.join(
+                                            current_working_directory,
+                                            RESULTS_DIR,
+                                            res_dir,
+                                            EMAIL_FILE
+                                        ),
+                                        mode="w+"
+                                    ) as handle_email:
+                                        handle_email.write(f"{dest_email}\n")
+                                        handle_email.write(
+                                            f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
+                                        )
+                                        handle_email.write(
+                                            "".join(
+                                                [
+                                                    datetime.utcnow().strftime(
+                                                        "%m/%d/%Y, %H:%M:%S"
+                                                    ),
+                                                    "\n"
+                                                ]
+                                            )
+                                        )
+                                except OSError as e:
+                                    raise e
+                return ("/load", f"?job={res_dir}")
     # merge default is 3 nt wide
     merge_default = 3
     print(
-        f"Submitted JOB {job_id}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
-    command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/.list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/.samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {merge_default} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Annotations/{gencode_name} {dest_email} 1> {result_dir}/log_verbose.txt 2>{result_dir}/log_error.txt"
-    # with open(f"{result_dir}/log_verbose.txt", 'w') as log_verbose:
-    # log_verbose = open(f"{result_dir}/log_verbose.txt", 'w')
-    # , stdout=log_verbose)
-    exeggutor.submit(subprocess.run, command, shell=True)
-    # subprocess.run(command, shell=True, stdout=log_verbose)
-    return '/load', '?job=' + job_id
+        str(
+            f"Submitted JOB {job_id}. STDOUT > log_verbose.txt; STDERR > "
+            "log_error.txt"
+        )
+    )
+    # TODO: use functions rather than calling scripts
+    run_job_sh = os.path.join(
+        app_main_directory, 
+        POSTPROCESS_DIR, 
+        "submit_job_automated_new_multiple_vcfs.sh"
+    )
+    genome = os.path.join(
+        current_working_directory, GENOMES_DIR, genome_ref
+    )
+    vcfs = os.path.join(result_dir, ".list_vcfs.txt")
+    annotation = os.path.join(
+        current_working_directory, ANNOTATIONS_DIR, annotation_name
+    )
+    samples_ids = os.path.join(result_dir, SAMPLES_FILE)
+    postprocess = os.path.join(app_main_directory, POSTPROCESS_DIR)
+    gencode = os.path.join(
+        current_working_directory, ANNOTATIONS_DIR, gencode_name
+    )
+    log_verbose = os.path.join(result_dir, "log_verbose.txt")
+    log_error = os.path.join(result_dir, "log_error.txt")
+    assert isinstance(dna, int)
+    assert isinstance(rna, int)
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} 1> {log_verbose} 2>{log_error}"
+    # run job
+    exeggutor.submit(subprocess.run, cmd, shell=True)
+    return ("/load", f"?job={job_id}")
 
 
 # Check input presence
@@ -1731,3 +1904,32 @@ def indexPage():
     # )
     index_page = html.Div(final_list, style={'margin': '1%'})
     return index_page
+
+
+def check_mail_address(mail_address: str) -> bool:
+    """Check mail address consistency.
+
+    ...
+
+    Parameters
+    ----------
+    mail_address : str
+        Mail address
+
+    Returns
+    -------
+    bool
+    """
+
+    if not mail_address:  # check wether is None or empty
+        return False
+    assert mail_address is not None
+    if not isinstance(mail_address, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(mail_address).__name__}"
+        )
+    mail_address_fields = mail_address.split("@")
+    if (len(mail_address_fields) > 1 and bool(mail_address_fields[-1])):
+        return True
+    return False
+    
