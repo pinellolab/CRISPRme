@@ -744,7 +744,7 @@ fi
 #keep log_error but no block visualization
 mv $output_folder/log_error.txt $output_folder/log_error_no_check.txt
 #removing single best files after use
-# rm $final_res.bestCFD.txt
-# rm $final_res.bestmmblg.txt
-# rm $final_res.bestCRISTA.txt
+rm $final_res.bestCFD.txt
+rm $final_res.bestmmblg.txt
+rm $final_res.bestCRISTA.txt
 #KEEP FILE TO TEST
