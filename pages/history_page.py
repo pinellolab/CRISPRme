@@ -355,7 +355,7 @@ def generate_table_results(
     return final_list
 
 
-def history_page(URL):
+def history_page():
     """Construct CRISPRme history webpage.
 
     ...
@@ -371,9 +371,6 @@ def history_page(URL):
     """
 
     results = get_results()
-    if 'crisprme.di.univr.it' in URL:
-        #drop results if URL is not local to avoid sharing results over web page
-        results.drop(results.index,inplace=True)
     final_list = []
     final_list.append(
         html.Div(

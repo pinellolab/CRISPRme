@@ -82,7 +82,7 @@ def changePage(href, path, search, hash_guide):
     if path == '/contacts':
         return contacts_page.contact_page(), URL + '/load' + search
     if path == '/history':
-        return history_page.history_page(URL), URL + '/load' + search
+        return history_page.history_page(), URL + '/load' + search
     # if path == '/genomes':
     #     genomes_page = html.Div(genome_database.get_genomes(
     #         current_working_directory), style={'margin': '1%'})
