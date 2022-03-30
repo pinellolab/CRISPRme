@@ -21,7 +21,7 @@ output_folder=$(realpath ${12})
 starting_dir=${13}
 ncpus=${14}
 
-echo "CPU used: $ncpus" 
+echo "CPU used: $ncpus"
 #echo $ref_folder
 #echo $vcf_folder
 #echo $guide_file
@@ -43,33 +43,31 @@ fi
 
 touch $output_folder/$log
 
-echo "Post-analysis Start:" $(date +%F-%T) >> $output_folder/$log
-echo "########################################" >> $output_folder/$log
-echo "INPUT:" >> $output_folder/$log
-echo "Reference - $ref_name" >> $output_folder/$log
-echo "VCFs - $vcf_name" >> $output_folder/$log
-echo "Guide - $guide_name" >> $output_folder/$log
-echo "PAM - $pam_name" >> $output_folder/$log
-echo "Annotation - $annotation_name" >> $output_folder/$log
-echo "########################################" >> $output_folder/$log
+echo "Post-analysis Start:" $(date +%F-%T) >>$output_folder/$log
+echo "########################################" >>$output_folder/$log
+echo "INPUT:" >>$output_folder/$log
+echo "Reference - $ref_name" >>$output_folder/$log
+echo "VCFs - $vcf_name" >>$output_folder/$log
+echo "Guide - $guide_name" >>$output_folder/$log
+echo "PAM - $pam_name" >>$output_folder/$log
+echo "Annotation - $annotation_name" >>$output_folder/$log
+echo "########################################" >>$output_folder/$log
 
 declare -a real_chroms
-for file_chr in "$ref_folder"/*.fa
-do
+for file_chr in "$ref_folder"/*.fa; do
 	file_name=$(basename $file_chr)
 	chr=$(echo $file_name | cut -f 1 -d'.')
 	echo "$chr"
-	real_chroms+=("$chr")	
+	real_chroms+=("$chr")
 done
 
 if [ "$vcf_name" != "_" ]; then
 	declare -a array_fake_chroms
-	for file_chr in "$vcf_folder"/*.vcf.gz
-	do
+	for file_chr in "$vcf_folder"/*.vcf.gz; do
 		file_name=$(basename $file_chr)
 		chr=$(echo $file_name | cut -f 2 -d'.')
 		echo "fake$chr"
-		array_fake_chroms+=("fake$chr")	
+		array_fake_chroms+=("fake$chr")
 	done
 fi
 
@@ -105,7 +103,7 @@ fi
 
 if [ "$vcf_name" != "_" ]; then
 	dict_folder="$output_folder/dictionaries_$vcf_name/"
-	echo "Post-analysis SNPs Start: "$(date +%F-%T) >> $output_folder/$log	
+	echo "Post-analysis SNPs Start: "$(date +%F-%T) >>$output_folder/$log
 	final_res="$output_folder/final_results_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt"
 	final_res_alt="$output_folder/final_results_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt"
 	if ! [ -f "$final_res" ]; then
@@ -120,15 +118,14 @@ if [ "$vcf_name" != "_" ]; then
 		echo "This result already exists. $final_res_alt"
 		exit
 	fi
-	
-	./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID $dict_folder $final_res $final_res_alt $ncpus
-	
-	echo "Post-analysis SNPs End: "$(date +%F-%T) >> $output_folder/$log
 
-	for key in "${real_chroms[@]}"
-	do
-		tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt" >> "$final_res" 
-		tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt" >> "$final_res" 
+	./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID $dict_folder $final_res $final_res_alt $ncpus
+
+	echo "Post-analysis SNPs End: "$(date +%F-%T) >>$output_folder/$log
+
+	for key in "${real_chroms[@]}"; do
+		tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt" >>"$final_res"
+		tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt" >>"$final_res"
 		rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt"
 		rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt"
 	done
@@ -149,20 +146,19 @@ else
 		echo "This result already exists. $final_res_alt"
 		exit
 	fi
-	for key in "${real_chroms[@]}"
-	do
+	for key in "${real_chroms[@]}"; do
 		echo "Processing $key"
-		LC_ALL=C grep -P "$key\t" "$output_folder/crispritz_targets/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" > "$output_folder/crispritz_targets/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
+		LC_ALL=C grep -F -w $key "$output_folder/crispritz_targets/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/crispritz_targets/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 		touch "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 		./scriptAnalisiNNN_v3.sh "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key" "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key" "${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key" "$annotation_file" "_" "$ref_folder" $mm $bDNA $bRNA "$guide_file" "$pam_file" "$sampleID" "$output_folder"
 		rm "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 		rm "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 		header=$(head -1 "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt")
-		tail -n +2 "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt" >> "$final_res" #"$output_folder/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
-		tail -n +2 "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt" >> "$final_res" #"$output_folder/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.altCFD.txt.tmp"
+		tail -n +2 "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt" >>"$final_res" #"$output_folder/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
+		tail -n +2 "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt" >>"$final_res"  #"$output_folder/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.altCFD.txt.tmp"
 		rm "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt"
 		rm "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt"
-		
+
 	done
 
 fi
@@ -174,40 +170,37 @@ sed -i 1i"#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Posi
 if [ "$vcf_name" != "_" ]; then
 	echo "SNPs analysis ended. Starting INDELs analysis"
 	cd "$starting_dir"
-	
-	echo "Post-analysis INDELs Start: "$(date +%F-%T) >> $output_folder/$log	
+
+	echo "Post-analysis INDELs Start: "$(date +%F-%T) >>$output_folder/$log
 	./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID "$output_folder/log_indels_$vcf_name" $final_res $final_res_alt $ncpus
-	echo "Post-analysis INDELs End: "$(date +%F-%T) >> $output_folder/$log	
-	for key in "${array_fake_chroms[@]}"
-	do
-		tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt" >> "$final_res" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
-		tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt" >> "$final_res" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.altCFD.txt.tmp"
+	echo "Post-analysis INDELs End: "$(date +%F-%T) >>$output_folder/$log
+	for key in "${array_fake_chroms[@]}"; do
+		tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt" >>"$final_res" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
+		tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt" >>"$final_res"  #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.altCFD.txt.tmp"
 		rm "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt"
 		rm "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt"
 	done
 
 fi
 
-
-
 cd "$starting_dir"
 
-echo "Merging Close Targets Start: "$(date +%F-%T) >> $output_folder/$log	
+echo "Merging Close Targets Start: "$(date +%F-%T) >>$output_folder/$log
 ./merge_close_targets_cfd.sh $final_res $final_res.trimmed $merge_t
 mv $final_res.trimmed $final_res
 mv $final_res.trimmed.discarded_samples $final_res_alt
 
 #./merge_close_targets_cfd.sh $final_res_alt $final_res_alt.trimmed $merge_t
 #rm $final_res_alt
-echo "Merging Close Targets End: "$(date +%F-%T) >> $output_folder/$log	
+echo "Merging Close Targets End: "$(date +%F-%T) >>$output_folder/$log
 
-echo "Merging Alternative Chromosomes Start: "$(date +%F-%T) >> $output_folder/$log	
+echo "Merging Alternative Chromosomes Start: "$(date +%F-%T) >>$output_folder/$log
 ./merge_alt_chr.sh $final_res $final_res.chr_merged
 #rm $final_res.trimmed
 
 #./merge_alt_chr.sh $final_res_alt.trimmed $final_res_alt.trimmed.chr_merged
 #rm $final_res_alt.trimmed
-echo "Merging Alternative Chromosomes End: "$(date +%F-%T) >> $output_folder/$log	
+echo "Merging Alternative Chromosomes End: "$(date +%F-%T) >>$output_folder/$log
 
 mv $final_res.chr_merged $final_res
 #mv $final_res_alt.trimmed.chr_merged $final_res_alt
@@ -224,7 +217,5 @@ fi
 mv $output_folder/snps.CFDGraph.txt $output_folder/cfd_graphs
 mv $output_folder/indels.CFDGraph.txt $output_folder/cfd_graphs
 
-
-echo "Post-analysis End: "$(date +%F-%T) >> $output_folder/$log
+echo "Post-analysis End: "$(date +%F-%T) >>$output_folder/$log
 echo "POST-ANALYSIS END"
-
