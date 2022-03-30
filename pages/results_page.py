@@ -808,7 +808,7 @@ def download_general_table(
     [Input("interval-integrated-results", "n_intervals")],
     [State("div-info-integrated-results", "children"), State("url", "search")],
 )
-def download_general_table(
+def download_integrated_results(
     n: int, file_to_load: str, search: str
 ) -> Tuple[str, bool]:  # file to load =
     """Create the link to download CRISPRme integrated result table.
@@ -2939,7 +2939,7 @@ def update_table_general_profile(
                     error_guides.append(e_g.strip())
         except OSError as e:
             raise e
-    # Get guide from .guide.txt
+    # Get guides from .guide.txt
     try:
         with open(
             os.path.join(
@@ -2954,7 +2954,7 @@ def update_table_general_profile(
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        "".join([".", job_id, ".acfd_", filter_criterion, ".txt"]),
+        f".{job_id}.acfd_{filter_criterion}.txt"
     )
     if not os.path.isfile(acfd_file):
         raise FileNotFoundError(f"Unable to locate {acfd_file}")
@@ -3006,34 +3006,31 @@ def update_table_general_profile(
             sep="\t",
             na_filter=False
         )
-        data_guides = {}
-        data_guides["Guide"] = g
-        data_guides["Nuclease"] = nuclease
+        data_guides = {"Guide": g, " Nuclease": nuclease}
         data_general_count_copy = data_general_count.copy()
-        count_bulges = []
-        origin_ref = []
-        origin_var = []
-        for the_bulge in range(max_bulges + 1):
-            origin_ref.append("REF")
-            origin_var.append("VAR")
-            count_bulges.append(the_bulge)
+        count_bulges = [blg for blg in range(max_bulges + 1)]
+        origin_ref = ["REF" for _ in range(max_bulges + 1)]
+        origin_var = ["VAR" for _ in range(max_bulges + 1)]
+        # merge count bulges lists
         count_bulges_concat = count_bulges + count_bulges
+        # merge genome of origin lists
         origin_concat = origin_ref + origin_var
-        data_general_count_copy.insert(0, "Genome", origin_concat, True)
-        data_general_count_copy.insert(1, "Bulges", count_bulges_concat, True)
+        data_general_count_copy["Genome"] = origin_concat
+        data_general_count_copy["Bulges"] = count_bulges_concat
         if "NO SCORES" not in all_scores:
             data_guides["CFD"] = acfd[i]
             table_to_file.append(f"CFD: {acfd[i]}")  # append CFD to table
             table_to_file.append("\t\t\t\tMismatches")
             table_to_file.append(
-                data_general_count_copy.to_string(index=False))
+                data_general_count_copy.to_string(index=False)
+            )
             if genome_type == "both":
                 data_guides["Doench 2016"] = doench[i]
             else:
                 data_guides["Doench 2016"] = doench[i]
         if genome_type == "both":
             tmp = [str(j) for j in range(max_bulges + 1)] * 2
-            tmp.insert(len(tmp) // 2, "")
+            tmp.insert(len(tmp) // 2, "")  # add new line in table
             data_guides["# Bulges"] = "\n".join(tmp)
         else:
             tmp = [str(j) for j in range(max_bulges + 1)]
@@ -3051,11 +3048,6 @@ def update_table_general_profile(
                                 ]
                             )
                         )
-                    elif j == 2:
-                        data_guides["Total"].append(
-                            f"\t{str(sum(data_general_count.iloc[j, :]))}"
-                        )
-                        data_guides["Total"].append("\t")
                     elif j == 4:
                         data_guides["Total"].append(
                             "\t\t".join(
@@ -3067,8 +3059,10 @@ def update_table_general_profile(
                         )
                     else:
                         data_guides["Total"].append(
-                            f"\t{str(sum(data_general_count.iloc[i, :]))}"
+                            f"\t{str(sum(data_general_count.iloc[j, :]))}"
                         )
+                        if j == 2:  # add empty line
+                            data_guides["Total"].append("")
             elif max_bulges == 1:
                 for j in range(len(data_guides["# Bulges"].split("\n")) - 1):
                     if j == 1:
