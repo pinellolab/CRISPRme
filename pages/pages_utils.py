@@ -201,6 +201,8 @@ ASSETS_DIR = "assets"
 ANNOTATIONS_DIR = "Annotations"
 # PAMs directory
 PAMS_DIR = "PAMs"
+# genomes directory
+GENOMES_DIR = "Genomes"
 # Post-process directory
 POSTPROCESS_DIR = "PostProcess"
 # Run parameters file
@@ -973,3 +975,63 @@ def parse_contents(contents: str) -> bytearray:
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)  # decode data
     return decoded
+
+
+def select_same_len_guides(guides: str) -> str:
+    """If the user provides guides of different lengths, compute the length of 
+    the first given guide and keep only those with the same length.
+
+    ...
+
+    Parameters
+    ----------
+    guides : str
+        Guides
+
+    Returns
+    -------
+    str
+        Selected guides
+    """
+
+    if not isinstance(guides, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(guides).__name__}")
+    length = len(guides.split("\n")[0])
+    same_len_guides = [
+        guide for guide in guides.split("\n") if len(guide) == length
+    ]
+    same_len_guides = "\n".join(same_len_guides).strip()
+    return same_len_guides
+
+
+def get_available_PAM() -> List:
+    """Recover the PAMs currently available in the /PAMs directory.
+
+    ...
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    List
+        Available PAM files
+    """
+    
+    pams_files = [
+        f for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
+        if (
+            not f.startswith(".")  # ignore hidden files
+            and os.path.isfile(
+                os.path.join(current_working_directory, PAMS_DIR, f)
+            )
+        )
+    ]
+    # remove '.txt' from filenames
+    pams_files = [f.replace(".txt", "") for f in pams_files]
+    # skip temporary PAMs (used during dictionary updating)
+    pams = [
+        {"label": pam, "value": pam} for pam in pams_files if "tempPAM" not in pam
+    ]
+    return pams

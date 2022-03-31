@@ -2,6 +2,7 @@
 """
 
 
+from logging import PlaceHolder
 from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
@@ -19,7 +20,9 @@ from .pages_utils import (
     RESULTS_DIR,
     SAMPLES_FILE, 
     VALID_CHARS, 
-    VARIANTS_DATA
+    VARIANTS_DATA,
+    select_same_len_guides,
+    get_available_PAM
 )
 from app import (
     URL, 
@@ -34,7 +37,7 @@ from app import (
 
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -962,6 +965,8 @@ def change_url(
     return ("/load", f"?job={job_id}")
 
 
+# TODO: Fix me
+
 # Check input presence
 @ app.callback(
     [Output('submit-job', 'n_clicks'),
@@ -1207,116 +1212,124 @@ def checkInput(n, n_close, genome_selected, pam, guide_type, text_guides, mms, d
     [Input('tabs', 'active_tab')],
     [State('fade-len-guide', 'is_in')]
 )
-def resetTab(current_tab, is_in):
-    '''
-    Manages the fading of the Dropdown for the guide length when the tab 'Sequence' is active.
+def reset_tab(current_tab: str, is_in: bool) -> bool:
+    """Manages the fading of the dropdown bar for the guide length, when the tab 
+    'Sequence' is active.
 
-    ***Args***
+    ...
 
-    + [**current_tab**] **tabs** (*active_tab*): string of the ID of the current active tab
-    + [**is_in**] **fade-len-guide** (*is_in*): True if the Dropdown guide length element is displayed, False otherwise
+    Parameters
+    ----------
+    current_tab : str
+        Current active tab
+    is_in : bool
+        True if dropdown's guide length is displayed
 
-    ***Returns***
+    Returns
+    -------
+    bool
+    """
 
-    + **fade-len-guide** (*is_in*): True in order to show the Dropdown guide length element, False to hide it
-    '''
+    if current_tab is not None:
+        if not isinstance(current_tab, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(current_tab).__name__}"
+            )
     if current_tab is None:
-        raise PreventUpdate
-
-    if current_tab == 'guide-tab':
+        raise PreventUpdate  # do not do anything
+    if current_tab == "guide-tab":
         return False
     return True
 
-# Email validity
 
-
+# Check if email address is valid
 @ app.callback(
     Output('example-email', 'style'),
     [Input('example-email', 'value')]
 )
-def checkEmailValidity(val):
-    '''
-    Checks email validity (i.e. an '@' is present) and changes the border to green or red accordingly.
+def is_email_valid(email: str) -> Dict[str, str]:
+    """Check if the provided mail address is valid.
+    Change the mail box borders to green or red, accordingly.
 
-    ***Args***
+    ...
 
-    + [**val**] **example-email** (*value*): string of the email
+    Parameters
+    ----------
+    email: str
+        Email address
 
-    ***Returns***
+    Returns
+    -------
+    Dict[str, str]
+        Email box borders color
+    """
+    if email is not None:
+        if not isinstance(email, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(email).__name__}"
+            )
+    if email is None:
+        raise PreventUpdate  # do not do anything
+    if ("@" in email) and (len(email.split("@")) == 2):  
+        # mail address should be valid
+        return {"border": "1px solid #94f033", "outline": "0"}
+    return {"border": "1px solid red"}
 
-    + **example-email** (*style*): dictionary of the style for the Input email: change border to red (if no '@' in **val**) or to green
-    '''
-    if val is None:
-        raise PreventUpdate
 
-    if '@' in val:
-        return {'border': '1px solid #94f033', 'outline': '0'}
-    return {'border': '1px solid red'}
-
-#################################################
 # Fade in/out email
-
-
 @ app.callback(
     Output('example-email', 'disabled'),
     [Input('checklist-mail', 'value')]
 )
-def disabled_mail(checklist_value):
-    # print('value', checklist_ value)
-    if 'email' not in checklist_value:
+def disabled_mail(checklist_value: List) -> bool:
+    """Disable email if not in the checklist.
+    
+    ...
+    
+    Parameters
+    ----------
+    checklist_value : List
+    
+    Returns
+    -------
+    bool
+    """
+
+    if not isinstance(checklist_value, list):
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
+        )
+    if "email" not in checklist_value:
         return True
-    elif 'email' in checklist_value:
-        return False
+    return False
 
 
+# disable job ID
 @ app.callback(
     Output('job-name', 'disabled'),
     [Input('checklist-job-name', 'value')]
 )
-def disable_job_name(checklist_value):
-    # print('value', checklist_value)
-    if 'job_name' not in checklist_value:
+def disable_job_name(checklist_value: List) -> bool:
+    """Disable job name if not in the checklist.
+    
+    ...
+    
+    Parameters
+    ----------
+    checklist_value : List
+    
+    Returns
+    -------
+    bool
+    """
+
+    if not isinstance(checklist_value, list):
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
+        )
+    if "job_name" not in checklist_value:
         return True
-    elif 'job_name' in checklist_value:
-        return False
-
-    # @app.callback(
-    #     [Output("fade", "is_in"),
-    #      Output('example-email', 'disabled')],
-    #     [Input("checklist-mail", "value")],
-    #     [State("fade", "is_in")],
-    # )
-    # def fade_toggle(selected_options, is_in):
-    #     '''
-    #     Manages the fading of the InputBox for the email when the option 'Notify me by email' is selected/deselected.
-
-    #     ***Args***
-
-    #     + [**selected_options**] **checklist-mail** (*value*): list of IDs of the options checked
-    #     + [**is_in**] **fade** (*is_in*): True if the Input email element is displayed, False otherwise
-
-    #     ***Returns***
-
-    #     + **fade** (*is_in*): True in order to show the Input email element, False to hide it
-    #     '''
-    #     if selected_options is None:
-    #         # return False
-    #         return True, True
-    #     if 'email' in selected_options:
-    #         return True, False
-    #     # return False
-    #     return True, True
-
-    # @app.callback(
-    #     [Output('div-browse-PV', 'style')],
-    #     [Input('radio-genome', 'value')]
-    # )
-    # def changePlaceholderGuideTextArea(value):
-    #     # print(value)
-    #     if value == 'PV':
-    #         return [{'visibility': 'visible'}]
-    #     else:
-    #         return [{'visibility': 'visible'}]
+    return False
 
 
 @ app.callback(
@@ -1324,11 +1337,27 @@ def disable_job_name(checklist_value):
      Output('vcf-dropdown', 'value')],
     [Input('checklist-variants', 'value')]
 )
-def change_disabled_vcf_dropdown(checklist_value):
-    if 'PV' in checklist_value:
+def change_disabled_vcf_dropdown(checklist_value: List) -> Tuple[bool, str]:
+    """Disable VCF dropdown if not in the checklist.
+    
+    ...
+    
+    Parameters
+    ----------
+    checklist_value : List
+    
+    Returns
+    -------
+    Tuple[bool, str]
+    """
+
+    if not isinstance(checklist_value, list):
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
+        )
+    if "PV" in checklist_value:
         return False, ""
-    else:
-        return True, ""
+    return True, ""
 
 
 @ app.callback(
@@ -1336,104 +1365,107 @@ def change_disabled_vcf_dropdown(checklist_value):
      Output('annotation-dropdown', 'value')],
     [Input('checklist-annotations', 'value')]
 )
-def change_disabled_vcf_dropdown(checklist_value):
-    if 'MA' in checklist_value:
+def change_disabled_annotation_dropdown(
+    checklist_value: List
+) -> Tuple[bool, str]:
+    """Disable annotation dropdown if not in the checklist.
+    
+    ...
+    
+    Parameters
+    ----------
+    checklist_value : List
+    
+    Returns
+    -------
+    Tuple[bool, str]
+    """
+
+    if not isinstance(checklist_value, list):
+        raise TypeError(
+            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
+        )
+    if "MA" in checklist_value:
         return False, ""
-    else:
-        return True, ""
+    return True, ""
 
 
-# @app.callback(
-#     [Output('div-browse-annotation', 'style')],
-#     [Input('checklist-annotations', 'value')]
-# )
-# def changePlaceholderGuideTextArea(value):
-#     # print(value)
-#     if value == 'MA':
-#         return [{'visibility': 'visible'}]
-#     else:
-#         return [{'visibility': 'visible'}]
-
-
+# select Cas protein from dropdown
 @ app.callback(
     [Output('available-pam', 'options')],
     [Input('available-cas', 'value')]
 )
-def changePlaceholderGuideTextArea(value):
-    all_options = availablePAM()
-    correct_options = []
-    for option in all_options:
-        if value == option['label'].split('.')[0].split('-')[2]:
-            correct_options.append(
-                {'label': option['label'], 'value': option['value']})
-    return [correct_options]
-
-
-@ app.callback(
-    [Output('text-guides', 'placeholder')],
-    [Input('radio-guide', 'value')]
-)
-def changePlaceholderGuideTextArea(value):
-    if value == 'IP':
-        return ['GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC']
-    elif value == 'GS':
-        return ['>sequence1\nAAGTCCCAGGACTTCAGAAGagctgtgagaccttggc\n>sequence_bed\nchr1 11130540 11130751\nchr1 1023000 1024000']
-
-
-def select_same_len_guides(guides: str) -> str:
-    """If the user provides guides of different lengths, compute the length of 
-    the first given guide and keep only those with the same length.
+def select_cas_pam_dropdown(casprot: str) -> List:
+    """Select the available Cas proteins and their corresponding PAMs.
 
     ...
 
     Parameters
     ----------
-    guides : str
-        Guides
+    casprot : str
+        Cas protein
 
     Returns
     -------
-    str
-        Selected guides
+    List
+    """ 
+
+    if not isinstance(casprot, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(casprot).__name__}"
+        )
+    available_pams = get_available_PAM()
+    options = [
+        {"label": pam["label"], "value": pam["value"]}
+        for pam in available_pams
+        if casprot == pam["label"].split(".")[0].split("-")[2]
+    ]
+    return [options]
+
+
+# add place holder to guide box
+@ app.callback(
+    [Output('text-guides', 'placeholder')],
+    [Input('radio-guide', 'value')]
+)
+def change_placeholder_guide_textbox(guide_type: str) -> List:
+    """Add place holders to guides text box.
+
+    ...
+
+    Parameters
+    ----------
+    guide_type : str
+        Guide type
+
+    Returns
+    -------
+    List
     """
 
-    if not isinstance(guides, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(guides).__name__}")
-    length = len(guides.split("\n")[0])
-    same_len_guides = [
-        guide for guide in guides.split("\n") if len(guide) == length
-    ]
-    same_len_guides = "\n".join(same_len_guides).strip()
-    return same_len_guides
-
-
-def availablePAM():
-    '''
-    Returns a list of dictionaries of the available PAMs in the 'PAM' directory.
-
-    ***Returns***
-
-    + **pam_file** (*list* of {'label': pam, 'value': pam}): list containing a series of dictionaries, one for each PAM file found in
-        the 'PAM' directory. Used as input parameter for the 'options' element of a Dash Droplist
-    '''
-    onlyfile = [
-        f for f in os.listdir(os.path.join(current_working_directory, "PAMs"))
-        if (
-            not f.startswith(".") and 
-            os.path.isfile(
-                os.path.join(current_working_directory, "PAMs", f)
-            )
+    if not isinstance(guide_type, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(guide_type).__name__}"
         )
-    ]
-    # removed .txt for better visualization
-    onlyfile = [x.replace('.txt', '') for x in onlyfile]
-    pam_file = []
-    for pam_name in onlyfile:
-        if 'tempPAM' in pam_name:  # Skip the temp pam used for updating dictionaries
-            pass
-        else:
-            pam_file.append({'label': pam_name, 'value': pam_name})
-    return pam_file
+    place_holder_text = ""
+    if guide_type == "IP":  # individual spacers
+        place_holder_text = str(
+            "GAGTCCGAGCAGAAGAAGAA\n"
+            "CCATCGGTGGCCGTTTGCCC"
+        )
+    elif guide_type == "GS":  # genomic sequences
+        place_holder_text = str(
+            ">sequence1\n"
+            "AAGTCCCAGGACTTCAGAAGagctgtgagaccttggc\n"
+            ">sequence_bed\n"
+            "chr1 11130540 11130751\n"
+            "chr1 1023000 1024000"
+        )
+    else:
+        raise ValueError(f"Forbidden guide type ({guide_type})")
+    assert bool(place_holder_text)
+    return [place_holder_text]
+
 
 
 def availableCAS():
@@ -1460,14 +1492,6 @@ def availableCAS():
     for ele in sorted(cas_set):
         cas_file.append({'label': ele, 'value': ele})
     return cas_file
-
-
-# @app.callback(
-#     [Output('checklist-variants', 'value')],
-#     [Input('available-genome', 'value')]
-# )
-# def reset_radio_genome(value):
-#     return ['']
 
 
 @ app.callback(
