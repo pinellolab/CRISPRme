@@ -21,8 +21,14 @@ from .pages_utils import (
     SAMPLES_FILE, 
     VALID_CHARS, 
     VARIANTS_DATA,
+    PREPRINT_LINK,
+    GITHUB_LINK,
     select_same_len_guides,
-    get_available_PAM
+    get_available_PAM,
+    get_available_CAS,
+    get_custom_VCF,
+    get_available_genomes,
+    get_custom_annotations
 )
 from app import (
     URL, 
@@ -1467,113 +1473,102 @@ def change_placeholder_guide_textbox(guide_type: str) -> List:
     return [place_holder_text]
 
 
-
-def availableCAS():
-    onlyfile = [
-        f for f in os.listdir(os.path.join(current_working_directory, "PAMs"))
-        if (
-            not f.startswith(".") and 
-            os.path.isfile(
-                os.path.join(current_working_directory, "PAMs", f)
-            )
-        )
-    ]
-    # removed .txt for better visualization
-    onlyfile = [x.replace('.txt', '') for x in onlyfile]
-    cas_file = []
-    cas_set = set()
-    for cas_name in onlyfile:
-        if 'tempPAM' in cas_name:  # Skip the temp pam used for updating dictionaries
-            pass
-        else:
-            # if 'Cas' in cas_name:
-            cas_prot = cas_name.split('.')[0].split('-')[2]
-            cas_set.add(cas_prot)
-    for ele in sorted(cas_set):
-        cas_file.append({'label': ele, 'value': ele})
-    return cas_file
-
-
+# change variants options
 @ app.callback(
     [Output('checklist-variants', 'options'),
      Output('vcf-dropdown', 'options')],
     [Input('available-genome', 'value')]
 )
-def changeVariantsChecklistState(genome_value):
+def change_variants_checklist_state(genome_value: str) -> List:
+    """Change available variants options, according to the selected genome.
+
+    ...
+
+    Parameters
+    ----------
+    genome_value : str
+        Genome 
+    
+    Returns
+    -------
+    List
+    """
+
     if genome_value is not None:
-        checklist_variants_options = []
-        checklist_variants_options.append({'label': ' plus 1000 Genome Project variants',
-                                           'value': '1000G', 'disabled': False})
-        checklist_variants_options.append({'label': ' plus HGDP variants',
-                                           'value': 'HGDP', 'disabled': False})
-        checklist_variants_options.append({'label': ' plus personal variants*',
-                                           'value': 'PV', 'disabled': True})
-    personal_vcf = get_more_VCF(genome_value)
+        if not isinstance(genome_value, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(genome_value).__name__}"
+            )
+        checklist_variants_options = [
+            {
+                "label": " plus 1000 Genome Project variants",
+                "value": "1000G", 
+                "disabled": False
+            },
+            {
+                "label": " plus HGDP variants",
+                "value": "HGDP", 
+                "disabled": False
+            },
+            {
+                "label": " plus personal variants*",
+                "value": "PV", 
+                "disabled": True
+            }
+        ]
+    personal_vcf = get_custom_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
 
 
-def availableGenomes():
-    '''
-    Returns a list of dictionaries of the available genomes in the 'Genomes' directory.
+def indexPage() -> html.Div:
+    """Construct the layout of CRISPRme main page.
+    When a new genome is added to /Genomes directory, reload genomes and PAMs 
+    dropdowns (via page reloading).
 
-    ***Returns***
+    ...
 
-    + **gen_dir** (*list* of {'label': genome, 'value': genome}): list containing a series of dictionaries, one for each directory (genome) found in
-    the 'Genomes' directory. Used as input parameter for the 'options' element of a Dash Droplist
-    '''
-    onlydir = [f for f in os.listdir(current_working_directory + 'Genomes')
-               if os.path.isdir(os.path.join(current_working_directory + 'Genomes', f))]
-    onlydir = [x.replace('_', ' ') for x in onlydir]
-    gen_dir = []
-    for dir in onlydir:
-        if "+" not in dir and 'None' not in dir:
-            gen_dir.append({'label': dir, 'value': dir})
-    return gen_dir
+    Parameters
+    ----------
+    None
 
+    Returns
+    -------
+    html.Div
+    """
 
-def get_more_annotations():
-    annotation_dir = glob.glob(current_working_directory + 'Annotations/*.bed')
-    annotation_list = []
-
-    for elem in annotation_dir:
-        if 'encode' not in elem and 'None' not in elem and 'dummy' not in elem and 'tmp' not in elem:
-            annotation_list.append({'label': elem.strip().split(
-                '/')[-1], 'value': elem.strip().split('/')[-1]})
-
-    return annotation_list
-
-
-def get_more_VCF(genome_value):
-    onlydir = [f for f in os.listdir(current_working_directory + 'VCFs')
-               if os.path.isdir(os.path.join(current_working_directory + 'VCFs', f))]
-    vcf_dir = []
-    genome_value = genome_value.replace(" ", "_")
-    for dir in onlydir:
-        if 'hg38_HGDP' not in dir and 'hg38_1000G' not in dir and 'None' not in dir and genome_value in dir:
-            vcf_dir.append({'label': dir, 'value': dir})
-    return vcf_dir
-
-
-def indexPage():
-    '''
-    Creates the layout of the main page ('/'). The creation of the main page is put under a function in order to reload the genome and pam dropdown
-    if a new genome is added, simply by reloading the page.
-
-    ***Returns***
-
-    + **index_page** (*list*): list of html, dcc and dbc components for the layout.
-    '''
-
-    final_list = list()
-
+    final_list = []
     introduction_content = html.Div(
         [
-            # html.Div('CRISPRme is a web application, also available offline or command-line for comprehensive off-target assessment. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:spacer mismatches and bulges, and is suitable for population and personal genome analyses.'),
-            html.Div('CRISPRme is a web application, also available offline or command line, for comprehensive off-target assessment. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:protospacer mismatches and bulges, and is suitable for population and personal genome analyses.'),
-            html.Div(['Check out our preprint on bioRxiv ', html.A(
-                'here!', target='_blank', href='https://www.biorxiv.org/content/10.1101/2021.05.20.445054v1')]),
-            html.Div(['CRISPRme offline version can be downloaded from ', html.A(
-                'Github', target='_blank', href='https://github.com/pinellolab/CRISPRme')]),
+            html.Div(
+                str(
+                    "CRISPRme is a web application, also available offline or "
+                    "command line, for comprehensive off-target assessment. It "
+                    "integrates human genetic variant datasets with orthogonal "
+                    "genomic annotations to predict and prioritize CRISPR-Cas "
+                    "off-target sites at scale. The method considers both "
+                    "single-nucleotide variants (SNVs) and indels, accounts for "
+                    "bona fide haplotypes, accepts spacer:protospacer mismatches "
+                    "and bulges, and is suitable for population and personal "
+                    "genome analyses."
+                )
+            ),
+            html.Div(
+                [
+                    "Check out our preprint on bioRxiv ", 
+                    html.A(
+                        "here!", 
+                        target="_blank", 
+                        href=PREPRINT_LINK
+                    )
+                ]
+            ),
+            html.Div(
+                [
+                    "CRISPRme offline version can be downloaded from ", 
+                    html.A(
+                        "Github", 
+                        target="_blank", 
+                        href=https://github.com/pinellolab/CRISPRme')]),
             html.Br()
         ]
     )
@@ -1623,7 +1618,7 @@ def indexPage():
         [
             html.H4('Select Cas protein'),
             html.Div(
-                dcc.Dropdown(options=availableCAS(
+                dcc.Dropdown(options=get_available_CAS(
                 ), clearable=False, id='available-cas', style={'width': '300px'})
             )
         ]
@@ -1654,7 +1649,7 @@ def indexPage():
             html.H4('Select genome'),
             html.Div(
                 # style = {'width':'75%'})
-                dcc.Dropdown(options=availableGenomes(),
+                dcc.Dropdown(options=get_available_genomes(),
                              clearable=False, id="available-genome"),
                 style={'width': '300px'}
             ),
@@ -1734,7 +1729,7 @@ def indexPage():
             ),
             html.Div(
                 dcc.Dropdown(
-                    options=[i for i in get_more_annotations()], id='annotation-dropdown', style={'width': '300px'}, disabled=True),
+                    options=[i for i in get_custom_annotations()], id='annotation-dropdown', style={'width': '300px'}, disabled=True),
                 id='div-browse-annotation',
                 # style={'visibility': 'hidden'},
             )

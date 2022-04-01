@@ -27,6 +27,8 @@ Current CRISPRme maintainers:
 """
 
 
+from .pages_utils import GITHUB_LINK
+
 from typing import List
 
 import dash_html_components as html
@@ -159,8 +161,8 @@ def contact_page() -> List:
                     [
                         html.P("Alternatively, please open an issue on GitHub: "),
                         html.A(
-                            "https://github.com/pinellolab/CRISPRme/issues",
-                            href="https://github.com/pinellolab/CRISPRme/issues", 
+                            f"{GITHUB_LINK}/issues",
+                            href=f"{GITHUB_LINK}/issues", 
                             target="_blank"
                         ),
                     ]

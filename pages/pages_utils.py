@@ -3,10 +3,10 @@ webpages.
 """
 
 
-from sre_constants import MAXREPEAT
 from app import current_working_directory, operators
 
-from typing import Dict, List, Optional, Tuple\
+from typing import Dict, List, Optional, Tuple
+from glob import glob
 
 import dash_html_components as html
 import pandas as pd
@@ -201,6 +201,8 @@ ASSETS_DIR = "assets"
 ANNOTATIONS_DIR = "Annotations"
 # PAMs directory
 PAMS_DIR = "PAMs"
+# VCFs directory
+VCFS_DIR = "VCFs"
 # genomes directory
 GENOMES_DIR = "Genomes"
 # Post-process directory
@@ -280,7 +282,11 @@ JOBID_MAXLEN = 20
 # maximum number of iterations to generate job ID
 JOBID_ITERATIONS_MAX = 10
 # allowed variants datasets (1000 genomes, human diversity project, custom data)
-VARIANTS_DATA = ["1000G", "HGDP", "PV"]  
+VARIANTS_DATA = ["1000G", "HGDP", "PV"]
+# CRISPRme preprint link (bioRxiv)
+PREPRINT_LINK = "https://www.biorxiv.org/content/10.1101/2021.05.20.445054v1" 
+# CRISPRme github page link
+GITHUB_LINK = "https://github.com/pinellolab/CRISPRme" 
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
@@ -1032,6 +1038,154 @@ def get_available_PAM() -> List:
     pams_files = [f.replace(".txt", "") for f in pams_files]
     # skip temporary PAMs (used during dictionary updating)
     pams = [
-        {"label": pam, "value": pam} for pam in pams_files if "tempPAM" not in pam
+        {"label": pam, "value": pam} for pam in pams_files 
+        if "tempPAM" not in pam
     ]
     return pams
+
+
+def get_available_CAS() -> List:
+    """Recover the Cas proteins currently available in the /PAMs directory.
+
+    ...
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    List
+        Availbale Cas proteins
+    """
+
+    cas_files = [
+        f for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
+        if (
+            not f.startswith(".")  # ignore hidden files
+            and os.path.isfile(
+                os.path.join(current_working_directory, PAMS_DIR, f)
+            )
+        )
+    ]
+    # removed .txt from filenames
+    cas_files = [f.replace(".txt", "") for f in cas_files]
+    # skip temporary PAMs (used during dictionary updating)
+    casprots = [
+        casprot.split(".")[0].split("-")[2] for casprot in cas_files
+        if "tempPAM" not in casprot
+    ]
+    # remove potential duplicates
+    casprots = set(casprots)
+    casprots_data = [
+        {"label": casprot, "value": casprot} for casprot in sorted(casprots)
+    ]
+    return casprots_data
+
+
+def get_custom_VCF(genome_value: str) -> List:
+    """Recover user's VCFs.
+
+    ...
+
+    Paramters
+    ---------
+    genome_value : str
+        Genome
+
+    Returns
+    -------
+    List
+        User's VCFs.
+    """
+
+    if genome_value is not None:
+        if not isinstance(genome_value, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(genome_value).__name__}"
+            )
+    vcf_dirs = [
+        d for d in os.listdir(current_working_directory, VCFS_DIR)
+        if (
+            not d.startswith(".")  # ignore hidden directories
+            and os.path.isdir(
+                os.path.join(current_working_directory, VCFS_DIR, d)
+            )
+        )
+    ]
+    genome_value = genome_value.replace(" ", "_")
+    vcfs = [
+        {"label": d, "value": d} for d in vcf_dirs
+        if (
+            "hg38_HGDP" not in d
+            and "hg38_1000G" not in d
+            and "None" not in d
+            and genome_value not in d
+        )
+    ]
+    return vcfs
+
+
+def get_available_genomes() -> List:
+    """Recover genomes available in the /Genomes directory.
+
+    ...
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    List
+        Available genomes
+    """
+    
+    genomes = [
+        d for d in os.listdir(
+            os.path.join(current_working_directory, GENOMES_DIR)
+        )
+        if os.path.isdir(
+            os.path.join(current_working_directory, GENOMES_DIR, d)
+        )
+    ]
+    genomes = [g.replace("_", " ") for g in genomes]
+    genomes_dirs = [
+        {"label": d, "value": d} for d in genomes
+        if ("+" not in d and "None" not in d)
+    ]
+    return genomes_dirs
+
+
+def get_custom_annotations() -> List:
+    """Recover user's annotation data.
+
+    ...
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    List
+        User's annotation data
+    """
+
+    annotation_data = glob(
+        os.path.join(current_working_directory, ANNOTATIONS_DIR, "*.bed")
+    )
+    annotations = [
+        {
+            "label": ann.strip().split("/")[-1], 
+            "value": ann.strip().split("/")[-1]
+        } 
+        for ann in annotation_data
+        if (
+            "encode" not in ann
+            and "None" not in ann
+            and "dummy" not in ann
+            and "tmp" not in ann
+        )
+    ]
+    return annotations
