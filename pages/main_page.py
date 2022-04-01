@@ -1,4 +1,5 @@
-"""
+"""Build the layout of the main webopage of CRISPRme.
+The main webpage read the input data and manages the analysis.
 """
 
 
@@ -42,7 +43,7 @@ from app import (
 
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from typing import Dict, List, Tuple, Type
+from typing import Dict, List, Tuple
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -54,7 +55,6 @@ import subprocess
 import filecmp
 import random
 import string
-import glob
 import os
 
 
