@@ -7,7 +7,8 @@ from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
     EMAIL_FILE,
-    GENOMES_DIR, 
+    GENOMES_DIR,
+    GITHUB_LINK, 
     GUIDES_FILE, 
     JOBID_ITERATIONS_MAX, 
     JOBID_MAXLEN,
@@ -16,13 +17,12 @@ from .pages_utils import (
     PAMS_FILE, 
     PARAMS_FILE,
     POSTPROCESS_DIR,
+    PREPRINT_LINK,
     QUEUE_FILE, 
     RESULTS_DIR,
     SAMPLES_FILE, 
     VALID_CHARS, 
     VARIANTS_DATA,
-    PREPRINT_LINK,
-    GITHUB_LINK,
     select_same_len_guides,
     get_available_PAM,
     get_available_CAS,
@@ -1536,7 +1536,9 @@ def indexPage() -> html.Div:
     html.Div
     """
 
+    # begin main page construction
     final_list = []
+    # page intro
     introduction_content = html.Div(
         [
             html.Div(
@@ -1559,7 +1561,7 @@ def indexPage() -> html.Div:
                         "here!", 
                         target="_blank", 
                         href=PREPRINT_LINK
-                    )
+                    ),
                 ]
             ),
             html.Div(
@@ -1568,23 +1570,30 @@ def indexPage() -> html.Div:
                     html.A(
                         "Github", 
                         target="_blank", 
-                        href=https://github.com/pinellolab/CRISPRme')]),
-            html.Br()
+                        href=GITHUB_LINK
+                    )
+                ]
+            ),
+            html.Br(),  # add newline
         ]
     )
-
-    white_space_line = html.Div(style={'border-right': 'solid 1px white'})
-
+    # warnings
     modal = html.Div(
         [
             dbc.Modal(
                 [
                     dbc.ModalHeader("WARNING! Missing inputs"),
                     dbc.ModalBody(
-                        'The following inputs are missing, please select values before submitting the job', id='warning-list'),
+                        str(
+                            "The following inputs are missing, please select "
+                            "values before submitting the job"
+                        ), 
+                        id="warning-list"
+                    ),
                     dbc.ModalFooter(
-                        dbc.Button("Close", id="close",
-                                   className="modal-button")
+                        dbc.Button(
+                            "Close", id="close", className="modal-button"
+                        )
                     ),
                 ],
                 id="modal",
@@ -1592,202 +1601,293 @@ def indexPage() -> html.Div:
             ),
         ]
     )
-
+    # guides table
     tab_guides_content = html.Div(
         [
-            html.H4('Select gRNA'),
-            dcc.RadioItems(id="radio-guide",
-                           options=[
-                               {'label': ' Input individual spacer(s)',
-                                'value': 'IP'},
-                               {'label': ' Input genomic sequence(s)',
-                                'value': 'GS'},
-                           ],
-                           value='IP',
-                           #    style={'margin-bottom': '10px'}
-                           ),
-            dcc.Textarea(id='text-guides', placeholder='GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC', style={
-                         'width': '300px', 'height': '30px'}),
+            html.H4("Select gRNA"),
+            dcc.RadioItems(
+                id="radio-guide",
+                options=[
+                    {"label": " Input individual spacer(s)", "value": "IP"},
+                    {"label": " Input genomic sequence(s)", "value": "GS"},
+                ],
+                value="IP",
+            ),
+            dcc.Textarea(
+                id="text-guides", 
+                placeholder=str(
+                    "GAGTCCGAGCAGAAGAAGAA\n"
+                    "CCATCGGTGGCCGTTTGCCC"
+                ), 
+                style={"width": "300px", "height": "30px"}
+            ),
             dbc.FormText(
-                'Spacer must be provided as a DNA sequence without a PAM. A maximum of 100 spacer sequences can be provided . If using the sequence extraction feature, only the first 100 spacer sequences (starting from the top strand) will be extracted.*', color='secondary')
+                str(
+                    "Spacer must be provided as a DNA sequence without a PAM. "
+                    "A maximum of 100 spacer sequences can be provided . If "
+                    "using the sequence extraction feature, only the first 100 "
+                    "spacer sequences (starting from the top strand) will be "
+                    "extracted.*"
+                ), 
+                color="secondary"
+            )
         ],
-        style={'width': '300px'}  # NOTE same as text-area
+        style={"width": "300px"}  # NOTE same as text-area
     )
-
+    # cas protein dropdown
     cas_protein_content = html.Div(
         [
-            html.H4('Select Cas protein'),
+            html.H4("Select Cas protein"),
             html.Div(
-                dcc.Dropdown(options=get_available_CAS(
-                ), clearable=False, id='available-cas', style={'width': '300px'})
+                dcc.Dropdown(
+                    options=get_available_CAS(), 
+                    clearable=False, 
+                    id="available-cas", 
+                    style={"width": "300px"}
+                )
             )
         ]
     )
-
+    # PAM dropdown
     pam_content = html.Div(
         [
-            html.H4('Select PAM'),
+            html.H4("Select PAM"),
             html.Div(
                 dcc.Dropdown(
-                    options=[], clearable=False, id='available-pam', style={'width': '300px'})
+                    options=[], 
+                    clearable=False, 
+                    id="available-pam", 
+                    style={"width": "300px"}
+                )
             )
         ],
-        # style={'flex': '0 0 100%',
-        #        'margin-top': '10%'}
     )
-
     personal_data_management_content = html.Div(
         [
             html.Br(),
-            html.A(html.Button("Personal Data Management", id='add-genome', style={'display': DISPLAY_OFFLINE}),
-                   href=URL + '/genome-dictionary-management', target='', style={'text-decoration': 'none', 'color': '#555'})
-        ]
-    )
-
-    genome_content = html.Div(
-        [
-            html.H4('Select genome'),
-            html.Div(
-                # style = {'width':'75%'})
-                dcc.Dropdown(options=get_available_genomes(),
-                             clearable=False, id="available-genome"),
-                style={'width': '300px'}
-            ),
-            html.Div(
-                dcc.Checklist(options=[
-                    {'label': ' plus 1000 Genome Project variants',
-                     'value': '1000G', 'disabled': True},
-                    {'label': ' plus HGDP variants',
-                     'value': 'HGDP', 'disabled': True},
-                    {'label': ' plus personal variants*',
-                     'value': 'PV', 'disabled': True}
-                ],
-                    id='checklist-variants', value=[])
-            ),
-            html.Div(
-                dcc.Dropdown(
-                    options=[], id='vcf-dropdown', style={'width': '300px'}, disabled=True),
-                id='div-browse-PV',
-                # style={'visibility': 'hidden'},
-            ),
-        ]
-    )
-
-    thresholds_content = html.Div(
-        [
-            html.H4('Select thresholds'),
-            html.Div(
-                [
-                    html.P('Mismatches'),
-                    dcc.Dropdown(options=AV_MISMATCHES, clearable=False, id='mms', style={
-                        'width': '60px'})
-                ],
-                style={'display': 'inline-block',
-                       "margin-right": "20px"}
-            ),
-            html.Div(
-                [
-                    html.P(
-                        [
-                            'DNA', html.Br(), 'Bulges'
-                        ]
-                    ),
-                    dcc.Dropdown(options=AV_BULGES, clearable=False, id='dna', style={
-                        'width': '60px'})
-                ],
-                style={'display': 'inline-block',
-                       "margin-right": "20px"}
-            ),
-            html.Div
-            (
-                [
-                    html.P(
-                        [
-                            'RNA', html.Br(), 'Bulges'
-                        ]
-                    ),
-                    dcc.Dropdown(options=AV_BULGES, clearable=False, id='rna', style={
-                        'width': '60px'}),
-                ],
-                style={'display': 'inline-block'}
-            ),
-        ],
-        style={'margin-top': '10%'}
-    )
-
-    annotation_content = html.Div(
-        [
-            html.H4('Select annotation'),
-            html.Div(
-                dcc.Checklist(options=[
-                    {'label': ' ENCODE cCREs + GENCODE gene',
-                     'value': 'EN'},
-                    {'label': ' Personal annotations*',
-                     'value': 'MA', 'disabled': True},
-                ],
-                    id='checklist-annotations', value=['EN'])
-            ),
-            html.Div(
-                dcc.Dropdown(
-                    options=[i for i in get_custom_annotations()], id='annotation-dropdown', style={'width': '300px'}, disabled=True),
-                id='div-browse-annotation',
-                # style={'visibility': 'hidden'},
+            html.A(
+                html.Button(
+                    "Personal Data Management",
+                    id="add-genome", 
+                    style={"display": DISPLAY_OFFLINE}
+                ),
+                href=os.path.join(URL, "genome-dictionary-management"),
+                target="", 
+                style={"text-decoration": "none", "color": "#555"}
             )
         ]
     )
-
+    # genome dropdown
+    genome_content = html.Div(
+        [
+            html.H4("Select genome"),
+            html.Div(
+                dcc.Dropdown(
+                    options=get_available_genomes(), 
+                    clearable=False, 
+                    id="available-genome"
+                ),
+                style={"width": "300px"}
+            ),
+            html.Div(
+                dcc.Checklist(
+                    options=[
+                        {
+                            "label": " plus 1000 Genome Project variants",
+                            "value": "1000G", 
+                            "disabled": True
+                        },
+                        {
+                            "label": " plus HGDP variants", 
+                            "value": "HGDP", 
+                            "disabled": True
+                        },
+                        {
+                            "label": " plus personal variants*",
+                            "value": "PV", 
+                            "disabled": True
+                        }
+                    ],
+                    id="checklist-variants", 
+                    value=[]
+                )
+            ),
+            html.Div(
+                dcc.Dropdown(
+                    options=[], 
+                    id="vcf-dropdown", 
+                    style={"width": "300px"}, 
+                    disabled=True
+                ),
+                id="div-browse-PV",
+            ),
+        ]
+    )
+    # thresholds boxes
+    thresholds_content = html.Div(
+        [
+            html.H4("Select thresholds"),
+            html.Div(  # mismatches box
+                [
+                    html.P("Mismatches"),
+                    dcc.Dropdown(
+                        options=AV_MISMATCHES, 
+                        clearable=False, 
+                        id="mms", 
+                        style={"width": "60px"}
+                    )
+                ],
+                style={"display": "inline-block", "margin-right": "20px"}
+            ),
+            html.Div(  # DNA bulges box
+                [
+                    html.P(["DNA", html.Br(), "Bulges"]),
+                    dcc.Dropdown(
+                        options=AV_BULGES, 
+                        clearable=False, 
+                        id="dna", style={"width": "60px"}
+                    )
+                ],
+                style={"display": "inline-block", "margin-right": "20px"}
+            ),
+            html.Div(  # RNA bulges box
+                [
+                    html.P(["RNA", html.Br(), "Bulges"]),
+                    dcc.Dropdown(
+                        options=AV_BULGES, 
+                        clearable=False, 
+                        id="rna", 
+                        style={"width": "60px"}
+                    ),
+                ],
+                style={"display": "inline-block"}
+            ),
+        ],
+        style={"margin-top": "10%"}
+    )
+    # annotations dropdown
+    annotation_content = html.Div(
+        [
+            html.H4("Select annotation"),
+            html.Div(
+                dcc.Checklist(
+                    options=[
+                        {"label": " ENCODE cCREs + GENCODE gene", "value": "EN"},
+                        {
+                            "label": " Personal annotations*", 
+                            "value": "MA", 
+                            "disabled": True
+                        },
+                    ],
+                    id="checklist-annotations", value=["EN"]
+                )
+            ),
+            html.Div(
+                dcc.Dropdown(
+                    options=[i for i in get_custom_annotations()], 
+                    id="annotation-dropdown", 
+                    style={"width": "300px"}, 
+                    disabled=True
+                ),
+                id="div-browse-annotation",
+            )
+        ]
+    )
+    # mail box
     mail_content = html.Div(
         [
-            dcc.Checklist(options=[{'label': ' Notify me by email', 'value': 'email', 'disabled': False}],
-                          id='checklist-mail', value=[]),
-            # dbc.Fade(
-            dbc.FormGroup(dbc.Input(type="email", id="example-email", placeholder="name@mail.com",
-                                    className='exampleEmail', disabled=True, style={'width': '300px'}))
-            #     # id='fade', is_in=False, appear=False
-            #     id='fade', is_in=False, appear=True
-            # )
+            dcc.Checklist(
+                options=[
+                    {
+                        "label": " Notify me by email", 
+                        "value": "email", 
+                        "disabled": False
+                    }
+                ],
+                id="checklist-mail", 
+                value=[]
+            ),
+            dbc.FormGroup(
+                dbc.Input(
+                    type="email", 
+                    id="example-email", 
+                    placeholder="name@mail.com",
+                    className="exampleEmail", 
+                    disabled=True, 
+                    style={"width": "300px"}
+                )
+            )
         ]
     )
-
+    # job name box
     job_name_content = html.Div(
         [
-            dcc.Checklist(options=[{'label': ' Job name', 'value': 'job_name',
-                                    'disabled': False}], id='checklist-job-name', value=[]),
-            dbc.FormGroup(dbc.Input(type="text", id="job-name", placeholder="my_job",
-                                    className='jobName', disabled=True, style={'width': '300px'}))
+            dcc.Checklist(
+                options=[
+                    {
+                        "label": " Job name", 
+                        "value": "job_name", 
+                        "disabled": False
+                    }
+                ], 
+                id="checklist-job-name", 
+                value=[]
+            ),
+            dbc.FormGroup(
+                dbc.Input(
+                    type="text", 
+                    id="job-name", 
+                    placeholder="my_job",
+                    className="jobName", 
+                    disabled=True, 
+                    style={"width": "300px"}
+                )
+            )
         ]
     )
-
+    # submit button
     submit_content = html.Div(
         [
-            html.Button('Submit', id='check-job',
-                        style={'background-color': '#E6E6E6','width': '260px'}),
-            html.Button('', id='submit-job', style={'display': 'none'}),
+            html.Button(
+                "Submit", 
+                id="check-job", 
+                style={"background-color": "#E6E6E6", "width": "260px"}
+            ),
+            html.Button("", id="submit-job", style={"display": "none"}),
         ]
     )
-
+    # load example button
     example_content = html.Div(
         [
-            html.Button('Load Example', id='load-example-button',
-                        style={'background-color': '#E6E6E6','width': '260px'}),
+            html.Button(
+                "Load Example", 
+                id="load-example-button",
+                style={"background-color": "#E6E6E6", "width": "260px"}
+            ),
         ]
     )
-
+    # terms and conditions link
     terms_and_conditions_content = html.Div(
         [
-            html.Div('By clicking submit you are agreeing to the'),
-            html.Div(html.A('Terms and Conditions!', target='_blank',
-                            href='https://github.com/pinellolab/CRISPRme/blob/main/LICENSE'))
+            html.Div("By clicking submit you are agreeing to the"),
+            html.Div(
+                html.A(
+                    "Terms and Conditions.", 
+                    target="_blank",
+                    href=f"{GITHUB_LINK}/blob/main/LICENSE"
+                )
+            )
         ]
     )
-    # insert introduction in the layout
+    # insert introduction in the page layout
     final_list.append(introduction_content)
+    # add other content
     final_list.append(
         html.Div(
             [
                 dbc.Row(
                     [
-                        dbc.Col(
+                        dbc.Col(  # first column of the box
                             [
                                 modal,
                                 dbc.Row(
@@ -1799,22 +1899,10 @@ def indexPage() -> html.Div:
                                 dbc.Row(
                                     dbc.Col(pam_content)
                                 )
-                                # html.Div(
-                                #     [
-                                #         tab_guides_content,
-                                #         cas_protein_content,
-                                #         pam_content
-                                #     ],
-                                #     id='column-one-step-1',
-                                #     # style={'flex': '0 0 30%', 'tex-align': 'center'}
-                                #     # style={'tex-align': 'center'}
-                                #     # style={'margin': '1px'}
-                                #     # style={'margin-left': '-60px'}
-                                # ),
                             ],
                             width="auto"
                         ),
-                        dbc.Col(
+                        dbc.Col(  # second column of the box
                             [
                                 dbc.Row(
                                     dbc.Col(genome_content)
@@ -1826,23 +1914,10 @@ def indexPage() -> html.Div:
                                 dbc.Row(
                                     dbc.Col(example_content)
                                 )
-                                # html.Div(
-                                #     [
-                                #         genome_content,
-                                #         # html.Br(),
-                                #         # html.Br(),
-                                #         thresholds_content
-                                #     ],
-                                #     id='column-two-step-2',
-                                #     # style={'flex': '0 0 30%', 'tex-align': 'center'}
-                                #     # style={'tex-align': 'center'}
-                                #     # style={'margin': '1px'}
-                                #     # style={'margin-left': '-100px'}
-                                # )
                             ],
                             width="auto"
                         ),
-                        dbc.Col(
+                        dbc.Col(  # third column of the box
                             [
                                 dbc.Row(
                                     annotation_content
@@ -1853,9 +1928,6 @@ def indexPage() -> html.Div:
                                 dbc.Row(
                                     job_name_content
                                 ),
-                                # dbc.Row(
-                                #     dbc.Col(example_content)
-                                # ),
                                 html.Br(),
                                 dbc.Row(
                                     dbc.Col(submit_content)
@@ -1863,65 +1935,36 @@ def indexPage() -> html.Div:
                                 dbc.Row(
                                     terms_and_conditions_content
                                 )
-                                # html.Div(
-                                #     [
-                                #         annotation_content,
-                                #         html.Br(),
-                                #         html.Br(),
-                                #         mail_content,
-                                #         job_name_content,
-                                #         html.Div(example_content, style={
-                                #                  'margin-left': '20%'}),
-                                #         html.Br(),
-                                #         html.Div(submit_content, style={
-                                #                  'margin-left': '30%'}),
-
-                                #         terms_and_conditions_content
-                                #         # test update in main
-                                #     ],
-                                #     id='column-three-step-3',
-                                #     # style={'flex': '0 0 30%', 'tex-align': 'center'}
-                                #     # style={'tex-align': 'center'}
-                                #     # style={'margin-right': '40px'}
-                                # )
                             ],
                             width="auto"
                         )
                     ],
                     justify="center",
-                    style={'margin-bottom': '1%'}
+                    style={"margin-bottom": "1%"}
                 )
-                # html.Div(
-                #     [
-
-                # white_space_line,
-
-                # white_space_line,
-
-                #     ],
-                #     id='div-steps',
-                #     className='flex-div-steps',
-                #     # style={'margin-left': '10%'}
-                # ),
             ],
-            style={'background-color': 'rgba(157, 195, 230, 0.39)', 'border-radius': '5px',
-                   #    'border': '1px solid black', 'margin-left': '5%', 'margin-right': '5%'},
-                   'border': '1px solid black'},
-            # style={'background-color': 'rgba(157, 195, 230, 0.39)', 'border-radius': '5px',
-            #        'border': '1px solid black'},
-            id='steps-background'
+            style={
+                "background-color": "rgba(157, 195, 230, 0.39)", 
+                "border-radius": "5px",
+                "border": "1px solid black"
+            },
+            id="steps-background"
         )
     )
     final_list.append(html.Br())
     final_list.append(
-        html.P('*The offline version of CRISPRme can be downloaded from GitHub and offers additional functionalities, including the option to input personal data (such as genetic variants, annotations, and/or empirical off-target results) as well as custom PAMs and genomes. There is no limit on the number of spacers, mismatches, and/or bulges used in the offline search.'))
-    # final_list.append(html.P(
-    #     '[1] Cancellieri, Samuele, et al. \"Crispritz: rapid, high-throughput, and variant-aware in silico off-target site identification for crispr genome editing.\" Bioinformatics (2019).'))
-    # final_list.append(
-    #     html.P(['Download CRISPRitz here: ', html.A('InfOmics/CRISPRitz', href='https://github.com/InfOmics/CRISPRitz',
-    #                                                 target="_blank"), ' or ', html.A('Pinellolab/CRISPRitz', href='https://github.com/pinellolab/CRISPRitz', target="_blank")])
-    # )
-    index_page = html.Div(final_list, style={'margin': '1%'})
+        html.P(
+            str(
+                "*The offline version of CRISPRme can be downloaded from GitHub "
+                "and offers additional functionalities, including the option to "
+                "input personal data (such as genetic variants, annotations, "
+                "and/or empirical off-target results) as well as custom PAMs and "
+                "genomes. There is no limit on the number of spacers, mismatches, "
+                "and/or bulges used in the offline search."
+            )
+        )
+    )
+    index_page = html.Div(final_list, style={"margin": "1%"})
     return index_page
 
 
