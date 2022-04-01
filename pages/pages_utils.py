@@ -1105,7 +1105,7 @@ def get_custom_VCF(genome_value: str) -> List:
                 f"Expected {str.__name__}, got {type(genome_value).__name__}"
             )
     vcf_dirs = [
-        d for d in os.listdir(current_working_directory, VCFS_DIR)
+        d for d in os.listdir(os.path.join(current_working_directory, VCFS_DIR))
         if (
             not d.startswith(".")  # ignore hidden directories
             and os.path.isdir(

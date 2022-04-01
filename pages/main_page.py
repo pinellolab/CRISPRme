@@ -2,7 +2,6 @@
 """
 
 
-from logging import PlaceHolder
 from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
@@ -43,7 +42,7 @@ from app import (
 
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Type
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -296,14 +295,14 @@ def change_url(
                 f"Expected {str.__name__}, got {type(text_guides).__name__}"
             )
     if rna is not None:
-        if not isinstance(rna, int):
+        if not isinstance(rna, str):
             raise TypeError(
-                f"Expected {int.__name__}, got {type(rna).__name__}"
+                f"Expected {str.__name__}, got {type(rna).__name__}"
             )
     if dna is not None:
-        if not isinstance(dna, int):
+        if not isinstance(dna, str):
             raise TypeError(
-                f"Expected {int.__name__}, got {type(dna).__name__}"
+                f"Expected {str.__name__}, got {type(dna).__name__}"
             )
     if adv_opts is not None:
         if not isinstance(adv_opts, list):
@@ -449,7 +448,7 @@ def change_url(
     # GENOME TYPE CHECK
     ref_comparison = False
     genome_type = "ref"  # search is 'ref' or 'both'
-    if ref_var > 0:
+    if len(ref_var) > 0:
         ref_comparison = True
         genome_type = "both"
     search_index = True
@@ -613,6 +612,8 @@ def change_url(
         except OSError as e:
             raise e
     # bulges
+    dna = int(dna)
+    rna = int(rna)
     max_bulges = rna
     assert isinstance(dna, int)
     assert isinstance(rna, int)
@@ -971,8 +972,6 @@ def change_url(
     return ("/load", f"?job={job_id}")
 
 
-# TODO: Fix me
-
 # Check input presence
 @ app.callback(
     [Output('submit-job', 'n_clicks'),
@@ -997,220 +996,259 @@ def change_url(
      State("modal", "is_open")]
 )
 # len_guide_seq, active_tab ,
-def checkInput(n, n_close, genome_selected, pam, guide_type, text_guides, mms, dna, rna, is_open):
-    '''
-    Checks the presence and correctness of the input fields, changing their border to red if it's missing and displaying a Modal element with
-    a list of the missing inputs. The callback is triggered when the user clicks on the 'Submit' button or when the modal is closed
-    (by the 'Close' button or by clicking on-screen when the Modal element is open)
+def check_input(
+    n: int, 
+    n_close: int, 
+    genome_selected: str, 
+    pam: str, 
+    guide_type: str, 
+    text_guides: List[str], 
+    mms: int, 
+    dna: int, 
+    rna: int, 
+    is_open: bool
+) -> Tuple:
+    """Check the correctness of input data and fields. If the input data are 
+    missing or wrong the borders of the corresponding box are colored in red.
+    If input are missing, a Modal element is displayed listing the missing 
+    elements. The callback is triggered when clicking on the "Submit" button or
+    when the Modal object is closed ("Close" button or clicking on-screen when
+    the Modal object is open).
 
-    ***Args***
+    ...
 
-    + [**n**] **check-job** (*n_clicks*): button that starts the job after checking the correctness of the input
-    + [**n_close**] **close** (*n_clicks*): button that closes the opened modal
-    + [**genome_selected**] **available-genome** (*value*): string of the selected genome from the Dropdown. `None` if not selected, '' if selected
-    and then deleted
-    + [**pam**] **available-pam** (*value*): string of the selected PAM from the Dropdown. `None` if not selected, '' if selected
-    and then deleted
-    + [**text_guides**] **text-guides** (*value*): string of the input guides from the Textarea. `None` if not selected, '' if selected
-    and then deleted
-    + [**mms**] **mms** (*value*): int of the selected mismatch value. `None` if not selected, '' if selected
-    and then deleted
-    + [**dna**] **dna** (*value*): int of the selected DNA bulge value. `None` if not selected, '' if selected
-    and then deleted
-    + [**rna**] **rna** (*value*): int of the selected RNA bulge value. `None` if not selected, '' if selected
-    and then deleted
-    + [**len_guide_seq**] **len-guide-sequence-ver** (*value*): int value of the length of the guides (available when 'Sequence' tab is active). `None` if not selected, '' if selected
-    and then deleted
-    + [**active_tab**] **tabs** (*active_tab*): string of the ID of the active tab ('Guide' or 'Sequence')
-    + [**is_open**] **modal** (*is_open*): True if the modal is displayed, false otherwise
+    Parameters
+    ----------
+    n : int
+        Clicks
+    n_close : int
+        Clicks
+    genome_selected : str
+        Selected genome
+    pam : str
+        PAM
+    guide_type : str
+        Guide type
+    text_guides : List[str]
+        List of selected guides
+    mms : str
+        Number of mismatches
+    dna : str
+        Number of DNA bulges
+    rna : str
+        Number of RNA bulges
+    is_open : bool
+        True if Modal object is open
 
-    ***Returns***
-
-    + **submit-job** (*n_clicks*): reset the click counter (`None`) if some inputs are missing, else put to `1` in order to trigger the `changeUrl()`
-    function and proceed with the job
-    + **modal** (*is_open*): `True` if some inputs are missing, `False` otherwise
-    + **available-genome** (*className*): string containing the name of the css class for the red-border ('missing-input'), indicating a missing input. `None` if
-    input is ok
-    + **available-pam** (*className*): string containing the name of the css class for the red-border ('missing-input'), indicating a missing input. `None` if
-    input is ok
-    + **text-guides** (*style*): dictionary for the style element (NOTE not updated if input is missing)
-    + **mms** (*className*): string containing the name of the css class for the red-border ('missing-input'), indicating a missing input. `None` if
-    input is ok
-    + **dna** (*className*): string containing the name of the css class for the red-border ('missing-input'), indicating a missing input. `None` if
-    input is ok
-    + **rna** (*className*): string containing the name of the css class for the red-border ('missing-input'), indicating a missing input. `None` if
-    input is ok
-    + **len-guide-sequence-ver** (*className*): string containing the name of the css class for the red-border ('missing-input'), indicating a missing input. `None` if
-    input is ok
-    + **warning-list** (*children*): html.Div for the Modal component, listing the missing inputs
-    '''
+    Returns
+    -------
+    Tuple
+        Input data used during CRISPRme analysis
+    """
+    
+    if n is not None:
+        if not isinstance(n, int):
+            raise TypeError(
+                f"Expected {int.__name__}, got {type(n).__name__}"
+            )
+    if is_open is not None:
+        if not isinstance(is_open, bool):
+            raise TypeError(
+                f"Expected {bool.__name__}, got {type(is_open).__name__}"
+            )
+    if mms is not None:
+        if not isinstance(mms, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(mms).__name__}"
+            )
+    if dna is not None:
+        if not isinstance(dna, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(dna).__name__}"
+            )
+    if rna is not None:
+        if not isinstance(rna, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(rna).__name__}"
+            )
     print("Check input for JOB")
     if n is None:
-        raise PreventUpdate
+        raise PreventUpdate  # do not check data --> no trigger
     if is_open is None:
         is_open = False
-
-    classname_red = 'missing-input'
+    classname_red = "missing-input"
     genome_update = None
     pam_update = None
-    text_update = {'width': '300px', 'height': '30px'}
+    text_update = {"width": "300px", "height": "30px"}
     mms_update = None
     dna_update = None
     rna_update = None
     len_guide_update = None
     update_style = False
-    miss_input_list = []
-
-    if genome_selected is None or genome_selected == '':
+    miss_input_list = []  # recover missing inputs
+    # display missing genome
+    if genome_selected is None or not bool(genome_selected):
         genome_update = classname_red
         update_style = True
-        miss_input_list.append('Genome')
-    if genome_selected is None or genome_selected == '':
-        genome_selected = 'hg38_ref'
+        miss_input_list.append("Genome")
+    if genome_selected is None or not bool(genome_selected):
+        genome_selected = "hg38_ref"
     genome_ref = genome_selected
-    if pam is None or pam == '':
+    if pam is None or not bool(pam):
         pam_update = classname_red
         update_style = True
-        miss_input_list.append('PAM')
-    # if text_guides is None or text_guides == '':
-        # text_update = {'width':'450px', 'height':'160px','border': '1px solid red'}
-        # update_style = True
-        # miss_input_list.append('crRNA sequence(s)')
-    if mms is None or str(mms) == '':
+        miss_input_list.append("PAM")
+    if mms is None or not bool(mms):
         mms_update = classname_red
         update_style = True
-        miss_input_list.append('Allowed Mismatches')
-    if dna is None or str(dna) == '':
+        miss_input_list.append("Allowed Mismatches")
+    if dna is None or not bool(dna):
         dna_update = classname_red
         update_style = True
-        miss_input_list.append('Bulge DNA size')
-    if rna is None or str(rna) == '':
+        miss_input_list.append("Bulge DNA size")
+    if rna is None or not bool(rna):
         rna_update = classname_red
         update_style = True
-        miss_input_list.append('Bulge RNA size')
-    # if (len_guide_seq is None or str(len_guide_seq) == ''): # and ('sequence-tab' in active_tab)
-    #    len_guide_update = classname_red
-    #    update_style = True
-    #    miss_input_list.append('gRNA length')
-    if pam is None or pam == '':
-        pam = '20bp-NGG-SpCas9'
+        miss_input_list.append("Bulge RNA size")
+    if pam is None or not bool(pam):
+        pam = "20bp-NGG-SpCas9"
         len_guide_sequence = 20
     else:
-        for elem in pam.split('-'):
-            if 'bp' in elem:
-                len_guide_sequence = int(elem.replace('bp', ''))
-
+        for e in pam.split("-"):
+            if "bp" in e:
+                len_guide_sequence = int(e.replace("bp", ""))
     no_guides = False
-    if text_guides is None or text_guides == '':
-        text_guides = 'A'*len_guide_sequence
+    if text_guides is None or not bool(text_guides):
+        text_guides = "A" * len_guide_sequence
         no_guides = True
-        # text_guides = 'GAGTCCGAGCAGAAGAAGAA\nCCATCGGTGGCCGTTTGCCC'
-    elif guide_type != 'GS':
+    elif guide_type != "GS":
         text_guides = text_guides.strip()
-        if (not all(len(elem) == len(text_guides.split('\n')[0]) for elem in text_guides.split('\n'))):
-            text_guides = selectSameLenGuides(text_guides)
-
-    pam_len = 0
-    with open(current_working_directory + 'PAMs/' + pam + '.txt') as pam_file:
-        pam_char = pam_file.readline()
-        index_pam_value = pam_char.split(' ')[-1]
-        if int(pam_char.split(' ')[-1]) < 0:
-            end_idx = int(pam_char.split(' ')[-1]) * (-1)
-            pam_char = pam_char.split(' ')[0][0: end_idx]
-            pam_len = end_idx
-            pam_begin = True
-        else:
-            end_idx = int(pam_char.split(' ')[-1])
-            pam_char = pam_char.split(' ')[0][end_idx * (-1):]
-            pam_len = end_idx
-            pam_begin = False
-
-    if guide_type == 'GS':
-        text_sequence = text_guides
-        # print(text_sequence)
-        # exit()
+        if (
+            not all(
+                [
+                    len(g) == len(text_guides.split("\n")[0]) 
+                    for g in text_guides.split("\n")
+                ]
+            )
+        ):
+            text_guides = select_same_len_guides(text_guides)
+    # check PAM
+    try:
+        with open(
+            os.path.join(current_working_directory, PAMS_DIR, f"{pam}.txt")
+        ) as handle_pam:
+            pam_char = handle_pam.readline()
+            index_pam_value = int(pam_char.split()[-1])
+            if index_pam_value < 0:
+                end_idx = index_pam_value * (-1)
+                pam_char = pam_char.split()[0][:end_idx]
+                pam_begin = True
+            else:
+                end_idx = index_pam_value
+                pam_char = pam_char.split()[0][(end_idx * (-1)):]
+                pam_begin = False
+    except OSError as e:
+        raise e
+    if guide_type == "GS":
         # Extract sequence and create the guides
         guides = []
-        # extracted_seqs = list()
-        # for lines in text_sequence:
-        #     print('linea', lines)
-        for name_and_seq in text_sequence.split('>'):
-            if '' == name_and_seq:
+        for seqname_and_seq in text_guides.split(">"):
+            if not seqname_and_seq:
                 continue
-            name = name_and_seq[:name_and_seq.find('\n')]
-            seq = name_and_seq[name_and_seq.find('\n'):]
-            # seq = seq.strip().split()
-            # seq = ''.join(seq)
+            seqname = seqname_and_seq[:seqname_and_seq.find("\n")]
+            seq = seqname_and_seq[seqname_and_seq.find("\n"):]
             seq = seq.strip()
-            # name, seq = name_and_seq.strip().split('\n')
-            if 'chr' in seq:
-                # extracted_seq = extract_seq.extractSequence(
-                #         name, seq, genome_ref.replace(' ', '_'))
-                for single_row in seq.split('\n'):
-                    if '' == single_row:
+            if "chr" in seq:
+                for line in seq.split("\n"):
+                    if not line.strip():
                         continue
-                    pieces_of_row = single_row.strip().split()
-                    seq_to_extract = pieces_of_row[0]+":" + \
-                        pieces_of_row[1]+"-"+pieces_of_row[2]
-                    extracted_seq = extract_seq.extractSequence(
-                        name, seq_to_extract, genome_ref.replace(' ', '_'))
-                    guides.extend(convert_pam.getGuides(
-                        extracted_seq, pam_char, len_guide_sequence, pam_begin))
+                    line_split = line.strip().split()
+                    seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
+                    assert bool(seqname)
+                    assert bool(seq_read)
+                    assert bool(genome_ref)
+                    seq_read = extract_seq.extractSequence(
+                        seqname, seq_read, genome_ref.replace(" ", "_")
+                    )
+                    guides.extend(
+                        convert_pam.getGuides(
+                            seq_read, pam_char, len_guide_sequence, pam_begin
+                        )
+                    )
             else:
-                seq = seq.split()
-                seq = ''.join(seq)
-                extracted_seq = seq.strip()
-                guides.extend(convert_pam.getGuides(
-                    extracted_seq, pam_char, len_guide_sequence, pam_begin))
-            # print('extracted seq', extracted_seq)
-            # guides.extend(convert_pam.getGuides(
-            #     extracted_seq, pam_char, len_guide_sequence, pam_begin))
-        guides = list(set(guides))
+                seq_read = "".join(seq.split()).strip()
+                guides.extend(
+                    convert_pam.getGuides(
+                        seq_read, pam_char, len_guide_sequence, pam_begin
+                    )
+                )
+        guides = list(set(guides))  # remove potential duplicates
         if not guides:
-            guides = 'A'*len_guide_sequence
+            guides = "A" * len_guide_sequence
             no_guides = True
-        text_guides = '\n'.join(guides).strip()
-    # print(text_guides, 'and', guides, 'and', pam_char)
-    # exit()
+        text_guides = "\n".join(guides).strip()
     text_guides = text_guides.upper()
-    new_test_guides = list()
-    for guide in text_guides.split('\n'):
-        guide = guide.replace('N', '')
-        if len(guide) == len_guide_sequence:
-            new_test_guides.append(guide)
-    if not new_test_guides:
-        new_test_guides.append('A'*len_guide_sequence)
+    text_guides_tmp = [
+        guide.replace("N", "") for guide in text_guides.split("\n")
+        if len(guide.replace("N", "")) == len_guide_sequence
+    ]
+    if not text_guides_tmp:  # no guide found
+        text_guides_tmp.append("A" * len_guide_sequence)
         no_guides = True
-    text_guides = '\n'.join(new_test_guides)
-    for g in text_guides.split('\n'):
-        for c in g:
-            if c not in VALID_CHARS:
-                text_guides = text_guides.replace(c, '')
-    # set limit to 100 guides per run in the website
-    if len(text_guides.split('\n')) > 1000000000:
-        text_guides = '\n'.join(text_guides.split('\n')[:1000000000]).strip()
-    # len_guides = len(text_guides.split('\n')[0])
-    len_guides = len_guide_sequence
-
+    text_guides = "\n".join(text_guides_tmp)
+    # remove forbidden characters from guides
+    for guide in text_guides.split("\n"):
+        for nt in guide:
+            if nt not in VALID_CHARS:
+                text_guides = text_guides.replace(nt, "")
+    # set limit to 1000000000 guides per run
+    if len(text_guides.split("\n")) > 1000000000:
+        text_guides = "\n".join(text_guides.split("\n")[:1000000000]).strip()
     if no_guides:
-        text_update = {'width': '300px',
-                       'height': '30px', 'border': '1px solid red'}
+        text_update = {
+            "width": "300px", "height": "30px", "border": "1px solid red"
+        }
         update_style = True
         miss_input_list.append(
-            'Input at least one correct guide, correct guides must have the length requested for the selected PAM sequence (e.g., 20bp, 21bp, etc)')
-
+            str(
+                "Input at least one correct guide, correct guides must have the "
+                "length requested for the selected PAM sequence (e.g., 20bp, "
+                "21bp, etc)"
+            )
+        )
     miss_input = html.Div(
         [
-            html.P('The following inputs are missing:'),
+            html.P("The following inputs are missing:"),
             html.Ul([html.Li(x) for x in miss_input_list]),
-            html.P('Please fill in the values before submitting the job')
+            html.P("Please fill in the values before submitting the job")
         ]
     )
-
     if not update_style:
-        print('All good')
-        return 1, False, genome_update, pam_update, text_update, mms_update, dna_update, rna_update, len_guide_update, miss_input
-    return None, not is_open, genome_update, pam_update, text_update, mms_update, dna_update, rna_update, len_guide_update, miss_input
+        print("All input read correctly")
+        return (
+            1, 
+            False, 
+            genome_update, 
+            pam_update, 
+            text_update, 
+            mms_update, 
+            dna_update, 
+            rna_update, 
+            len_guide_update, 
+            miss_input
+        )
+    return (
+        None, 
+        (not is_open), 
+        genome_update, 
+        pam_update, 
+        text_update, 
+        mms_update, 
+        dna_update, 
+        rna_update, 
+        len_guide_update, 
+        miss_input
+    )
 
 
 @ app.callback(
