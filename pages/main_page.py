@@ -1003,9 +1003,9 @@ def check_input(
     pam: str, 
     guide_type: str, 
     text_guides: List[str], 
-    mms: int, 
-    dna: int, 
-    rna: int, 
+    mms: str, 
+    dna: str, 
+    rna: str, 
     is_open: bool
 ) -> Tuple:
     """Check the correctness of input data and fields. If the input data are 
