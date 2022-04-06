@@ -12,6 +12,7 @@ Contacts list:
 Contacts list for bug reports and maintainers:
     - Samuele Cancellieri, PhD <samuele.cancellieri@univr.it>
     - Manuel Tognon <manuel.tognon@univr.it>
+    - Rosalba Giugno, PhD <rosalba.giugno@univr.it>
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 
 CRISPRme developers:
@@ -26,13 +27,15 @@ Current CRISPRme maintainers:
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 """
 
+from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 
-from .pages_utils import GITHUB_LINK
-
-from typing import List
-
+import dash_bootstrap_components as dbc
+import dash_core_components as dcc
 import dash_html_components as html
+import dash_daq as daq
 
+import dash_table
 
 # the following list could be changed during time
 # TODO: maintain the following list up to date as much as possible
@@ -51,7 +54,7 @@ BAUERLAB_DEVS = [
     "Daniel Bauer"
 ]
 
-def contact_page() -> List:
+def contact_page():
     """Create the layout of CRISPRme contacts page.
     
     ...
@@ -62,8 +65,7 @@ def contact_page() -> List:
 
     Returns
     -------
-    List
-        Contacts webpage
+    None
     """
 
     infomics_p = str(
@@ -161,8 +163,8 @@ def contact_page() -> List:
                     [
                         html.P("Alternatively, please open an issue on GitHub: "),
                         html.A(
-                            f"{GITHUB_LINK}/issues",
-                            href=f"{GITHUB_LINK}/issues", 
+                            "https://github.com/pinellolab/CRISPRme/issues",
+                            href="https://github.com/pinellolab/CRISPRme/issues", 
                             target="_blank"
                         ),
                     ]
