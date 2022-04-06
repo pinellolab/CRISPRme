@@ -62,7 +62,7 @@ from app import (
     cache,
     app_main_directory,
     current_working_directory,
-    URL, 
+    URL,
 )
 from PostProcess.supportFunctions.loadSample import associateSample
 from PostProcess import CFDGraph, query_manager
@@ -91,15 +91,16 @@ import os
 # Result page layout
 #
 
+
 def result_page(job_id: str) -> html.Div:
     """Print the results page layout (guides table + images).
-    The guides table contains the research profile found during 
-    target search. Creates 10 buttons (mismatch number + 2), the 
-    remaining ones are set to style = {"display":None}, in order 
-    to have the right number of buttons, based on mismatches required 
-    in input during the target search. This choice solves some 
+    The guides table contains the research profile found during
+    target search. Creates 10 buttons (mismatch number + 2), the
+    remaining ones are set to style = {"display":None}, in order
+    to have the right number of buttons, based on mismatches required
+    in input during the target search. This choice solves some
     callback issues that have in input elements not created. In this
-    case, all the possible buttons are created, but are shown only 
+    case, all the possible buttons are created, but are shown only
     those correct based on the selected number of mismatches.
 
     ...
@@ -117,15 +118,12 @@ def result_page(job_id: str) -> html.Div:
 
     # check input function arguments
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     # start result page creation code
     value = job_id
-    job_directory = os.path.join(
-        current_working_directory, "Results", f"{job_id}")
+    job_directory = os.path.join(current_working_directory, "Results", f"{job_id}")
     integrated_file_name = glob(
-        os.path.join(current_working_directory, "Results",
-                     f"{job_id}", "*integrated*")
+        os.path.join(current_working_directory, "Results", f"{job_id}", "*integrated*")
     )[
         0
     ]  # take the first list element
@@ -150,51 +148,33 @@ def result_page(job_id: str) -> html.Div:
     # Load mismatches
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, value, PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, value, PARAMS_FILE)
         ) as p:
             all_params = p.read()
             real_genome_name = (
-                next(
-                    s for s in all_params.split("\n") if "Genome_idx" in s
-                )
+                next(s for s in all_params.split("\n") if "Genome_idx" in s)
             ).split("\t")[-1]
-            mms = (
-                next(
-                    s for s in all_params.split("\n") if "Mismatches" in s
-                )
-            ).split("\t")[-1]
-            bulge_dna = (
-                next(
-                    s for s in all_params.split("\n") if "DNA" in s
-                )
-            ).split("\t")[-1]
-            bulge_rna = (
-                next(
-                    s for s in all_params.split("\n") if "RNA" in s
-                )
-            ).split("\t")[-1]
+            mms = (next(s for s in all_params.split("\n") if "Mismatches" in s)).split(
+                "\t"
+            )[-1]
+            bulge_dna = (next(s for s in all_params.split("\n") if "DNA" in s)).split(
+                "\t"
+            )[-1]
+            bulge_rna = (next(s for s in all_params.split("\n") if "RNA" in s)).split(
+                "\t"
+            )[-1]
             genome_type_f = (
-                next(
-                    s for s in all_params.split("\n") if "Genome_selected" in s
-                )
+                next(s for s in all_params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             ref_comp = (
-                next(
-                    s for s in all_params.split("\n") if "Ref_comp" in s
-                )
+                next(s for s in all_params.split("\n") if "Ref_comp" in s)
             ).split("\t")[-1]
             max_bulges = (
-                next(
-                    s for s in all_params.split("\n") if "Max_bulges" in s
-                )
+                next(s for s in all_params.split("\n") if "Max_bulges" in s)
             ).split("\t")[-1]
-            pam_name = (
-                next(
-                    s for s in all_params.split("\n") if "Pam" in s
-                )
-            ).split("\t")[-1]
+            pam_name = (next(s for s in all_params.split("\n") if "Pam" in s)).split(
+                "\t"
+            )[-1]
     except OSError as e:
         raise e
     finally:
@@ -248,17 +228,17 @@ def result_page(job_id: str) -> html.Div:
     col_targetfor = " ".join([col_targetfor, "Mismatches + Bulges)"])
     # Column of headers. Remove the entries accordingly when checking genome type
     columns_profile_table = [
-        {"name": ["", "gRNA (spacer+PAM)"], "id":"Guide", "type": "text"},
-        {"name": ["", "Nuclease", ""], "id":"Nuclease", "type":"text"},
+        {"name": ["", "gRNA (spacer+PAM)"], "id": "Guide", "type": "text"},
+        {"name": ["", "Nuclease", ""], "id": "Nuclease", "type": "text"},
         {
             "name": ["", "Aggregated Specificity Score (0-100)"],
-            "id":"CFD",
-            "type":"text",
+            "id": "CFD",
+            "type": "text",
         },
         {
             "name": ["Off-targets for Mismatch (MM) and Bulge (B) Value", "Total"],
-            "id":"Total",
-            "type":"text",
+            "id": "Total",
+            "type": "text",
         },
     ]
     columns_profile_table.append(
@@ -311,8 +291,7 @@ def result_page(job_id: str) -> html.Div:
                     "Warning: Some guides have too many targets! ",
                     html.A(
                         "Click here",
-                        href=os.path.join(
-                            URL, DATA_DIR, job_id, "guides_error.txt"),
+                        href=os.path.join(URL, DATA_DIR, job_id, "guides_error.txt"),
                         className="alert-link",
                     ),
                     " to view them",
@@ -383,10 +362,10 @@ def result_page(job_id: str) -> html.Div:
                                         current_working_directory,
                                         RESULTS_DIR,
                                         job_id,
-                                        ".".join([job_id, "general_table.txt"])
+                                        ".".join([job_id, "general_table.txt"]),
                                     ),
                                     style={"display": "none"},
-                                    id="div-info-general-table"
+                                    id="div-info-general-table",
                                 ),
                             ]
                         ),
@@ -543,10 +522,7 @@ def result_page(job_id: str) -> html.Div:
                     dcc.Tab(
                         label="Query Genomic Region", value="tab-summary-by-position"
                     ),
-                    dcc.Tab(
-                        label="Graphical Reports",
-                        value="tab-summary-graphical"
-                    ),
+                    dcc.Tab(label="Graphical Reports", value="tab-summary-graphical"),
                 ],
             )
         )
@@ -567,9 +543,7 @@ def result_page(job_id: str) -> html.Div:
                     ),
                     dbc.Collapse(
                         dbc.Card(
-                            dbc.CardBody(
-                                html.Div(id="content-collapse-population")
-                            )
+                            dbc.CardBody(html.Div(id="content-collapse-population"))
                         ),
                         id="collapse-populations",
                     ),
@@ -589,17 +563,11 @@ def result_page(job_id: str) -> html.Div:
                         label="Summary by Mismatches/Bulges",
                         value="tab-summary-by-guide",
                     ),
-                    dcc.Tab(
-                        label="Summary by Sample",
-                        value="tab-summary-by-sample"
-                    ),
+                    dcc.Tab(label="Summary by Sample", value="tab-summary-by-sample"),
                     dcc.Tab(
                         label="Query Genomic Region", value="tab-summary-by-position"
                     ),
-                    dcc.Tab(
-                        label="Graphical Reports",
-                        value="tab-summary-graphical"
-                    ),
+                    dcc.Tab(label="Graphical Reports", value="tab-summary-graphical"),
                     dcc.Tab(
                         label="Personal Risk Cards", value="tab-graphical-sample-card"
                     ),
@@ -619,11 +587,11 @@ def result_page(job_id: str) -> html.Div:
 @app.callback(
     Output("store", "data"),
     [Input("target_filter_dropdown", "value")],
-    [State("url", "search")]
+    [State("url", "search")],
 )
 def sendto_write_json(filter_criterion: str, search: str) -> None:
     """Write auxiliary file to store the table filtering criterion
-    (received from the drop-down) and filter the tables displayed in 
+    (received from the drop-down) and filter the tables displayed in
     Summary by Mismatches/Bulges accordingly.
 
     The function is triggered by the user, when choosing the filtering
@@ -638,18 +606,18 @@ def sendto_write_json(filter_criterion: str, search: str) -> None:
     search : str
         Target search name
 
-    Returns 
+    Returns
     -------
     None
     """
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if not filter_criterion in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     job_id = search.split("=")[-1]
     write_json(filter_criterion, job_id)
 
@@ -684,16 +652,14 @@ def download_link_sample(
 
     Returns
     -------
-    str 
+    str
     bool
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate  # nothing to do
     job_id = search.split("=")[-1]
@@ -701,8 +667,7 @@ def download_link_sample(
     file_to_load = file_to_load.strip().split("/")[-1]
     # print(file_to_load)
     if os.path.exists(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -741,24 +706,21 @@ def download_general_table(
 
     Returns
     -------
-    str 
+    str
     bool
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
     # print(file_to_load)
     if os.path.exists(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -797,24 +759,21 @@ def download_general_table(
 
     Returns
     -------
-    str 
+    str
     bool
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
     # print(file_to_load)
     if os.path.exists(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -853,23 +812,20 @@ def download_link_sample(
 
     Returns
     -------
-    str 
+    str
     bool
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = ".".join([file_to_load, "zip"])
     if os.path.exists(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -908,23 +864,20 @@ def downloadLinkGuide(
 
     Returns
     -------
-    str 
+    str
     bool
     """
 
     if not isinstance(file_to_load, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = ".".join([file_to_load, "zip"])
     if os.path.exists(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, file_to_load)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
     ):
         return (
             html.A(
@@ -979,7 +932,7 @@ def update_iupac_decomposition_table_cluster(
     page_size: int,
     filter_criterion: str,
     search: str,
-    hash_term: str
+    hash_term: str,
 ) -> Dict[str, str]:
     """
 
@@ -998,41 +951,36 @@ def update_iupac_decomposition_table_cluster(
     hash_term : str
         Hashing
 
-    Returns 
+    Returns
     -------
     Dict[str, str]
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
     hash_term = hash_term.split("#")[1]
-    guide = hash_term[:hash_term.find("-Pos-")]
-    chr_pos = hash_term[(hash_term.find("-Pos-") + 5):]
+    guide = hash_term[: hash_term.find("-Pos-")]
+    chr_pos = hash_term[(hash_term.find("-Pos-") + 5) :]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
     try:
         with open(
-            os.path.join(current_working_directory,
-                         RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle:
             all_params = handle.read()
             genome_type_f = (
-                next(s for s in all_params.split(
-                    "\n") if "Genome_selected" in s)
+                next(s for s in all_params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             ref_comp = (
                 next(s for s in all_params.split("\n") if "Ref_comp" in s)
@@ -1052,8 +1000,7 @@ def update_iupac_decomposition_table_cluster(
     )
     # load data and cache the data table (in pd.DataFrame)
     df_cached = global_store_general(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, decomp_fname)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, decomp_fname)
     )
     if df_cached is None:  # nothing to display and do not update the page
         raise PreventUpdate
@@ -1067,18 +1014,14 @@ def update_iupac_decomposition_table_cluster(
                 getattr(df_cached[col_name], operator)(filter_value)
             ]
         elif operator == "contains":
-            df_cached = df_cached.loc[
-                df_cached[col_name].str.contains(filter_value)
-            ]
+            df_cached = df_cached.loc[df_cached[col_name].str.contains(filter_value)]
         elif operator == "datestartswith":
             # this is a simplification of the front-end filtering logic,
             # only works with complete fields in standard format
-            df_cached = df_cached.loc[
-                df_cached[col_name].str.startswith(filter_value)
-            ]
+            df_cached = df_cached.loc[df_cached[col_name].str.startswith(filter_value)]
     # Calculate sample count
     data_to_send = df_cached.iloc[
-        page_current * page_size: (page_current + 1) * page_size
+        page_current * page_size : (page_current + 1) * page_size
     ].to_dict("records")
     return data_to_send
 
@@ -1101,7 +1044,7 @@ def update_table_cluster(
     filter_criterion: str,
     hide_reference: str,
     search: str,
-    hash_term: str
+    hash_term: str,
 ) -> Dict[str, str]:
     """
 
@@ -1130,44 +1073,35 @@ def update_table_cluster(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(
-            f"Exepcted {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(f"Exepcted {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(sort_by, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(sort_by).__name__}")
+        raise TypeError(f"Expected {list.__name__}, got {type(sort_by).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Exepcted {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Exepcted {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if not isinstance(hide_reference, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hide_reference).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(hide_reference).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     hash_term = hash_term.split("#")[1]
     guide = hash_term[: hash_term.find("-Pos-")]
-    chr_pos = hash_term[hash_term.find("-Pos-") + 5:]
+    chr_pos = hash_term[hash_term.find("-Pos-") + 5 :]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle:
             all_params = handle.read()
             genome_type_f = (
-                next(s for s in all_params.split(
-                    "\n") if "Genome_selected" in s)
+                next(s for s in all_params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             ref_comp = (
                 next(s for s in all_params.split("\n") if "Ref_comp" in s)
@@ -1183,8 +1117,7 @@ def update_table_cluster(
     guide_fname = job_id + "." + chromosome + "_" + position + "." + guide + ".txt"
     # cache guide data table
     df_cached = global_store_general(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, guide_fname)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, guide_fname)
     )
     if df_cached is None:  # empty file -> nothing cached and nothing to do
         raise PreventUpdate
@@ -1194,9 +1127,7 @@ def update_table_cluster(
         df_cached.rename(columns=COL_BOTH_RENAME, inplace=True)
     # drop unused columns
     if "hide-ref" in hide_reference or genome_type == "var":
-        df_cached.drop(
-            df_cached[(df_cached["Samples"] == "n")].index, inplace=True
-        )
+        df_cached.drop(df_cached[(df_cached["Samples"] == "n")].index, inplace=True)
     # hide reference data
     if "hide-cluster" in hide_reference:
         df_cached = df_cached.head(1)
@@ -1208,15 +1139,11 @@ def update_table_cluster(
                 getattr(df_cached[col_name], operator)(filter_value)
             ]
         elif operator == "contains":
-            df_cached = df_cached.loc[
-                df_cached[col_name].str.contains(filter_value)
-            ]
+            df_cached = df_cached.loc[df_cached[col_name].str.contains(filter_value)]
         elif operator == "datestartswith":
             # this is a simplification of the front-end filtering logic,
             # only works with complete fields in standard format
-            df_cached = df_cached.loc[
-                df_cached[col_name].str.startswith(filter_value)
-            ]
+            df_cached = df_cached.loc[df_cached[col_name].str.startswith(filter_value)]
     # sort data table by the defined columns
     if bool(sort_by):
         df_cached = df_cached.sort_values(
@@ -1229,7 +1156,7 @@ def update_table_cluster(
         )
     # Calculate sample count
     data_to_send = df_cached.iloc[
-        (page_current * page_size):((page_current + 1) * page_size)
+        (page_current * page_size) : ((page_current + 1) * page_size)
     ].to_dict("records")
     if genome_type != "ref":
         (
@@ -1237,7 +1164,9 @@ def update_table_cluster(
             dict_pop_to_superpop,
         ) = associateSample.loadSampleAssociation(
             os.path.join(job_directory, SAMPLES_FILE)
-        )[:2]
+        )[
+            :2
+        ]
         for row in data_to_send:
             summarized_sample_cell = dict()
             for s in row["Samples"].split(","):
@@ -1275,41 +1204,33 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     hash_term : str
         Hashing
 
-    Returns 
+    Returns
     -------
     html.Div
         Sample page layout
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hash_term).__name__}")
-    guide = hash_term[:hash_term.find("-Pos-")]
-    chr_pos = hash_term[(hash_term.find("-Pos-") + 5):]
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+    guide = hash_term[: hash_term.find("-Pos-")]
+    chr_pos = hash_term[(hash_term.find("-Pos-") + 5) :]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
-    if not os.path.isdir(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id)
-    ):
-        return html.Div(
-            dbc.Alert("The selected result does not exist", color="danger")
-        )
+    if not os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, job_id)):
+        return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
                 next(s for s in params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
-            ref_comp = (
-                next(s for s in params.split("\n") if "Ref_comp" in s)
-            ).split("\t")[-1]
+            ref_comp = (next(s for s in params.split("\n") if "Ref_comp" in s)).split(
+                "\t"
+            )[-1]
     except OSError as e:
         raise e
     genome_type = "ref"
@@ -1320,15 +1241,12 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     if "True" in ref_comp:
         genome_type = "both"
         style_hide_reference = {}
-        value_hide_reference = ["hide-ref",
-                                "hide-cluster"]  # hide reference data
+        value_hide_reference = ["hide-ref", "hide-cluster"]  # hide reference data
     # begin page body construction
     final_list = []  # HTML page handler
     assert isinstance(chromosome, str)
     assert isinstance(position, str)
-    final_list.append(
-        html.H3(f"Selected Position: {chromosome} - {position}")
-    )
+    final_list.append(html.H3(f"Selected Position: {chromosome} - {position}"))
     if genome_type == "ref":
         cols = [
             {"name": i, "id": i, "type": t, "hideable": True}
@@ -1345,7 +1263,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        ".".join([job_id, f"{chromosome}_{position}", guide, "txt"])
+        ".".join([job_id, f"{chromosome}_{position}", guide, "txt"]),
     )
     put_header_cmd = " ".join(
         [
@@ -1354,9 +1272,9 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 current_working_directory,
                 RESULTS_DIR,
                 job_id,
-                f".{job_id}{file_to_grep}"
+                f".{job_id}{file_to_grep}",
             ),
-            f"> {cluster_grep_result} ; "
+            f"> {cluster_grep_result} ; ",
         ]
     )
     # Example    job_id.chr3_100.guide.txt
@@ -1376,14 +1294,17 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                         current_working_directory,
                         RESULTS_DIR,
                         job_id,
-                        f"{job_id}.Annotation.targets.txt"
+                        f"{job_id}.Annotation.targets.txt",
                     ),
                     "|",
-                    f"awk '$6=={position} && $4==\"{chromosome}\"'"
+                    f"awk '$6=={position} && $4==\"{chromosome}\"'",
                 ]
             )
             get_annotation = subprocess.Popen(
-                [cmd], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                [cmd],
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
             out, err = get_annotation.communicate()
             annotation_type = out.decode("UTF-8").strip().split("\t")[-1]
@@ -1418,12 +1339,12 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                             current_working_directory,
                             RESULTS_DIR,
                             job_id,
-                            f"{job_id}{file_to_grep}"
+                            f"{job_id}{file_to_grep}",
                         ),
                         "|",
                         f"awk '$6=={position} && $4==\"{chromosome}\"'",
                         ">>",
-                        cluster_grep_result
+                        cluster_grep_result,
                     ]
                 )
             ).read()
@@ -1454,7 +1375,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        f"{job_id}.{chromosome}_{position}.{guide}.scomposition.txt"
+        f"{job_id}.{chromosome}_{position}.{guide}.scomposition.txt",
     )
     iupac_decomp_visibility = {"display": "none"}
     if genome_type != "ref":
@@ -1470,12 +1391,12 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                     current_working_directory,
                     RESULTS_DIR,
                     job_id,
-                    f".{job_id}{file_to_grep}"
+                    f".{job_id}{file_to_grep}",
                 ),
                 "|",
-                f"awk '$6=={position} && $4==\"{chromosome}\" && $13!=\"n\"'",
+                f'awk \'$6=={position} && $4=="{chromosome}" && $13!="n"\'',
                 ">",
-                decomp_fname
+                decomp_fname,
             ]
         )
         os.popen(cmd).read()
@@ -1501,9 +1422,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                             "Generating download link, Please wait...",
                             id="download-link-sumbyposition",
                         ),
-                        dcc.Interval(
-                            interval=5 * 1000, id="interval-sumbyposition"
-                        ),
+                        dcc.Interval(interval=5 * 1000, id="interval-sumbyposition"),
                     ]
                 ),
             ]
@@ -1650,6 +1569,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
 # Summary by Sample tab
 #
 
+
 def global_get_sample_targets(
     job_id: str, sample: str, guide: str, page: int
 ) -> pd.DataFrame:
@@ -1671,7 +1591,7 @@ def global_get_sample_targets(
     guide : str
         CRISPR guide
     page : int
-        Current page 
+        Current page
 
     Returns
     -------
@@ -1681,11 +1601,9 @@ def global_get_sample_targets(
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(sample, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(sample).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(page, int):
@@ -1708,7 +1626,7 @@ def global_get_sample_targets(
             query_cols["samples"],
             sample,
             PAGE_SIZE,
-            page * PAGE_SIZE
+            page * PAGE_SIZE,
         ),
         conn,
     )
@@ -1717,8 +1635,7 @@ def global_get_sample_targets(
 
 # callback to update the samples table
 @app.callback(
-    [Output("table-sample-target", "data"),
-     Output("table-sample-target", "columns")],
+    [Output("table-sample-target", "data"), Output("table-sample-target", "columns")],
     [
         Input("table-sample-target", "page_current"),
         Input("table-sample-target", "page_size"),
@@ -1733,9 +1650,9 @@ def update_table_sample(
     sort_by: str,
     filter_criterion: str,
     search: str,
-    hash_term: str
+    hash_term: str,
 ) -> Tuple[Dict[str, str], pd.DataFrame]:
-    """Update the sample table accordingly to the filtering criterion 
+    """Update the sample table accordingly to the filtering criterion
     selected in the drop-down bar.
 
     ...
@@ -1761,34 +1678,25 @@ def update_table_sample(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hash_term).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
     filter_criterion = read_json(job_id)  # recover filter criterion
     assert isinstance(filter_criterion, str)
     assert filter_criterion in FILTERING_CRITERIA
     hash_term = hash_term.split("#")[1]
-    guide = hash_term[:hash_term.find("-Sample-")]
-    sample = str(hash_term[hash_term.rfind("-") + 1:])
+    guide = hash_term[: hash_term.find("-Sample-")]
+    sample = str(hash_term[hash_term.rfind("-") + 1 :])
     try:
         with open(
-            os.path.join(
-                current_working_directory,
-                RESULTS_DIR,
-                job_id,
-                PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle:
             all_params = handle.read()
             genome_type_f = (
-                next(s for s in all_params.split(
-                    "\n") if "Genome_selected" in s)
+                next(s for s in all_params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             ref_comp = (
                 next(s for s in all_params.split("\n") if "Ref_comp" in s)
@@ -1810,18 +1718,11 @@ def update_table_sample(
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        ".".join(
-            [
-                job_id,
-                sample,
-                guide,
-                "personal_targets.tsv"
-            ]
-        )
+        ".".join([job_id, sample, guide, "personal_targets.tsv"]),
     )
     # store sample table to personal targets file
     sample_df.to_csv(
-        integrated_sample_personal_fname, sep='\t', na_rep='NA', index=False
+        integrated_sample_personal_fname, sep="\t", na_rep="NA", index=False
     )
     # personal targets report ZIP
     integrated_sample_personal_zip_fname = integrated_sample_personal_fname.replace(
@@ -1831,7 +1732,7 @@ def update_table_sample(
     cmd = f"zip -j {integrated_sample_personal_zip_fname} {integrated_sample_personal_fname} &"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
-        raise ValueError(f"An error occurred while running \"{cmd}\"")
+        raise ValueError(f'An error occurred while running "{cmd}"')
     columns_df = [
         {"name": i, "id": i, "hideable": True}
         for col, i in enumerate(sample_df.columns)
@@ -1844,7 +1745,7 @@ def update_table_sample(
 
 def sample_page(job_id: str, hash_term: str) -> html.Div:
     """Build the sample webpage.
-    The sample page contains the CRISPR targets found for the selected 
+    The sample page contains the CRISPR targets found for the selected
     sample.
 
     ...
@@ -1863,35 +1764,24 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(hash_term, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hash_term).__name__}")
-    guide = hash_term[:hash_term.find("-Sample-")]
-    sample = str(hash_term[(hash_term.rfind("-") + 1):])
-    if not os.path.isdir(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id)
-    ):
-        return html.Div(
-            dbc.Alert("The selected result does not exist", color="danger")
-        )
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
+    guide = hash_term[: hash_term.find("-Sample-")]
+    sample = str(hash_term[(hash_term.rfind("-") + 1) :])
+    if not os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, job_id)):
+        return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     try:
         with open(
-            os.path.join(current_working_directory,
-                         RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
-                next(
-                    s for s in params.split("\n") if "Genome_selected" in s
-                )
+                next(s for s in params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
-            ref_comp = (
-                next(
-                    s for s in params.split("\n") if "Ref_comp" in s
-                )
-            ).split("\t")[-1]
+            ref_comp = (next(s for s in params.split("\n") if "Ref_comp" in s)).split(
+                "\t"
+            )[-1]
     except OSError as e:
         raise e
     genome_type = "ref"
@@ -1901,9 +1791,7 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
         genome_type = "both"
     # begin sample page construction
     final_list = []  # HTML page handler
-    final_list.append(
-        html.H3(f"Selected Sample: {sample}")  # page header
-    )
+    final_list.append(html.H3(f"Selected Sample: {sample}"))  # page header
     final_list.append(
         html.P(
             [
@@ -1916,47 +1804,38 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
                             "Generating download link, Please wait...",
                             id="download-link-sumbysample",
                         ),
-                        dcc.Interval(
-                            interval=(5 * 1000), id="interval-sumbysample"
-                        ),
+                        dcc.Interval(interval=(5 * 1000), id="interval-sumbysample"),
                     ]
                 ),
             ]
         )
     )
     # header file
-    header = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id, "header.txt"
-    )
+    header = os.path.join(current_working_directory, RESULTS_DIR, job_id, "header.txt")
     # file_to_grep = current_working_directory + 'Results/' + \
     #     job_id + '/.' + job_id + '.bestMerge.txt'
     integrated_fname = glob(
-        os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, "*integrated*"
-        )
-    )[0]  # take the first element
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, "*integrated*")
+    )[
+        0
+    ]  # take the first element
     assert isinstance(integrated_fname, str)
     file_to_grep = os.path.join(
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        f"{job_id}.bestMerge.txt.integrated_results.tsv"
+        f"{job_id}.bestMerge.txt.integrated_results.tsv",
     )
     sample_grep_result = os.path.join(
-        current_working_directory,
-        RESULTS_DIR,
-        job_id,
-        f"{job_id}.{sample}.{guide}.txt"
+        current_working_directory, RESULTS_DIR, job_id, f"{job_id}.{sample}.{guide}.txt"
     )
     integrated_sample_personal = os.path.join(
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        f"{job_id}.{sample}.{guide}.personal_targets.tsv"
+        f"{job_id}.{sample}.{guide}.personal_targets.tsv",
     )
-    integrated_sample_personal_zip = integrated_sample_personal.replace(
-        "tsv", "zip"
-    )
+    integrated_sample_personal_zip = integrated_sample_personal.replace("tsv", "zip")
     final_list.append(
         html.Div(
             f"{job_id}.{sample}.{guide}.personal_targets",
@@ -1966,9 +1845,7 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
     )
     # define path to db
     db_path = glob(
-        os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, ".*.db"
-        )
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db")
     )[0]
     assert isinstance(db_path, str)
     # initialize db for queries
@@ -2038,6 +1915,7 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
     )
     return html.Div(final_list, style={"margin": "1%"})
 
+
 # TODO: move auxiliary functions close to each other in this file
 
 
@@ -2061,7 +1939,8 @@ def global_store_general(path_file_to_load: str) -> pd.DataFrame:
 
     if not isinstance(path_file_to_load, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(path_file_to_load).__name__}")
+            f"Expected {str.__name__}, got {type(path_file_to_load).__name__}"
+        )
     if path_file_to_load is not None and not os.path.isfile(path_file_to_load):
         raise FileNotFoundError(f"Unable to locate {path_file_to_load}")
     if path_file_to_load is None:
@@ -2073,9 +1952,7 @@ def global_store_general(path_file_to_load: str) -> pd.DataFrame:
     # make sure file to cache is not empty
     if os.path.getsize(path_file_to_load) > 0:
         # TSV format -> sep="\t"
-        df = pd.read_csv(
-            path_file_to_load, sep="\t", index_col=False, na_filter=False
-        )
+        df = pd.read_csv(path_file_to_load, sep="\t", index_col=False, na_filter=False)
     else:
         df = None  # empty file, no need for caching
     return df
@@ -2118,7 +1995,7 @@ def update_table_subset(
     The function also updates the visualized results when the user clicks
     the button next/prev page.
 
-    The function loads the CRISPR targets/scores files if available and use 
+    The function loads the CRISPR targets/scores files if available and use
     them to create a pandas DataFrame. The DataFrame column names are changed
     accordingly to those used as IDs of webpage datatable columns.
 
@@ -2149,41 +2026,32 @@ def update_table_subset(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(hide_reference, list):
         raise TypeError(
-            f"Expected {list.__name__}, got {type(hide_reference).__name__}")
+            f"Expected {list.__name__}, got {type(hide_reference).__name__}"
+        )
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_guide, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hash_guide).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_guide).__name__}")
     # recover job identifier
     job_id = search.split("=")[-1]
     # recover the filtering criterion from drop-down bar
     filter_criterion = read_json(job_id)
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
-                next(
-                    s for s in params.split("\n") if "Genome_selected" in s
-                )
+                next(s for s in params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
-            ref_comp = (
-                next(
-                    s for s in params.split("\n") if "Ref_comp" in s
-                )
-            ).split("\t")[-1]
+            ref_comp = (next(s for s in params.split("\n") if "Ref_comp" in s)).split(
+                "\t"
+            )[-1]
     except OSError as e:
         raise e
     genome_type = "ref"
@@ -2191,14 +2059,14 @@ def update_table_subset(
         genome_type = "var"
     if "True" in ref_comp:
         genome_type = "both"
-    #value = job_id
+    # value = job_id
     if search is None:
         raise PreventUpdate  # do not do anything
     if filter_term is not None:
         filtering_expressions = filter_term.split(" && ")
     # filtering_expressions.append(['{crRNA} = ' + guide])
     # recover guide, mismatches and bulges
-    guide = hash_guide[1:hash_guide.find("new")]
+    guide = hash_guide[1 : hash_guide.find("new")]
     mms = hash_guide[-1:]
     bulge_s = hash_guide[-2:-1]
     if "DNA" in hash_guide:
@@ -2213,9 +2081,7 @@ def update_table_subset(
             job_id, bulge_t, bulge_s, mms, guide, page_current
         )
     else:
-        result = global_store_subset(
-            job_id, bulge_t, bulge_s, mms, guide, page_current
-        )
+        result = global_store_subset(job_id, bulge_t, bulge_s, mms, guide, page_current)
     drop_cols = drop_columns(result, filter_criterion)
     result.drop(drop_cols, axis=1, inplace=True)
     # name of target file filtered with bul-type, mm and bul
@@ -2223,7 +2089,7 @@ def update_table_subset(
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv"
+        f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv",
     )
     # save df to tsv with filtered data
     result.to_csv(targets_with_mm_bul, sep="\t", na_rep="NA", index=False)
@@ -2266,8 +2132,7 @@ def guidePagev3(job_id, hash):
         ref_comp = (next(s for s in all_params.split("\n") if "Ref_comp" in s)).split(
             "\t"
         )[-1]
-        pam = (next(s for s in all_params.split(
-            "\n") if "Pam" in s)).split("\t")[-1]
+        pam = (next(s for s in all_params.split("\n") if "Pam" in s)).split("\t")[-1]
 
     job_directory = current_working_directory + "Results/" + job_id + "/"
     genome_type = "ref"
@@ -2288,15 +2153,13 @@ def guidePagev3(job_id, hash):
     if pam_at_start:
         final_list.append(
             html.H3(
-                "Selected Guide: " +
-                str(pam) + str(guide).replace("N", "") + add_header
+                "Selected Guide: " + str(pam) + str(guide).replace("N", "") + add_header
             )
         )
     else:
         final_list.append(
             html.H3(
-                "Selected Guide: " +
-                str(guide).replace("N", "") + str(pam) + add_header
+                "Selected Guide: " + str(guide).replace("N", "") + str(pam) + add_header
             )
         )
     final_list.append(
@@ -2305,8 +2168,7 @@ def guidePagev3(job_id, hash):
                 # 'Select a row to view the target IUPAC character scomposition. The rows highlighted in red indicates that the target was found only in the genome with variants.',
                 "List of Targets found for the selected guide.",
                 dcc.Checklist(
-                    options=[
-                        {"label": "Hide Reference Targets", "value": "hide-ref"}],
+                    options=[{"label": "Hide Reference Targets", "value": "hide-ref"}],
                     id="hide-reference-targets",
                     value=value_hide_reference,
                     style=style_hide_reference,
@@ -2317,8 +2179,7 @@ def guidePagev3(job_id, hash):
                             "Generating download link, Please wait...",
                             id="download-link-sumbyguide",
                         ),
-                        dcc.Interval(interval=5 * 1000,
-                                     id="interval-sumbyguide"),
+                        dcc.Interval(interval=5 * 1000, id="interval-sumbyguide"),
                     ]
                 ),
             ]
@@ -2363,8 +2224,7 @@ def guidePagev3(job_id, hash):
         )
     )
 
-    path_db = glob(current_working_directory +
-                   "Results/" + job_id + "/.*.db")[0]
+    path_db = glob(current_working_directory + "Results/" + job_id + "/.*.db")[0]
     path_db = str(path_db)
     conn = sqlite3.connect(path_db)
     c = conn.cursor()
@@ -2449,7 +2309,7 @@ def global_store_subset_no_ref(
         Bulge type
     bulge_s : str
     mms : str
-        Mismatches 
+        Mismatches
     guide : str
         Guide
     page : int
@@ -2462,14 +2322,11 @@ def global_store_subset_no_ref(
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(bulge_t, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(bulge_t).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_t).__name__}")
     if not isinstance(bulge_s, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(bulge_s).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_s).__name__}")
     if not isinstance(mms, str):
         raise TypeError(f"Expected {str.__name__}, got {type(mms).__name__}")
     if not isinstance(guide, str):
@@ -2480,10 +2337,10 @@ def global_store_subset_no_ref(
         return ""  # do not do anything
     # recover path to db file
     db_path = glob(
-        os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, ".*.db"
-        )
-    )[0]  # take the first element
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db")
+    )[
+        0
+    ]  # take the first element
     assert isinstance(db_path, str)
     # initialize db
     conn = sqlite3.connect(db_path)
@@ -2530,7 +2387,7 @@ def global_store_subset(
         Bulge type
     bulge_s : str
     mms : str
-        Mismatches 
+        Mismatches
     guide : str
         Guide
     page : int
@@ -2543,14 +2400,11 @@ def global_store_subset(
     """
 
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(bulge_t, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(bulge_t).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_t).__name__}")
     if not isinstance(bulge_s, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(bulge_s).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(bulge_s).__name__}")
     if not isinstance(mms, str):
         raise TypeError(f"Expected {str.__name__}, got {type(mms).__name__}")
     if not isinstance(guide, str):
@@ -2561,9 +2415,7 @@ def global_store_subset(
         return ""  # do not do anything
     # recover path to db
     db_path = glob(
-        os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, ".*.db"
-        )
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db")
     )[0]
     assert isinstance(db_path, str)
     # initialize db
@@ -2595,7 +2447,7 @@ def global_store_subset(
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv"
+        f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv",
     )
     # store query results in TSV file
     result.to_csv(targets_with_mm_bul, sep="\t", na_rep="NA", index=False)
@@ -2633,11 +2485,9 @@ def load_distribution_populations(
     """
 
     if not isinstance(sel_cel, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(sel_cel).__name__}")
+        raise TypeError(f"Expected {list.__name__}, got {type(sel_cel).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if sel_cel is None or not sel_cel or not all_guides:
         raise PreventUpdate  # do not do anything
     # get the guide
@@ -2645,21 +2495,15 @@ def load_distribution_populations(
     job_id = job_id.split("=")[-1]  # job identifier
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             all_params = handle_params.read()
-            mms = (
-                next(
-                    s for s in all_params.split("\n") if "Mismatches" in s
-                )
-            ).split("\t")[-1]
+            mms = (next(s for s in all_params.split("\n") if "Mismatches" in s)).split(
+                "\t"
+            )[-1]
             mms = int(mms)
             max_bulges = (
-                next(
-                    s for s in all_params.split("\n") if "Max_bulges" in s
-                )
+                next(s for s in all_params.split("\n") if "Max_bulges" in s)
             ).split("\t")[-1]
             max_bulges = int(max_bulges)
     except OSError as e:
@@ -2701,11 +2545,11 @@ def load_distribution_populations(
                                                                 "populations",
                                                                 "distribution",
                                                                 guide,
-                                                                f"{mm}total.png"
+                                                                f"{mm}total.png",
                                                             ]
-                                                        )
+                                                        ),
                                                     ),
-                                                    mode="rb"
+                                                    mode="rb",
                                                 ).read(),
                                             ).decode()
                                         ),
@@ -2723,9 +2567,9 @@ def load_distribution_populations(
                                                 "populations",
                                                 "distribution",
                                                 guide,
-                                                f"{mm}total.png"
+                                                f"{mm}total.png",
                                             ]
-                                        )
+                                        ),
                                     ),
                                 ),
                                 html.Div(
@@ -2796,7 +2640,7 @@ def update_table_general_profile(
     sort_by: List[str],
     filter_term: str,
     filter_criterion: str,
-    search: str
+    search: str,
 ) -> Tuple[Dict, List]:
     """Construct the custom ranking tab page.
     The tab displays a table summarizing the CRISPRme analysis results
@@ -2828,61 +2672,45 @@ def update_table_general_profile(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(sort_by, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(sort_by).__name__}")
+        raise TypeError(f"Expected {list.__name__}, got {type(sort_by).__name__}")
     if not isinstance(filter_term, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_term).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_term).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if filter_criterion not in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filter criterion ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     # recover job identifier
     job_id = search.split("=")[-1]
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
-                next(
-                    s for s in params.split("\n") if "Genome_selected" in s
-                )
+                next(s for s in params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
-            ref_comp = (
-                next(
-                    s for s in params.split("\n") if "Ref_comp" in s
-                )
-            ).split("\t")[-1]
-            mms = (
-                next(
-                    s for s in params.split("\n") if "Mismatches" in s
-                )
-            ).split("\t")[-1]
+            ref_comp = (next(s for s in params.split("\n") if "Ref_comp" in s)).split(
+                "\t"
+            )[-1]
+            mms = (next(s for s in params.split("\n") if "Mismatches" in s)).split(
+                "\t"
+            )[-1]
             mms = int(mms)
             max_bulges = (
-                next(
-                    s for s in params.split("\n") if "Max_bulges" in s
-                )
+                next(s for s in params.split("\n") if "Max_bulges" in s)
             ).split("\t")[-1]
             max_bulges = int(max_bulges)
-            nuclease = (
-                next(
-                    s for s in params.split("\n") if "Nuclease" in s
-                )
-            ).split("\t")[-1]
+            nuclease = (next(s for s in params.split("\n") if "Nuclease" in s)).split(
+                "\t"
+            )[-1]
     except OSError as e:
         raise e
     genome_type = "ref"
@@ -2894,17 +2722,12 @@ def update_table_general_profile(
     # Get error guides
     error_guides = []
     if os.path.exists(
-        os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, "guides_error.txt"
-        )
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, "guides_error.txt")
     ):
         try:
             with open(
                 os.path.join(
-                    current_working_directory,
-                    RESULTS_DIR,
-                    job_id,
-                    "guides_error.txt"
+                    current_working_directory, RESULTS_DIR, job_id, "guides_error.txt"
                 )
             ) as handle_guide_error:
                 for e_g in handle_guide_error:
@@ -2914,9 +2737,7 @@ def update_table_general_profile(
     # Get guide from .guide.txt
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, GUIDES_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, GUIDES_FILE)
         ) as handle_guides:
             guides = handle_guides.read().strip().split("\n")
             guides.sort()
@@ -2945,9 +2766,7 @@ def update_table_general_profile(
             if a.split("\t")[0] not in error_guides
         ]
         doench = [
-            a.split("\t")[2]
-            for a in all_scores
-            if a.split("\t")[0] not in error_guides
+            a.split("\t")[2] for a in all_scores if a.split("\t")[0] not in error_guides
         ]
         if genome_type == "both":
             doench_enr = [
@@ -2973,10 +2792,10 @@ def update_table_general_profile(
                 current_working_directory,
                 RESULTS_DIR,
                 job_id,
-                f".{job_id}.general_target_count.{g}_{filter_criterion}.txt"
+                f".{job_id}.general_target_count.{g}_{filter_criterion}.txt",
             ),
             sep="\t",
-            na_filter=False
+            na_filter=False,
         )
         data_guides = {}
         data_guides["Guide"] = g
@@ -2997,8 +2816,7 @@ def update_table_general_profile(
             data_guides["CFD"] = acfd[i]
             table_to_file.append(f"CFD: {acfd[i]}")  # append CFD to table
             table_to_file.append("\t\t\t\tMismatches")
-            table_to_file.append(
-                data_general_count_copy.to_string(index=False))
+            table_to_file.append(data_general_count_copy.to_string(index=False))
             if genome_type == "both":
                 data_guides["Doench 2016"] = doench[i]
             else:
@@ -3017,10 +2835,7 @@ def update_table_general_profile(
                     if j == 1:
                         data_guides["Total"].append(
                             "\t".join(
-                                [
-                                    "REFERENCE",
-                                    str(sum(data_general_count.iloc[j, :]))
-                                ]
+                                ["REFERENCE", str(sum(data_general_count.iloc[j, :]))]
                             )
                         )
                     elif j == 2:
@@ -3031,10 +2846,7 @@ def update_table_general_profile(
                     elif j == 4:
                         data_guides["Total"].append(
                             "\t\t".join(
-                                [
-                                    "VARIANT",
-                                    str(sum(data_general_count.iloc[j, :]))
-                                ]
+                                ["VARIANT", str(sum(data_general_count.iloc[j, :]))]
                             )
                         )
                     else:
@@ -3046,20 +2858,14 @@ def update_table_general_profile(
                     if j == 1:
                         data_guides["Total"].append(
                             "\t".join(
-                                [
-                                    "REFERENCE",
-                                    str(sum(data_general_count.iloc[j, :]))
-                                ]
+                                ["REFERENCE", str(sum(data_general_count.iloc[j, :]))]
                             )
                         )
                         data_guides["Total"].append("\t")
                     elif i == 3:
                         data_guides["Total"].append(
                             "\t\t".join(
-                                [
-                                    "VARIANT",
-                                    str(sum(data_general_count.iloc[j, :]))
-                                ]
+                                ["VARIANT", str(sum(data_general_count.iloc[j, :]))]
                             )
                         )
                     else:
@@ -3071,20 +2877,14 @@ def update_table_general_profile(
                     if j == 0:
                         data_guides["Total"].append(
                             "\t".join(
-                                [
-                                    "REFERENCE",
-                                    str(sum(data_general_count.iloc[j, :]))
-                                ]
+                                ["REFERENCE", str(sum(data_general_count.iloc[j, :]))]
                             )
                         )
                         data_guides["Total"].append("\t")
                     elif j == 1:
                         data_guides["Total"].append(
                             "\t\t".join(
-                                [
-                                    "VARIANT",
-                                    str(sum(data_general_count.iloc[j, :]))
-                                ]
+                                ["VARIANT", str(sum(data_general_count.iloc[j, :]))]
                             )
                         )
         else:
@@ -3092,10 +2892,7 @@ def update_table_general_profile(
                 if j == len(data_guides["# Bulges"].split("\n")) // 2:
                     data_guides["Total"].append(
                         "\t".join(
-                            [
-                                "REFERENCE",
-                                str(sum(data_general_count.iloc[j, :]))
-                            ]
+                            ["REFERENCE", str(sum(data_general_count.iloc[j, :]))]
                         )
                     )
                 else:
@@ -3110,21 +2907,15 @@ def update_table_general_profile(
         else:
             for j in range(mms + 1):
                 tmp = [
-                    data_general_count.iloc[:(
-                        max_bulges + 1), j].values.astype(str)
+                    data_general_count.iloc[: (max_bulges + 1), j].values.astype(str)
                 ]
                 # tmp.insert(len(tmp)//2, "")
                 data_guides[str(j) + "MM"] = "\n".join(tmp)
         data_guides["Total"] = "\n".join(data_guides["Total"])
         df.append(data_guides)
     dff = pd.DataFrame(df)  # create data table
-    table_to_file_save_dest = (
-        os.path.join(
-            current_working_directory,
-            RESULTS_DIR,
-            job_id,
-            f"{job_id}.general_table.txt"
-        )
+    table_to_file_save_dest = os.path.join(
+        current_working_directory, RESULTS_DIR, job_id, f"{job_id}.general_table.txt"
     )
     try:
         outfile = open(table_to_file_save_dest, "w")
@@ -3136,9 +2927,7 @@ def update_table_general_profile(
         outfile.close()
     # zip integrated results
     integrated_fname = glob(
-        os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, "*integrated*"
-        )
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, "*integrated*")
     )[0]
     assert isinstance(integrated_fname, str)
     integrated_file = integrated_fname
@@ -3151,12 +2940,9 @@ def update_table_general_profile(
             raise ValueError(f"An error occurred while running {cmd}")
     if "NO SCORES" not in all_scores:
         try:
-            dff = dff.sort_values(
-                ["CFD", "Doench 2016"], ascending=[False, False]
-            )
+            dff = dff.sort_values(["CFD", "Doench 2016"], ascending=[False, False])
         except:  # for BOTH
-            dff = dff.sort_values(["CFD", "Enriched"],
-                                  ascending=[False, False])
+            dff = dff.sort_values(["CFD", "Enriched"], ascending=[False, False])
     else:
         try:
             dff = dff.sort_values("On-Targets Reference", ascending=True)
@@ -3184,7 +2970,7 @@ def update_table_general_profile(
         )
     # Calculate sample count
     data_to_send = dff.iloc[
-        page_current * page_size: (page_current + 1) * page_size
+        page_current * page_size : (page_current + 1) * page_size
     ].to_dict("records")
     return data_to_send, [{"row": 0, "column": 0}]
 
@@ -3225,11 +3011,7 @@ def color_selected_row(sel_cel: List, all_guides: List) -> List:
             },
             "background-color": "rgba(0, 0, 255,0.15)",  # rgb(255, 102, 102)
         },
-        {
-            "if": {"column_id": "Genome"},
-            "font-weight": "bold",
-            "textAlign": "center"
-        },
+        {"if": {"column_id": "Genome"}, "font-weight": "bold", "textAlign": "center"},
     ]
 
 
@@ -3306,8 +3088,7 @@ def filter_position_table(
     if not filter_criterion in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if sel_cel is None:
         raise PreventUpdate
     if n is None:
@@ -3352,7 +3133,14 @@ def filter_position_table(
     # query the db
     result = pd.read_sql_query(
         query.format(
-            GUIDE_COLUMN, guide, query_cols['start'], start, query_cols['start'], end, CHR_COLUMN, chrom
+            GUIDE_COLUMN,
+            guide,
+            query_cols["start"],
+            start,
+            query_cols["start"],
+            end,
+            CHR_COLUMN,
+            chrom,
         ),
         conn,
     )
@@ -3463,11 +3251,9 @@ def update_position_filter(
     if not isinstance(chrom, str):
         raise TypeError(f"Expected {str.__name__}, got {type(chrom).__name__}")
     if not isinstance(pos_start, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(pos_start).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(pos_start).__name__}")
     if not isinstance(pos_end, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(pos_end).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(pos_end).__name__}")
     if n is None:  # no click -> no page update
         raise PreventUpdate
     if pos_start == "":
@@ -3516,7 +3302,7 @@ def filter_sample_table(
     """Filter summary by sample table according to the filtering crietrion
     selected by the user.
 
-    The adopted filtering criterion is selected by the user through the 
+    The adopted filtering criterion is selected by the user through the
     drop-down bar available for all webpage result tabs.
 
     ...
@@ -3525,7 +3311,7 @@ def filter_sample_table(
     ----------
     n_prev : int
         Previous pages number
-    n_next : 
+    n_next :
         Next pages number
     filter_q : str
         Filter query
@@ -3545,29 +3331,24 @@ def filter_sample_table(
     Returns
     -------
     Tuple[html.Table, str]
-        Updated samples table    
+        Updated samples table
     """
 
     if n_prev is not None:
         if not isinstance(n_prev, int):
-            raise TypeError(
-                f"Expected {int.__name__}, got {type(n_prev).__name__}")
+            raise TypeError(f"Expected {int.__name__}, got {type(n_prev).__name__}")
     if n_next is not None:
         if not isinstance(n_next, int):
-            raise TypeError(
-                f"Expected {int.__name__}, got {type(n_next).__name__}")
+            raise TypeError(f"Expected {int.__name__}, got {type(n_next).__name__}")
     if not isinstance(filter_q, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_q).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_q).__name__}")
     if n is not None:
         if not isinstance(n, int):
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(current_page, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(current_page).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(current_page).__name__}")
     if sel_cel is None:
         raise PreventUpdate  # do not do anything
     if n_prev is None and n_next is None and n is None:
@@ -3594,29 +3375,22 @@ def filter_sample_table(
     btn_sample_section = [n, n_prev, n_next]
     # get job identifier
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLES_FILE)
     )[2]
     # read CRISPRme run parameters
     try:
         with open(
-            os.path.join(
-                current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-            )
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
-                next(
-                    s for s in params.split("\n") if "Genome_selected" in s
-                )
+                next(s for s in params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
-            ref_comp = (
-                next(
-                    s for s in params.split("\n") if "Ref_comp" in s
-                )
-            ).split("\t")[-1]
+            ref_comp = (next(s for s in params.split("\n") if "Ref_comp" in s)).split(
+                "\t"
+            )[-1]
     except OSError as e:
         raise e
     genome_type = "ref"
@@ -3654,12 +3428,12 @@ def filter_sample_table(
         df = pd.read_csv(
             os.path.join(
                 job_directory,
-                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt",
             ),
             sep="\t",
             names=col_names_sample,
             skiprows=2,
-            na_filter=False
+            na_filter=False,
         )
         df = df.sort_values("Targets in Variant", ascending=False)
         more_info_col = ["Show Targets" for _ in range(df.shape[0])]
@@ -3672,36 +3446,15 @@ def filter_sample_table(
             if sample is None or sample == "":
                 if pop is None or pop == "":
                     df.drop(
-                        df[(~(df["Population"].isin(population_1000gp[sup_pop])))].index,
+                        df[
+                            (~(df["Population"].isin(population_1000gp[sup_pop])))
+                        ].index,
                         inplace=True,
                     )
                 else:
                     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
             else:
                 df.drop(df[(df["Sample"] != sample)].index, inplace=True)
-        # if (
-        #     (sup_pop is None or sup_pop == "")
-        #     and (pop is None or pop == "")
-        #     and (sample is None or sample == "")
-        # ):  # No filter value selected
-        #     max_page = len(df.index)
-        #     max_page = math.floor(max_page / 10) + 1
-        #     return (
-        #         generate_table_samples(df, "table-samples", 1, guide, job_id),
-        #         f"1/{max_page}",
-        #     )
-        # # filter table to keep sample data
-        # if sample is None or sample == "":
-        #     # filter table to keep population data
-        #     if pop is None or pop == "":
-        #         df.drop(
-        #             df[(~(df["Population"].isin(population_1000gp[sup_pop])))].index,
-        #             inplace=True,
-        #         )
-        #     else:
-        #         df.drop(df[(df["Population"] != pop)].index, inplace=True)
-        # else:
-        #     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
         max_page = len(df.index)
         max_page = math.floor(max_page / 10) + 1
         return (
@@ -3714,12 +3467,12 @@ def filter_sample_table(
             df = pd.read_csv(
                 os.path.join(
                     job_directory,
-                    f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+                    f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt",
                 ),
                 sep="\t",
                 names=col_names_sample,
                 skiprows=2,
-                na_filter=False
+                na_filter=False,
             )
             if genome_type == "both":
                 df = df.sort_values("Targets in Variant", ascending=False)
@@ -3733,19 +3486,12 @@ def filter_sample_table(
                     if pop is None or pop == "":
                         df.drop(
                             df[
-                                (
-                                    ~(
-                                        df["Population"].isin(
-                                            population_1000gp[sup_pop]
-                                        )
-                                    )
-                                )
+                                (~(df["Population"].isin(population_1000gp[sup_pop])))
                             ].index,
                             inplace=True,
                         )
                     else:
-                        df.drop(df[(df["Population"] != pop)].index,
-                                inplace=True)
+                        df.drop(df[(df["Population"] != pop)].index, inplace=True)
                 else:
                     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
             if ((current_page - 1) * 10) > len(df):
@@ -3759,12 +3505,12 @@ def filter_sample_table(
             df = pd.read_csv(
                 os.path.join(
                     job_directory,
-                    f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+                    f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt",
                 ),
                 sep="\t",
                 names=col_names_sample,
                 skiprows=2,
-                na_filter=False
+                na_filter=False,
             )
             if genome_type == "both":
                 df = df.sort_values("Targets in Variant", ascending=False)
@@ -3777,27 +3523,18 @@ def filter_sample_table(
                     if pop is None or pop == "":
                         df.drop(
                             df[
-                                (
-                                    ~(
-                                        df["Population"].isin(
-                                            population_1000gp[sup_pop]
-                                        )
-                                    )
-                                )
+                                (~(df["Population"].isin(population_1000gp[sup_pop])))
                             ].index,
                             inplace=True,
                         )
                     else:
-                        df.drop(df[(df["Population"] != pop)].index,
-                                inplace=True)
+                        df.drop(df[(df["Population"] != pop)].index, inplace=True)
                 else:
                     df.drop(df[(df["Sample"] != sample)].index, inplace=True)
         max_page = len(df.index)
         max_page = math.floor(max_page / 10) + 1
         return (
-            generate_table_samples(
-                df, "table-samples", current_page, guide, job_id
-            ),
+            generate_table_samples(df, "table-samples", current_page, guide, job_id),
             f"{current_page}/{max_page}",
         )
 
@@ -3842,28 +3579,21 @@ def update_sample_filter(
     if superpopulation is not None:
         if not isinstance(superpopulation, str):
             raise TypeError(
-                f"Expected {str.__name__}, got {type(superpopulation).__name__}")
+                f"Expected {str.__name__}, got {type(superpopulation).__name__}"
+            )
     if population is not None:
         if not isinstance(population, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(population).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(population).__name__}")
     if sample is not None:
         if not isinstance(sample, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(sample).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     if n is None:
         raise PreventUpdate
     # prevent page updates when at least one filter element is none
-    if any(
-        [
-            field is None for field in [superpopulation, population, sample]
-        ]
-    ):
+    if any([field is None for field in [superpopulation, population, sample]]):
         raise PreventUpdate
     filter_new = ",".join(
-        [
-            superpopulation, population, sample.replace(" ", "").upper()
-        ]
+        [superpopulation, population, sample.replace(" ", "").upper()]
     )
     return filter_new
 
@@ -3894,17 +3624,13 @@ def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
 
     if pop is not None:
         if not isinstance(pop, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(pop).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(pop).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if pop is None or pop == "":
         return [], None  # no update required
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id
-    )
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     pop_dict = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLES_FILE)
     )[3]
@@ -3940,26 +3666,20 @@ def update_population_drop(superpop: str, search: str) -> Tuple[Dict, None]:
 
     if superpop is not None:
         if not isinstance(superpop, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(superpop).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(superpop).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if superpop is None or superpop == "":
         raise PreventUpdate  # no update required
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id
-    )
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLES_FILE)
     )[2]
     return [{"label": i, "value": i} for i in population_1000gp[superpop]], None
 
 
-def check_existance_sample(
-    job_directory: str, job_id: str, sample: str
-) -> bool:
+def check_existance_sample(job_directory: str, job_id: str, sample: str) -> bool:
     """Check if the selected sample exists in the dataset.
 
     ...
@@ -3979,18 +3699,13 @@ def check_existance_sample(
     """
 
     if not isinstance(job_directory, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_directory).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_directory).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(sample, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(sample).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     dataset = pd.read_csv(
-        os.path.join(job_directory, job_id, SAMPLES_FILE),
-        sep="\t",
-        na_filter=False
+        os.path.join(job_directory, job_id, SAMPLES_FILE), sep="\t", na_filter=False
     )
     samples = dataset.iloc[:, 0].tolist()
     if sample in samples:
@@ -4040,7 +3755,7 @@ def update_images_tabs(
     all_guides : List
         All CRISPR guides
 
-    Returns 
+    Returns
     -------
     Tuple[List, List, List, List]
         HTML page containing the plots
@@ -4050,16 +3765,15 @@ def update_images_tabs(
         raise TypeError(f"Expected {str.__name__}, got {type(mm).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if filter_criterion not in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     bulge = 0
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # define plot containers
     # radar_chart_images = list()
@@ -4086,9 +3800,9 @@ def update_images_tabs(
                                         str(
                                             f"populations_distribution_{guide}"
                                             f"_{int(mm) + int(bulge)}total_{filter_criterion}.png"
-                                        )
+                                        ),
                                     ),
-                                    mode="rb"
+                                    mode="rb",
                                 ).read()
                             ).decode()
                         ),
@@ -4098,10 +3812,13 @@ def update_images_tabs(
                     ),
                     target="_blank",
                     href=os.path.join(
-                        f"/{RESULTS_DIR}", job_id, IMGS_DIR, str(
+                        f"/{RESULTS_DIR}",
+                        job_id,
+                        IMGS_DIR,
+                        str(
                             f"populations_distribution_{guide}_"
                             f"{int(mm) + int(bulge)}total_{filter_criterion}.png"
-                        )
+                        ),
                     ),
                 ),
             ]
@@ -4109,26 +3826,22 @@ def update_images_tabs(
     except:
         population_barplots = [
             html.Div(
-                html.H2(
-                    "No result found for this combination of mismatches and bulges"
-                )
+                html.H2("No result found for this combination of mismatches and bulges")
             )
         ]
     # radar chart
-    radar_img_encode_gencode = (
-        os.path.join(
-            f"{IMGS_DIR}",
-            str(
-                f"summary_single_guide_{guide}_{mm}."
-                f"{bulge}_TOTAL_{filter_criterion}.ENCODE+GENCODE.png"
-            )
-        )
+    radar_img_encode_gencode = os.path.join(
+        f"{IMGS_DIR}",
+        str(
+            f"summary_single_guide_{guide}_{mm}."
+            f"{bulge}_TOTAL_{filter_criterion}.ENCODE+GENCODE.png"
+        ),
     )
     # TODO: do not call python script, rather define functions
     cmd = f"python {app_main_directory}/PostProcess/generate_img_radar_chart.py {guide} {job_directory}/.guide_dict_{guide}_{filter_criterion}.json {job_directory}/.motif_dict_{guide}_{filter_criterion}.json {mm} {bulge} TOTAL_{filter_criterion} {job_directory}/imgs/"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
-        raise ValueError(f"An error occurred while running \"{cmd}\"")
+        raise ValueError(f'An error occurred while running "{cmd}"')
     img_found = False  # look for radar chart image
     try:
         radar_src_encode_gencode = "data:image/png;base64,{}".format(
@@ -4138,9 +3851,9 @@ def update_images_tabs(
                         current_working_directory,
                         RESULTS_DIR,
                         job_id,
-                        radar_img_encode_gencode
+                        radar_img_encode_gencode,
                     ),
-                    mode="rb"
+                    mode="rb",
                 ).read()
             ).decode()
         )
@@ -4168,9 +3881,7 @@ def update_images_tabs(
         )
     if len(radar_chart_encode_gencode) == 0:  # no radar chart
         radar_chart_encode_gencode.append(
-            html.H2(
-                "No result found for this combination of mismatches and bulges"
-            )
+            html.H2("No result found for this combination of mismatches and bulges")
         )
     # reverse list to print plots in correct order
     # NB plots are appended in reverse order into main sample_images list
@@ -4208,12 +3919,12 @@ def generate_sample_card(
     sample: str,
     sel_cel: List,
     all_guides: List,
-    search: str
+    search: str,
 ) -> List:
-    """Generate the sample risk card for each CRISPR guide analyzed. 
+    """Generate the sample risk card for each CRISPR guide analyzed.
 
     The webpage plots the top 1000 personal and private targets, showing their
-    allelic frequency. The results can be filtered by the user selecting one 
+    allelic frequency. The results can be filtered by the user selecting one
     criterion from the general drop-down bar.
 
     ...
@@ -4244,28 +3955,25 @@ def generate_sample_card(
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if not filter_criterion in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(sample, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(sample).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if n is None:
         raise PreventUpdate  # do not do anything
     # recover guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover job id
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     # read summary by sample data
     samples_summary = pd.read_csv(
         os.path.join(
-            job_directory,
-            f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+            job_directory, f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
         ),
         sep="\t",
         skiprows=2,
@@ -4292,9 +4000,7 @@ def generate_sample_card(
     )
     # path to database
     db_path = glob(
-        os.path.join(
-            current_working_directory, RESULTS_DIR, job_id, ".*.db"
-        )
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db")
     )[0]
     assert isinstance(db_path, str)
     if not os.path.isfile(db_path):
@@ -4307,7 +4013,7 @@ def generate_sample_card(
     # perform the query
     result_personal = pd.read_sql_query(
         "SELECT * FROM final_table WHERE \"{}\"='{}' AND \"{}\" LIKE '%{}%'".format(
-            GUIDE_COLUMN, guide, query_cols['samples'], sample
+            GUIDE_COLUMN, guide, query_cols["samples"], sample
         ),
         conn,
     )
@@ -4315,13 +4021,9 @@ def generate_sample_card(
     order = False
     if filter_criterion == "fewest":
         order = True
-    result_personal = result_personal.sort_values(
-        [query_cols["sort"]], ascending=order
-    )
+    result_personal = result_personal.sort_values([query_cols["sort"]], ascending=order)
     # extract sample private targets
-    result_private = result_personal[
-        result_personal[query_cols["samples"]] == sample
-    ]
+    result_private = result_personal[result_personal[query_cols["samples"]] == sample]
     conn.commit()
     conn.close()  # close connection to db
     # store personal and private targets
@@ -4332,7 +4034,7 @@ def generate_sample_card(
     cmd = f"zip -j {integrated_private_zip} {integrated_private}"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
-        raise ValueError(f"An error occurred while running \"{cmd}\"")
+        raise ValueError(f'An error occurred while running "{cmd}"')
     # plot images in personal card tab
     # TODO: avoid calling scripts, use functions instead
     os.system(
@@ -4344,7 +4046,7 @@ def generate_sample_card(
     cmd = f"rm -rf {integrated_personal}"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
-        raise ValueError(f"An error occurred while running \"{cmd}\"")
+        raise ValueError(f'An error occurred while running "{cmd}"')
     # recover final results table
     results_table = pd.DataFrame(
         [[len(result_personal.index), pam_creation, len(result_private.index)]],
@@ -4365,9 +4067,9 @@ def generate_sample_card(
                         RESULTS_DIR,
                         job_id,
                         IMGS_DIR,
-                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.personal.png"
+                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.personal.png",
                     ),
-                    mode="rb"
+                    mode="rb",
                 ).read()
             ).decode()
         )
@@ -4379,9 +4081,9 @@ def generate_sample_card(
                         RESULTS_DIR,
                         job_id,
                         IMGS_DIR,
-                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.private.png"
+                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.private.png",
                     ),
-                    mode="rb"
+                    mode="rb",
                 ).read()
             ).decode()
         )
@@ -4401,8 +4103,7 @@ def generate_sample_card(
             ),
             False,
             [
-                html.P(
-                    f"Top 100 Personal Targets ordered by {filter_criterion}"),
+                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4414,8 +4115,7 @@ def generate_sample_card(
                 ),
             ],
             [
-                html.P(
-                    f"Top 100 Private Targets ordered by {filter_criterion}"),
+                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4508,8 +4208,7 @@ def generate_sample_card(
             ),
             True,
             [
-                html.P(
-                    f"Top 100 Personal Targets ordered by {filter_criterion}"),
+                html.P(f"Top 100 Personal Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_personal_top,
@@ -4521,8 +4220,7 @@ def generate_sample_card(
                 ),
             ],
             [
-                html.P(
-                    f"Top 100 Private Targets ordered by {filter_criterion}"),
+                html.P(f"Top 100 Private Targets ordered by {filter_criterion}"),
                 html.A(
                     html.Img(
                         src=image_private_top,
@@ -4594,7 +4292,7 @@ def update_content_tab(
     filter_criterion: str,
     all_guides: List,
     search: str,
-    genome_type: str
+    genome_type: str,
 ) -> List:
     """Build and update the layout of the results page.
 
@@ -4623,57 +4321,41 @@ def update_content_tab(
 
     if value is not None:
         if not isinstance(value, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(value).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(value).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if filter_criterion not in FILTERING_CRITERIA:
-        raise ValueError(
-            f"Forbidden filtering criterion selected ({filter_criterion})")
+        raise ValueError(f"Forbidden filtering criterion selected ({filter_criterion})")
     if not isinstance(search, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(search).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(genome_type, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(genome_type).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_type).__name__}")
     if value is None or sel_cel is None or not sel_cel or not all_guides:
         raise PreventUpdate  # do not do anything
     # recover current guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover job ID
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     # read parameters file
     try:
         with open(os.path.join(job_directory, PARAMS_FILE)) as handle_params:
             params = handle_params.read()
-            mms = (
-                next(
-                    s for s in params.split("\n") if "Mismatches" in s
-                )
-            ).split("\t")[-1]
+            mms = (next(s for s in params.split("\n") if "Mismatches" in s)).split(
+                "\t"
+            )[-1]
             genome_selected = (
-                next(
-                    s for s in params.split("\n") if "Genome_selected" in s
-                )
+                next(s for s in params.split("\n") if "Genome_selected" in s)
             ).split("\t")[-1]
             max_bulges = (
-                next(
-                    s for s in params.split("\n") if "Max_bulges" in s
-                )
+                next(s for s in params.split("\n") if "Max_bulges" in s)
             ).split("\t")[-1]
-            pam = (
-                next(
-                    s for s in params.split("\n") if "Pam" in s
-                )
-            ).split("\t")[-1]
-            nuclease = (
-                next(
-                    s for s in params.split("\n") if "Nuclease" in s
-                )
-            ).split("\t")[-1]
+            pam = (next(s for s in params.split("\n") if "Pam" in s)).split("\t")[-1]
+            nuclease = (next(s for s in params.split("\n") if "Nuclease" in s)).split(
+                "\t"
+            )[-1]
     except OSError as e:
         raise e
     # initialize page layout list
@@ -4689,9 +4371,7 @@ def update_content_tab(
     else:
         CFD_notification = html.Div("", hidden=True)
     if nuclease != CAS9 and filter_criterion != FILTERING_CRITERIA[0]:
-        raise ValueError(
-            f"Wrong filtering criterion selected for nuclease {nuclease}"
-        )
+        raise ValueError(f"Wrong filtering criterion selected for nuclease {nuclease}")
     # PAM(s)
     pam_at_start = False
     assert isinstance(guide, str)
@@ -4712,8 +4392,8 @@ def update_content_tab(
                     str(
                         "Summary table counting the number of targets found in "
                         "the Reference and Variant Genome for each combination "
-                        "of Bulge Type, Bulge Size and Mismatch. Select \"Show "
-                        "Targets\" to view the corresponding list of targets."
+                        'of Bulge Type, Bulge Size and Mismatch. Select "Show '
+                        'Targets" to view the corresponding list of targets.'
                     ),
                 ]
             )
@@ -4723,7 +4403,7 @@ def update_content_tab(
         guides_summary = pd.read_csv(
             os.path.join(
                 job_directory,
-                f"{job_id}.summary_by_guide.{guide}_{filter_criterion}.txt"
+                f"{job_id}.summary_by_guide.{guide}_{filter_criterion}.txt",
             ),
             sep="\t",
             na_filter=False,
@@ -4785,7 +4465,7 @@ def update_content_tab(
         samples_summary = pd.read_csv(
             os.path.join(
                 job_directory,
-                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt",
             ),
             sep="\t",
             names=col_names_sample,
@@ -4795,16 +4475,13 @@ def update_content_tab(
         samples_summary = samples_summary.sort_values(
             "Targets in Variant", ascending=False
         )
-        more_info_col = ["Show Targets" for _ in range(
-            samples_summary.shape[0])]
+        more_info_col = ["Show Targets" for _ in range(samples_summary.shape[0])]
         samples_summary[""] = more_info_col
 
         population_1000gp = associateSample.loadSampleAssociation(
             os.path.join(job_directory, SAMPLES_FILE)
         )[2]
-        super_populations = [
-            {"label": i, "value": i} for i in population_1000gp.keys()
-        ]
+        super_populations = [{"label": i, "value": i} for i in population_1000gp.keys()]
         populations = []
         for pop in population_1000gp.keys():
             for i in population_1000gp[pop]:
@@ -4904,8 +4581,7 @@ def update_content_tab(
         )
         max_page = samples_summary.shape[0]
         max_page = math.floor(max_page / 10) + 1
-        fl.append(html.Div(f"1/{max_page}",
-                           id="div-current-page-table-samples"))
+        fl.append(html.Div(f"1/{max_page}", id="div-current-page-table-samples"))
         return fl
     elif value == "tab-summary-by-position":
         # Show Summary by position table (Query Genomic regions tab)
@@ -4933,17 +4609,12 @@ def update_content_tab(
             onlyfile = [
                 f
                 for f in os.listdir(
-                    os.path.join(
-                        current_working_directory, "Genomes", genome_selected
-                    )
+                    os.path.join(current_working_directory, "Genomes", genome_selected)
                 )
                 if (
                     os.path.isfile(
                         os.path.join(
-                            current_working_directory,
-                            "Genomes",
-                            genome_selected,
-                            f
+                            current_working_directory, "Genomes", genome_selected, f
                         )
                     )
                     and (f.endswith(".fa") or f.endswith(".fasta"))
@@ -4955,7 +4626,7 @@ def update_content_tab(
             # NOTE in case no chr in "Genomes", put 22 chr + X Y M
             onlyfile += ["chrX.fa", "chrY.fa", "chrM"]
         # remove file extension (.fa)
-        onlyfile = [x[:x.rfind(".")] for x in onlyfile]
+        onlyfile = [x[: x.rfind(".")] for x in onlyfile]
         chr_file = []
         chr_file_unset = []
         for chr_name in onlyfile:
@@ -4975,9 +4646,7 @@ def update_content_tab(
             ]
         )
         chr_file += chr_file_unset
-        chr_file = [
-            {"label": chr_name, "value": chr_name} for chr_name in chr_file
-        ]
+        chr_file = [{"label": chr_name, "value": chr_name} for chr_name in chr_file]
         # TODO: insert failsafe if no chromosome is found
         fl.append(
             html.Div(
@@ -5011,12 +4680,10 @@ def update_content_tab(
                             ),
                             dbc.Col(
                                 html.Div(
-                                    html.Button(
-                                        "Filter",
-                                        id="button-filter-position")
+                                    html.Button("Filter", id="button-filter-position")
                                 )
                             ),
-                            html.Br()
+                            html.Br(),
                         ]
                     ),
                 ],
@@ -5032,13 +4699,9 @@ def update_content_tab(
             )
         )
         fl.append(html.Br())
-        fl.append(
-            html.Div(style={"text-align": "center"}, id="div-table-position")
-        )
+        fl.append(html.Div(style={"text-align": "center"}, id="div-table-position"))
         max_page = 1  # maximum one single page
-        fl.append(
-            html.Div(f"1/{max_page}", id="div-current-page-table-position")
-        )
+        fl.append(html.Div(f"1/{max_page}", id="div-current-page-table-position"))
         fl.append(
             html.Div(
                 f"{mms}-{max_bulges}",
@@ -5052,7 +4715,7 @@ def update_content_tab(
         samples_summary = pd.read_csv(
             os.path.join(
                 job_directory,
-                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
+                f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt",
             ),
             skiprows=2,
             sep="\t",
@@ -5087,16 +4750,11 @@ def update_content_tab(
                             ),
                             dbc.Col(
                                 html.Div(
-                                    html.Button(
-                                        "Generate", id="button-sample-card"
-                                    )
+                                    html.Button("Generate", id="button-sample-card")
                                 )
                             ),
                             dbc.Col(
-                                html.Div(
-                                    id="download-link-personal-card",
-                                    hidden=True
-                                )
+                                html.Div(id="download-link-personal-card", hidden=True)
                             ),
                         ]
                     ),
@@ -5211,8 +4869,7 @@ def update_content_tab(
                             html.Div(
                                 [
                                     html.H4("Group by"),
-                                    dcc.RadioItems(
-                                        id="order", value="CFD_score"),
+                                    dcc.RadioItems(id="order", value="CFD_score"),
                                 ]
                             ),
                             width=3,
@@ -5253,9 +4910,7 @@ def update_content_tab(
                                                     html.Div(
                                                         [
                                                             html.H6("Max"),
-                                                            dcc.Dropdown(
-                                                                id="maxdrop"
-                                                            ),
+                                                            dcc.Dropdown(id="maxdrop"),
                                                         ]
                                                     )
                                                 ]
@@ -5273,14 +4928,8 @@ def update_content_tab(
                                     dcc.RadioItems(
                                         id="Radio-asc-1",
                                         options=[
-                                            {
-                                                "label": " Ascending",
-                                                "value": "ASC"
-                                            },
-                                            {
-                                                "label": " Descending",
-                                                "value": "DESC"
-                                            },
+                                            {"label": " Ascending", "value": "ASC"},
+                                            {"label": " Descending", "value": "DESC"},
                                         ],
                                         value="DESC",
                                         labelStyle={
@@ -5451,8 +5100,9 @@ def update_content_tab(
         )
         total = int(mms) + int(max_bulges)
         opt_mm = [{"label": str(i), "value": str(i)} for i in range(total + 1)]
-        opt_blg = [{"label": str(i), "value": str(i)}
-                   for i in range(int(max_bulges) + 1)]
+        opt_blg = [
+            {"label": str(i), "value": str(i)} for i in range(int(max_bulges) + 1)
+        ]
         if genome_type != "ref":
             population_1000gp = associateSample.loadSampleAssociation(
                 os.path.join(job_directory, SAMPLES_FILE)
@@ -5480,9 +5130,9 @@ def update_content_tab(
                                         RESULTS_DIR,
                                         job_id,
                                         IMGS_DIR,
-                                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.png"
+                                        f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.png",
                                     ),
-                                    mode="rb"
+                                    mode="rb",
                                 ).read()
                             ).decode()
                         ),
@@ -5569,9 +5219,7 @@ def update_content_tab(
             html.Div(
                 [
                     CFD_notification,
-                    dbc.Row(
-                        dbc.Col(top1000_image, width={"size": 10, "offset": 2})
-                    ),
+                    dbc.Row(dbc.Col(top1000_image, width={"size": 10, "offset": 2})),
                     dbc.Row(total_buttons, justify="center"),
                     html.Br(),
                 ]
@@ -5582,8 +5230,7 @@ def update_content_tab(
         )
         populations_barplots = dbc.Col(html.Div(id="div-population-barplot"))
         if genome_type != "ref":
-            graph_summary_both = [
-                populations_barplots, radar_chart_encode_gencode]
+            graph_summary_both = [populations_barplots, radar_chart_encode_gencode]
         else:
             graph_summary_both = [radar_chart_encode_gencode]
         fl.append(html.Div([dbc.Row(graph_summary_both)]))
@@ -5634,15 +5281,14 @@ def global_store(job_id: str) -> pd.DataFrame:
     value : str
         Job ID
 
-    Returns 
+    Returns
     -------
     pd.DataFrame
     """
 
     if job_id is not None:
         if not isinstance(job_id, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(job_id).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if job_id is None:
         return ""  # nothing to return
     target = [
@@ -5668,8 +5314,7 @@ def global_store(job_id: str) -> pd.DataFrame:
             and f.endswith("targets.txt")
         ]
     targets_summary = pd.read_csv(
-        os.path.join(current_working_directory,
-                     RESULTS_DIR, job_id, target[0]),
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, target[0]),
         sep="\t",
         usecols=range(0, 38),
         na_filter=False,
@@ -5705,7 +5350,7 @@ def update_table(
     sort_by: str,
     filter_term: str,
     search: str,
-    hash_guide: str
+    hash_guide: str,
 ) -> Dict:
     """Split the results according to a filtering or sorting criterion selected
     by the user.
@@ -5713,7 +5358,7 @@ def update_table(
     Update the shown results once the user clicks on the "next page"/"prev page"
     buttons.
 
-    Load the targets or scores (if available) files, and store it in a pandas 
+    Load the targets or scores (if available) files, and store it in a pandas
     DataFrame object. The column names are changed in order to match those
     of the table displayed within the webpage.
 
@@ -5730,11 +5375,11 @@ def update_table(
     sort_by : List
         Sorting criterion
     filter_term : str
-        Filtering 
+        Filtering
     search : str
         Search
     hash_guide : str
-        Guide hashing 
+        Guide hashing
 
     Returns
     -------
@@ -5742,31 +5387,24 @@ def update_table(
     """
 
     if not isinstance(page_current, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(page_size, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(sort_by, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(sort_by).__name__}")
+        raise TypeError(f"Expected {list.__name__}, got {type(sort_by).__name__}")
     if not isinstance(filter_term, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_term).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_term).__name__}")
     if search is not None:
         if not isinstance(search, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(search).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if not isinstance(hash_guide, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(hash_guide).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(hash_guide).__name__}")
     if search is None:
         raise PreventUpdate  # do not do anything
     # recover job ID
     job_id = search.split("=")[-1]
     # recover job directory
-    job_directory = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     # recover guide
     guide = hash_guide.split("#")[1]
     filtering_expressions = filter_term.split(" && ")
@@ -5825,7 +5463,7 @@ def update_table(
             "No results were found with the given parameters", color="warning"
         )
     return df_filtered.iloc[
-        page_current * page_size: (page_current + 1) * page_size
+        page_current * page_size : (page_current + 1) * page_size
     ].to_dict("records")
 
 
@@ -5915,26 +5553,22 @@ def update_output(
     """
 
     if not isinstance(n_clicks, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(n_clicks).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(n_clicks).__name__}")
     if not isinstance(page_current, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_current).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_current).__name__}")
     if not isinstance(filter_target_value, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_target_value).__name__}")
+            f"Expected {str.__name__}, got {type(filter_target_value).__name__}"
+        )
     if not isinstance(page_size, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(page_size).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(page_size).__name__}")
     if not isinstance(target, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(target).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(target).__name__}")
     # prevent update on None inputs
-    if (
-        radio_order is None or
-        (order_drop is None and thresh_drop is None and asc1 is None)
+    if radio_order is None or (
+        order_drop is None and thresh_drop is None and asc1 is None
     ):
-        raise PreventUpdate   # do not do anything
+        raise PreventUpdate  # do not do anything
     # recover guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # target is the filter value to query on the db
@@ -6051,7 +5685,8 @@ def set_columns_options(selected_target: str) -> List[Dict]:
 
     if not isinstance(selected_target, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(selected_target).__name__}")
+            f"Expected {str.__name__}, got {type(selected_target).__name__}"
+        )
     # all possible column values
     all_value = {
         "Target1 :with highest CFD": [
@@ -6090,8 +5725,8 @@ def set_columns_options(selected_target: str) -> List[Dict]:
         {
             "label": all_options[selected_target][count],
             "value": all_value[selected_target][count],
-        } for count in range(len(all_value[selected_target]))
-
+        }
+        for count in range(len(all_value[selected_target]))
     ]
     return gi
 
@@ -6123,7 +5758,8 @@ def set_display_children(selected_order: str) -> Tuple:
     if selected_order is not None:
         if not isinstance(selected_order, str):
             raise TypeError(
-                f"Expected {str.__name__}, got {type(selected_order).__name__}")
+                f"Expected {str.__name__}, got {type(selected_order).__name__}"
+            )
     target_value = {
         "Mismatches": ["Bulges", "Mismatches+bulges", "CFD"],
         "Bulges": ["Mismatches", "Mismatches+bulges", "CFD_score"],
@@ -6149,8 +5785,8 @@ def set_display_children(selected_order: str) -> Tuple:
             {
                 "label": target_label[selected_order][count],
                 "value": target_value[selected_order][count],
-            } for count in range(len(target_value[selected_order]))
-
+            }
+            for count in range(len(target_value[selected_order]))
         ]
         if selected_order == "Mismatches":
             data = [
@@ -6201,11 +5837,11 @@ def set_display_children(selected_order: str) -> Tuple:
 
 # drop columns according to threshold
 @app.callback(
-    Output("maxdrop", "options"), [
-        Input("thresh_drop", "value"), Input("order", "value")]
+    Output("maxdrop", "options"),
+    [Input("thresh_drop", "value"), Input("order", "value")],
 )
 def maxdrop(thresh_drop: str, order: str) -> List:
-    """Filter the targets table, using the selected threshold value on the 
+    """Filter the targets table, using the selected threshold value on the
     scores.
 
     ...
@@ -6226,17 +5862,15 @@ def maxdrop(thresh_drop: str, order: str) -> List:
     if thresh_drop is not None:
         if not isinstance(thresh_drop, str):
             raise TypeError(
-                f"Expected {str.__name__}, got {type(thresh_drop).__name__}")
+                f"Expected {str.__name__}, got {type(thresh_drop).__name__}"
+            )
     if order is not None:
         if not isinstance(order, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(order).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(order).__name__}")
     if order == "Mismatches":
         if thresh_drop:
             start_value = int(thresh_drop)
-            data = [
-                {"label": str(i), "value": str(i)} for i in range(start_value, 7)
-            ]
+            data = [{"label": str(i), "value": str(i)} for i in range(start_value, 7)]
         else:
             data = []
     elif order == "CFD_score":
@@ -6261,19 +5895,13 @@ def maxdrop(thresh_drop: str, order: str) -> List:
     elif order == "Bulges":
         if thresh_drop:
             start_value = int(thresh_drop)
-            data = [
-                {"label": str(i), "value": str(i)}
-                for i in range(start_value, 3)
-            ]
+            data = [{"label": str(i), "value": str(i)} for i in range(start_value, 3)]
         else:
             data = []
     elif order == "Mismatches+bulges":
         if thresh_drop:
             start_value = int(thresh_drop)
-            data = [
-                {"label": str(i), "value": str(i)}
-                for i in range(start_value, 9)
-            ]
+            data = [{"label": str(i), "value": str(i)} for i in range(start_value, 9)]
         else:
             data = []
     else:

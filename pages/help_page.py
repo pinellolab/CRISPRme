@@ -43,8 +43,8 @@ def helpPage() -> html.Div:
                         "CRISPRme is available as an online web app at ",
                         html.A(
                             "http://crisprme.di.univr.it",
-                            href='http://crisprme.di.univr.it', 
-                            target="_blank"
+                            href="http://crisprme.di.univr.it",
+                            target="_blank",
                         ),
                         str(
                             " a standalone command line package. The required "
@@ -53,9 +53,9 @@ def helpPage() -> html.Div:
                             "with or without the inclusion of genetic variants "
                             "(1000G, HGDP and/or personal variants), and thresholds "
                             "of mismatches and RNA/DNA bulges."
-                        )
+                        ),
                     ]
-                )
+                ),
             ]
         )
     )
@@ -77,17 +77,17 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, 
-                                            ASSETS_DIR, 
-                                            "main_page.png"
+                                            app_main_directory,
+                                            ASSETS_DIR,
+                                            "main_page.png",
                                         ),
-                                        mode="rb"
+                                        mode="rb",
                                     ).read()
                                 ).decode(),
                             ),
                             width="100%",
-                            height="auto"
-                        )
+                            height="auto",
+                        ),
                     ]
                 ),
                 # describe analysis steps
@@ -104,7 +104,7 @@ def helpPage() -> html.Div:
                                                 "Spacer(s): The guide RNA (gRNA) "
                                                 "spacer sequence matches the "
                                                 "genomic target protospacer "
-                                                "sequence (typically 20 nucleotides) " 
+                                                "sequence (typically 20 nucleotides) "
                                                 "and directs Cas protein binding "
                                                 "to the protospacer in the presence "
                                                 "of a protospacer adjacent motif "
@@ -124,12 +124,12 @@ def helpPage() -> html.Div:
                                                 "Genomic sequence(s): CRISPRme can "
                                                 "alternatively take as input a set "
                                                 "of genomic coordinates in BED format "
-                                                "(chromosome# start end) or DNA sequences " 
+                                                "(chromosome# start end) or DNA sequences "
                                                 "in FASTA format (max 1000 characters). "
                                                 "The BED file coordinates will be treated "
                                                 "as 0-based and CRISPRme (online version) "
                                                 "will extract the first 100 possible spacer "
-                                                "sequences within these coordinates starting " 
+                                                "sequences within these coordinates starting "
                                                 "with the positive strand. To use this type of "
                                                 "input, the user must delimit each entry with "
                                                 "a >header."
@@ -149,9 +149,9 @@ def helpPage() -> html.Div:
                                                 "(e.g. Cas12a) PAM sequences."
                                             )
                                         ),
-                                    ], 
-                                    style={'padding': '15px'}
-                                )
+                                    ],
+                                    style={"padding": "15px"},
+                                ),
                             ]
                         ),
                         # second step of CRISPRme analysis
@@ -188,9 +188,9 @@ def helpPage() -> html.Div:
                                                 "resources."
                                             )
                                         ),
-                                    ], 
-                                    style={'padding': '15px'}
-                                )
+                                    ],
+                                    style={"padding": "15px"},
+                                ),
                             ]
                         ),
                         # third step of CRISPRme analysis
@@ -236,14 +236,14 @@ def helpPage() -> html.Div:
                                                 "my_job_G05B8KHU0H."
                                             )
                                         ),
-                                    ], 
-                                    style={'padding': '15px'}
-                                )
+                                    ],
+                                    style={"padding": "15px"},
+                                ),
                             ]
-                        )
-                    ], 
-                    style={'padding': '15px'}
-                )
+                        ),
+                    ],
+                    style={"padding": "15px"},
+                ),
             ]
         )
     )
@@ -270,7 +270,7 @@ def helpPage() -> html.Div:
                                     app_main_directory,
                                     ASSETS_DIR,
                                     "helpPage",
-                                    "load_page.png"
+                                    "load_page.png",
                                 ),
                                 mode="rb",
                             ).read()
@@ -285,7 +285,7 @@ def helpPage() -> html.Div:
         html.P(
             [
                 str(
-                    "Upon completion of the job, a link \"View Results\" will "
+                    'Upon completion of the job, a link "View Results" will '
                     "appear to view the results at the bottom of the status "
                     "report page."
                 ),
@@ -298,15 +298,15 @@ def helpPage() -> html.Div:
                                         app_main_directory,
                                         ASSETS_DIR,
                                         "helpPage",
-                                        "jobDone.png"
+                                        "jobDone.png",
                                     ),
                                     mode="rb",
                                 ).read()
                             ).decode()
                         ),
-                        width="100%"
+                        width="100%",
                     )
-                )
+                ),
             ]
         )
     )
@@ -327,7 +327,7 @@ def helpPage() -> html.Div:
                     "genetic variant datasets.\nAt the top of the page, the user can find "
                     "a summary table reporting the nuclease, the CFD specificity score "
                     "and the number of targets in each category of mismatches and bulges. "
-                    "In the top left corner there is a \"Download General Table\" button "
+                    'In the top left corner there is a "Download General Table" button '
                     "allowing the download of the table as a text file."
                 ),
                 html.P(
@@ -339,13 +339,13 @@ def helpPage() -> html.Div:
                                         app_main_directory,
                                         ASSETS_DIR,
                                         "resultPage",
-                                        "resultsSummary.png"
+                                        "resultsSummary.png",
                                     ),
-                                    mode="rb"
+                                    mode="rb",
                                 ).read()
                             ).decode()
                         ),
-                        width="100%"
+                        width="100%",
                     )
                 ),
                 html.Ul(
@@ -374,9 +374,9 @@ def helpPage() -> html.Div:
                                 "have in the Variant Genome. Targets are also grouped "
                                 "by Mismatch + Bulge value."
                             )
-                        )
-                    ], 
-                    style={"padding": "15px"}
+                        ),
+                    ],
+                    style={"padding": "15px"},
                 ),
                 html.P(
                     str(
@@ -390,16 +390,14 @@ def helpPage() -> html.Div:
                     [
                         html.Li(
                             [
-                                html.Span(
-                                    "Custom ranking: ", style={"color": "red"}
-                                ), 
+                                html.Span("Custom ranking: ", style={"color": "red"}),
                                 str(
                                     "In this report, users can filter and rank "
                                     "potential off-targets based on number of "
                                     "mismatches and/or bulges, CFD score, Risk "
                                     "Score (increase in CFD score due to genetic "
                                     "variants), or a combination of them."
-                                )
+                                ),
                             ]
                         ),
                         html.Img(
@@ -410,28 +408,28 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "customRanking.png"
+                                            "customRanking.png",
                                         ),
                                         mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Li(
                             [
                                 html.Span(
-                                    "Summary by Mismatches/Bulges: ", 
-                                    style={"color": "red"}
-                                ), 
+                                    "Summary by Mismatches/Bulges: ",
+                                    style={"color": "red"},
+                                ),
                                 str(
                                     "This report shows a matrix separating targets "
                                     "into subgroups based on the type of target, "
                                     "mismatch count and bulge size. “X” targets "
                                     "contain only mismatches, “DNA” targets contain "
-                                    "DNA bulges (and may contain mismatches), and \"RNA\" "
+                                    'DNA bulges (and may contain mismatches), and "RNA" '
                                     "targets contain RNA bulges (and may contain mismatches)"
-                                )
+                                ),
                             ]
                         ),
                         html.Img(
@@ -442,13 +440,13 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "summaryByGuide.png"
+                                            "summaryByGuide.png",
                                         ),
-                                        mode="rb"
+                                        mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Ul(
                             [
@@ -471,7 +469,8 @@ def helpPage() -> html.Div:
                                     "PAM Creation: number of possible created PAMs due to variants addition."
                                 ),
                                 html.Li(
-                                    "Show Targets: open a new page to display all the targets of the row of interest as in the following image:"),
+                                    "Show Targets: open a new page to display all the targets of the row of interest as in the following image:"
+                                ),
                                 html.Img(
                                     src="data:image/png;base64,{}".format(
                                         base64.b64encode(
@@ -480,26 +479,26 @@ def helpPage() -> html.Div:
                                                     app_main_directory,
                                                     ASSETS_DIR,
                                                     "resultPage",
-                                                    "summaryByGuide_show_targets.png"
+                                                    "summaryByGuide_show_targets.png",
                                                 ),
                                                 mode="rb",
                                             ).read()
                                         ).decode()
                                     ),
-                                    width="100%"
-                                )
+                                    width="100%",
+                                ),
                             ]
                         ),
                         html.Li(
                             [
                                 html.Span(
                                     "Summary by Sample: ", style={"color": "red"}
-                                ), 
+                                ),
                                 str(
                                     "This page shows all the samples present in "
                                     "the VCFs and allows users to extract and "
                                     "visualize targets related to each sample."
-                                )
+                                ),
                             ]
                         ),
                         html.Img(
@@ -510,13 +509,13 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "summaryBySamples.png"
+                                            "summaryBySamples.png",
                                         ),
-                                        mode="rb"
+                                        mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Ul(
                             [
@@ -540,7 +539,8 @@ def helpPage() -> html.Div:
                                     "PAM Creation: number of possible created PAMs due to variants addition"
                                 ),
                                 html.Li(
-                                    "Show Targets: open a new page to display all the targets of the row of interest as in the following image:"),
+                                    "Show Targets: open a new page to display all the targets of the row of interest as in the following image:"
+                                ),
                                 html.Img(
                                     src="data:image/png;base64,{}".format(
                                         base64.b64encode(
@@ -549,29 +549,28 @@ def helpPage() -> html.Div:
                                                     app_main_directory,
                                                     ASSETS_DIR,
                                                     "resultPage",
-                                                    "summaryBySamples_show_targets.png"
+                                                    "summaryBySamples_show_targets.png",
                                                 ),
-                                                mode="rb"
+                                                mode="rb",
                                             ).read()
                                         ).decode()
                                     ),
-                                    width="100%"
-                                )
+                                    width="100%",
+                                ),
                             ]
                         ),
                         html.Li(
                             [
                                 html.Span(
-                                    "Query Genomic Region: ", 
-                                    style={"color": "red"}
-                                ), 
+                                    "Query Genomic Region: ", style={"color": "red"}
+                                ),
                                 str(
                                     "This page allows the user to retrieve "
                                     "targets overlapping a specific genomic "
                                     "region, for example to quickly assess "
                                     "potential off-targets in a given regulatory "
                                     "element or coding region."
-                                )
+                                ),
                             ]
                         ),
                         html.Img(
@@ -582,30 +581,30 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "summaryByPosition.png"
+                                            "summaryByPosition.png",
                                         ),
-                                        mode="rb"
+                                        mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Li(
                             [
                                 html.Span(
                                     "Graphical Reports: ", style={"color": "red"}
-                                ), 
+                                ),
                                 str(
                                     "This page creates several graphical reports "
                                     "for each selected sgRNA."
-                                )
+                                ),
                             ]
                         ),
                         html.Li(
                             str(
                                 "A stem plot shows how genetic variants affect "
                                 "predicted off-target potential. The arrow "
-                                "connecting the red (reference allele off-target) " 
+                                "connecting the red (reference allele off-target) "
                                 "and blue (alternative allele off-target) dots "
                                 "shows the increase in predicted cleavage potential "
                                 "due to the variant."
@@ -619,13 +618,13 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "lolli_plot.png"
+                                            "lolli_plot.png",
                                         ),
-                                        mode="rb"
+                                        mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Li(
                             str(
@@ -660,20 +659,19 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "barplot_radar_motif.png"
+                                            "barplot_radar_motif.png",
                                         ),
-                                        mode="rb"
+                                        mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Li(
                             [
                                 html.Span(
-                                    "Personal Risk Cards: ", 
-                                    style={"color": "red"}
-                                ), 
+                                    "Personal Risk Cards: ", style={"color": "red"}
+                                ),
                                 str(
                                     "CRISPRme provides a dedicated page to generate "
                                     "reports called Personal Risk Cards that summarize "
@@ -692,7 +690,7 @@ def helpPage() -> html.Div:
                                     "tables, consisting of a summary (Table 1, top) and "
                                     "information on each extracted candidate off-target "
                                     "(Table 2, bottom) with the following columns:"
-                                )
+                                ),
                             ]
                         ),
                         html.Img(
@@ -703,13 +701,13 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "personalCard_top.png"
+                                            "personalCard_top.png",
                                         ),
-                                        mode="rb"
+                                        mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Img(
                             src="data:image/png;base64,{}".format(
@@ -719,18 +717,17 @@ def helpPage() -> html.Div:
                                             app_main_directory,
                                             ASSETS_DIR,
                                             "resultPage",
-                                            "personalCard_bottom.png"
+                                            "personalCard_bottom.png",
                                         ),
                                         mode="rb",
                                     ).read()
                                 ).decode()
                             ),
-                            width="100%"
+                            width="100%",
                         ),
                         html.Ul(
                             [
-                                html.P(
-                                    "Table 1:"),
+                                html.P("Table 1:"),
                                 html.Li(
                                     str(
                                         "Personal, count of all the candidate "
@@ -754,10 +751,10 @@ def helpPage() -> html.Div:
                                     )
                                 ),
                             ]
-                        )                        
+                        ),
                     ],
                     style={"padding": "15px"},
-                )
+                ),
             ]
         )
     )

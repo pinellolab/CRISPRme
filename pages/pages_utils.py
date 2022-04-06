@@ -16,11 +16,11 @@ import os
 
 
 # define IUPAC alphabet as valid characters for CRISPRme queries
-VALID_CHARS = { 
-    "A", 
-    "T", 
-    "C", 
-    "G", 
+VALID_CHARS = {
+    "A",
+    "T",
+    "C",
+    "G",
     "R",
     "Y",
     "S",
@@ -32,7 +32,7 @@ VALID_CHARS = {
     "H",
     "V",
     "a",
-    "t", 
+    "t",
     "c",
     "g",
     "r",
@@ -44,7 +44,7 @@ VALID_CHARS = {
     "b",
     "d",
     "h",
-    "v"
+    "v",
 }
 # number of entries in report table (for each table page)
 PAGE_SIZE = 10
@@ -190,9 +190,7 @@ COL_BOTH_RENAME = {
     37: "Annotation_ENCODE",
 }
 # genome database fields
-GENOME_DATABASE = [
-    "Reference", "Enriched", "Samples", "Dictionary", "Annotation"
-]
+GENOME_DATABASE = ["Reference", "Enriched", "Samples", "Dictionary", "Annotation"]
 # results directory
 RESULTS_DIR = "Results"
 # assets directory
@@ -284,9 +282,9 @@ JOBID_ITERATIONS_MAX = 10
 # allowed variants datasets (1000 genomes, human diversity project, custom data)
 VARIANTS_DATA = ["1000G", "HGDP", "PV"]
 # CRISPRme preprint link (bioRxiv)
-PREPRINT_LINK = "https://www.biorxiv.org/content/10.1101/2021.05.20.445054v1" 
+PREPRINT_LINK = "https://www.biorxiv.org/content/10.1101/2021.05.20.445054v1"
 # CRISPRme github page link
-GITHUB_LINK = "https://github.com/pinellolab/CRISPRme" 
+GITHUB_LINK = "https://github.com/pinellolab/CRISPRme"
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
@@ -308,8 +306,7 @@ def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
     """
 
     if not isinstance(table, pd.DataFrame):
-        raise TypeError(
-            f"Expected {pd.DataFrame.__name__}, got {type(table).__name__}")
+        raise TypeError(f"Expected {pd.DataFrame.__name__}, got {type(table).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
@@ -360,8 +357,7 @@ def write_json(dropdown_value: str, job_id: str) -> None:
     None
     """
     if not isinstance(dropdown_value, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(dropdown_value).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(dropdown_value).__name__}")
     dropdown_json_file = os.path.join(
         current_working_directory, RESULTS_DIR, job_id, ".dropdown.json"
     )
@@ -411,7 +407,7 @@ def read_json(job_id: str) -> str:
 
 
 def get_query_column(filter_criterion: str) -> Dict[str, str]:
-    """Recover the names of the columns to display after in 
+    """Recover the names of the columns to display after in
     Summary by Mismatches/Bulges and Summary by Sample tabs.
 
     ...
@@ -429,7 +425,8 @@ def get_query_column(filter_criterion: str) -> Dict[str, str]:
 
     if not isinstance(filter_criterion, str):
         raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_criterion).__name__}")
+            f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
+        )
     if filter_criterion not in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     query_columns = {
@@ -438,27 +435,21 @@ def get_query_column(filter_criterion: str) -> Dict[str, str]:
         "bul": "Bulges",
         "bul_type": "Bulge_type",
         "sort": "",
-        "samples": ""
+        "samples": "",
     }
     if filter_criterion == FILTERING_CRITERIA[0]:
         for key in query_columns.keys():
-            query_columns[key] = "_".join(
-                [query_columns[key], f"({MMBULGES_FILTER})"]
-            )
+            query_columns[key] = "_".join([query_columns[key], f"({MMBULGES_FILTER})"])
             query_columns["sort"] = TOTAL_FEWEST_COLUMN
             query_columns["samples"] = SAMPLES_FEWEST_COLUMN
     elif filter_criterion == FILTERING_CRITERIA[1]:
         for key in query_columns.keys():
-            query_columns[key] = "_".join(
-                [query_columns[key], f"({CFD_FILTER})"]
-            )
+            query_columns[key] = "_".join([query_columns[key], f"({CFD_FILTER})"])
             query_columns["sort"] = CFD_COLUMN
             query_columns["samples"] = SAMPLES_COLUMN
     elif filter_criterion == FILTERING_CRITERIA[2]:
         for key in query_columns.keys():
-            query_columns[key] = "_".join(
-                [query_columns[key], f"({CRISTA_FILTER})"]
-            )
+            query_columns[key] = "_".join([query_columns[key], f"({CRISTA_FILTER})"])
             query_columns["sort"] = CRISTA_COLUMN
             query_columns["samples"] = SAMPLES_CRISTA_COLUMN
     else:
@@ -483,14 +474,12 @@ def split_filter_part(filter_part: str) -> Tuple[str, str, str]:
     """
 
     if not isinstance(filter_part, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_part).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_part).__name__}")
     for operator_type in operators:
         for operator in operator_type:
             if operator in filter_part:
                 name_part, value_part = filter_part.split(operator, 1)
-                name = name_part[(name_part.find(
-                    "{") + 1):name_part.rfind("}")]
+                name = name_part[(name_part.find("{") + 1) : name_part.rfind("}")]
                 value_part = value_part.strip()
                 v0 = value_part[0]
                 if v0 == value_part[-1] and v0 in ("'", '"', "`"):
@@ -512,7 +501,7 @@ def generate_table(
     genome_type: str,
     guide: Optional[str] = "",
     job_id: Optional[str] = "",
-    max_rows: Optional[int] = 2600
+    max_rows: Optional[int] = 2600,
 ) -> html.Table:
     """Generate a html table from a given pandas DataFrame.
 
@@ -541,21 +530,18 @@ def generate_table(
 
     if not isinstance(dataframe, pd.DataFrame):
         raise TypeError(
-            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}"
+        )
     if not isinstance(id_table, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(id_table).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
     if not isinstance(genome_type, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(genome_type).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_type).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(max_rows, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(max_rows).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
     # build table header
     header = [
         html.Tr(
@@ -592,10 +578,7 @@ def generate_table(
     header.append(
         html.Tr(
             [
-                html.Th(
-                    x, style={"vertical-align": "middle",
-                              "text-align": "center"}
-                )
+                html.Th(x, style={"vertical-align": "middle", "text-align": "center"})
                 for x in ["Reference", "Variant", "Combined"]
             ]
         )
@@ -621,15 +604,12 @@ def generate_table(
                             ),
                             target="_blank",
                         ),
-                        style={"vertical-align": "middle",
-                               "text-align": "center"},
+                        style={"vertical-align": "middle", "text-align": "center"},
                     )
                     if col == ""
                     else html.Td(
                         dataframe.iloc[i][col],
-                        style={
-                            "vertical-align": "middle", "text-align": "center"
-                        },
+                        style={"vertical-align": "middle", "text-align": "center"},
                     )
                     for col in dataframe.columns
                 ]
@@ -648,7 +628,7 @@ def generate_table_samples(
     page: int,
     guide: Optional[str] = "",
     job_id: Optional[str] = "",
-    max_rows: Optional[int] = 10
+    max_rows: Optional[int] = 10,
 ) -> html.Table:
     """Generate a html table from a given pandas DataFrame.
 
@@ -680,20 +660,18 @@ def generate_table_samples(
 
     if not isinstance(dataframe, pd.DataFrame):
         raise TypeError(
-            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}"
+        )
     if not isinstance(id_table, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(id_table).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
     if not isinstance(page, int):
         raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(max_rows, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(max_rows).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
     if max_rows < 1:
         raise ValueError(f"Forbidden number of rows to display ({max_rows})")
     # force dataframe fields to be of str type
@@ -716,9 +694,7 @@ def generate_table_samples(
                                     "#",
                                     guide,
                                     "-Sample-",
-                                    dataframe.iloc[
-                                        i + (page - 1) * max_rows
-                                    ]["Sample"]
+                                    dataframe.iloc[i + (page - 1) * max_rows]["Sample"],
                                 ]
                             ),
                             target="_blank",
@@ -744,11 +720,11 @@ def generate_table_position(
     bulges: int,
     guide: Optional[str] = "",
     job_id: Optional[str] = "",
-    max_rows: Optional[int] = 10
+    max_rows: Optional[int] = 10,
 ):
     """Generate a html table from a given pandas DataFrame.
 
-    The table will be displayed when selecting the targets found in a 
+    The table will be displayed when selecting the targets found in a
     specific genomic region.
 
     ...
@@ -780,25 +756,22 @@ def generate_table_position(
 
     if not isinstance(dataframe, pd.DataFrame):
         raise TypeError(
-            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}")
+            f"Expected {type(pd.DataFrame).__name__}, got {type(dataframe).__name__}"
+        )
     if not isinstance(id_table, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(id_table).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(id_table).__name__}")
     if not isinstance(page, int):
         raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if not isinstance(mms, int):
         raise TypeError(f"Expected {int.__name__}, got {type(mms).__name__}")
     if not isinstance(bulges, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(bulges).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(bulges).__name__}")
     if not isinstance(guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guide).__name__}")
     if not isinstance(job_id, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(job_id).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if not isinstance(max_rows, int):
-        raise TypeError(
-            f"Expected {int.__name__}, got {type(max_rows).__name__}")
+        raise TypeError(f"Expected {int.__name__}, got {type(max_rows).__name__}")
     if max_rows < 1:
         raise ValueError(f"Forbidden number of rows to display ({max_rows})")
     rows_remaining = dataframe.shape[0] - (page - 1) * max_rows
@@ -898,7 +871,7 @@ def generate_table_position(
                 dataframe.loc[(i + (page - 1) * max_rows), col],
                 style={"vertical-align": "middle", "text-align": "center"},
             )
-            for col in dataframe.columns[5: 5 + mms + 1]
+            for col in dataframe.columns[5 : 5 + mms + 1]
         ]
         data.append(
             html.Tr(
@@ -914,8 +887,7 @@ def generate_table_position(
                                     f"{job_id}#{guide}-Pos-",
                                     str(
                                         dataframe.loc[
-                                            (i + (page - 1) *
-                                             max_rows), "Chromosome"
+                                            (i + (page - 1) * max_rows), "Chromosome"
                                         ]
                                     ),
                                     "-",
@@ -923,15 +895,13 @@ def generate_table_position(
                                         dataframe.loc[
                                             (i + (page - 1) * max_rows), "Position"
                                         ]
-                                    )
+                                    ),
                                 ]
                             ),
                             target="_blank",
                         ),
                         rowSpan=str(bulges + 1),
-                        style={
-                            "vertical-align": "middle", "text-align": "center"
-                        },
+                        style={"vertical-align": "middle", "text-align": "center"},
                     )
                 ]
             )
@@ -942,16 +912,13 @@ def generate_table_position(
                     [
                         html.Th(
                             f"{b + 1} Bulge",
-                            style={
-                                "vertical-align": "middle", "text-align": "center"
-                            },
+                            style={"vertical-align": "middle", "text-align": "center"},
                         )
                     ]
                     + [
-                        html.Td(
-                            dataframe.loc[(i + (page - 1) * max_rows), col])
+                        html.Td(dataframe.loc[(i + (page - 1) * max_rows), col])
                         for col in dataframe.columns[
-                            5 + (b + 1) * (mms + 1): 5 + (b + 1) * (mms + 1) + mms + 1
+                            5 + (b + 1) * (mms + 1) : 5 + (b + 1) * (mms + 1) + mms + 1
                         ]
                     ]
                 )
@@ -976,15 +943,14 @@ def parse_contents(contents: str) -> bytearray:
     """
 
     if not isinstance(contents, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(contents).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(contents).__name__}")
     content_type, content_string = contents.split(",")
     decoded = base64.b64decode(content_string)  # decode data
     return decoded
 
 
 def select_same_len_guides(guides: str) -> str:
-    """If the user provides guides of different lengths, compute the length of 
+    """If the user provides guides of different lengths, compute the length of
     the first given guide and keep only those with the same length.
 
     ...
@@ -1003,9 +969,7 @@ def select_same_len_guides(guides: str) -> str:
     if not isinstance(guides, str):
         raise TypeError(f"Expected {str.__name__}, got {type(guides).__name__}")
     length = len(guides.split("\n")[0])
-    same_len_guides = [
-        guide for guide in guides.split("\n") if len(guide) == length
-    ]
+    same_len_guides = [guide for guide in guides.split("\n") if len(guide) == length]
     same_len_guides = "\n".join(same_len_guides).strip()
     return same_len_guides
 
@@ -1024,23 +988,19 @@ def get_available_PAM() -> List:
     List
         Available PAM files
     """
-    
+
     pams_files = [
-        f for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
+        f
+        for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
         if (
             not f.startswith(".")  # ignore hidden files
-            and os.path.isfile(
-                os.path.join(current_working_directory, PAMS_DIR, f)
-            )
+            and os.path.isfile(os.path.join(current_working_directory, PAMS_DIR, f))
         )
     ]
     # remove '.txt' from filenames
     pams_files = [f.replace(".txt", "") for f in pams_files]
     # skip temporary PAMs (used during dictionary updating)
-    pams = [
-        {"label": pam, "value": pam} for pam in pams_files 
-        if "tempPAM" not in pam
-    ]
+    pams = [{"label": pam, "value": pam} for pam in pams_files if "tempPAM" not in pam]
     return pams
 
 
@@ -1060,19 +1020,19 @@ def get_available_CAS() -> List:
     """
 
     cas_files = [
-        f for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
+        f
+        for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
         if (
             not f.startswith(".")  # ignore hidden files
-            and os.path.isfile(
-                os.path.join(current_working_directory, PAMS_DIR, f)
-            )
+            and os.path.isfile(os.path.join(current_working_directory, PAMS_DIR, f))
         )
     ]
     # removed .txt from filenames
     cas_files = [f.replace(".txt", "") for f in cas_files]
     # skip temporary PAMs (used during dictionary updating)
     casprots = [
-        casprot.split(".")[0].split("-")[2] for casprot in cas_files
+        casprot.split(".")[0].split("-")[2]
+        for casprot in cas_files
         if "tempPAM" not in casprot
     ]
     # remove potential duplicates
@@ -1105,17 +1065,17 @@ def get_custom_VCF(genome_value: str) -> List:
                 f"Expected {str.__name__}, got {type(genome_value).__name__}"
             )
     vcf_dirs = [
-        d for d in os.listdir(os.path.join(current_working_directory, VCFS_DIR))
+        d
+        for d in os.listdir(os.path.join(current_working_directory, VCFS_DIR))
         if (
             not d.startswith(".")  # ignore hidden directories
-            and os.path.isdir(
-                os.path.join(current_working_directory, VCFS_DIR, d)
-            )
+            and os.path.isdir(os.path.join(current_working_directory, VCFS_DIR, d))
         )
     ]
     genome_value = genome_value.replace(" ", "_")
     vcfs = [
-        {"label": d, "value": d} for d in vcf_dirs
+        {"label": d, "value": d}
+        for d in vcf_dirs
         if (
             "hg38_HGDP" not in d
             and "hg38_1000G" not in d
@@ -1140,19 +1100,15 @@ def get_available_genomes() -> List:
     List
         Available genomes
     """
-    
+
     genomes = [
-        d for d in os.listdir(
-            os.path.join(current_working_directory, GENOMES_DIR)
-        )
-        if os.path.isdir(
-            os.path.join(current_working_directory, GENOMES_DIR, d)
-        )
+        d
+        for d in os.listdir(os.path.join(current_working_directory, GENOMES_DIR))
+        if os.path.isdir(os.path.join(current_working_directory, GENOMES_DIR, d))
     ]
     genomes = [g.replace("_", " ") for g in genomes]
     genomes_dirs = [
-        {"label": d, "value": d} for d in genomes
-        if ("+" not in d and "None" not in d)
+        {"label": d, "value": d} for d in genomes if ("+" not in d and "None" not in d)
     ]
     return genomes_dirs
 
@@ -1176,10 +1132,7 @@ def get_custom_annotations() -> List:
         os.path.join(current_working_directory, ANNOTATIONS_DIR, "*.bed")
     )
     annotations = [
-        {
-            "label": ann.strip().split("/")[-1], 
-            "value": ann.strip().split("/")[-1]
-        } 
+        {"label": ann.strip().split("/")[-1], "value": ann.strip().split("/")[-1]}
         for ann in annotation_data
         if (
             "encode" not in ann

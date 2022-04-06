@@ -21,9 +21,9 @@ import os
 
 
 def send_mail() -> None:
-    """Send the email to notify the user that his/her CRISPRme is 
+    """Send the email to notify the user that his/her CRISPRme is
     complete.
-    
+
     ...
 
     Parameters
@@ -75,10 +75,10 @@ def send_mail() -> None:
 # call the above funtion
 # TODO: avoid calling through bash
 def main():
-    """Call the above function and send mails to notify user about 
+    """Call the above function and send mails to notify user about
     CRSPRme job completion.
     """
-    
+
     try:
         send_mail()
     except:
