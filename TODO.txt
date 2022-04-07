@@ -2,3 +2,4 @@
 use this as notes:
     positive strand - standard FASTA
     negative strand - reverse complemented FASTA
+    EVALUATE IF NECESSARY (NO SPACE SAVING NOR EXECUTION TIME SAVING)

@@ -29,6 +29,11 @@ email=${17}
 echo -e "MAIL: $email"
 echo -e "CPU used: $ncpus"
 
+#used to solve base editor check in resultintegration phase
+base_check_start=${18}
+base_check_end=${19}
+base_check_set=${20}
+
 log="$output_folder/log.txt"
 touch $log
 #echo -e 'Job\tStart\t'$(date) > $log
@@ -683,7 +688,7 @@ if [ $gene_proximity != "_" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	echo $genome_version
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota"
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	rm "${output_folder}/dummy.txt"
 	# while read guide; do
 	# 	if [ -z "$guide" ]; then

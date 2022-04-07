@@ -637,9 +637,13 @@ def changeUrl(n, href, nuclease, genome_selected, ref_var, annotation_var, vcf_i
     '''
     # merge default is 3 nt wide
     merge_default = 3
+    #FIX HERE
+    temp_base_start=1
+    temp_base_end=0
+    temp_base_set='_'
     print(
         f"Submitted JOB {job_id}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
-    command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/.list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/.samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {merge_default} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Annotations/{gencode_name} {dest_email} 1> {result_dir}/log_verbose.txt 2>{result_dir}/log_error.txt"
+    command = f"{app_main_directory}/PostProcess/./submit_job_automated_new_multiple_vcfs.sh {current_working_directory}/Genomes/{genome_ref} {result_dir}/.list_vcfs.txt {guides_file} {pam} {current_working_directory}/Annotations/{annotation_name} {result_dir}/.samplesID.txt {max([int(dna), int(rna)])} {mms} {dna} {rna} {merge_default} {result_dir} {app_main_directory}/PostProcess {8} {current_working_directory} {current_working_directory}/Annotations/{gencode_name} {dest_email} {temp_base_start} {temp_base_end} {temp_base_set} 1> {result_dir}/log_verbose.txt 2>{result_dir}/log_error.txt"
     # with open(f"{result_dir}/log_verbose.txt", 'w') as log_verbose:
     # log_verbose = open(f"{result_dir}/log_verbose.txt", 'w')
     # , stdout=log_verbose)
@@ -1141,7 +1145,7 @@ def changeVariantsChecklistState(genome_value):
         checklist_variants_options.append({'label': ' plus HGDP variants',
                                            'value': 'HGDP', 'disabled': False})
         checklist_variants_options.append({'label': ' plus personal variants*',
-                                           'value': 'PV', 'disabled': True})
+                                           'value': 'PV', 'disabled': False})
     personal_vcf = get_more_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
 
@@ -1362,7 +1366,7 @@ def indexPage():
                     {'label': ' ENCODE cCREs + GENCODE gene',
                      'value': 'EN'},
                     {'label': ' Personal annotations*',
-                     'value': 'MA', 'disabled': True},
+                     'value': 'MA', 'disabled': False},
                 ],
                     id='checklist-annotations', value=['EN'])
             ),
