@@ -925,6 +925,9 @@ def change_url(
     annotation = os.path.join(
         current_working_directory, ANNOTATIONS_DIR, annotation_name
     )
+    pam_file = os.path.join(
+        app_main_directory, PAMS_DIR, f"{pam}.txt"
+    )
     samples_ids = os.path.join(result_dir, SAMPLES_FILE)
     postprocess = os.path.join(app_main_directory, POSTPROCESS_DIR)
     gencode = os.path.join(current_working_directory, ANNOTATIONS_DIR, gencode_name)
@@ -932,7 +935,7 @@ def change_url(
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
     assert isinstance(rna, int)
-    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} 1> {log_verbose} 2>{log_error}"
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} 1> {log_verbose} 2>{log_error}"
     # run job
     print(cmd)
     exeggutor.submit(subprocess.run, cmd, shell=True)
@@ -1023,15 +1026,6 @@ def check_input(
     if is_open is not None:
         if not isinstance(is_open, bool):
             raise TypeError(f"Expected {bool.__name__}, got {type(is_open).__name__}")
-    if mms is not None:
-        if not isinstance(mms, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(mms).__name__}")
-    if dna is not None:
-        if not isinstance(dna, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(dna).__name__}")
-    if rna is not None:
-        if not isinstance(rna, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(rna).__name__}")
     print("Check input for JOB")
     if n is None:
         raise PreventUpdate  # do not check data --> no trigger
