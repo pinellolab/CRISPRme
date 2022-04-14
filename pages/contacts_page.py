@@ -44,19 +44,15 @@ INFOMICS_DEVS = [
     "Francesco Masillo",
     "Manuel Tognon",
     "Nicola Bombieri",
-    "Rosalba Giugno"
+    "Rosalba Giugno",
 ]
-PINELLOLAB_DEVS = [
-    "Luca Pinello"
-]
-BAUERLAB_DEVS = [
-    "Linda Yingqi",
-    "Daniel Bauer"
-]
+PINELLOLAB_DEVS = ["Luca Pinello"]
+BAUERLAB_DEVS = ["Linda Yingqi", "Daniel Bauer"]
+
 
 def contact_page():
     """Create the layout of CRISPRme contacts page.
-    
+
     ...
 
     Parameters
@@ -71,23 +67,15 @@ def contact_page():
     infomics_p = str(
         "InfOmics Lab, Department of Computer Science, University of Verona, Italy "
     )
-    infomics_p = ". ".join(
-        [
-            ", ".join([dev for dev in INFOMICS_DEVS]),
-            infomics_p
-        ]
-    )
+    infomics_p = ". ".join([", ".join([dev for dev in INFOMICS_DEVS]), infomics_p])
     pinellolab_p = str(
         "Molecular Pathology Unit and Center for Cancer Research, "
         "Massachusetts General Hospital, Charlestown, MA, USA; Department of "
         "Pathology, Harvard Medical School, Boston, MA, USA; Broad Institute "
         "of MIT and Harvard, Cambridge, MA, USA "
-    ) 
+    )
     pinellolab_p = ". ".join(
-        [
-            ", ".join([dev for dev in PINELLOLAB_DEVS]),
-            pinellolab_p
-        ]
+        [", ".join([dev for dev in PINELLOLAB_DEVS]), pinellolab_p]
     )
     bauerlab_p = str(
         "Division of Hematology/Oncology, Boston Children's Hospital, "
@@ -95,20 +83,13 @@ def contact_page():
         "Harvard Stem Cell Institute, Broad Institute, Department of "
         "Pediatrics, Harvard Medical School, Boston, MA, USA "
     )
-    bauerlab_p = ". ".join(
-        [
-            ", ".join([dev for dev in BAUERLAB_DEVS]),
-            bauerlab_p
-        ]
-    )
+    bauerlab_p = ". ".join([", ".join([dev for dev in BAUERLAB_DEVS]), bauerlab_p])
     f = []
     f.append(
         html.Div(
             [
                 html.H3("CONTACTS"),
-                html.P(
-                    "CRISPRme was developed by:"
-                ),
+                html.P("CRISPRme was developed by:"),
                 html.Ul(
                     [
                         html.Li(
@@ -116,8 +97,8 @@ def contact_page():
                                 infomics_p,
                                 html.A(
                                     "(https://infomics.github.io/InfOmics/)",
-                                    href="https://infomics.github.io/InfOmics/", 
-                                    target="_blank"
+                                    href="https://infomics.github.io/InfOmics/",
+                                    target="_blank",
                                 ),
                             ]
                         ),
@@ -125,9 +106,9 @@ def contact_page():
                             [
                                 pinellolab_p,
                                 html.A(
-                                    "(http://pinellolab.org/)", 
-                                    href="http://pinellolab.org/", 
-                                    target="_blank"
+                                    "(http://pinellolab.org/)",
+                                    href="http://pinellolab.org/",
+                                    target="_blank",
                                 ),
                             ]
                         ),
@@ -135,41 +116,36 @@ def contact_page():
                             [
                                 bauerlab_p,
                                 html.A(
-                                    "(http://bauerlab.org/)", 
-                                    href="http://bauerlab.org/", 
-                                    target="_blank"
+                                    "(http://bauerlab.org/)",
+                                    href="http://bauerlab.org/",
+                                    target="_blank",
                                 ),
                             ]
                         ),
-                    ], style={"padding":"15px"}
+                    ],
+                    style={"padding": "15px"},
                 ),
-                html.P(
-                    "Please send any comment or bug to:"
-                ),
+                html.P("Please send any comment or bug to:"),
                 html.Ul(
                     [
-                        html.Li(
-                            "rosalba DOT giugno AT univr DOT it"
-                        ),
-                        html.Li(
-                            "lpinello AT mgh DOT harvard DOT edu"
-                        ),
-                        html.Li(
-                            "bauer AT bloodgroup DOT tch DOT harvard DOT edu"
-                        ),
-                    ], style={"padding":"15px"}
+                        html.Li("rosalba DOT giugno AT univr DOT it"),
+                        html.Li("lpinello AT mgh DOT harvard DOT edu"),
+                        html.Li("bauer AT bloodgroup DOT tch DOT harvard DOT edu"),
+                    ],
+                    style={"padding": "15px"},
                 ),
                 html.Div(
                     [
                         html.P("Alternatively, please open an issue on GitHub: "),
                         html.A(
-                            "https://github.com/pinellolab/CRISPRme/issues",
-                            href="https://github.com/pinellolab/CRISPRme/issues", 
-                            target="_blank"
+                            f"{GITHUB_LINK}/issues",
+                            href=f"{GITHUB_LINK}/issues",
+                            target="_blank",
                         ),
                     ]
-                )
-            ], style={"margin-left":"1%"}
+                ),
+            ],
+            style={"margin-left": "1%"},
         )
     )
     return f

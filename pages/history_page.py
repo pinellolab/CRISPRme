@@ -26,7 +26,7 @@ import os
 def support_filter_history(
     result_df: pd.DataFrame, genome_filter: str, pam_filter: str
 ) -> Tuple[pd.DataFrame, int]:
-    """Filter the results history and create the table to display on 
+    """Filter the results history and create the table to display on
     the history page in CRISPRme webpage.
 
     ...
@@ -49,7 +49,9 @@ def support_filter_history(
     """
 
     if not isinstance(result_df, pd.DataFrame):
-        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(result_df).__name__}")
+        raise TypeError(
+            f"Expected {type(pd.DataFrame).__name__}, got {type(result_df).__name__}"
+        )
     if not isinstance(genome_filter, str):
         raise TypeError(f"Expected {str.__name__}, got {type(genome_filter).__name__}")
     if not isinstance(pam_filter, str):
@@ -69,9 +71,9 @@ def support_filter_history(
 
 # trigger row highlighting
 @app.callback(
-    Output('results-table', 'style_data_conditional'),
-    [Input('results-table', 'selected_cells')],
-    [State('results-table', 'data')]
+    Output("results-table", "style_data_conditional"),
+    [Input("results-table", "selected_cells")],
+    [State("results-table", "data")],
 )
 def highlight_row(sel_cel, all_guides) -> List[Dict[str, str]]:
     """
@@ -83,16 +85,14 @@ def highlight_row(sel_cel, all_guides) -> List[Dict[str, str]]:
     assert isinstance(job_name, str)
     return [
         {
-            "if":{
-                "filter_query":"".join(["{Job} eq ", f"\"{job_name}\""])
-            },
-            "background-color":"rgba(0, 0, 255,0.15)"  # highlighting color
+            "if": {"filter_query": "".join(["{Job} eq ", f'"{job_name}"'])},
+            "background-color": "rgba(0, 0, 255,0.15)",  # highlighting color
         }
     ]
 
 
 def get_results() -> pd.DataFrame:
-    """Retrieve the job history and create a table to display 
+    """Retrieve the job history and create a table to display
     past jobs along with the main info related to each job.
 
     ...
@@ -106,15 +106,14 @@ def get_results() -> pd.DataFrame:
     pd.DataFrame
         Table of jobs history
     """
-    
+
     # retrieve results stored in directories (in /Results)
     results_dirs = []
     for resdir in os.listdir(os.path.join(current_working_directory, RESULTS_DIR)):
-        if (
-            os.path.isdir(
-                os.path.join(current_working_directory, RESULTS_DIR, resdir)
-            ) and os.path.isfile(
-                os.path.join(current_working_directory, RESULTS_DIR, resdir, PARAMS_FILE))
+        if os.path.isdir(
+            os.path.join(current_working_directory, RESULTS_DIR, resdir)
+        ) and os.path.isfile(
+            os.path.join(current_working_directory, RESULTS_DIR, resdir, PARAMS_FILE)
         ):
             results_dirs.append(resdir)
     # allow empty results?
@@ -122,14 +121,14 @@ def get_results() -> pd.DataFrame:
         os.listdir(os.path.join(current_working_directory, RESULTS_DIR))
     )
     cols = [
-            "Job", 
-            "Genome", 
-            "Variants", 
-            "Mismatches", 
-            "DNA bulge",
-            "RNA bulge",
-            "PAM",
-            "Number of Guides"
+        "Job",
+        "Genome",
+        "Variants",
+        "Mismatches",
+        "DNA bulge",
+        "RNA bulge",
+        "PAM",
+        "Number of Guides",
     ]
     result_param_df = pd.DataFrame(columns=cols)
     for job_id in results_dirs:
@@ -142,17 +141,12 @@ def get_results() -> pd.DataFrame:
                 try:
                     with open(
                         os.path.join(
-                            current_working_directory, 
-                            RESULTS_DIR, 
-                            job_id,
-                            PARAMS_FILE
+                            current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
                         )
                     ) as handle_params:
                         params = handle_params.read()
                         mms = (
-                            next(
-                                s for s in params.split("\n") if "Mismatches" in s
-                            )
+                            next(s for s in params.split("\n") if "Mismatches" in s)
                         ).split("\t")[-1]
                         genome_selected = (
                             next(
@@ -162,38 +156,30 @@ def get_results() -> pd.DataFrame:
                         try:
                             with open(
                                 os.path.join(
-                                    current_working_directory, 
+                                    current_working_directory,
                                     RESULTS_DIR,
                                     job_id,
-                                    LOG_FILE
+                                    LOG_FILE,
                                 )
                             ) as handle_log:
                                 log = handle_log.read()
                         except OSError as e:
                             raise e
                         job_start = (
-                            next(
-                                s for s in log.split("\n") if "Job\tStart" in s
-                            )
+                            next(s for s in log.split("\n") if "Job\tStart" in s)
                         ).split("\t")[-1]
                         if "+" in genome_selected:
                             genome_selected = "".join(
                                 [genome_selected.split("+")[0], "+"]
                             )
-                        dna = (
-                            next(
-                                s for s in params.split("\n") if "DNA" in s
-                            )
-                        ).split("\t")[-1]
-                        rna = (
-                            next(
-                                s for s in params.split("\n") if "RNA" in s
-                            )
-                        ).split("\t")[-1]
+                        dna = (next(s for s in params.split("\n") if "DNA" in s)).split(
+                            "\t"
+                        )[-1]
+                        rna = (next(s for s in params.split("\n") if "RNA" in s)).split(
+                            "\t"
+                        )[-1]
                         genome_idx = (
-                            next(
-                                s for s in params.split("\n") if "Genome_idx" in s
-                            )
+                            next(s for s in params.split("\n") if "Genome_idx" in s)
                         ).split("\t")[-1]
                         if "+" in genome_idx:
                             genome_idx_split = [
@@ -202,32 +188,28 @@ def get_results() -> pd.DataFrame:
                             genome_idx = ",".join(genome_idx_split)
                         else:
                             genome_idx = "Reference"
-                        pam = (
-                            next(
-                                s for s in params.split("\n") if "Pam" in s
-                            )
-                        ).split("\t")[-1]
+                        pam = (next(s for s in params.split("\n") if "Pam" in s)).split(
+                            "\t"
+                        )[-1]
                         if os.path.exists(
                             os.path.join(
-                                current_working_directory, 
-                                RESULTS_DIR, 
+                                current_working_directory,
+                                RESULTS_DIR,
                                 job_id,
-                                GUIDES_FILE
+                                GUIDES_FILE,
                             )
                         ):
                             try:
                                 with open(
                                     os.path.join(
-                                        current_working_directory, 
-                                        RESULTS_DIR, 
+                                        current_working_directory,
+                                        RESULTS_DIR,
                                         job_id,
-                                        GUIDES_FILE
+                                        GUIDES_FILE,
                                     )
                                 ) as handle_guides:
                                     n_guides = str(
-                                        len(
-                                            handle_guides.read().strip().split("\n")
-                                        )
+                                        len(handle_guides.read().strip().split("\n"))
                                     )
                             except OSError as e:
                                 raise e
@@ -235,29 +217,25 @@ def get_results() -> pd.DataFrame:
                             n_guides = "NA"
                         result_param_df = result_param_df.append(
                             {
-                                "Job":job_id, 
-                                "Genome":genome_selected, 
-                                "Variants":genome_idx, 
-                                "Mismatches":mms, 
-                                "DNA bulge":dna,
-                                "RNA bulge":rna, 
-                                "PAM":pam, 
-                                "Number of Guides":n_guides, 
-                                "Start":job_start
-                            }, 
-                            ignore_index=True
+                                "Job": job_id,
+                                "Genome": genome_selected,
+                                "Variants": genome_idx,
+                                "Mismatches": mms,
+                                "DNA bulge": dna,
+                                "RNA bulge": rna,
+                                "PAM": pam,
+                                "Number of Guides": n_guides,
+                                "Start": job_start,
+                            },
+                            ignore_index=True,
                         )
                 except OSError as e:
                     raise e
         except:
             continue
     try:
-        result_param_df["Start"] = pd.to_datetime(
-            result_param_df["Start"]
-        )
-        result_param_df.sort_values(
-            by=["Start"], ascending=False, inplace=True
-        )   
+        result_param_df["Start"] = pd.to_datetime(result_param_df["Start"])
+        result_param_df.sort_values(by=["Start"], ascending=False, inplace=True)
     except:
         pass
     # resultParamDataframe = resultParamDataframe.sort_values(
@@ -290,7 +268,9 @@ def generate_table_results(
     """
 
     if not isinstance(results_df, pd.DataFrame):
-        raise TypeError(f"Expected {type(pd.DataFrame).__name__}, got {type(results_df).__name__}")
+        raise TypeError(
+            f"Expected {type(pd.DataFrame).__name__}, got {type(results_df).__name__}"
+        )
     if not isinstance(page, int):
         raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if not isinstance(max_rows, int):
@@ -300,13 +280,12 @@ def generate_table_results(
     header = html.Thead(
         html.Tr(
             [
-                html.Th(
-                    col, 
-                    style={"vertical-align":"middle", "text-align":"center"}
-                ) if col != "Load" and col != "Delete" else html.Th(
-                    "", 
-                    style={"vertical-align":"middle", "text-align":"center"}
-                ) for col in results_df.columns
+                html.Th(col, style={"vertical-align": "middle", "text-align": "center"})
+                if col != "Load" and col != "Delete"
+                else html.Th(
+                    "", style={"vertical-align": "middle", "text-align": "center"}
+                )
+                for col in results_df.columns
             ]
         )
     )
@@ -322,34 +301,35 @@ def generate_table_results(
                 row_hist.append(
                     html.Td(
                         html.A(
-                            job_id, 
-                            target="_blank", 
+                            job_id,
+                            target="_blank",
                             href=os.path.join(URL, f"load?job={job_id}"),
-                        ), style={
-                            "vertical-align":"middle", "text-align":"center"
-                        }
+                        ),
+                        style={"vertical-align": "middle", "text-align": "center"},
                     )
                 )
             else:
                 row_hist.append(
                     html.Td(
-                        results_df.iloc[i + (page - 1) * max_rows][col], 
-                        style={
-                            "vertical-align":"middle", "text-align":"center"
-                        }
+                        results_df.iloc[i + (page - 1) * max_rows][col],
+                        style={"vertical-align": "middle", "text-align": "center"},
                     )
                 )
         body_history.append(html.Tr(row_hist))
     final_list.append(
-        html.Table([header,html.Tbody(body_history)], style={"display":"inline-block"},)
+        html.Table(
+            [header, html.Tbody(body_history)],
+            style={"display": "inline-block"},
+        )
     )
     # Add hidden buttons for callback removeJobId compatibility
-    for i in range(add_button, 10):  
+    for i in range(add_button, 10):
         final_list.append(
             html.Button(
-                str(i), 
-                id="button-delete-history-" + str(i), **{"data-jobid":"None"}, 
-                style={"display":"none"}
+                str(i),
+                id="button-delete-history-" + str(i),
+                **{"data-jobid": "None"},
+                style={"display": "none"},
             )
         )
     return final_list
@@ -381,36 +361,30 @@ def history_page():
                         "List of available results. Click on the link to open "
                         "the corresponding load page in a new tab."
                     )
-                )
+                ),
             ]
         )
     )
     final_list.append(
-        html.Div(
-            "None,None", 
-            id="div-history-filter-query", 
-            style={"display":"none"}
-        )
+        html.Div("None,None", id="div-history-filter-query", style={"display": "none"})
     )
     final_list.append(
         html.Div(
             generate_table_results(results, 1),
             id="div-history-table",
-            style={"text-align":"center"}
+            style={"text-align": "center"},
         ),
     )
-    final_list.append(
-        html.Div(id="div-remove-jobid", style={"display":"none"})
-    )
+    final_list.append(html.Div(id="div-remove-jobid", style={"display": "none"}))
     final_list.append(
         html.Div(
             [
                 html.Br(),
             ],
-            style={"text-align":"center"}
+            style={"text-align": "center"},
         )
     )
     max_page = len(results.index)
     max_page = math.floor(max_page / 1000000) + 1
-    page = html.Div(final_list, style={"margin":"1%"})
+    page = html.Div(final_list, style={"margin": "1%"})
     return page

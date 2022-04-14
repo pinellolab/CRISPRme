@@ -13,9 +13,10 @@ import os
 PLOTLY_LOGO = "assets/favicon.png"
 DISPLAY_HISTORY = ""
 
+
 def create_search_bar() -> dbc.Row:
     """Create search bar on top of CRISPRme webpage.
-    
+
     ...
 
     Parameters
@@ -35,31 +36,35 @@ def create_search_bar() -> dbc.Row:
                     # home button
                     html.A(
                         "HOME",
-                        href=os.path.join(URL, "index"), 
-                        target="", 
-                        style={"text-decoration":"none", "color":"white"}
+                        href=os.path.join(URL, "index"),
+                        target="",
+                        style={"text-decoration": "none", "color": "white"},
                     ),
                     active=True,
-                    className="testHover", 
+                    className="testHover",
                     style={
-                        "text-decoration":"none", "color":"white", "font-size":"1.5rem"
-                    }
+                        "text-decoration": "none",
+                        "color": "white",
+                        "font-size": "1.5rem",
+                    },
                 )
             ),
             dbc.Col(
                 dbc.NavLink(
                     # help button (CRISPRme manual)
                     html.A(
-                        "MANUAL", 
+                        "MANUAL",
                         href=os.path.join(URL, "user-guide"),
                         target="",
-                        style={"text-decoration":"none","color":"white"}
+                        style={"text-decoration": "none", "color": "white"},
                     ),
                     active=True,
-                    className="testHover", 
+                    className="testHover",
                     style={
-                        "text-decoration":"none", "color":"white", "font-size":"1.5rem"
-                    }
+                        "text-decoration": "none",
+                        "color": "white",
+                        "font-size": "1.5rem",
+                    },
                 )
             ),
             dbc.Col(
@@ -67,33 +72,37 @@ def create_search_bar() -> dbc.Row:
                     # contacts button
                     html.A(
                         "CONTACTS",
-                        href=os.path.join(URL, "contacts"), 
+                        href=os.path.join(URL, "contacts"),
                         target="",
-                        style={"text-decoration":"none","color":"white"}
+                        style={"text-decoration": "none", "color": "white"},
                     ),
                     active=True,
-                    className="testHover", 
+                    className="testHover",
                     style={
-                        "text-decoration":"none", "color":"white", "font-size":"1.5rem"
-                    }
+                        "text-decoration": "none",
+                        "color": "white",
+                        "font-size": "1.5rem",
+                    },
                 )
             ),
             dbc.Col(
                 dbc.NavLink(
                     html.A(
                         # user history button
-                        "HISTORY", 
+                        "HISTORY",
                         href=os.path.join(URL, "history"),
                         target="",
-                        style={"text-decoration":"none", "color":"white"}
+                        style={"text-decoration": "none", "color": "white"},
                     ),
                     active=True,
-                    className="testHover", 
+                    className="testHover",
                     style={
-                        "text-decoration":"none", "color":"white", "font-size":"1.5rem"
-                    }
+                        "text-decoration": "none",
+                        "color": "white",
+                        "font-size": "1.5rem",
+                    },
                 )
-            )
+            ),
         ],
         no_gutters=True,
         className="ml-auto flex-nowrap mt-3 mt-md-0",
@@ -103,15 +112,15 @@ def create_search_bar() -> dbc.Row:
 
 
 def navbar():
-    """Create the navigation bar of CRISPRme website. 
-    
+    """Create the navigation bar of CRISPRme website.
+
     ...
 
     Parameters
     ----------
     None
 
-    Returns 
+    Returns
     -------
     dbc.Navbar
     """
@@ -128,11 +137,11 @@ def navbar():
                         dbc.Col(html.Img(src=PLOTLY_LOGO, height="60px")),
                         dbc.Col(
                             dbc.NavbarBrand(
-                                "CRISPRme", 
-                                className="ml-2", 
-                                style={"font-size":"30px"}
+                                "CRISPRme",
+                                className="ml-2",
+                                style={"font-size": "30px"},
                             )
-                        )
+                        ),
                     ],
                     align="center",
                     no_gutters=True,
