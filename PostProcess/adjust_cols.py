@@ -22,7 +22,7 @@ chunks = pd.read_csv(inFile, sep = '\t', chunksize=chunksize_)
 header = True
 for chunk in chunks:
     #extract columns and then remove unwanted ones
-    cols = chunks.columns.tolist()
+    cols = chunk.columns.tolist()
     cols.remove('CFD')
     cols.remove('CFD_ref')
     cols.remove('Reference')
@@ -32,7 +32,7 @@ for chunk in chunks:
         pass
     #reoreder cols in wanted order
     good_cols = cols[0:3] + ['Reference'] + cols[3:] + ['CFD', 'CFD_ref']
-    chunks = chunks[good_cols]    
+    chunk = chunk[good_cols]    
     chunk.to_csv(inFile+'.tmp', header = header, mode = 'a', sep = '\t', index=False) 
     #stop writing header
     header = False
