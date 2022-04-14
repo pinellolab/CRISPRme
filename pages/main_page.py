@@ -495,13 +495,13 @@ def change_url(
         ) as handle_pam:
             pam_char = handle_pam.readline()
             index_pam_value = pam_char.split()[-1]
-            if int(pam_char.split()[-1]) < 0:
-                end_idx = int(pam_char.split()[-1]) * (-1)
+            if int(index_pam_value) < 0:
+                end_idx = -int(index_pam_value)
                 pam_char = pam_char.split()[0][:end_idx]
                 pam_begin = True
             else:
-                end_idx = int(pam_char.split()[-1])
-                pam_char = pam_char.split()[0][(end_idx * (-1)) :]
+                end_idx = int(index_pam_value)
+                pam_char = pam_char.split()[0][-end_idx:]
             pam_len = end_idx
     except OSError as e:
         raise e
@@ -513,7 +513,7 @@ def change_url(
         for seqname_and_seq in text_guides.split(">"):
             if not seqname_and_seq:
                 continue
-            seqname = seqname_and_seq[: seqname_and_seq.find("\n")]
+            seqname = seqname_and_seq[:seqname_and_seq.find("\n")]
             seq = seqname_and_seq[seqname_and_seq.find("\n") :]
             seq = seq.strip()  # remove endline
             if "chr" in seq:
@@ -528,7 +528,6 @@ def change_url(
                     seq_read = extract_seq.extractSequence(
                         seqname, seq_read, genome_ref.replace(" ", "_")
                     )
-
             else:
                 seq_read = "".join(seq.split()).strip()
             guides.append(
@@ -833,76 +832,82 @@ def change_url(
                         code = subprocess.call(cmd, shell=True)
                         if code != 0:
                             raise ValueError(f"An error occurred while running {cmd}")
-                else:  # We may have entered a job directory that was in queue
-                    if os.path.exists(
-                        os.path.join(
-                            current_working_directory, RESULTS_DIR, res_dir, QUEUE_FILE
-                        )
-                    ):
-                        if send_email:
-                            if os.path.exists(
-                                os.path.join(
-                                    current_working_directory,
-                                    RESULTS_DIR,
-                                    res_dir,
-                                    EMAIL_FILE,
-                                )
-                            ):
-                                try:
-                                    with open(
-                                        os.path.join(
-                                            current_working_directory,
-                                            RESULTS_DIR,
-                                            res_dir,
-                                            EMAIL_FILE,
-                                        ),
-                                        mode="a+",
-                                    ) as handle_email:
-                                        handle_email.write("--OTHEREMAIL--")
-                                        handle_email.write(f"{dest_email}\n")
-                                        handle_email.write(
-                                            f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
-                                        )
-                                        handle_email.write(
-                                            "".join(
-                                                [
-                                                    datetime.utcnow().strftime(
-                                                        "%m/%d/%Y, %H:%M:%S"
-                                                    ),
-                                                    "\n",
-                                                ]
+                    else:  
+                        # We may have entered a job directory that was in queue
+                        if os.path.exists(
+                            os.path.join(
+                                current_working_directory, 
+                                RESULTS_DIR, 
+                                res_dir, 
+                                QUEUE_FILE
+                            )
+                        ):
+                            print(f"queue file found in dir {res_dir}")
+                            if send_email:
+                                if os.path.exists(
+                                    os.path.join(
+                                        current_working_directory,
+                                        RESULTS_DIR,
+                                        res_dir,
+                                        EMAIL_FILE,
+                                    )
+                                ):
+                                    try:
+                                        with open(
+                                            os.path.join(
+                                                current_working_directory,
+                                                RESULTS_DIR,
+                                                res_dir,
+                                                EMAIL_FILE,
+                                            ),
+                                            mode="a+",
+                                        ) as handle_email:
+                                            handle_email.write("--OTHEREMAIL--")
+                                            handle_email.write(f"{dest_email}\n")
+                                            handle_email.write(
+                                                f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
                                             )
-                                        )
-                                except OSError as e:
-                                    raise e
-                            else:
-                                try:
-                                    with open(
-                                        os.path.join(
-                                            current_working_directory,
-                                            RESULTS_DIR,
-                                            res_dir,
-                                            EMAIL_FILE,
-                                        ),
-                                        mode="w+",
-                                    ) as handle_email:
-                                        handle_email.write(f"{dest_email}\n")
-                                        handle_email.write(
-                                            f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
-                                        )
-                                        handle_email.write(
-                                            "".join(
-                                                [
-                                                    datetime.utcnow().strftime(
-                                                        "%m/%d/%Y, %H:%M:%S"
-                                                    ),
-                                                    "\n",
-                                                ]
+                                            handle_email.write(
+                                                "".join(
+                                                    [
+                                                        datetime.utcnow().strftime(
+                                                            "%m/%d/%Y, %H:%M:%S"
+                                                        ),
+                                                        "\n",
+                                                    ]
+                                                )
                                             )
-                                        )
-                                except OSError as e:
-                                    raise e
+                                    except OSError as e:
+                                        raise e
+                                else:
+                                    try:
+                                        with open(
+                                            os.path.join(
+                                                current_working_directory,
+                                                RESULTS_DIR,
+                                                res_dir,
+                                                EMAIL_FILE,
+                                            ),
+                                            mode="w+",
+                                        ) as handle_email:
+                                            handle_email.write(f"{dest_email}\n")
+                                            handle_email.write(
+                                                f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
+                                            )
+                                            handle_email.write(
+                                                "".join(
+                                                    [
+                                                        datetime.utcnow().strftime(
+                                                            "%m/%d/%Y, %H:%M:%S"
+                                                        ),
+                                                        "\n",
+                                                    ]
+                                                )
+                                            )
+                                    except OSError as e:
+                                        raise e
                 return ("/load", f"?job={res_dir}")
+    print("BUT WE SHOULD BE HERE")
     # merge default is 3 nt wide
     merge_default = 3
     print(
@@ -929,7 +934,9 @@ def change_url(
     assert isinstance(rna, int)
     cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} 1> {log_verbose} 2>{log_error}"
     # run job
+    print(cmd)
     exeggutor.submit(subprocess.run, cmd, shell=True)
+    print("exeguttor run")
     return ("/load", f"?job={job_id}")
 
 
