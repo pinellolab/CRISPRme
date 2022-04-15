@@ -612,7 +612,7 @@ def change_url(
     else:
         be_stop = int(be_stop)
     if be_nt is None or not bool(be_nt):
-        be_nt = ""
+        be_nt = "_"
     else:
         assert be_nt in DNA_ALPHABET
     assert isinstance(be_start, int)
@@ -990,9 +990,6 @@ def change_url(
         State("mms", "value"),
         State("dna", "value"),
         State("rna", "value"),
-        State("be-window-start", "value"),
-        State("be-window-stop", "value"),
-        State("be-nts", "value"),
         State("modal", "is_open"),
     ],
 )

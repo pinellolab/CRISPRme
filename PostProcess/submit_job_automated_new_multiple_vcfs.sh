@@ -29,6 +29,11 @@ email=${17}
 echo -e "MAIL: $email"
 echo -e "CPU used: $ncpus"
 
+#used to solve base editor check in resultintegration phase
+base_check_start=${18}
+base_check_end=${19}
+base_check_set=${20}
+
 log="$output_folder/log.txt"
 touch $log
 #echo -e 'Job\tStart\t'$(date) > $log
@@ -524,7 +529,7 @@ head -1 $final_res.bestCRISTA.txt >$final_res.tmp
 tail -n +2 $final_res.bestCRISTA.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestCRISTA.txt
 #sort using guide_seq,chr,cluster_pos,total(mm+bul)
 head -1 $final_res.bestmmblg.txt >$final_res.tmp
-tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T $output_folder/ >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
+tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
 
 # cp $final_res.bestCFD.txt $final_res.sorted.bestCFD.txt
 #MERGE BEST FILES TARGETS TO REMOVE CONTIGOUS
@@ -541,9 +546,10 @@ mv $final_res.bestCRISTA.txt.trimmed $final_res.bestCRISTA.txt
 mv $final_res.bestCRISTA.txt.trimmed.discarded_samples $final_res_alt.bestCRISTA.txt
 
 #sort ALT files to avoid as much as possible duplicates
-sort -T $output_folder -u $final_res_alt.bestCFD.txt -o $final_res_alt.bestCFD.txt
-sort -T $output_folder -u $final_res_alt.bestmmblg.txt -o $final_res_alt.bestmmblg.txt
-sort -T $output_folder -u $final_res_alt.bestCRISTA.txt -o $final_res_alt.bestCRISTA.txt
+#REMOVED SINCE CAN RETURN DIFFERENT DIMENSION FILES
+# sort -T $output_folder -u $final_res_alt.bestCFD.txt -o $final_res_alt.bestCFD.txt
+# sort -T $output_folder -u $final_res_alt.bestmmblg.txt -o $final_res_alt.bestmmblg.txt
+# sort -T $output_folder -u $final_res_alt.bestCRISTA.txt -o $final_res_alt.bestCRISTA.txt
 
 echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 
@@ -682,7 +688,7 @@ if [ $gene_proximity != "_" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	echo $genome_version
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota"
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	rm "${output_folder}/dummy.txt"
 	# while read guide; do
 	# 	if [ -z "$guide" ]; then
@@ -746,3 +752,4 @@ mv $output_folder/log_error.txt $output_folder/log_error_no_check.txt
 rm $final_res.bestCFD.txt
 rm $final_res.bestmmblg.txt
 rm $final_res.bestCRISTA.txt
+#KEEP FILE TO TEST

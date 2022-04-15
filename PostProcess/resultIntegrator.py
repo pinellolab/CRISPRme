@@ -21,9 +21,36 @@ def rev_comp(a):
         return 'G'
     return 'C'
 
+
+#count A and C presence in user window
+def base_counting(target_sequence:str,start:int,end:int)->list:
+    countA=0
+    countC=0
+    countG=0
+    countT=0
+       
+    for elem in target_sequence[start:end]:
+        #skip if gap
+        if elem=='-':
+            continue
+        #check if elem is any nucleotide
+        if elem.upper() == 'A':
+            countA+=1
+            continue
+        if elem.upper() == 'C':
+            countC+=1
+            continue
+        if elem.upper() == 'G':
+            countG+=1
+            continue
+        if elem.upper() == 'T':
+            countT+=1
+            continue
+    
+    return [countA,countC,countG,countT]
+
+    
 # process seed analisys
-
-
 def seed_processing(seed_ref: str, seed_alt: str, non_seed_ref: str, non_seed_alt: str):
     # count mm and bulges for seed and non-seed target
     count_seed_ref = 0
@@ -124,6 +151,9 @@ check = sys.argv[6].upper()  # check if user input a GENCODE annotation file
 genomeRelease = str(sys.argv[7]).strip()  # genome used in the search phase
 # directory of vcf to perform haplotype count with more than one SVs in single target
 vcfFileDirectory = sys.argv[8]
+base_start=sys.argv[9]
+base_end=sys.argv[10]
+base_set=sys.argv[11]
 
 # OPEN INPUT FILES AND PREPARE OUTPUT FILE
 # crispritz results file open
@@ -246,7 +276,12 @@ saveDict = {
     'Annotation_closest_gene_ID': 'NA',
     'Annotation_closest_gene_distance_(kb)': 'NA',
     'Annotation_ENCODE': 'NA',
-    'Annotation_personal': 'NA'
+    'Annotation_DHS': 'NA',
+    'Annotation_personal': 'NA',
+    'Susceptible_to_ABE':'NA',
+    'Susceptible_to_CBE':'NA',
+    'Susceptible_to_GBE':'NA',
+    'Susceptible_to_TBE':'NA',
 }
 
 start_time = time.time()
@@ -285,12 +320,10 @@ for nline, line in enumerate(inCrispritzResults):
     target = line.strip().split('\t')
     # file annotation reported after gencode association with gene
     annotationLine = inAnnotationFile.readline().strip().split('\t')
-
-    lowestEmpirical = 100
-
+    #reset dict to save new line
     for key in saveDict:
         saveDict[key] = 'NA'
-
+    #reset empiricaldict
     for key in empiricalDict:
         empiricalDict[key] = 50
         valueDict[key] = 'NA'
@@ -808,23 +841,29 @@ for nline, line in enumerate(inCrispritzResults):
     personal_annotations = set()
     encode_annotations = set()
     gencode_annotations = set()
+    DHS_annotations = set()
 
     for elem in annotationList:
         if '_personal' in elem:
             personal_annotations.add(elem.replace('_personal', ''))
         elif '_gencode' in elem:
             gencode_annotations.add(elem.replace('_gencode', ''))
+        elif '_DHS' in elem:
+            DHS_annotations.add(elem.replace('_DHS', ''))
         else:
             encode_annotations.add(elem)
 
-    if len(personal_annotations) > 0:
+    if len(DHS_annotations):
+        saveDict['Annotation_DHS']=','.join(DHS_annotations)
+    
+    if len(personal_annotations):
         saveDict['Annotation_personal'] = ','.join(personal_annotations)
         check_personal_existence = True
 
-    if len(encode_annotations) > 0:
+    if len(encode_annotations):
         saveDict['Annotation_ENCODE'] = ','.join(encode_annotations)
 
-    if len(gencode_annotations) > 0:
+    if len(gencode_annotations):
         saveDict['Annotation_GENCODE'] = ','.join(gencode_annotations)
 
     foundEmpirical = sorted(empiricalTree[int(target[6])-4: int(target[6])+4])
@@ -841,6 +880,51 @@ for nline, line in enumerate(inCrispritzResults):
             saveDict[key] = str(valueDict[key])
             newkey = str(key)+'_mm+bul'
             saveDict[newkey] = empiricalDict[key]
+         
+    #fixed value for base editor analysis       
+    start=1
+    end=0
+    try:
+        #check if base window is int
+        base_start=int(base_start)
+        base_end=int(base_end)
+    except:
+        #use default value
+        base_start=1
+        base_end=0
+    if base_start>0 and base_start<=len(saveDict['Spacer+PAM']):
+        start = base_start
+    if base_end>0 and base_end<=len(saveDict['Spacer+PAM']):
+        end=base_end
+    
+    if saveDict['REF/ALT_origin_(highest_CFD)'] == 'alt':
+        value=base_counting(saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'],start-1,end)
+        #check count A
+        if value[0]:
+            saveDict['Susceptible_to_ABE']='y'
+        #check count C
+        if value[1]:
+            saveDict['Susceptible_to_CBE']='y'
+        #check count G
+        if value[2]:
+            saveDict['Susceptible_to_GBE']='y'
+        #check count T
+        if value[3]:
+            saveDict['Susceptible_to_TBE']='y'
+    else:
+        value=base_counting(saveDict['Aligned_protospacer+PAM_REF_(highest_CFD)'],start-1,end)
+        #check count A
+        if value[0]:
+            saveDict['Susceptible_to_ABE']='y'
+        #check count C
+        if value[1]:
+            saveDict['Susceptible_to_CBE']='y'
+        #check count G
+        if value[2]:
+            saveDict['Susceptible_to_GBE']='y'
+        #check count T
+        if value[3]:
+            saveDict['Susceptible_to_TBE']='y'
 
     save = '\t'.join(list(saveDict.values()))
     save += '\n'
@@ -849,15 +933,32 @@ for nline, line in enumerate(inCrispritzResults):
 # close integrated file
 outFile.close()
 
+
+# remove unused columns from final integrated file
+columns_of_dict = list(saveDict.keys())
+columns_to_remove=list()
+#added 1 to account for bash counting starting from 1
+columns_to_remove.append(columns_of_dict.index('Annotation_personal')+1)
+columns_to_remove.append(columns_of_dict.index('Susceptible_to_ABE')+1)
+columns_to_remove.append(columns_of_dict.index('Susceptible_to_CBE')+1)
+columns_to_remove.append(columns_of_dict.index('Susceptible_to_GBE')+1)
+columns_to_remove.append(columns_of_dict.index('Susceptible_to_TBE')+1)
+
+#check columns to keep
 if check_personal_existence:
-    # maintain the personal annotation column
-    pass
-else:
-    # remove the personal annotation column from final integrated file
-    number_of_columns = len(list(saveDict.keys()))
-    os.system(
-        f'cut -f{number_of_columns} --complement {outFile_name} > {outFile_name}.tmp')
-    os.system(f'mv {outFile_name}.tmp {outFile_name}')
+    columns_to_remove.remove(columns_of_dict.index('Annotation_personal')+1)
+for base in base_set.strip().split(','):
+    if base == '_':
+        break
+    base=base.upper()
+    columns_to_remove.remove(columns_of_dict.index('Susceptible_to_'+base+'BE')+1)
+#convert int list to str list for joining in cut command
+output = [str(x) for x in columns_to_remove]
+string_to_remove=','.join(output)
+#call cut in terminal to remove unused columns
+os.system(
+    f'cut -f{string_to_remove} --complement {outFile_name} > {outFile_name}.tmp')
+os.system(f'mv {outFile_name}.tmp {outFile_name}')
 
 print('CHECKING MISSING RESULTS')
 
