@@ -543,6 +543,8 @@ def change_url(
                 pam_char = pam_char.split()[0][-end_idx:]
             pam_len = end_idx
             pam_begin = False
+    except OSError as e:
+            raise e
 
     if guide_type == 'GS':
         text_sequence = text_guides
@@ -1364,11 +1366,7 @@ def is_email_valid(email: str) -> Dict[str, str]:
         return {"border": "1px solid #94f033", "outline": "0"}
     return {"border": "1px solid red"}
 
-    + [**val**] **example-email** (*value*): string of the email
-
-    ***Returns***
-
-    + **example-email** (*style*): dictionary of the style for the Input email: change border to red (if no '@' in **val**) or to green
+    
     '''
     if val is None:
         raise PreventUpdate
@@ -2082,10 +2080,6 @@ def indexPage():
 
 
 def check_mail_address(mail_address: str) -> bool:
-    """Check mail address consistency.
-
-    ...
-
     Parameters
     ----------
     mail_address : str
