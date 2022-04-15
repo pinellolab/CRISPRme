@@ -88,8 +88,8 @@ def changePage(href, path, search, hash_guide):
     #         current_working_directory), style={'margin': '1%'})
         # return genomes_page, URL + '/load' + search
     if path == '/index':
-        return main_page.index_page(), '/index'
-    return main_page.index_page(), '/index'
+        return main_page.indexPage(), '/index'
+    return main_page.indexPage(), '/index'
 
 
 if __name__ == '__main__':
