@@ -273,7 +273,7 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                         )
                     if done == 7 or "Job\tDone" in current_log:
                         return (
-                            {"visibility": "visible"},
+                            {"visibility": "visible", "width": "260px"},
                             index_status,
                             search_status,
                             post_process_status,
@@ -436,6 +436,22 @@ def load_page() -> List:
             style={"text-align": "center"},
         )
     )
+    # button to view results
+    view_results = dcc.Link(
+        html.Button(
+            "View Results", 
+            style={
+                "font-size": "large", 
+                "width": "700 px", 
+                "margin-top": "0.75rem",
+                "border-radius": "5px",
+                "border": "2px solid"
+            }
+        ),
+        style={"visibility": "hidden"},
+        id="view-results",
+        href=URL,
+    )
     # report status
     final_list.append(
         html.Div(
@@ -504,12 +520,7 @@ def load_page() -> List:
                 ),
                 html.Div(
                     [
-                        dcc.Link(
-                            "View Results",
-                            style={"visibility": "hidden"},
-                            id="view-results",
-                            href=URL,
-                        ),
+                        html.Div([view_results]),  # hidden till analysis is completed
                         html.Div(id="no-directory-error"),
                         html.Div(
                             [
@@ -527,6 +538,14 @@ def load_page() -> List:
             ],
             id="div-status-report",
         )
+    )
+    # view results button
+    final_list.append(
+        html.Div(
+            [view_results], 
+            style={"text-align": "center"}
+        ),
+        
     )
     final_list.append(html.P("", id="done"))
     final_list.append(dcc.Interval(id="load-page-check", interval=(3 * 1000)))
