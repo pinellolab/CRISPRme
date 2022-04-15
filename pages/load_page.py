@@ -273,7 +273,7 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                         )
                     if done == 7 or "Job\tDone" in current_log:
                         return (
-                            {"visibility": "visible", "width": "260px"},
+                            {"visibility": "visible"},
                             index_status,
                             search_status,
                             post_process_status,

@@ -6,6 +6,7 @@ The main webpage read the input data and manages the analysis.
 from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
+    DNA_ALPHABET,
     EMAIL_FILE,
     GENOMES_DIR,
     GITHUB_LINK,
@@ -72,6 +73,10 @@ else:
 AV_MISMATCHES = [{"label": i, "value": i} for i in range(MAX_MMS)]
 AV_BULGES = [{"label": i, "value": i} for i in range(MAX_BULGES)]
 AV_GUIDE_SEQUENCE = [{"label": i, "value": i} for i in range(15, 26)]
+# base editing window and options
+BE_WINDOW = [{"label": i, "value": i} for i in range(4,9)]  # 8 is max window length
+BE_NTS = [{"label": nt, "value": nt} for nt in DNA_ALPHABET]  
+
 
 
 def split_filter_part(filter_part: str) -> Tuple:
@@ -1703,6 +1708,37 @@ def indexPage() -> html.Div:
         ],
         style={"margin-top": "10%"},
     )
+    # base editing boxes
+    base_editing_content = html.Div(
+        [
+            html.H4("Base Editing"),
+            html.Div(  # BE window dropdown
+                [
+                    html.P("Window"),
+                    dcc.Dropdown(
+                        options=BE_WINDOW,
+                        clearable=False,
+                        id="be-window",
+                        style={"width": "60px"},
+                    ),
+                ],
+                style={"display": "inline-block", "margin-right": "20px"},
+            ),
+            html.Div(  # BE nucleotides dropdown
+                [
+                    html.P(["Nucleotide"]),
+                    dcc.Dropdown(
+                        options=BE_NTS,
+                        clearable=False,
+                        id="be-nts",
+                        style={"width": "60px"},
+                    ),
+                ],
+                style={"display": "inline-block", "margin-right": "20px"},
+            ),
+        ],
+        style={"margin-top": "10%"},
+    )
     # annotations dropdown
     annotation_content = html.Div(
         [
@@ -1835,6 +1871,7 @@ def indexPage() -> html.Div:
                             [
                                 dbc.Row(dbc.Col(genome_content)),
                                 dbc.Row(dbc.Col(thresholds_content)),
+                                dbc.Row(dbc.Col(base_editing_content)),
                                 html.Br(),
                                 dbc.Row(dbc.Col(example_content)),
                             ],
