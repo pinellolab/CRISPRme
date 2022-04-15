@@ -3,8 +3,6 @@ The main webpage read the input data and manages the analysis.
 """
 
 
-from matplotlib.pyplot import text
-from regex import BESTMATCH
 from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
