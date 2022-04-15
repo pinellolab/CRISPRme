@@ -432,7 +432,23 @@ def load_page():
             style={"text-align": "center"},
         )
     )
-
+    # button to view results
+    view_results = dcc.Link(
+        html.Button(
+            "View Results", 
+            style={
+                "font-size": "large", 
+                "width": "700 px", 
+                "margin-top": "0.75rem",
+                "border-radius": "5px",
+                "border": "2px solid"
+            }
+        ),
+        style={"visibility": "hidden"},
+        id="view-results",
+        href=URL,
+    )
+    # report status
     final_list.append(
         html.Div(
             [
@@ -503,12 +519,7 @@ def load_page():
                 ),
                 html.Div(
                     [
-                        dcc.Link(
-                            "View Results",
-                            style={"visibility": "hidden"},
-                            id="view-results",
-                            href=URL,
-                        ),
+                        html.Div([view_results]),  # hidden till analysis is completed
                         html.Div(id="no-directory-error"),
                         html.Div(
                             [
@@ -527,10 +538,15 @@ def load_page():
             id="div-status-report",
         )
     )
-
-    final_list.append(html.P('', id='done'))
-
-    final_list.append(dcc.Interval(id='load-page-check', interval=3*1000))
-    load_page = html.Div(final_list, style={'margin': '1%'})
-
+    # view results button
+    final_list.append(
+        html.Div(
+            [view_results], 
+            style={"text-align": "center"}
+        ),
+        
+    )
+    final_list.append(html.P("", id="done"))
+    final_list.append(dcc.Interval(id="load-page-check", interval=(3 * 1000)))
+    load_page = html.Div(final_list, style={"margin": "1%"})
     return load_page
