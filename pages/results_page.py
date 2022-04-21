@@ -2906,9 +2906,8 @@ def update_table_general_profile(
                 data_guides[str(i) + "MM"] = "\n".join(tmp)
         else:
             for j in range(mms + 1):
-                tmp = [
-                    data_general_count.iloc[: (max_bulges + 1), j].values.astype(str)
-                ]
+                tmp = list(data_general_count.iloc[:, j].values.astype(str))
+                tmp=tmp[:max_bulges+1]
                 # tmp.insert(len(tmp)//2, "")
                 data_guides[str(j) + "MM"] = "\n".join(tmp)
         data_guides["Total"] = "\n".join(data_guides["Total"])

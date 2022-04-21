@@ -455,6 +455,7 @@ def change_url(
         with open(os.path.join(result_dir, ".list_vcfs.txt"), mode="w") as handle_vcf:
             if not ref_var:
                 vcf_folder = "_"
+                handle_vcf.write(f"{vcf_folder}\n")
             if VARIANTS_DATA[0] in ref_var:  # 1000 genomes
                 vcf_folder = "hg38_1000G"
                 sample_list.append("hg38_1000G.samplesID.txt")  # 1KGP samples
@@ -608,7 +609,7 @@ def change_url(
     else:
         be_start = int(be_start)
     if be_stop is None or not bool(be_stop):
-        be_stop = 1
+        be_stop = 0
     else:
         be_stop = int(be_stop)
     if be_nt is None or not bool(be_nt):
