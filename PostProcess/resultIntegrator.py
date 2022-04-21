@@ -897,6 +897,7 @@ for nline, line in enumerate(inCrispritzResults):
     if base_end>0 and base_end<=len(saveDict['Spacer+PAM']):
         end=base_end
     
+    # print('basestart:',base_start,' baseend:',base_end)
     if saveDict['REF/ALT_origin_(highest_CFD)'] == 'alt':
         value=base_counting(saveDict['Aligned_protospacer+PAM_ALT_(highest_CFD)'],start-1,end)
         #check count A
@@ -948,6 +949,7 @@ columns_to_remove.append(columns_of_dict.index('Susceptible_to_TBE')+1)
 if check_personal_existence:
     columns_to_remove.remove(columns_of_dict.index('Annotation_personal')+1)
 for base in base_set.strip().split(','):
+    # print('base',base)
     if base == '_':
         break
     base=base.upper()

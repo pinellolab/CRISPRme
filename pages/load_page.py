@@ -1,19 +1,31 @@
-import dash
+"""Define the layout of the webpage displayed while CRISPRme is running the
+analysis.
+
+The webpage shows the status of each step of CRISPRme analysis, e.g. "done", 
+"queued", etc. Moreover, the page provide the user the opportunity to check 
+dinamically the state of the submitted job. 
+
+The analysis results are kept in storage for 3 days. After 3 days the results
+are automatically deleted and could not be accessed anymore.
+"""
+
+
+from app import app, current_working_directory, URL
+from .pages_utils import RESULTS_DIR, GUIDES_FILE, LOG_FILE, PARAMS_FILE
+
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
+from typing import List, Tuple
+
 import dash_core_components as dcc
 import dash_html_components as html
-import dash_daq as daq
-import dash_table
-from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
-from app import app, current_working_directory, URL
+
+import subprocess
 import os
-from os.path import isfile, isdir, join  # for getting directories
-from os import listdir
-
-# Check end job
 
 
+# Check job completion
 @app.callback(
     [
         Output("view-results", "style"),
@@ -31,75 +43,25 @@ from os import listdir
     [Input("load-page-check", "n_intervals")],
     [State("url", "search")],
 )
-def refreshSearch(n, dir_name):
-    '''
-    Il componente Interval chiama questa funzione ogni 3 secondi. Essa controlla lo stato del lavoro e aggiorna la pagina se una parte del lavoro
-    è stata fatta.
-    Quando la ricerca è finita, visualizza un link per passare alla pagina dei risultati
-    Se il job non esiste, ritorna un avviso di errore
-    '''
-    if n is None:
-        raise PreventUpdate
+def refresh_search(n: int, dir_name: str) -> Tuple:
+    """Check the job status and refresh the webpage if the a job is nearly
+    finished. The function is called every 3 seconds.
 
-    onlydir = [f for f in listdir(current_working_directory + 'Results')
-               if isdir(join(current_working_directory + 'Results', f))]
-    current_job_dir = current_working_directory + \
-        'Results/' + dir_name.split('=')[-1] + '/'
-    if dir_name.split('=')[-1] in onlydir:
-        onlyfile = [f for f in listdir(
-            current_job_dir) if isfile(join(current_job_dir, f))]
-        if os.path.exists(current_job_dir + 'guides.txt'):
-            with open(current_job_dir + 'guides.txt') as guides:
-                n_guides = len(guides.read().strip().split('\n'))
-        else:
-            n_guides = -1
-        if 'log.txt' in onlyfile:
-            with open(current_job_dir + 'log.txt') as log:
-                all_done = 0
+    Once completed the search, display the link to switch to results page.
+    If the selected job does not exist, it is displayed a warning message.
 
-                index_status = html.P('To do', style={'color': 'red'})
-                search_status = html.P('To do', style={'color': 'red'})
-                post_process_status = html.P('To do', style={'color': 'red'})
-                merge_status = html.P('To do', style={'color': 'red'})
-                images_status = html.P('To do', style={'color': 'red'})
-                database_status = html.P('To do', style={'color': 'red'})
-                integrate_status = html.P('To do', style={'color': 'red'})
-                current_log = log.read()
+    ...
 
-                variant = False
-                with open(current_job_dir + '.Params.txt') as f:
-                    if "Ref_comp\tTrue" in f.read():
-                        variant = True
+    Parameters
+    ----------
+    n : int
+    dir_name : str
+        Job directory name
 
-                if variant:
-                    if "Index-genome Variant\tEnd" in current_log:
-                        index_status = html.P('Done', style={'color': 'green'})
-                        all_done = all_done + 1
-                    elif "Index-genome Variant\tStart" in current_log:
-                        index_status = html.P(
-                            'Indexing Enriched Genome...' + ' ' + 'Step [4/4]', style={'color': 'orange'})
-                    elif "Index-genome Reference\tStart" in current_log:
-                        index_status = html.P(
-                            'Indexing Reference Genome...' + ' ' + 'Step [3/4]', style={'color': 'orange'})
-                    elif "Indexing Indels\tStart" in current_log:
-                        index_status = html.P(
-                            'Indexing Indels Genome...' + ' ' + 'Step [2/4]', style={'color': 'orange'})
-                    elif 'Add-variants\tStart' in current_log:
-                        index_status = html.P(
-                            'Adding variants...' + ' ' + 'Step [1/4]', style={'color': 'orange'})
-                    elif 'Search Reference\tStart' in current_log:
-                        index_status = html.P('Done', style={'color': 'green'})
-                        all_done = all_done + 1
-                else:
-                    if "Index-genome Reference\tEnd" in current_log:
-                        index_status = html.P('Done', style={'color': 'green'})
-                        all_done = all_done + 1
-                    elif "Index-genome Reference\tStart" in current_log:
-                        index_status = html.P(
-                            'Indexing Reference Genome...' + ' ' + 'Step [1/1]', style={'color': 'orange'})
-                    elif 'Search Reference\tStart' in current_log:
-                        index_status = html.P('Done', style={'color': 'green'})
-                        all_done = all_done + 1
+    Returns
+    -------
+    Tuple
+    """
 
     if n is not None:
         if not isinstance(n, int):
@@ -370,19 +332,45 @@ def refreshSearch(n, dir_name):
     )
 
 
+# remove job results
 @app.callback(
     Output("result-deleted", "children"),
     [Input("button-remove-result", "n_clicks")],
     [State("url", "search")],
 )
-def removeResult(n, dir_name):
-    if n == 0:
-        raise PreventUpdate
-    if n == 1:
-        current_job_dir = current_working_directory + \
-            'Results/' + dir_name.split('=')[-1]
-        os.system(f'rm -rf {current_job_dir}')
-        return html.P('Result deleted')
+def remove_result(n: int, dir_name: str) -> html.P:
+    """Delete results obtained running the current CRISPRme job.
+
+    ...
+
+    Parameters
+    ----------
+    n : int
+    dir_name : str
+        Job directory name
+
+    Returns
+    -------
+    html.P
+    """
+
+    if n is not None:
+        if not isinstance(n, int):
+            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if not isinstance(dir_name, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(dir_name).__name__}")
+    if n == 0 or n is None:
+        raise PreventUpdate  # do not do anything
+    elif n == 1:
+        current_job_directory = os.path.join(
+            current_working_directory, RESULTS_DIR, dir_name.split("=")[-1]
+        )
+        # remove job data
+        cmd = f"rm -rf {current_job_directory}"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"An error occurrend while running {cmd}")
+        return html.P("Results deleted")
     return None
 
 
@@ -390,18 +378,34 @@ def removeResult(n, dir_name):
 def load_page() -> List:
     """Construct the layout of the results load page. The page is displayed
     while CRISPRme analysis is running, and show the user the status of each
-    analysis step."""
+    analysis step.
 
+    ...
 
-def load_page():
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    List
+        Results load page
+    """
+
+    # begin construction of results loading page
     final_list = []
+    # construct box with the link to results
     final_list.append(
         html.Div(
             html.Div(
                 html.Div(
                     [
                         html.P(
-                            'Job submitted. Copy this link to view the status and the result page '),
+                            str(
+                                "Job submitted. Copy this link to view the status "
+                                "and the result page:"
+                            )
+                        ),
                         html.Div(
                             html.P(
                                 "link",
@@ -452,22 +456,19 @@ def load_page():
     final_list.append(
         html.Div(
             [
-                html.H4('Status report'),
+                html.H4("Status report"),
                 html.Div(
                     [
                         html.Div(
                             html.Ul(
                                 [
-                                    html.Li('Indexing genome(s)'),
-                                    html.Li('Searching spacer'),
-                                    html.Li('Post processing'),
-                                    html.Li('Merge targets'),
-                                    html.Li(
-                                        'Annotating and generating images'),
-                                    html.Li('Integrating results'),
-                                    html.Li('Populating database'),
-                                    #html.Li('Annotating result'),
-                                    #html.Li('Generating report')
+                                    html.Li("Indexing genome(s)"),
+                                    html.Li("Searching spacer"),
+                                    html.Li("Post processing"),
+                                    html.Li("Merge targets"),
+                                    html.Li("Annotating and generating images"),
+                                    html.Li("Integrating results"),
+                                    html.Li("Populating database"),
                                 ]
                             ),
                             style={"flex": "0 0 20%"},

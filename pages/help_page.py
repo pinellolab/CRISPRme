@@ -1,24 +1,43 @@
+"""Display CRISPRme Manual page. 
 
-import dash
-from dash.dependencies import Input, Output, State
-import dash_core_components as dcc
-import dash_html_components as html
-import dash_daq as daq
-from dash_html_components import Li
-import dash_table
-from dash.exceptions import PreventUpdate
-import dash_bootstrap_components as dbc
-import base64  # for decoding upload content
-import io  # for decoding upload content
+The CRISPRme manual can be accessed by the user through the tooglebar placed on
+top of the CRISPRme web app.
+
+The manual contains the instructions on CRISPRme web app usage, and the 
+explanantion of the different results and plots returned/displayed throughout
+the webapp. 
+"""
+
+
+from .pages_utils import ASSETS_DIR
 from app import app_main_directory
 
+import dash_html_components as html
 
-def helpPage():
+import base64  # for decoding upload content
+import os
+
+
+def helpPage() -> html.Div:
+    """Construct the Manual web page.
+
+    ...
+
+    Parameters
+    ----------
+    None
+
+    Returns
+    -------
+    html.Div
+    """
+
+    # begin web page construction
     final_list = []
     final_list.append(
         html.Div(
             [
-                html.H3('About'),
+                html.H3("About"),
                 html.P(
                     [
                         "CRISPRme is available as an online web app at ",
@@ -40,9 +59,8 @@ def helpPage():
             ]
         )
     )
-
-    final_list.append(html.H3('Main Page'))
-
+    # main page description
+    final_list.append(html.H3("Main Page"))
     final_list.append(
         html.Div(
             [
@@ -229,13 +247,18 @@ def helpPage():
             ]
         )
     )
-
+    # report status description
     final_list.append(
         html.P(
-            ['After selecting the desired inputs, clicking the Submit button starts the search . After the submission, a new page will show the status and progress.']
+            [
+                str(
+                    "After selecting the desired inputs, clicking the Submit "
+                    "button starts the search. After the submission, a new page "
+                    "will show the status and progress."
+                )
+            ]
         )
     )
-
     final_list.append(
         html.Div(
             [
@@ -258,7 +281,6 @@ def helpPage():
             ]
         )
     )
-
     final_list.append(
         html.P(
             [
@@ -288,8 +310,8 @@ def helpPage():
             ]
         )
     )
-
-    final_list.append(html.H3('Result Page'))
+    # result page description
+    final_list.append(html.H3("Result Page"))
     final_list.append(
         html.P(
             [
@@ -364,10 +386,6 @@ def helpPage():
                         "Query Genomic Region, Graphical Reports and Personal Risk Cards."
                     )
                 ),
-                # html.P(html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory+
-                #     '/assets/resultPage/populationDistribution.png', 'rb').read()).decode()), width='100%')),
-                # 'The Show Target Distribution in Populations button opens a section where informations about the number of targets found in each Superpopulation (EAS, EUR, AFR, AMR, SAS) are provided by means of a barplot for each Mismatch + Bulge value. ',
-                html.P('In addition, for each guide, six different interactive reports are generated and are available to be downloaded:  Custom Ranking, Summary by Mismatches/Bulges, Summary by Sample, Query Genomic Region, Graphical Reports and Personal Risk Cards:'),
                 html.Ul(
                     [
                         html.Li(
@@ -433,17 +451,23 @@ def helpPage():
                         html.Ul(
                             [
                                 html.Li(
-                                    'Bulge Type: type of bulge of the targets, can be X (no bulge), DNA or RNA.'),
+                                    "Bulge Type: type of bulge of the targets, can be X (no bulge), DNA or RNA."
+                                ),
                                 html.Li(
-                                    'Bulge Size: size of the bulge present in the targets.'),
+                                    "Bulge Size: size of the bulge present in the targets."
+                                ),
                                 html.Li(
-                                    'Mismatches: number of mismatches present in the targets.'),
+                                    "Mismatches: number of mismatches present in the targets."
+                                ),
                                 html.Li(
-                                    'Targets in Reference: number of targets found in the Reference Genome for that combination of mismatch/bulge.'),
+                                    "Targets in Reference: number of targets found in the Reference Genome for that combination of mismatch/bulge."
+                                ),
                                 html.Li(
-                                    'Targets in Variant: number of targets found in the Variant Genome for that combination of mismatch/bulge. Each of these targets is associated with at least one sample.'),
+                                    "Targets in Variant: number of targets found in the Variant Genome for that combination of mismatch/bulge. Each of these targets is associated with at least one sample."
+                                ),
                                 html.Li(
-                                    'PAM Creation: number of possible created PAMs due to variants addition.'),
+                                    "PAM Creation: number of possible created PAMs due to variants addition."
+                                ),
                                 html.Li(
                                     "Show Targets: open a new page to display all the targets of the row of interest as in the following image:"
                                 ),
@@ -495,18 +519,25 @@ def helpPage():
                         ),
                         html.Ul(
                             [
+                                html.Li("Gender: the sample gender"),
                                 html.Li(
-                                    'Gender: the sample gender'),
+                                    "Population: population which the sample belong to"
+                                ),
                                 html.Li(
-                                    'Population: population which the sample belong to'),
+                                    "Super Population: continent which the sample belong to"
+                                ),
                                 html.Li(
-                                    'Super Population: continent which the sample belong to'),
+                                    "Targets in Variant: number of targets found in the Variant Genome that are generated by that sample"
+                                ),
                                 html.Li(
-                                    'Targets in Variant: number of targets found in the Variant Genome that are generated by that sample'),
+                                    "Targets in Population: number of targets found in the Variant Genome that are generated by all the sample of the population"
+                                ),
                                 html.Li(
-                                    'Targets in Population: number of targets found in the Variant Genome that are generated by all the sample of the population'),
+                                    "Targets in Super Population: number of targets found in the Variant Genome that are generated by all the populations"
+                                ),
                                 html.Li(
-                                    'Targets in Super Population: number of targets found in the Variant Genome that are generated by all the populations'),
+                                    "PAM Creation: number of possible created PAMs due to variants addition"
+                                ),
                                 html.Li(
                                     "Show Targets: open a new page to display all the targets of the row of interest as in the following image:"
                                 ),
@@ -569,62 +600,6 @@ def helpPage():
                                 ),
                             ]
                         ),
-
-                        html.Li([html.Span('Query Genomic Region: ', style={
-                                'color': 'red'}), 'This page allows the user to retrieve targets overlapping a specific genomic region, for example to quickly assess potential off-targets in a given regulatory element or coding region.']),
-                        html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
-                                                                                             '/assets/resultPage/summaryByPosition.png', 'rb').read()).decode()), width='100%'),
-                        # html.Ul(
-                        #     [
-                        #         html.Li(
-                        #             'Position: chromosome relative position of the first letter of the guide'),
-                        #         html.Li(
-                        #             'Best Target: best target found in that position'),
-                        #         html.Li(
-                        #             'Min Mismatch: minimum number of mismatches present in the targets in that position'),
-                        #         html.Li(
-                        #             'Min Bulge: minimum number of bulges present in the targets in that position'),
-                        #         html.Li(
-                        #             'Bulge: number of bulges present in the targets in that position'),
-                        #         html.Li(
-                        #             'Targets in Cluster by Mismatch Value: Matrix showing the distribution of the targets grouped by mismatch/bulge count'),
-                        #     ]
-
-                        # ),
-                        # html.Li([html.Span('Graphical Reports: ', style={
-                        #         'color': 'red'}), 'This page shows graphics about a specific guide, including genomic annotation and motif logos. The main feature introduced is the possibility to visualize graphical reports at individual level.']),
-                        # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
-                        #                                                                      '/assets/resultPage/summaryByGraphic_population.png', 'rb').read()).decode()), width='100%'),
-                        # html.Li(
-                        #     'Select a Mismatch and Bulge Value: generate graphics with the specified mismatch+bulge value'),
-                        # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
-                        #                                                                      '/assets/resultPage/summaryByGraphic_sample.png', 'rb').read()).decode()), width='100%'),
-                        # html.Li(
-                        #     'Select Individual Data: generate individual data, by selecting Super Population, Population and Sample'),
-
-                        # html.Li([html.Span('Personal Risk Cards: ', style={
-                        #         'color': 'red'}), 'This page shows at individual level the most important data for a given sample.']),
-                        # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
-                        #                                                                      '/assets/resultPage/personalCard.png', 'rb').read()).decode()), width='100%'),
-                        # html.Ul(
-                        #     [
-                        #         html.Li(
-                        #             'Plot showing the difference in terms of CFD score in a specific genetic region, when accounting for variants in targets in which the selected sample appear.'),
-
-                        #         html.Li(
-                        #             'Plot showing the difference in terms of CFD score in a specific genetic region, when accounting for variants in targets unique to the selected sample.'),
-                        #         html.Li(
-                        #             'Set of tables reporting the personal information for the selected sample. \n \
-                        #             The first table reports personal targets, PAM creation target and private targets. \n \
-                        #             The second table lists for each target the crRNA and DNA sequences, the position and cluster position, \
-                        #             the chromosome, direction, mismatches, bulge size and total. It also reports the CFD score for the reference and variant target, \
-                        #              the annotation and eventually the new PAM generation due to substitution or insertion/deletion (not showed in the figure).')
-                        #     ]
-                        # )
-                        html.Li([html.Span('Graphical Reports: ', style={
-                                'color': 'red'}), 'This page creates several graphical reports for each selected sgRNA.']),
-                        # html.Img(src='data:image/png;base64,{}'.format(base64.b64encode(open(app_main_directory +
-                        #                                                                      '/assets/resultPage/summaryByGraphic_population.png', 'rb').read()).decode()), width='100%'),
                         html.Li(
                             str(
                                 "A stem plot shows how genetic variants affect "
@@ -652,9 +627,24 @@ def helpPage():
                             width="100%",
                         ),
                         html.Li(
-                            'Bar plots depict  how candidate off-targets are distributed across super-populations based on the number of mismatches and bulges '),
+                            str(
+                                "Bar plots depict  how candidate off-targets are "
+                                "distributed across super-populations based on the "
+                                "number of mismatches and bulges."
+                            )
+                        ),
                         html.Li(
-                            'A radar chart with the relative specificity of the analyzed guide for each functional region based on annotations from GENCODE and ENCODE. A larger area in the chart represents a gRNA with more potential off-targets falling in annotated regions, possibly representing an undesirable outcome. A summary table provides the count and percentage of off-targets with a given annotation.'),
+                            str(
+                                "A radar chart with the relative specificity of "
+                                "the analyzed guide for each functional region based "
+                                "on annotations from GENCODE and ENCODE. A larger area "
+                                "in the chart represents a gRNA with more potential "
+                                "off-targets falling in annotated regions, possibly "
+                                "representing an undesirable outcome. A summary table "
+                                "provides the count and percentage of off-targets with "
+                                "a given annotation."
+                            )
+                        ),
                         html.Li(
                             str(
                                 "A motif logo summarizing the frequency of mismatches "
@@ -739,11 +729,27 @@ def helpPage():
                             [
                                 html.P("Table 1:"),
                                 html.Li(
-                                    'Personal, count of all the candidate variant off-targets for the selected sample (including variants unique and non-unique to the individual)'),
+                                    str(
+                                        "Personal, count of all the candidate "
+                                        "variant off-targets for the selected sample "
+                                        "(including variants unique and non-unique to "
+                                        "the individual)"
+                                    )
+                                ),
                                 html.Li(
-                                    'PAM creation, count of all the instances where a genetic variant in the sample introduces a new PAM.'),
+                                    str(
+                                        "PAM creation, count of all the instances "
+                                        "where a genetic variant in the sample "
+                                        "introduces a new PAM."
+                                    )
+                                ),
                                 html.Li(
-                                    'Private, count of all the candidate variant off-targets uniquely found in the selected sample.'),
+                                    str(
+                                        "Private, count of all the candidate "
+                                        "variant off-targets uniquely found in "
+                                        "the selected sample."
+                                    )
+                                ),
                             ]
                         ),
                     ],
@@ -752,42 +758,5 @@ def helpPage():
             ]
         )
     )
-
-    # final_list.append(
-    #     html.Div(
-    #         [
-    #             html.H3('Browser Compatibility'),
-    #             html.Div([
-    #                 dash_table.DataTable(
-    #                     data=[{'OS': 'Linux', 'V': 'Ubuntu 18.04.2 LTS', 'Ch': '79.0', 'S': 'n/a', 'ME': 'n/a', 'F': '71.0'},
-    #                           {'OS': 'MacOS', 'V': 'Mojave', 'Ch': ' 79.0',
-    #                            'S': '13.0.4', 'ME': 'n/a', 'F': '71.0'},
-    #                           {'OS': 'Windows', 'V': '10', 'Ch': '79.0', 'S': 'n/a', 'ME': '44.18362.449.0', 'F': '71.0'}],
-
-    #                     columns=[{'id': 'OS', 'name': 'Operative System'}, {'id': 'V', 'name': 'Version'}, {'id': 'Ch', 'name': 'Chrome'},
-    #                              {'id': 'S', 'name': 'Safari'}, {'id': 'ME', 'name': 'Microsoft Edge'}, {
-    #                                  'id': 'F', 'name': 'Firefox'}
-    #                              ],
-
-    #                     style_cell={
-    #                         'textAlign': 'center',
-    #                         'width': '20'
-    #                     },
-
-    #                     style_data_conditional=[
-    #                         {
-    #                             'if': {'row_index': 'odd'},
-    #                             'backgroundColor': 'rgb(248, 248, 248)'
-    #                         }
-    #                     ],
-    #                     style_header={
-    #                         'backgroundColor': 'rgb(230, 230, 230)',
-    #                         'fontWeight': 'bold'
-    #                     }
-    #                 )
-    #             ],   style={'display': 'inline-block', 'width': '48%'})
-    #         ]
-    #     )
-    # )
-    page = html.Div(final_list, style={'margin': '1%'})
+    page = html.Div(final_list, style={"margin": "1%"})
     return page

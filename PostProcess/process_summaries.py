@@ -24,6 +24,7 @@ def init_summary_by_sample(path_samplesID):
     dict_pop = {}
     dict_superpop = {}
     with open(f"{path_samplesID}", "r") as sid:
+        # print('pathid',path_samplesID)
         sid.readline()
         for line in sid:
             splitted = line.strip().split("\t")

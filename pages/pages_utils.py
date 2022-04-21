@@ -214,7 +214,7 @@ LOG_FILE = "log.txt"
 # CRISPR guides file
 GUIDES_FILE = ".guides.txt"
 # sample IDs file
-SAMPLES_FILE = ".sampleID.txt"
+SAMPLES_FILE = ".samplesID.txt"
 # PAMs file
 PAMS_FILE = ".pam.txt"
 # email file

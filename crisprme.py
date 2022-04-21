@@ -28,7 +28,6 @@ current_working_directory = os.getcwd() + '/'
 input_args = sys.argv
 
 if '--debug' in input_args:
-    print('DEBUG MODE')
     script_path = current_working_directory+'PostProcess/'
     corrected_web_path = current_working_directory
 
@@ -190,8 +189,6 @@ def complete_search():
         print(
             "\t--sequence, used to specify the file containing DNA sequences or bed coordinates to extract guides [IF NOT --guide]")
         print("\t--pam, used to specify the file that contains the pam")
-        print("\t--be-window, used to specify the window to search for susceptibilty to certain base editor (e.g., --be-window 4,8)")
-        print("\t--be-base, used to specify the base(s) to check for the choosen editor (e.g., --be-base A,C)")
         print("\t--annotation, used to specify the file that contains annotations of the reference genome")
         print("\t--personal_annotation, used to specify the file that contains personal annotations of the reference genome")
         print(
@@ -212,46 +209,13 @@ def complete_search():
     # check if all directories are found, if not, create them
     directoryCheck()
 
-    #check for base and window in base editor
-    if '--be-window' in input_args and '--be-base' not in input_args:
-        print('Please input the base(s) editor base to check in specified window')
-        exit(1)       
-    #check guide and sequence existence
     if '--guide' not in input_args and '--sequence' not in input_args:
         print('Please input a guide file or a sequence file')
         exit(1)
     if '--guide' in input_args and '--sequence' in input_args:
         print('Please select only ONE input type, either --guide or --sequence')
         exit(1)
-        
-    # base editor check
-    base_start=1
-    base_end=0
-    base_set='_'
-    
-    if '--be-window' in input_args:
-        try:
-            base_window = input_args[input_args.index("--be-window")+1]
-            try:
-                base_start=int(base_window.strip().split(',')[0])
-                base_end=int(base_window.strip().split(',')[1])
-            except:
-                print("Please input a valid set of numbers for flag --be-window")
-                exit(1)
-        except IndexError:
-            print("Please input some parameter for flag --be-window")
-            exit(1)
-    if '--be-base' in input_args:
-        try:
-            base_set = input_args[input_args.index("--be-base")+1]
-            for base in base_set.strip().split(','):
-                if base not in VALID_CHARS:
-                    print('Please input a set of valid nucleotides (A,C,G,T)')
-                    exit(1)
-        except IndexError:
-            print("Please input some parameter for flag --be-base")
-            exit(1)
-    #guide check
+    # guide check
     if "--guide" in input_args:
         try:
             guidefile = os.path.abspath(
@@ -309,7 +273,6 @@ def complete_search():
 
     if "--vcf" not in input_args:
         variant = False
-        vcfdir='_'
     else:
         try:
             vcfdir = os.path.realpath(input_args[input_args.index("--vcf")+1])
@@ -392,7 +355,6 @@ def complete_search():
         os.system(f'rm -f {personal_annotation_file}.tmp')
         annotationfile = annotationfile+'+personal.bed'
 
-    samplefile=script_path+'vuoto.txt' #use void file for samples if variant not used
     if variant and "--samplesID" not in input_args:
         print("--samplesID must be contained in the input")
         exit(1)
@@ -629,21 +591,20 @@ def complete_search():
         extracted_guides_file.close()
     # print(guides)
     # exit(0)
-    void_mail='_'
     if sequence_use == False:
         os.system(f'cp {guidefile} {outputfolder}/guides.txt')
     print(
         f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
-    # if variant:
-    with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
-        with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
-            subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), str(vcfdir), str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(
-                samplefile), str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation),void_mail,str(base_start),str(base_end),str(base_set)], stdout=log_verbose, stderr=log_error)
-    # else:
-    #     with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
-    #         with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
-    #             subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), '_', str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(script_path+'vuoto.txt'),
-    #                             str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation),void_mail,str(base_start),str(base_end),str(base_set)], stdout=log_verbose, stderr=log_error)
+    if variant:
+        with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
+            with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
+                subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), str(vcfdir), str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(
+                    samplefile), str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation)], stdout=log_verbose, stderr=log_error)
+    else:
+        with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
+            with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
+                subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), '_', str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(script_path+'vuoto.txt'),
+                                str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation)], stdout=log_verbose, stderr=log_error)
     # change name of guide and param files to hidden
     os.system(f"mv {outputfolder}/guides.txt {outputfolder}/.guides.txt")
     os.system(f"mv {outputfolder}/Params.txt {outputfolder}/.Params.txt")

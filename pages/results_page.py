@@ -29,34 +29,15 @@ The results could be sorted and filtered according to 3 criteria:
 TODO: complete doc string with missing info --> read paper carefully
 """
 
-
-from numpy import isin
-from soupsieve import select
-from .results_page_utils import (
+from .pages_utils import (
     GUIDES_FILE,
     PAGE_SIZE,
     BARPLOT_LEN,
-    COL_REF,
-    COL_REF_TYPE,
-    COL_REF_RENAME,
     COL_BOTH,
     COL_BOTH_TYPE,
     COL_BOTH_RENAME,
-    GENOME_DATABASE,
     GUIDE_COLUMN,
     CHR_COLUMN,
-    POS_COLUMN,
-    MM_COLUMN,
-    BLG_COLUMN,
-    TOTAL_COLUMN,
-    TOTAL_FEWEST_COLUMN,
-    BLG_T_COLUMN,
-    CFD_COLUMN,
-    CRISTA_COLUMN,
-    RISK_COLUMN,
-    SAMPLES_COLUMN,
-    SAMPLES_CRISTA_COLUMN,
-    SAMPLES_FEWEST_COLUMN,
     VARIANTS_CRISTA,
     VARIANTS_CFD,
     VARIANTS_FEWEST,
@@ -65,7 +46,7 @@ from .results_page_utils import (
     IMGS_DIR,
     FILTERING_CRITERIA,
     PARAMS_FILE,
-    SAMPLE_FILE,
+    SAMPLES_FILE,
     CAS9,
     PANDAS_OPERATORS,
     drop_columns,
@@ -75,8 +56,6 @@ from .results_page_utils import (
     split_filter_part,
     generate_table,
     generate_table_samples,
-    generate_table_position,
-    parse_contents,
 )
 from app import (
     app,
@@ -88,40 +67,24 @@ from app import (
 from PostProcess.supportFunctions.loadSample import associateSample
 from PostProcess import CFDGraph, query_manager
 
-from typing import Any, Dict, List, Optional, Tuple, Type
-from glob import glob
-
-import os
-
-from sqlite3.dbapi2 import Row
-import sys
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from numpy.lib.function_base import _diff_dispatcher
-from app import URL, app
+from typing import Dict, List, Tuple
+from glob import glob
 
-# from app import app
-import pandas as pd
-
-# from datatable import dt, f, sort
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
-import dash_table
-from app import current_working_directory, cache, app_main_directory, operators
-from PostProcess import CFDGraph
-from PostProcess.supportFunctions.loadSample import associateSample
-from os.path import isdir, join  # for getting directories
+import pandas as pd
 
 import subprocess
 import math
 import base64  # for decoding upload content
-import time
-import re
-import webbrowser as wb
+import dash_table
 import sqlite3
-from PostProcess import query_manager
 import flask
+import re
+import os
 
 
 # -------------------------------------------------------------------------------
@@ -779,7 +742,7 @@ def download_general_table(
     [Input("interval-integrated-results", "n_intervals")],
     [State("div-info-integrated-results", "children"), State("url", "search")],
 )
-def download_integrated_results(
+def download_general_table(
     n: int, file_to_load: str, search: str
 ) -> Tuple[str, bool]:  # file to load =
     """Create the link to download CRISPRme integrated result table.
@@ -2159,7 +2122,7 @@ def guidePagev3(job_id, hash):
     if bulge_t != "X":
         add_header += " - " + str(bulge_t) + " " + str(bulge_s)
     value = job_id
-    if not isdir(current_working_directory + "Results/" + job_id):
+    if not os.path.isdir(current_working_directory + "Results/" + job_id):
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     with open(current_working_directory + "Results/" + value + "/.Params.txt") as p:
         all_params = p.read()
@@ -2771,7 +2734,7 @@ def update_table_general_profile(
                     error_guides.append(e_g.strip())
         except OSError as e:
             raise e
-    # Get guides from .guide.txt
+    # Get guide from .guide.txt
     try:
         with open(
             os.path.join(current_working_directory, RESULTS_DIR, job_id, GUIDES_FILE)
@@ -2784,7 +2747,7 @@ def update_table_general_profile(
         current_working_directory,
         RESULTS_DIR,
         job_id,
-        f".{job_id}.acfd_{filter_criterion}.txt"
+        "".join([".", job_id, ".acfd_", filter_criterion, ".txt"]),
     )
     if not os.path.isfile(acfd_file):
         raise FileNotFoundError(f"Unable to locate {acfd_file}")
@@ -2834,17 +2797,21 @@ def update_table_general_profile(
             sep="\t",
             na_filter=False,
         )
-        data_guides = {"Guide": g, " Nuclease": nuclease}
+        data_guides = {}
+        data_guides["Guide"] = g
+        data_guides["Nuclease"] = nuclease
         data_general_count_copy = data_general_count.copy()
-        count_bulges = [blg for blg in range(max_bulges + 1)]
-        origin_ref = ["REF" for _ in range(max_bulges + 1)]
-        origin_var = ["VAR" for _ in range(max_bulges + 1)]
-        # merge count bulges lists
+        count_bulges = []
+        origin_ref = []
+        origin_var = []
+        for the_bulge in range(max_bulges + 1):
+            origin_ref.append("REF")
+            origin_var.append("VAR")
+            count_bulges.append(the_bulge)
         count_bulges_concat = count_bulges + count_bulges
-        # merge genome of origin lists
         origin_concat = origin_ref + origin_var
-        data_general_count_copy["Genome"] = origin_concat
-        data_general_count_copy["Bulges"] = count_bulges_concat
+        data_general_count_copy.insert(0, "Genome", origin_concat, True)
+        data_general_count_copy.insert(1, "Bulges", count_bulges_concat, True)
         if "NO SCORES" not in all_scores:
             data_guides["CFD"] = acfd[i]
             table_to_file.append(f"CFD: {acfd[i]}")  # append CFD to table
@@ -2856,7 +2823,7 @@ def update_table_general_profile(
                 data_guides["Doench 2016"] = doench[i]
         if genome_type == "both":
             tmp = [str(j) for j in range(max_bulges + 1)] * 2
-            tmp.insert(len(tmp) // 2, "")  # add new line in table
+            tmp.insert(len(tmp) // 2, "")
             data_guides["# Bulges"] = "\n".join(tmp)
         else:
             tmp = [str(j) for j in range(max_bulges + 1)]
@@ -2871,6 +2838,11 @@ def update_table_general_profile(
                                 ["REFERENCE", str(sum(data_general_count.iloc[j, :]))]
                             )
                         )
+                    elif j == 2:
+                        data_guides["Total"].append(
+                            f"\t{str(sum(data_general_count.iloc[j, :]))}"
+                        )
+                        data_guides["Total"].append("\t")
                     elif j == 4:
                         data_guides["Total"].append(
                             "\t\t".join(
@@ -2879,10 +2851,8 @@ def update_table_general_profile(
                         )
                     else:
                         data_guides["Total"].append(
-                            f"\t{str(sum(data_general_count.iloc[j, :]))}"
+                            f"\t{str(sum(data_general_count.iloc[i, :]))}"
                         )
-                        if j == 2:  # add empty line
-                            data_guides["Total"].append("")
             elif max_bulges == 1:
                 for j in range(len(data_guides["# Bulges"].split("\n")) - 1):
                     if j == 1:
@@ -2936,9 +2906,8 @@ def update_table_general_profile(
                 data_guides[str(i) + "MM"] = "\n".join(tmp)
         else:
             for j in range(mms + 1):
-                tmp = [
-                    data_general_count.iloc[: (max_bulges + 1), j].values.astype(str)
-                ]
+                tmp = list(data_general_count.iloc[:, j].values.astype(str))
+                tmp=tmp[:max_bulges+1]
                 # tmp.insert(len(tmp)//2, "")
                 data_guides[str(j) + "MM"] = "\n".join(tmp)
         data_guides["Total"] = "\n".join(data_guides["Total"])
@@ -3407,7 +3376,7 @@ def filter_sample_table(
     job_id = search.split("=")[-1]
     job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, SAMPLE_FILE)
+        os.path.join(job_directory, SAMPLES_FILE)
     )[2]
     # read CRISPRme run parameters
     try:
@@ -3662,7 +3631,7 @@ def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
     job_id = search.split("=")[-1]
     job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     pop_dict = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, SAMPLE_FILE)
+        os.path.join(job_directory, SAMPLES_FILE)
     )[3]
     return [{"label": sample, "value": sample} for sample in pop_dict[pop]], None
 
@@ -3704,7 +3673,7 @@ def update_population_drop(superpop: str, search: str) -> Tuple[Dict, None]:
     job_id = search.split("=")[-1]
     job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
-        os.path.join(job_directory, SAMPLE_FILE)
+        os.path.join(job_directory, SAMPLES_FILE)
     )[2]
     return [{"label": i, "value": i} for i in population_1000gp[superpop]], None
 
@@ -4509,7 +4478,7 @@ def update_content_tab(
         samples_summary[""] = more_info_col
 
         population_1000gp = associateSample.loadSampleAssociation(
-            os.path.join(job_directory, SAMPLE_FILE)
+            os.path.join(job_directory, SAMPLES_FILE)
         )[2]
         super_populations = [{"label": i, "value": i} for i in population_1000gp.keys()]
         populations = []
@@ -5135,7 +5104,7 @@ def update_content_tab(
         ]
         if genome_type != "ref":
             population_1000gp = associateSample.loadSampleAssociation(
-                os.path.join(job_directory, SAMPLE_FILE)
+                os.path.join(job_directory, SAMPLES_FILE)
             )[2]
             super_populations = [
                 {"label": i, "value": i} for i in population_1000gp.keys()

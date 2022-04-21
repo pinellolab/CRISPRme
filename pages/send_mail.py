@@ -10,7 +10,7 @@ TODO: avoid shell and call send_mail() in other python scripts
 TODO: add run parameters to mail (job date + other params)
 """
 
-from .results_page_utils import MAIL_SUBJECT, MAIL_SENDER, SSL_PORT
+from .pages_utils import MAIL_SUBJECT, MAIL_SENDER, SSL_PORT
 
 from email.message import EmailMessage
 
