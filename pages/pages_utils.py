@@ -15,6 +15,8 @@ import base64
 import os
 
 
+# Define DNA alphabet
+DNA_ALPHABET = ["A", "C", "G", "T"]
 # define IUPAC alphabet as valid characters for CRISPRme queries
 VALID_CHARS = {
     "A",

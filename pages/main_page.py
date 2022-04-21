@@ -3,6 +3,7 @@ import filecmp
 from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
+    DNA_ALPHABET,
     EMAIL_FILE,
     GENOMES_DIR,
     GITHUB_LINK,
@@ -92,6 +93,9 @@ else:
 AV_MISMATCHES = [{"label": i, "value": i} for i in range(MAX_MMS)]
 AV_BULGES = [{"label": i, "value": i} for i in range(MAX_BULGES)]
 AV_GUIDE_SEQUENCE = [{"label": i, "value": i} for i in range(15, 26)]
+# base editing options
+BE_NTS = [{"label": nt, "value": nt} for nt in DNA_ALPHABET]  
+
 
 
 def split_filter_part(filter_part: str) -> Tuple:
@@ -193,6 +197,9 @@ def load_example_data(load_button_click: int) -> List[str]:
         State("mms", "value"),
         State("dna", "value"),
         State("rna", "value"),
+        State("be-window-start", "value"),
+        State("be-window-stop", "value"),
+        State("be-nts", "value"),
         State("checklist-mail", "value"),
         State("example-email", "value"),
         State("job-name", "value"),
@@ -213,6 +220,9 @@ def change_url(
     mms: int,
     dna: int,
     rna: int,
+    be_start: int,
+    be_stop: int,
+    be_nt: str,
     adv_opts: List,
     dest_email: str,
     job_name: str,
@@ -637,8 +647,23 @@ def change_url(
     assert isinstance(rna, int)
     if dna > rna:
         max_bulges = dna
-
-    if (search_index):
+    # base editing 
+    if be_start is None or not bool(be_start):
+        be_start = 1
+    else:
+        be_start = int(be_start)
+    if be_stop is None or not bool(be_stop):
+        be_stop = 1
+    else:
+        be_stop = int(be_stop)
+    if be_nt is None or not bool(be_nt):
+        be_nt = "_"
+    else:
+        assert be_nt in DNA_ALPHABET
+    assert isinstance(be_start, int)
+    assert isinstance(be_stop, int)
+    assert isinstance(be_nt, str)
+    if search_index:
         search = False
 
     # Check if index exists, otherwise set generate_index to true
@@ -989,7 +1014,6 @@ def change_url(
                                     except OSError as e:
                                         raise e
                 return ("/load", f"?job={res_dir}")
-    print("BUT WE SHOULD BE HERE")
     # merge default is 3 nt wide
     merge_default = 3
     #FIX HERE
@@ -1021,11 +1045,10 @@ def change_url(
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
     assert isinstance(rna, int)
-    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} 1> {log_verbose} 2>{log_error}"
-    # run job
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} 1> {log_verbose} 2>{log_error}"
     print(cmd)
+    # run job
     exeggutor.submit(subprocess.run, cmd, shell=True)
-    print("exeguttor run")
     return ("/load", f"?job={job_id}")
 
 
@@ -1125,6 +1148,8 @@ def check_input(
     mms_update = None
     dna_update = None
     rna_update = None
+    be_start_update = None
+    be_stop_update = None
     len_guide_update = None
     update_style = False
     miss_input_list = []
@@ -1643,7 +1668,7 @@ def changeVariantsChecklistState(genome_value):
             annotation_list.append({'label': elem.strip().split(
                 '/')[-1], 'value': elem.strip().split('/')[-1]})
 
-def indexPage() -> html.Div:
+def index_page() -> html.Div:
     """Construct the layout of CRISPRme main page.
     When a new genome is added to /Genomes directory, reload genomes and PAMs
     dropdowns (via page reloading).
@@ -1894,7 +1919,48 @@ def indexPage():
         ],
         style={"margin-top": "10%"},
     )
-
+    # base editing boxes
+    base_editing_content = html.Div(
+        [
+            html.H4("Base Editing"),
+            html.Div(  # BE window start dropdown
+                [
+                    html.P("Window start"),
+                    dcc.Dropdown(
+                        clearable=False,
+                        id="be-window-start",
+                        style={"width": "60px"},
+                    ),
+                ],
+                style={"display": "inline-block", "margin-right": "20px"},
+            ),
+            html.Div(  # BE window stop dropdown
+                [
+                    html.P("Window stop"),
+                    dcc.Dropdown(
+                        clearable=False,
+                        id="be-window-stop",
+                        style={"width": "60px"},
+                    ),
+                ],
+                style={"display": "inline-block", "margin-right": "20px"},
+            ),
+            html.Div(  # BE nucleotides dropdown
+                [
+                    html.P(["Nucleotide"]),
+                    dcc.Dropdown(
+                        options=BE_NTS,
+                        clearable=False,
+                        id="be-nts",
+                        style={"width": "60px"},
+                    ),
+                ],
+                style={"display": "inline-block", "margin-right": "20px"},
+            ),
+        ],
+        style={"margin-top": "10%"},
+    )
+    # annotations dropdown
     annotation_content = html.Div(
         [
             html.H4('Select annotation'),
@@ -2025,6 +2091,7 @@ def indexPage():
                             [
                                 dbc.Row(dbc.Col(genome_content)),
                                 dbc.Row(dbc.Col(thresholds_content)),
+                                dbc.Row(dbc.Col(base_editing_content)),
                                 html.Br(),
                                 dbc.Row(dbc.Col(example_content)),
                             ],
@@ -2079,7 +2146,87 @@ def indexPage():
     return index_page
 
 
+@app.callback(
+    [Output("be-window-start", "options"), Output("be-window-stop", "options")],
+    [Input("text-guides", "value")],
+    [State("radio-guide", "value"), State("available-genome", "value")],
+)
+def update_base_editing_dropdown(
+    text_guides: str, guide_type: str, genome: str
+) -> Tuple:
+
+    # """
+    # Update base editing dropdown dinamically. The start and stop values for 
+    # base editing are changed accordingly to the guides provided in input by
+    # the user.
+    # ...
+    
+    # Parameters
+    # ----------
+    # text_guides : str
+    #     Guides
+    # guide_type : str
+    #     Guide type
+    # genome : str
+    #     Reference genome
+        
+    # Returns
+    # -------
+    # Tuple
+    # """
+
+    if text_guides is not None:
+        if not isinstance(text_guides, str):
+            raise TypeError(
+                f"Expected {str.__name__}, got {type(text_guides).__name__}"
+            )
+    if not isinstance(guide_type, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(guide_type).__name__}"
+        )
+    dropdown_options = [{"label": "", "value": ""}]
+    if text_guides is None:
+        return dropdown_options, dropdown_options
+    if guide_type == "IP":  # individual spacers
+        guides = text_guides.strip()
+    elif guide_type == "GS":  # genomic sequences
+        guides = []
+        for seqname_and_seq in text_guides.split(">"):
+            if not seqname_and_seq: 
+                continue
+            seqname = seqname_and_seq[:seqname_and_seq.find("\n")]
+            seq = seqname_and_seq[seqname_and_seq.find("\n"):].strip()
+            if "chr" in seq:  # BED regions
+                for line in seq.split("\n"):
+                    if not line:
+                        continue
+                    line_split = line.strip().split()
+                    seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
+                    seq_read = extract_seq.extractSequence(
+                        seqname, seq_read, genome.replace(" ", "_")
+                    )
+            else:
+                seq_read = "".join(seq.split()).strip()
+            guides.append(seq_read)
+        guides = "\n".join(list(set(guides)))
+    if not all(
+            [
+                len(guide) == len(guides.split("\n")[0]) 
+                for guide in guides.split("\n")
+            ]
+        ):
+            guides = select_same_len_guides(guides)
+    guides = guides.split("\n")
+    dropdown_options = [
+        {"label": i, "value": i} for i in range(1, len(guides[0]) + 1)
+    ]
+    return dropdown_options, dropdown_options
+
+
 def check_mail_address(mail_address: str) -> bool:
+    """
+    check if email address is correct
+    
     Parameters
     ----------
     mail_address : str
