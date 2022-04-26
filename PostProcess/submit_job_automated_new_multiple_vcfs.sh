@@ -277,6 +277,14 @@ while read vcf_f; do
 		fi
 	fi
 
+	#ceil npcus to use 1/2 of cpus per search
+	ceiling_result=$((($ncpus) / 2))
+	#if ceiling is 0, set ceiling to 1
+	if [ $ceiling_result -eq 0 ]; then
+		ceiling_result=1
+	fi
+
+	#start searches
 	cd "$output_folder"
 	echo $idx_ref
 	if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
@@ -284,10 +292,10 @@ while read vcf_f; do
 		# echo -e 'Search Reference\tStart\t'$(date) >&2
 		# echo -e 'Search Reference' >  $output
 		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then
-			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $(expr $ncpus / 4) &
+			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
 			pid_search_ref=$!
 		else
-			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $(expr $ncpus / 4) &
+			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
 			pid_search_ref=$!
 		fi
 	else
@@ -300,11 +308,11 @@ while read vcf_f; do
 			# echo -e 'Search Variant\tStart\t'$(date) >&2
 			# echo -e 'Search Variant' >  $output
 			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then
-				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $(expr $ncpus / 4) -var
+				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var
 				# mv "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 				echo -e 'Search Variant\tEnd\t'$(date) >>$log
 			else
-				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $(expr $ncpus / 4) &
+				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
 				echo -e 'Search Variant\tEnd\t'$(date) >>$log
 				# mv "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 			fi
