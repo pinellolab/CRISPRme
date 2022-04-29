@@ -364,6 +364,12 @@ def history_page():
     """
 
     results = get_results()
+    # print(results)
+    mode_type = open(current_working_directory+'.mode_type.txt','r').readlines()
+    # print(mode_type)
+    if mode_type[0] == 'server':
+        #avoid showing result in server mode (online)
+        results = pd.DataFrame()
     final_list = []
     final_list.append(
         html.Div(
@@ -381,13 +387,16 @@ def history_page():
     final_list.append(
         html.Div("None,None", id="div-history-filter-query", style={"display": "none"})
     )
-    final_list.append(
-        html.Div(
-            generate_table_results(results, 1),
-            id="div-history-table",
-            style={"text-align": "center"},
-        ),
-    )
+    if mode_type[0] != 'server':
+        final_list.append(
+            html.Div(
+                generate_table_results(results, 1),
+                id="div-history-table",
+                style={"text-align": "center"},
+            ),
+        )
+    else:
+        final_list.append(html.Div('HISTORY IS NOT AVAILABLE WHILE USING WEBSITE MODE'))
     final_list.append(html.Div(id="div-remove-jobid", style={"display": "none"}))
     final_list.append(
         html.Div(

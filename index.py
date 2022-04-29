@@ -93,12 +93,25 @@ def changePage(href, path, search, hash_guide):
 
 
 if __name__ == '__main__':
+    #check if all necessary directories exist
     directoryCheck()
+    #keep track of mode of activation (local or server)
+    mode_file=open(current_working_directory+'.mode_type.txt','w')
     if '--website' in sys.argv[1:]:
+        #write 'server' in mode_file
+        mode_type = 'server'
+        mode_file.write(mode_type)
+        mode_file.close()
         app.run_server(host='0.0.0.0', port=80, debug=False,
                        dev_tools_ui=False, dev_tools_props_check=False)
+        
         cache.clear()  # delete cache when server is closed
     else:
+        #write 'local' in mode_file
+        mode_type = 'local'
+        mode_file.write(mode_type)
+        mode_file.close()
         app.run_server(host='0.0.0.0', port=8080, debug=False,
                        dev_tools_ui=False, dev_tools_props_check=False)
         cache.clear()  # delete cache when server is close
+    
