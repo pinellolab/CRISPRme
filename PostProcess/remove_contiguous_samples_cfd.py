@@ -94,7 +94,8 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
                 fileOut.write("\t".join(final_list_best_ref[0]))
                 bestTarget = final_list_best_ref.pop(0)
             else:
-                final_list_best_var[0][cfd-1] = str(len(final_list_best_var)-1)
+                final_list_best_var[0][cfd-1] = str(
+                    len(final_list_best_ref)+len(final_list_best_var)-1)
                 fileOut.write("\t".join(final_list_best_var[0]))
                 bestTarget = final_list_best_var.pop(0)
         else:  # only ref
