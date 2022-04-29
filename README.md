@@ -166,6 +166,8 @@ chromosome files.
 - Text file with a single PAM sequence
 - Bed file with annotation, containing a list of genetic regions with a function associated
 - Text file containing a list of path to samplesID file (1 to N) equal to the number of VCF dataset used [OPTIONAL]
+- Base editor window,used to specify the window to search for susceptibilty to certain base editor [OPTIONAL]
+- Base editor nucleotide(s), used to specify the base(s) to check for the choosen editor [OPTIONAL]
 - Bed file extracted from Gencode data to find gene proximity of targets
 - Maximal number of allowed bulges of any kind to compute in the index genome
 - Threshold of mismatches allowed
@@ -187,11 +189,11 @@ Output:
 Example call:
 - Conda
     ```
-    crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
+    crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
     ```
 - Docker
     ```
-    docker run -v ${PWD}:/DATA -w /DATA -i scancellieri/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
+    docker run -v ${PWD}:/DATA -w /DATA -i scancellieri/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
     ```
 
 **<a name="Targets-Integration">3.2</a> CRISPRme Targets-Integration function**  
