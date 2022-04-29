@@ -198,7 +198,6 @@ def complete_search():
             "\t--samplesID, used to specify the file with a list of files (one per line) containing the information about samples present in VCF files [OPTIONAL!]")
         print(
             "\t--gene_annotation, used to specify a gencode or similar annotation to find nearest gene for each target found [OPTIONAL]")
-        print("\t--bMax, used to specify the number of bulges for the indexing of the genome(s)")
         print(
             "\t--mm, used to specify the number of mismatches permitted in the search phase")
         print(
@@ -206,7 +205,7 @@ def complete_search():
         print(
             "\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
         print("\t--output, used to specify the output name for the results (these results will be saved into Results/<name>)")
-        print("\t--thread, used to set the number of thread used in the process (default is ALL available minus 2)")
+        print("\t--thread, used to set the number of thread used in the process (default is 8)")
         exit(0)
 
     # check if all directories are found, if not, create them
@@ -214,8 +213,12 @@ def complete_search():
 
     #check for base and window in base editor
     if '--be-window' in input_args and '--be-base' not in input_args:
-        print('Please input the base(s) editor base to check in specified window')
-        exit(1)       
+        print('Please input the base(s) editor to check in specified window')
+        exit(1)    
+    if '--be-base' in input_args and '--be-window' not in input_args:
+        print('Please input the base window to check for the specified base')
+        exit(1)    
+    
     #check guide and sequence existence
     if '--guide' not in input_args and '--sequence' not in input_args:
         print('Please input a guide file or a sequence file')
@@ -224,11 +227,10 @@ def complete_search():
         print('Please select only ONE input type, either --guide or --sequence')
         exit(1)
         
-    # base editor check
+    # base editor input check
     base_start=1
     base_end=0
     base_set='_'
-    
     if '--be-window' in input_args:
         try:
             base_window = input_args[input_args.index("--be-window")+1]
@@ -251,7 +253,8 @@ def complete_search():
         except IndexError:
             print("Please input some parameter for flag --be-base")
             exit(1)
-    #guide check
+            
+    #guide input check
     if "--guide" in input_args:
         try:
             guidefile = os.path.abspath(
@@ -262,7 +265,8 @@ def complete_search():
         if not os.path.isfile(guidefile):
             print("The file specified for --guide does not exist")
             exit(1)
-    # sequence check
+    
+    # sequence input check
     sequence_use = False
     if '--sequence' in input_args:
         try:
@@ -276,6 +280,7 @@ def complete_search():
             print("The file specified for --sequence does not exist")
             exit(1)
 
+    #check input genome
     if "--genome" not in input_args:
         print("--genome must be contained in the input")
         exit(1)
@@ -290,8 +295,9 @@ def complete_search():
             print("The folder specified for --genome does not exist")
             exit(1)
 
+    #check input thread
     if "--thread" not in input_args:
-        thread = 4  # set to avoid errors in following procedures
+        thread = 8  # set to avoid errors in following procedures
     else:
         try:
             thread = input_args[input_args.index("--thread")+1]
@@ -301,12 +307,13 @@ def complete_search():
         try:
             thread = int(thread)
         except:
-            print("Please input a number for flag thread")
+            print("Please input a number for flag --thread")
             exit(1)
         if thread <= 0:
-            print("thread is set to default (4) ")
-            thread = 4
-
+            print("thread is set to default (8) ")
+            thread = 8
+    
+    #check input vcf
     if "--vcf" not in input_args:
         variant = False
         vcfdir='_'
@@ -320,8 +327,9 @@ def complete_search():
             print("The file specified for --vcf does not exist")
             exit(1)
 
+     #check input gene-annotation
     if "--gene_annotation" not in input_args:
-        gene_annotation = 'no'
+        gene_annotation = script_path+'vuoto.txt'
     else:
         try:
             gene_annotation = os.path.abspath(
@@ -333,6 +341,7 @@ def complete_search():
             print("The file specified for --gene_annotation does not exist")
             exit(1)
 
+     #check input pam
     if "--pam" not in input_args:
         print("--pam must be contained in the input")
         exit(1)
@@ -346,6 +355,7 @@ def complete_search():
             print("The file specified for --pam does not exist")
             exit(1)
 
+     #check input functional annotation
     if "--annotation" not in input_args:
         print("--annotation not used")
         annotationfile = script_path+'vuoto.txt'
@@ -376,6 +386,7 @@ def complete_search():
             os.system(f'rm -f {personal_annotation_file}.tmp')
             annotationfile = annotationfile+'+personal.bed'
 
+     #check input personal annotation
     if '--personal_annotation' in input_args and '--annotation' not in input_args:
         try:
             personal_annotation_file = os.path.abspath(
@@ -392,9 +403,10 @@ def complete_search():
         os.system(f'rm -f {personal_annotation_file}.tmp')
         annotationfile = annotationfile+'+personal.bed'
 
+    #check input for variant search (existance of all necessary file)
     samplefile=script_path+'vuoto.txt' #use void file for samples if variant not used
     if variant and "--samplesID" not in input_args:
-        print("--samplesID must be contained in the input")
+        print("--samplesID must be contained in the input to perform variant search")
         exit(1)
     elif not variant and "--samplesID" in input_args:
         print("--samplesID was in the input but no VCF directory was specified")
@@ -409,25 +421,27 @@ def complete_search():
         if not os.path.isfile(samplefile):
             print("The file specified for --samplesID does not exist")
             exit(1)
+            
+    #check input bMax
+    # if "--bMax" not in input_args:
+    #     print("--bMax must be contained in the input")
+    #     exit(1)
+    # else:
+    #     try:
+    #         bMax = input_args[input_args.index("--bMax")+1]
+    #     except IndexError:
+    #         print("Please input some parameter for flag --bMax")
+    #         exit(1)
+    #     try:
+    #         bMax = int(bMax)
+    #     except:
+    #         print("Please input a number for flag bMax")
+    #         exit(1)
+    #     # if bMax < 0 or bMax > 2:
+    #     #     print("The range for bMax is from 0 to 2")
+    #     #     exit(1)
 
-    if "--bMax" not in input_args:
-        print("--bMax must be contained in the input")
-        exit(1)
-    else:
-        try:
-            bMax = input_args[input_args.index("--bMax")+1]
-        except IndexError:
-            print("Please input some parameter for flag --bMax")
-            exit(1)
-        try:
-            bMax = int(bMax)
-        except:
-            print("Please input a number for flag bMax")
-            exit(1)
-        # if bMax < 0 or bMax > 2:
-        #     print("The range for bMax is from 0 to 2")
-        #     exit(1)
-
+    #check input mm
     if "--mm" not in input_args:
         print("--mm must be contained in the input")
         exit(1)
@@ -443,6 +457,7 @@ def complete_search():
             print("Please input a number for flag mm")
             exit(1)
 
+    #check input bDNA
     if "--bDNA" not in input_args:
         # print("--bDNA must be contained in the input")
         # exit(1)
@@ -456,15 +471,16 @@ def complete_search():
         try:
             bDNA = int(bDNA)
         except:
-            print("Please input a number for flag bDNA")
+            print("Please input an integer number for flag --bDNA")
             exit(1)
-        if bDNA > bMax:
-            print("The number of bDNA must be equal or less than bMax")
-            exit(1)
-        elif bDNA < 0 or bDNA > bMax:
-            print("The range for bDNA is from 0 to", bMax)
-            exit(1)
+        # if bDNA > bMax:
+        #     print("The number of bDNA must be equal or less than bMax")
+        #     exit(1)
+        # elif bDNA < 0 or bDNA > bMax:
+        #     print("The range for bDNA is from 0 to", bMax)
+        #     exit(1)
 
+    #check input bRNA
     if "--bRNA" not in input_args:
         # print("--bRNA must be contained in the input")
         # exit(1)
@@ -478,15 +494,19 @@ def complete_search():
         try:
             bRNA = int(bRNA)
         except:
-            print("Please input a number for flag bRNA")
+            print("Please input an integer number for flag --bRNA")
             exit(1)
-        if bRNA > bMax:
-            print("The number of bRNA must be equal or less than bMax")
-            exit(1)
+        # if bRNA > bMax:
+        #     print("The number of bRNA must be equal or less than bMax")
+        #     exit(1)
         # elif bRNA < 0 or bRNA > 2:
         #     print("The range for bRNA is from 0 to", bMax)
         #     exit(1)
-
+    
+    #set bMAX to generate index as max value (bDNA,bRNA)
+    bMax=max(bDNA,bRNA)
+    
+    #check input merge window
     if "--merge" not in input_args:
         merge_t = 3  # default merge is 3 nt
     else:
@@ -504,6 +524,7 @@ def complete_search():
             print("Please specify a positive number for --merge")
             exit(1)
 
+    #check input output directory
     if "--output" not in input_args:
         print("--output must be contained in the input")
         exit(1)
@@ -522,6 +543,7 @@ def complete_search():
             print("The folder specified for --output does not exist")
             exit(1)
 
+    #extract pam seq from file
     pam_len = 0
     total_pam_len = 0
     with open(pamfile, 'r') as pam_file:
@@ -634,7 +656,7 @@ def complete_search():
         os.system(f'cp {guidefile} {outputfolder}/guides.txt')
     print(
         f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
-    # if variant:
+    # start search with set parameters
     with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
         with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
             subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), str(vcfdir), str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(
