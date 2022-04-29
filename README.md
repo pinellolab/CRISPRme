@@ -166,7 +166,7 @@ chromosome files.
 - Text file with a single PAM sequence
 - Bed file with annotation, containing a list of genetic regions with a function associated
 - Text file containing a list of path to samplesID file (1 to N) equal to the number of VCF dataset used [OPTIONAL]
-- Base editor window,used to specify the window to search for susceptibilty to certain base editor [OPTIONAL]
+- Base editor window, used to specify the window to search for susceptibilty to certain base editor [OPTIONAL]
 - Base editor nucleotide(s), used to specify the base(s) to check for the choosen editor [OPTIONAL]
 - Bed file extracted from Gencode data to find gene proximity of targets
 - Maximal number of allowed bulges of any kind to compute in the index genome
