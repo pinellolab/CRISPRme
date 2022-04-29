@@ -21,7 +21,7 @@ from .pages_utils import (
     PREPRINT_LINK,
     QUEUE_FILE,
     RESULTS_DIR,
-    SAMPLES_FILE,
+    SAMPLES_FILE_LIST,
     VALID_CHARS,
     VARIANTS_DATA,
     select_same_len_guides,
@@ -956,7 +956,7 @@ def change_url(
     pam_file = os.path.join(
         app_main_directory, PAMS_DIR, f"{pam}.txt"
     )
-    samples_ids = os.path.join(result_dir, SAMPLES_FILE)
+    samples_ids = os.path.join(result_dir, SAMPLES_FILE_LIST)
     postprocess = os.path.join(app_main_directory, POSTPROCESS_DIR)
     gencode = os.path.join(current_working_directory, ANNOTATIONS_DIR, gencode_name)
     log_verbose = os.path.join(result_dir, "log_verbose.txt")

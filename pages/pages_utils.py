@@ -213,8 +213,9 @@ PARAMS_FILE = ".Params.txt"
 LOG_FILE = "log.txt"
 # CRISPR guides file
 GUIDES_FILE = ".guides.txt"
-# sample IDs file
-SAMPLES_FILE = ".sampleID.txt"
+# samples files (LIST OF samplesID files, comprehensive samplesID file)
+SAMPLES_FILE_LIST = ".samplesID.txt"
+SAMPLES_ID_FILE = ".sampleID.txt"
 # PAMs file
 PAMS_FILE = ".pam.txt"
 # email file
