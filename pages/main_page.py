@@ -126,6 +126,9 @@ def split_filter_part(filter_part: str) -> Tuple:
         Output("mms", "value"),
         Output("dna", "value"),
         Output("rna", "value"),
+        Output("be-window-start", "value"),
+        Output("be-window-stop", "value"),
+        Output("be-nts", "value"),
     ],
     [Input("load-example-button", "n_clicks")],
 )
@@ -154,6 +157,9 @@ def load_example_data(load_button_click: int) -> List[str]:
         "6",
         "2",
         "2",
+        "4",
+        "8",
+        "A"
     ]
 
 
