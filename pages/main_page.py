@@ -77,7 +77,6 @@ AV_GUIDE_SEQUENCE = [{"label": i, "value": i} for i in range(15, 26)]
 BE_NTS = [{"label": nt, "value": nt} for nt in DNA_ALPHABET]  
 
 
-
 def split_filter_part(filter_part: str) -> Tuple:
     """Recover filtering operator.
 
@@ -373,7 +372,7 @@ def change_url(
             id_len += 1  # increase ID length
             if id_len > JOBID_MAXLEN:  # reached maximum length
                 break
-    if job_name:
+    if job_name and job_name != "None":
         assert isinstance(job_name, str)
         job_id = f"{job_name}_{job_id}"
     result_dir = os.path.join(current_working_directory, RESULTS_DIR, job_id)
@@ -384,7 +383,9 @@ def change_url(
         raise ValueError(f"An error occurred while running {cmd}")
     # NOTE test command for queue
     cmd = f"touch {os.path.join(current_working_directory, RESULTS_DIR, job_id, QUEUE_FILE)}"
-    subprocess.call(cmd, shell=True)
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise ValueError(f"An error occurred while running {cmd}")
     # ---- Set search parameters
     # ANNOTATION CHECK
     gencode_name = "gencode.protein_coding.bed"
@@ -685,41 +686,35 @@ def change_url(
             ):
                 try:
                     # old job guides
-                    guides_old = (
-                        open(
-                            os.path.join(
-                                current_working_directory,
-                                RESULTS_DIR,
-                                res_dir,
-                                GUIDES_FILE,
-                            )
+                    guides_old = open(
+                        os.path.join(
+                            current_working_directory,
+                            RESULTS_DIR,
+                            res_dir,
+                            GUIDES_FILE,
                         )
-                        .read()
-                        .split("\n")
-                    )
+                    ).read().split("\n")
                     # current job guides
-                    guides_current = (
-                        open(
-                            os.path.join(
-                                current_working_directory,
-                                RESULTS_DIR,
-                                job_id,
-                                GUIDES_FILE,
-                            )
+                    guides_current = open(
+                        os.path.join(
+                            current_working_directory,
+                            RESULTS_DIR,
+                            job_id,
+                            GUIDES_FILE,
                         )
-                        .read()
-                        .split("\n")
-                    )
+                    ).read().split("\n")
                 except OSError as e:
                     raise e
-                if collections.Counter(guides_old) == collections.Counter(
-                    guides_current
+                if (
+                    collections.Counter(guides_old) == collections.Counter(
+                        guides_current
+                    )
                 ):
                     if os.path.exists(
                         os.path.join(
                             current_working_directory, RESULTS_DIR, res_dir, LOG_FILE
                         )
-                    ):
+                    ):  # log file found
                         adj_date = False
                         try:
                             with open(
@@ -734,17 +729,17 @@ def change_url(
                                 if "Job\tDone" in log_data:
                                     adj_date = True
                                     log_data = log_data.split("\n")
-                                    cmd = "echo $(date)"
                                     date_new = subprocess.Popen(
-                                        [cmd],
+                                        ["echo $(date)"],
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE,
                                         shell=True,
                                     )
                                     out, err = date_new.communicate()
-                                    date_write = "\n".join(log_data[:-1])
-                                    date_write += (
-                                        f"\nJob\tDone\t{out.decode('UTF-8').strip()}"
+                                    log_to_write = "\n".join(log_data[:-1])
+                                    date_write = str(
+                                        f"{log_to_write}\nJob\nDone\t"
+                                        f"{out.decode('UTF-8').strip()}"
                                     )
                         except OSError as e:
                             raise e
@@ -865,8 +860,10 @@ def change_url(
                         code = subprocess.call(cmd, shell=True)
                         if code != 0:
                             raise ValueError(f"An error occurred while running {cmd}")
-                    else:  
-                        # We may have entered a job directory that was in queue
+                        return "/load", f"?job={res_dir}"
+                    else: 
+                        # log file not found 
+                        # we may have entered a job directory that was in queue
                         if os.path.exists(
                             os.path.join(
                                 current_working_directory, 
@@ -875,7 +872,6 @@ def change_url(
                                 QUEUE_FILE
                             )
                         ):
-                            print(f"queue file found in dir {res_dir}")
                             if send_email:
                                 if os.path.exists(
                                     os.path.join(
@@ -939,7 +935,7 @@ def change_url(
                                             )
                                     except OSError as e:
                                         raise e
-                return ("/load", f"?job={res_dir}")
+                            return ("/load", f"?job={res_dir}")
     # merge default is 3 nt wide
     merge_default = 3
     print(
@@ -968,7 +964,6 @@ def change_url(
     assert isinstance(dna, int)
     assert isinstance(rna, int)
     cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} 1> {log_verbose} 2>{log_error}"
-    print(cmd)
     # run job
     exeggutor.submit(subprocess.run, cmd, shell=True)
     return ("/load", f"?job={job_id}")
