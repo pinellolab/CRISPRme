@@ -2851,7 +2851,7 @@ def update_table_general_profile(
                         )
                     else:
                         data_guides["Total"].append(
-                            f"\t{str(sum(data_general_count.iloc[i, :]))}"
+                            f"\t{str(sum(data_general_count.iloc[j, :]))}"
                         )
             elif max_bulges == 1:
                 for j in range(len(data_guides["# Bulges"].split("\n")) - 1):
