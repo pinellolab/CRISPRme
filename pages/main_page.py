@@ -306,10 +306,10 @@ def change_url(
                 f"Expected {str.__name__}, got {type(text_guides).__name__}"
             )
     if rna is not None:
-        if not isinstance(rna, str):
+        if not isinstance(rna, int):
             raise TypeError(f"Expected {str.__name__}, got {type(rna).__name__}")
     if dna is not None:
-        if not isinstance(dna, str):
+        if not isinstance(dna, int):
             raise TypeError(f"Expected {str.__name__}, got {type(dna).__name__}")
     if adv_opts is not None:
         if not isinstance(adv_opts, list):
