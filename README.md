@@ -1,5 +1,5 @@
 # CRISPRme
-[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/crispritz/README.html)
+[![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/crisprme/README.html)
 
 CRISPRme is a web based tool dedicated to perform predictive analysis and result assessement on CRISPR/Cas experiments with a user-friendly GUI and the precise scope of searching individual variant in VCF dateset.
 
