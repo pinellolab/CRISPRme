@@ -10,8 +10,8 @@ TODO: avoid shell and call send_mail() in other python scripts
 TODO: add run parameters to mail (job date + other params)
 """
 
-from .pages_utils import MAIL_SUBJECT, MAIL_SENDER, SSL_PORT
-
+# from .pages_utils import MAIL_SUBJECT, MAIL_SENDER, SSL_PORT
+import pages_utils
 from email.message import EmailMessage
 
 import smtplib
@@ -48,8 +48,8 @@ def send_mail() -> None:
                 msg["To"] = em[0]
                 job_link = em[1]
                 submission_date = em[2]
-                msg["Subject"] = MAIL_SUBJECT
-                msg["From"] = MAIL_SENDER
+                msg["Subject"] = pages_utils.MAIL_SUBJECT
+                msg["From"] = pages_utils.MAIL_SENDER
                 mail_body = "Your CRISPRme job is completed.\n\n"
                 mail_body += f"visit the following link to view the report:\n{job_link}"
                 msg.set_content(mail_body)
@@ -60,7 +60,7 @@ def send_mail() -> None:
                 # server.send_message(msg, from_addr='crisprme-job@crisprme.di.univr.it')
                 # server.quit()
                 # gmail settings
-                port = SSL_PORT  # For SSL (used for gmail account)
+                port = pages_utils.SSL_PORT  # For SSL (used for gmail account)
                 # Create a secure SSL context
                 context = ssl.create_default_context()
                 with smtplib.SMTP_SSL(
