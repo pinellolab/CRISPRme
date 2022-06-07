@@ -287,6 +287,7 @@ while read vcf_f; do
 	#start searches
 	cd "$output_folder"
 	echo $idx_ref
+	#TODO ricerca ref lanciata in parallelo con ricerca alternative
 	if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 		echo -e 'Search Reference\tStart\t'$(date) >>$log
 		# echo -e 'Search Reference\tStart\t'$(date) >&2
@@ -303,6 +304,7 @@ while read vcf_f; do
 	fi
 
 	if [ "$vcf_name" != "_" ]; then
+		#TODO RICERCA ALTERNATIVE PARALLELA A REF
 		if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 			echo -e 'Search Variant\tStart\t'$(date) >>$log
 			# echo -e 'Search Variant\tStart\t'$(date) >&2
@@ -326,6 +328,7 @@ while read vcf_f; do
 			# echo -e 'Search INDELs\tStart\t'$(date) >&2
 			cd $starting_dir
 			#commented to avoid indels search
+			#TODO REMOVE POOL SCRIPT FROM PROCESSING
 			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/"
 			# mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp"
@@ -370,6 +373,7 @@ while read vcf_f; do
 			touch "$final_res_alt"
 		fi
 
+		#TODO ANALISI DEGLI SNP IN PARALLELO
 		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus
 
 		#CONCATENATE REF&VAR RESULTS
@@ -542,8 +546,12 @@ tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11
 
 # cp $final_res.bestCFD.txt $final_res.sorted.bestCFD.txt
 #MERGE BEST FILES TARGETS TO REMOVE CONTIGOUS
+#TODO CHECK MERGE
+#SCORE CFD
 ./merge_close_targets_cfd.sh $final_res.bestCFD.txt $final_res.bestCFD.txt.trimmed $merge_t 'score' &
+#TOTAL (MM+BUL)
 ./merge_close_targets_cfd.sh $final_res.bestmmblg.txt $final_res.bestmmblg.txt.trimmed $merge_t 'total' &
+#SCORE CRISTA
 ./merge_close_targets_cfd.sh $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.trimmed $merge_t 'score' &
 wait
 #CHANGE NAME TO BEST AND ALT FILES
@@ -565,6 +573,7 @@ echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 echo -e 'Annotating results\tStart\t'$(date) >>$log
 
 #ANNOTATE BEST TARGETS
+#TODO SISTEMARE ANNOTAZIONE (DIVISIONE INTERVAL TREE / PARALLEL SEARCH)
 ./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
 ./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
 ./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
