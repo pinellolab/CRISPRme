@@ -15,7 +15,7 @@ print("Starting annotation")
 start_time = time.time()
 annotationDict = dict()
 # annotationsTree = IntervalTree()
-annotationsSet = set()
+# annotationsSet = set()
 # guidesSet = set()       #NOTE/BUG if guide finds 0 targets, it will not be annotated
 
 with open(inAnnotationFile, 'r') as annotations:
@@ -27,7 +27,7 @@ with open(inAnnotationFile, 'r') as annotations:
         else:
             annotationDict[str(x[0])]=IntervalTree()
             annotationDict[str(x[0])][int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list
-        annotationsSet.add(annotations_list)
+        # annotationsSet.add(annotations_list)
 
 
 with open(file_final_results, 'r') as f_in:
