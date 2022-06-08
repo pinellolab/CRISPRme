@@ -13,7 +13,8 @@ file_annotated = sys.argv[3]
 
 print("Starting annotation")
 start_time = time.time()
-annotationsTree = IntervalTree()
+annotationDict = dict()
+# annotationsTree = IntervalTree()
 annotationsSet = set()
 # guidesSet = set()       #NOTE/BUG if guide finds 0 targets, it will not be annotated
 
@@ -21,7 +22,11 @@ with open(inAnnotationFile, 'r') as annotations:
     for line in annotations:
         x = line.split('\t')
         annotations_list = str(x[3]).strip()
-        annotationsTree[int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list
+        if str(x[0]) in annotationDict.keys():
+            annotationDict[str(x[0])][int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list
+        else:
+            annotationDict[str(x[0])]=IntervalTree()
+            annotationDict[str(x[0])][int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list
         annotationsSet.add(annotations_list)
 
 
@@ -33,16 +38,17 @@ with open(file_final_results, 'r') as f_in:
             splitted = line.rstrip().split('\t')
             guide_no_bulge = splitted[1].replace('-', '')
             # Calcolo annotazioni
-            foundAnnotations = sorted(
-                annotationsTree[int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)])
+            foundAnnotations = annotationDict[str(splitted[4])][int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)]
+            # sorted(
+            #     annotationsTree[int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)])
             string_annotation = []
             found_bool = False
             for found in range(0, len(foundAnnotations)):
                 guide = foundAnnotations[found].data
                 guideSplit = guide.split('\t')
-                if(str(guideSplit[0]) == str(splitted[4])):
-                    found_bool = True
-                    string_annotation.append(str(guideSplit[1]))
+                # if(str(guideSplit[0]) == str(splitted[4])):
+                found_bool = True
+                string_annotation.append(str(guideSplit[1]))
             if not found_bool:
                 last_annotation = 'n'
             else:
