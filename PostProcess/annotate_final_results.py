@@ -38,7 +38,7 @@ with open(file_final_results, 'r') as f_in:
             splitted = line.rstrip().split('\t')
             guide_no_bulge = splitted[1].replace('-', '')
             # Calcolo annotazioni
-            foundAnnotations = annotationDict[str(splitted[4])][int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)]
+            foundAnnotations = sorted(annotationDict[str(splitted[4])][int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)])
             # sorted(
             #     annotationsTree[int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)])
             string_annotation = []
