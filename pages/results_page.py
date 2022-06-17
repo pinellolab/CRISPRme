@@ -2814,7 +2814,8 @@ def update_table_general_profile(
         data_general_count_copy.insert(1, "Bulges", count_bulges_concat, True)
         if "NO SCORES" not in all_scores:
             data_guides["CFD"] = acfd[i]
-            table_to_file.append(f"CFD: {acfd[i]}")  # append CFD to table
+            table_to_file.append(f"Score: {acfd[i]}")  # append CFD to table
+            table_to_file.append(f"Filter_criterion: {filter_criterion}")  # append CFD to table
             table_to_file.append("\t\t\t\tMismatches")
             table_to_file.append(data_general_count_copy.to_string(index=False))
             if genome_type == "both":
