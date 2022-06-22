@@ -1081,15 +1081,15 @@ def check_input(
         pam_update = classname_red
         update_style = True
         miss_input_list.append("PAM")
-    if mms is None or not bool(mms):
+    if mms is None:
         mms_update = classname_red
         update_style = True
         miss_input_list.append("Allowed Mismatches")
-    if dna is None or not bool(dna):
+    if dna is None:
         dna_update = classname_red
         update_style = True
         miss_input_list.append("Bulge DNA size")
-    if rna is None or not bool(rna):
+    if rna is None:
         rna_update = classname_red
         update_style = True
         miss_input_list.append("Bulge RNA size")
