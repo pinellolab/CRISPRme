@@ -3406,7 +3406,7 @@ def filter_sample_table(
             "Sex",
             "Population",
             "Super Population",  # 'Targets in Reference',
-            "Targets in Variant",
+            "Targets in Sample",
             "Targets in Population",
             "Targets in Super Population",
             "PAM Creation",
@@ -3417,7 +3417,7 @@ def filter_sample_table(
             "Sex",
             "Population",
             "Super Population",  # 'Targets in Reference',
-            "Targets in Variant",
+            "Targets in Sample",
             "Targets in Population",
             "Targets in Super Population",
             "PAM Creation",
@@ -3435,7 +3435,7 @@ def filter_sample_table(
             skiprows=2,
             na_filter=False,
         )
-        df = df.sort_values("Targets in Variant", ascending=False)
+        df = df.sort_values("Targets in Sample", ascending=False)
         more_info_col = ["Show Targets" for _ in range(df.shape[0])]
         df[""] = more_info_col
         if (
@@ -3475,7 +3475,7 @@ def filter_sample_table(
                 na_filter=False,
             )
             if genome_type == "both":
-                df = df.sort_values("Targets in Variant", ascending=False)
+                df = df.sort_values("Targets in Sample", ascending=False)
             else:
                 df = df.sort_values("Targets in Reference", ascending=False)
             more_info_col = ["Show Targets" for _ in range(df.shape[0])]
@@ -3513,9 +3513,9 @@ def filter_sample_table(
                 na_filter=False,
             )
             if genome_type == "both":
-                df = df.sort_values("Targets in Variant", ascending=False)
+                df = df.sort_values("Targets in Sample", ascending=False)
             else:
-                df = df.sort_values("Targets in Variant", ascending=False)
+                df = df.sort_values("Targets in Sample", ascending=False)
             more_info_col = ["Show Targets" for _ in range(df.shape[0])]
             df[""] = more_info_col
             if pop or sup_pop or sample:
@@ -4445,7 +4445,7 @@ def update_content_tab(
                 "Sex",
                 "Population",
                 "Super Population",  # 'Targets in Reference',
-                "Targets in Variant",
+                "Targets in Sample",
                 "Targets in Population",
                 "Targets in Super Population",
                 "PAM Creation",
@@ -4456,7 +4456,7 @@ def update_content_tab(
                 "Sex",
                 "Population",
                 "Super Population",  # 'Targets in Reference',
-                "Targets in Variant",
+                "Targets in Sample",
                 "Targets in Population",
                 "Targets in Super Population",
                 "PAM Creation",
@@ -4473,7 +4473,7 @@ def update_content_tab(
             na_filter=False,
         )
         samples_summary = samples_summary.sort_values(
-            "Targets in Variant", ascending=False
+            "Targets in Sample", ascending=False
         )
         more_info_col = ["Show Targets" for _ in range(samples_summary.shape[0])]
         samples_summary[""] = more_info_col

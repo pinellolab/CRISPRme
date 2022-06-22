@@ -169,7 +169,7 @@ for guide in guides:
         with open(f"{path_output}/{name_job}.summary_by_samples.{guide}_{filter_criterion}.txt", "w") as summary_by_samples:
             summary_by_samples.write(guide+"\n")
             summary_by_samples.write(
-                "Sample\tSex\tPopulation\tSuper Population\tTargets in Variant\tTargets in Population\tTargets in Super Population\tPAM Creation\n")
+                "Sample\tSex\tPopulation\tSuper Population\tTargets in Sample\tTargets in Population\tTargets in Super Population\tPAM Creation\n")
             for key in dict_samples.keys():
                 entry = dict_samples[key]
                 summary_by_samples.write(
