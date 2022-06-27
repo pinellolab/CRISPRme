@@ -725,5 +725,6 @@ rm $final_res.bestCRISTA.txt
 rm $final_res_alt.bestCFD.txt
 rm $final_res_alt.bestmmblg.txt
 rm $final_res_alt.bestCRISTA.txt
-rm "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
-rm "${output_folder}/$(basename ${output_folder}).altMerge.txt"
+#save bestMerge and altMerge
+# rm "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
+# rm "${output_folder}/$(basename ${output_folder}).altMerge.txt"

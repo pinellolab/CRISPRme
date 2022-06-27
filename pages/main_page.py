@@ -1776,7 +1776,7 @@ def index_page() -> html.Div:
             html.Div(
                 [
                     html.Div(
-                        html.H4("Base Editing"),
+                        html.H4("Base editing?"),
                         style={"display": "inline-block",
                                "margin-right": "20px"}
                     ),
@@ -1787,7 +1787,7 @@ def index_page() -> html.Div:
                                 {"label": "Yes", "value": "Y"},
                                 {"label": "No", "value": "N"},
                             ],
-                            value="N", labelStyle={"display": "inline-block"}),
+                            value="N", labelStyle={"margin-right": "5px", "display": "inline-block"}),
                         style={"display": "inline-block"}
                     )
                 ]
