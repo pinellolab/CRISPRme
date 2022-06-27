@@ -127,7 +127,7 @@ def result_page(job_id: str) -> html.Div:
     assert isinstance(integrated_file_name, str)
     integrated_file_name_zip = integrated_file_name.replace("tsv", "zip")
     #check existence and zip alt_merge file
-    alt_merge_file_name = glob(os.path.join(current_working_directory, "Results", f"{job_id}", "*all_results_with_alternative_alignmnents*"))[0]  # take the first list element
+    alt_merge_file_name = glob(os.path.join(current_working_directory, "Results", f"{job_id}", "*all_results_with_alternative_alignments*"))[0]  # take the first list element
     assert isinstance(alt_merge_file_name, str)
     alt_merge_file_name_zip = alt_merge_file_name.replace("tsv", "zip")
     #check job directory existence to avoid crush
