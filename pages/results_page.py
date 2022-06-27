@@ -122,14 +122,15 @@ def result_page(job_id: str) -> html.Div:
     # start result page creation code
     value = job_id
     job_directory = os.path.join(current_working_directory, "Results", f"{job_id}")
-    integrated_file_name = glob(
-        os.path.join(current_working_directory, "Results", f"{job_id}", "*integrated*")
-    )[
-        0
-    ]  # take the first list element
+    #check existance and zip integrated file
+    integrated_file_name = glob(os.path.join(current_working_directory, "Results", f"{job_id}", "*integrated*"))[0]  # take the first list element
     assert isinstance(integrated_file_name, str)
-    # integrated_file_name = str(integrated_file_name)
     integrated_file_name_zip = integrated_file_name.replace("tsv", "zip")
+    #check existence and zip alt_merge file
+    alt_merge_file_name = glob(os.path.join(current_working_directory, "Results", f"{job_id}", "*all_results_with_alternative_alignmnents*"))[0]  # take the first list element
+    assert isinstance(alt_merge_file_name, str)
+    alt_merge_file_name_zip = alt_merge_file_name.replace("tsv", "zip")
+    #check job directory existence to avoid crush
     if not os.path.isdir(job_directory):
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     count_guides = 0
@@ -382,6 +383,22 @@ def result_page(job_id: str) -> html.Div:
                                     integrated_file_name_zip,
                                     style={"display": "none"},
                                     id="div-info-integrated-results",
+                                ),
+                            ]
+                        ),
+                        html.Div(
+                            [
+                                html.P(
+                                    "Generating download link, Please wait...",
+                                    id="download-link-alt_merge-results",
+                                ),
+                                dcc.Interval(
+                                    interval=1 * 3000, id="interval-alt_merge-results"
+                                ),
+                                html.Div(
+                                    alt_merge_file_name_zip,
+                                    style={"display": "none"},
+                                    id="div-info-alt_merge-results",
                                 ),
                             ]
                         ),
@@ -778,6 +795,58 @@ def download_general_table(
         return (
             html.A(
                 "Download Integrated Results",
+                href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
+                target="_blank",
+            ),
+            True,
+        )
+    return "Generating download link, Please wait...", False
+
+# download alt_merge results
+@app.callback(
+    [
+        Output("download-link-alt_merge-results", "children"),
+        Output("interval-alt_merge-results", "disabled"),
+    ],
+    [Input("interval-alt_merge-results", "n_intervals")],
+    [State("div-info-alt_merge-results", "children"), State("url", "search")],
+)
+def download_general_table(
+    n: int, file_to_load: str, search: str
+) -> Tuple[str, bool]:  # file to load =
+    """Create the link to download CRISPRme alt_merge result table.
+
+    ...
+
+    Parameters
+    ----------
+    n : int
+    file_to_load : str
+        File to download
+    search : str
+        Target search name
+
+    Returns
+    -------
+    str
+    bool
+    """
+
+    if not isinstance(file_to_load, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(file_to_load).__name__}")
+    if not isinstance(search, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if n is None:
+        raise PreventUpdate
+    job_id = search.split("=")[-1]
+    file_to_load = file_to_load.split("/")[-1]
+    # print(file_to_load)
+    if os.path.exists(
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)
+    ):
+        return (
+            html.A(
+                "Download Alternative Alignments Results",
                 href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
@@ -2926,18 +2995,28 @@ def update_table_general_profile(
     finally:
         outfile.close()
     # zip integrated results
-    integrated_fname = glob(
-        os.path.join(current_working_directory, RESULTS_DIR, job_id, "*integrated*")
-    )[0]
+    integrated_fname = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, "*integrated*"))[0]
     assert isinstance(integrated_fname, str)
-    integrated_file = integrated_fname
+    # integrated_file = integrated_fname
     # zip integrated file
     integrated_to_zip = integrated_fname.replace("tsv", "zip")
     if not os.path.exists(integrated_to_zip):
-        cmd = f"zip -j {integrated_to_zip} {integrated_file} &"
+        cmd = f"zip -j {integrated_to_zip} {integrated_fname} &"
         code = subprocess.call(cmd, shell=True)
         if code != 0:
             raise ValueError(f"An error occurred while running {cmd}")
+    # zip alt_merge results
+    alt_merge_fname = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, "*all_results_with_alternative_alignmnents*"))[0]
+    assert isinstance(alt_merge_fname, str)
+    # integrated_file = alt_merge_fname
+    # zip integrated file
+    alt_merge_to_zip = alt_merge_fname.replace("tsv", "zip")
+    if not os.path.exists(alt_merge_to_zip):
+        cmd = f"zip -j {alt_merge_to_zip} {alt_merge_fname} &"
+        code = subprocess.call(cmd, shell=True)
+        if code != 0:
+            raise ValueError(f"An error occurred while running {cmd}")
+    #score checking
     if "NO SCORES" not in all_scores:
         try:
             dff = dff.sort_values(["CFD", "Doench 2016"], ascending=[False, False])
