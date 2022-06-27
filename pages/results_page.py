@@ -3006,7 +3006,7 @@ def update_table_general_profile(
         if code != 0:
             raise ValueError(f"An error occurred while running {cmd}")
     # zip alt_merge results
-    alt_merge_fname = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, "*all_results_with_alternative_alignmnents*"))[0]
+    alt_merge_fname = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, "*all_results_with_alternative_alignments*"))[0]
     assert isinstance(alt_merge_fname, str)
     # integrated_file = alt_merge_fname
     # zip integrated file
