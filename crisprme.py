@@ -230,7 +230,7 @@ def complete_search():
     # base editor input check
     base_start=1
     base_end=0
-    base_set='_'
+    base_set="none"
     if '--be-window' in input_args:
         try:
             base_window = input_args[input_args.index("--be-window")+1]

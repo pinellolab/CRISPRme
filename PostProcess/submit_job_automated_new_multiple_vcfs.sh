@@ -494,44 +494,6 @@ sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tClust
 sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestmmblg.txt"
 sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestCRISTA.txt"
 
-#header into final_res best
-# sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res.bestCFD.txt"
-# sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res.bestmmblg.txt"
-# sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res.bestCRISTA.txt"
-# #header into final_res alt
-# sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestCFD.txt"
-# sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestmmblg.txt"
-# sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestCRISTA.txt"
-
-#CONCATENATE REF&VAR RESULTS
-# for key in "${real_chroms[@]}"; do
-# 	echo "Concatenating $key"
-# 	#concatenate all files into respective final best file and remove them after computation
-# 	tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestCFD.txt" >>"$final_res.bestCFD.txt"
-# 	tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestmmblg.txt" >>"$final_res.bestmmblg.txt"
-# 	tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestCRISTA.txt" >>"$final_res.bestCRISTA.txt"
-# 	rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestCFD.txt"
-# 	rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestmmblg.txt"
-# 	rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestCRISTA.txt"
-# done
-
-#CONCATENATE INDELS RESULTS
-# for key in "${array_fake_chroms[@]}"; do
-# 	echo "Concatenating $key"
-# 	#MERGE BEST INDEL TARGETS
-# 	#create file if non-existent to avoid errors in tail processing
-# 	touch "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestCFD_INDEL.txt"
-# 	touch "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestCRISTA_INDEL.txt"
-# 	touch "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestmmblg_INDEL.txt"
-# 	tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestCFD_INDEL.txt" >>"$final_res.bestCFD.txt"       #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
-# 	tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestCRISTA_INDEL.txt" >>"$final_res.bestCRISTA.txt" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
-# 	tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestmmblg_INDEL.txt" >>"$final_res.bestmmblg.txt"
-# 	#rm BEST INDEL TARGETS
-# 	rm -f "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestCFD_INDEL.txt"
-# 	rm -f "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestCRISTA_INDEL.txt"
-# 	rm -f "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestmmblg_INDEL.txt"
-# done
-
 echo -e 'Merging Targets\tStart\t'$(date) >>$log
 #SORT FILE TO HAVE CHR AND POS IN PROXIMITY TO MERGE THEM
 #sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
@@ -642,13 +604,7 @@ rm -f *.CFDGraph.txt
 rm -f indels.CFDGraph.txt
 rm -r "crispritz_prof"
 rm -r "crispritz_targets" #remove targets in online version to avoid memory saturation
-#prevent deletion of single best file to use in further creations of data files (summary,charts and plots)
-# rm $final_res.bestCFD.txt
-# rm $final_res.bestmmblg.txt
-# rm $final_res.bestCRISTA.txt
-rm $final_res_alt.bestCFD.txt
-rm $final_res_alt.bestmmblg.txt
-rm $final_res_alt.bestCRISTA.txt
+#change name to best and alt files
 mv $final_res "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
 mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
 
@@ -707,18 +663,11 @@ if [ $gene_proximity != "_" ]; then
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	echo $genome_version
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	rm "${output_folder}/dummy.txt"
-	# while read guide; do
-	# 	if [ -z "$guide" ]; then
-	# 		continue
-	# 	fi
-	# head -1 "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" >>"${output_folder}/tmp_linda_plot_file_${guide}.txt"
-	# grep -F "$guide" "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" >>"${output_folder}/tmp_linda_plot_file_${guide}.txt"
-	# python $starting_dir/CRISPRme_plots.py "${output_folder}/tmp_linda_plot_file_${guide}.txt" "${output_folder}/imgs/" $guide &>"${output_folder}/warnings.txt"
 	python $starting_dir/CRISPRme_plots.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/imgs/" &>"${output_folder}/warnings.txt"
 	rm -f "${output_folder}/warnings.txt" #delete warnings file
-	# rm "${output_folder}/tmp_linda_plot_file_${guide}.txt"
-	# done <$guide_file
+
 fi
 echo -e 'Integrating results\tEnd\t'$(date) >>$log
 truncate -s -1 $guide_file
@@ -738,9 +687,10 @@ python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder
 echo -e 'Creating database\tEnd\t'$(date) >>$log
 # echo -e 'Creating database\tEnd\t'$(date) >&2
 
-python $starting_dir/change_headers_bestMerge.py "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${output_folder}/$(basename ${output_folder}).altMerge.new.header.txt"
-mv "${output_folder}/$(basename ${output_folder}).altMerge.new.header.txt" "${output_folder}/$(basename ${output_folder}).altMerge.txt"
-mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt"
+# python $starting_dir/change_headers_bestMerge.py "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${output_folder}/$(basename ${output_folder}).altMerge.new.header.txt"
+# mv "${output_folder}/$(basename ${output_folder}).altMerge.new.header.txt" "${output_folder}/$(basename ${output_folder}).altMerge.txt"
+#hide bestmerge file
+# mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt"
 
 # echo -e 'Integrating results\tEnd\t'$(date) >&2
 echo -e 'Job\tDone\t'$(date) >>$log
@@ -748,15 +698,15 @@ echo -e 'Job\tDone\t'$(date) >>$log
 # echo -e 'Job End' >  $output
 
 #change name of empirical not found
-mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv"
+# mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv"
 
 if [ $(wc -l <"$guide_file") -gt 1 ]; then
 	mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.tsv"
-	mv "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignmnents.tsv"
+	mv "${output_folder}/$(basename ${output_folder}).altMerge.txt.integrated_results.tsv" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignmnents.tsv"
 else
 	guide_elem=$(head -1 $guide_file)
 	mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.tsv"
-	mv "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignmnents.tsv"
+	mv "${output_folder}/$(basename ${output_folder}).altMerge.txt.integrated_results.tsv" "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignmnents.tsv"
 fi
 echo -e "JOB END"
 
@@ -766,8 +716,14 @@ fi
 
 #keep log_error but no block visualization
 mv $output_folder/log_error.txt $output_folder/log_error_no_check.txt
-#removing single best files after use
+#removing single best files after use and clean merged file to save space
+#keep the two integrated files with all the targets
+#save these files to test
 rm $final_res.bestCFD.txt
 rm $final_res.bestmmblg.txt
 rm $final_res.bestCRISTA.txt
-#KEEP FILE TO TEST
+rm $final_res_alt.bestCFD.txt
+rm $final_res_alt.bestmmblg.txt
+rm $final_res_alt.bestCRISTA.txt
+rm "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
+rm "${output_folder}/$(basename ${output_folder}).altMerge.txt"

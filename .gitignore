@@ -12,5 +12,5 @@ PAMs/*
 samplesIDs/*
 guides/
 *.csv
-PostProcess/CRISTA_predictors.pkl
+*.pkl
 *.txt

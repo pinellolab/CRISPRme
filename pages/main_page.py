@@ -130,6 +130,7 @@ def split_filter_part(filter_part: str) -> Tuple:
         Output("be-window-start", "value"),
         Output("be-window-stop", "value"),
         Output("be-nts", "value"),
+        Output("radio-base_editor", "value")
     ],
     [Input("load-example-button", "n_clicks")],
 )
@@ -150,17 +151,18 @@ def load_example_data(load_button_click: int) -> List[str]:
     """
 
     return [
-        "CTAACAGTTGCTTTTATCAC",
-        "SpCas9",
-        "20bp-NGG-SpCas9",
-        "hg38",
-        ["1000G"],
-        "6",
-        "2",
-        "2",
-        "4",
-        "8",
-        "A"
+        "CTAACAGTTGCTTTTATCAC",  # guide to use
+        "SpCas9",  # Cas protein to use
+        "20bp-NGG-SpCas9",  # Editor to use
+        "hg38",  # ref genome to use
+        ["1000G"],  # VCF to use
+        "6",  # MM
+        "2",  # DNA bulges
+        "2",  # RNA bulges
+        "4",  # start window in base editor
+        "8",  # stop window in base editor
+        "A",  # nt to check in base editor
+        "Y"  # base editor radio button to yes
     ]
 
 
@@ -182,6 +184,7 @@ def load_example_data(load_button_click: int) -> List[str]:
         State("mms", "value"),
         State("dna", "value"),
         State("rna", "value"),
+        State("radio-base_editor", "value"),
         State("be-window-start", "value"),
         State("be-window-stop", "value"),
         State("be-nts", "value"),
@@ -205,6 +208,7 @@ def change_url(
     mms: int,
     dna: int,
     rna: int,
+    radio_be_value: str,
     be_start: int,
     be_stop: int,
     be_nt: str,
@@ -625,16 +629,16 @@ def change_url(
     if dna > rna:
         max_bulges = dna
     # base editing
-    if be_start is None or not bool(be_start):
+    if be_start is None or not bool(be_start) or radio_be_value == 'N':
         be_start = 1
     else:
         be_start = int(be_start)
-    if be_stop is None or not bool(be_stop):
+    if be_stop is None or not bool(be_stop) or radio_be_value == 'N':
         be_stop = 0
     else:
         be_stop = int(be_stop)
-    if be_nt is None or not bool(be_nt):
-        be_nt = "_"
+    if be_nt is None or not bool(be_nt) or radio_be_value == 'N':
+        be_nt = "none"
     else:
         assert be_nt in DNA_ALPHABET
     assert isinstance(be_start, int)
@@ -675,6 +679,9 @@ def change_url(
             handle_params.write(f"Annotation\t{annotation_name}\n")
             handle_params.write(f"Nuclease\t{nuclease}\n")
             handle_params.write(f"Ref_comp\t{ref_comparison}\n")
+            handle_params.write(f"BE_nucleotide\t{be_nt}\n")
+            handle_params.write(f"BE_start\t{be_start}\n")
+            handle_params.write(f"BE_stop\t{be_stop}\n")
     except OSError as e:
         raise e
     # ---- Check if input parameters (mms, bulges, pam, guides, genome) match
@@ -2026,8 +2033,6 @@ def update_visibility_base_editor_dropdowns(radio_value: str) -> Dict:
     -------
     Dict
     """
-
-    # print('entro in base', radio_value)
 
     if radio_value == 'Y':
         return {"display": ""}
