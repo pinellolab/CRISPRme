@@ -846,7 +846,7 @@ def download_general_table(
     ):
         return (
             html.A(
-                "Download Alternative Alignments Results",
+                "Download All Results Including Alternative Alignments",
                 href=os.path.join(URL, RESULTS_DIR, job_id, file_to_load),
                 target="_blank",
             ),
