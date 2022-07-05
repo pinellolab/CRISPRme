@@ -564,10 +564,8 @@ def change_url(
                     )
             else:
                 seq_read = "".join(seq.split()).strip()
-            guides.append(
-                convert_pam.getGuides(seq_read, pam_char,
-                                      guide_seqlen, pam_begin)
-            )
+            guides = convert_pam.getGuides(seq_read, pam_char,
+                                           guide_seqlen, pam_begin)
         guides = list(set(guides))  # remove potential duplicate guides
         # create new guides dataset
         if not guides:
