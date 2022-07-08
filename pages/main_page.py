@@ -979,7 +979,7 @@ def change_url(
         current_working_directory, ANNOTATIONS_DIR, annotation_name
     )
     pam_file = os.path.join(
-        app_main_directory, PAMS_DIR, f"{pam}.txt"
+        current_working_directory, PAMS_DIR, f"{pam}.txt"
     )
     samples_ids = os.path.join(result_dir, SAMPLES_FILE_LIST)
     postprocess = os.path.join(app_main_directory, POSTPROCESS_DIR)
