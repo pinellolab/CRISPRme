@@ -989,7 +989,7 @@ def change_url(
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
     assert isinstance(rna, int)
-    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {8} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} 1> {log_verbose} 2>{log_error}"
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} 1> {log_verbose} 2>{log_error}"
     # run job
     exeggutor.submit(subprocess.run, cmd, shell=True)
     return ("/load", f"?job={job_id}")

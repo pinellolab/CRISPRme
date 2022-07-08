@@ -47,7 +47,7 @@ else:
     DISPLAY_ONLINE = 'none'
 
 # set to execute more than one job at time
-exeggutor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
+exeggutor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
 
 CACHE_CONFIG = {
     # try 'filesystem' if you don't want to setup redis
