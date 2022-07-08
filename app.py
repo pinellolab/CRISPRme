@@ -3,16 +3,21 @@ import dash_bootstrap_components as dbc
 import os
 import concurrent.futures  # For workers and queue
 from flask_caching import Cache  # for cache of .targets or .scores
-# from index import DISPLAY_HISTORY
+import flask
 
 URL = ''
+
 external_stylesheets = [
     'https://codepen.io/chriddyp/pen/bWLwgP.css', dbc.themes.BOOTSTRAP]
+
+server = flask.Flask(__name__)  # define flask app.server
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets,
-                suppress_callback_exceptions=True)
+                suppress_callback_exceptions=True, server=server)
+
 
 app_location = os.path.realpath(__file__)
-print('started')
+print('SERVER STARTED')
+print('GO TO 127.0.0.1:8080 TO USE THE WEB-APP')
 app_main_directory = os.path.dirname(app_location) + '/'  # This for scripts
 current_working_directory = os.getcwd() + '/'  # This for files
 
@@ -41,6 +46,7 @@ else:
     DISPLAY_OFFLINE = ''
     DISPLAY_ONLINE = 'none'
 
+# set to execute more than one job at time
 exeggutor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
 
 CACHE_CONFIG = {
