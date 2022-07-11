@@ -828,7 +828,7 @@ mmblg_best.write(header + '\tCFD\n')  # Write header
 
 INDELS_tree = IntervalTree()
 with open(os.path.realpath(sys.argv[4]) + '/log' + current_chr + '.txt', 'r') as log:
-    print('indel processing:', current_chr)
+    # print('indel processing:', current_chr)
     log.readline()
     for entry in log:
         splitted = entry.strip().split('\t')
