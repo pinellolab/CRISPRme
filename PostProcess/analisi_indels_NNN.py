@@ -703,14 +703,14 @@ def calculate_scores(cluster_to_save):
     # process score for each target in cluster, at the same time to improve execution time
     cluster_with_CRISTA_score = preprocess_CRISTA_score(cluster_to_save)
 
-    #REMOVED TO CHECK IF FILE IS RETURN WITH IDENTICAL ROWS COUNT
+    # REMOVED TO CHECK IF FILE IS RETURN WITH IDENTICAL ROWS COUNT
 
     # analyze CFD scored targets, returning for each guide,chr,cluster_pos the highest scoring target (or multiple in case of equal)
     # df_CFD = pd.DataFrame(cluster_with_CFD_score, columns=['Bulge_type', 'crRNA', 'DNA', 'Chromosome',
-                                                        #    'Position', 'Cluster_Position', 'Direction', 'Mismatches',
-                                                        #    'Bulge_Size', 'Total', 'PAM_gen', 'Var_uniq', 'Samples', 'Annotation_Type',
-                                                        #    'Real_Guide', 'rsID', 'AF', 'SNP', 'Reference_target', 'CFD',
-                                                        #    'Seq_in_cluster', 'CFD_ref'])
+    #    'Position', 'Cluster_Position', 'Direction', 'Mismatches',
+    #    'Bulge_Size', 'Total', 'PAM_gen', 'Var_uniq', 'Samples', 'Annotation_Type',
+    #    'Real_Guide', 'rsID', 'AF', 'SNP', 'Reference_target', 'CFD',
+    #    'Seq_in_cluster', 'CFD_ref'])
     # group by over real_guide,chr,cluster_pos to avoid mixing targets
     # select lowest count of mm+bul
     # idx_fewest_mm_bul = df_CFD.groupby(['Real_Guide', 'Chromosome', 'Cluster_Position', 'SNP', 'Samples'])[
@@ -750,8 +750,7 @@ def calculate_scores(cluster_to_save):
     # frames = [df_CRISTA_fewest, df_CRISTA_best_score]
     # df_CRISTA = pd.concat(frames)
     # cluster_with_CRISTA_score = df_CRISTA.values.tolist()
-    
-    
+
     return [cluster_with_CFD_score, cluster_with_CRISTA_score]
 
 
@@ -829,6 +828,7 @@ mmblg_best.write(header + '\tCFD\n')  # Write header
 
 INDELS_tree = IntervalTree()
 with open(os.path.realpath(sys.argv[4]) + '/log' + current_chr + '.txt', 'r') as log:
+    print('indel processing:', current_chr)
     log.readline()
     for entry in log:
         splitted = entry.strip().split('\t')
