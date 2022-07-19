@@ -1626,7 +1626,7 @@ def index_page() -> html.Div:
             dbc.FormText(
                 str(
                     "Spacer must be provided as a DNA sequence without a PAM. "
-                    "A maximum of 100 spacer sequences can be provided . If "
+                    "A maximum of 100 spacer sequences can be provided. If "
                     "using the sequence extraction feature, only the first 100 "
                     "spacer sequences (starting from the top strand) will be "
                     "extracted.*"
@@ -1695,7 +1695,7 @@ def index_page() -> html.Div:
                 dcc.Checklist(
                     options=[
                         {
-                            "label": " plus 1000 Genome Project variants",
+                            "label": " plus 1000 Genomes Project variants",
                             "value": "1000G",
                             "disabled": True,
                         },
@@ -1842,7 +1842,7 @@ def index_page() -> html.Div:
             html.Div(
                 dcc.Checklist(
                     options=[
-                        {"label": " ENCODE cCREs + GENCODE gene", "value": "EN"},
+                        {"label": " ENCODE cCREs + GENCODE genes", "value": "EN"},
                         {
                             "label": " Personal annotations*",
                             "value": "MA",
