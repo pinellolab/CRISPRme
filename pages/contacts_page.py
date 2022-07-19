@@ -2,7 +2,7 @@
 
 Contacts list:
     - Samuele Cancellieri, PhD 
-    - Yingqi Linda
+    - Linda Lin <linda.yq.lin@yale.edu>
     - Daniel Bauer, MD, PhD <bauer@bloodgroup.tch.harvard.edu>
     - Nicola Bombieri, PhD
     - Rosalba Giugno, PhD <rosalba.giugno@univr.it>
@@ -44,7 +44,7 @@ INFOMICS_DEVS = [
     "Rosalba Giugno",
 ]
 PINELLOLAB_DEVS = ["Luca Pinello"]
-BAUERLAB_DEVS = ["Linda Yingqi", "Daniel Bauer"]
+BAUERLAB_DEVS = ["Linda Lin", "Daniel Bauer"]
 
 
 def contact_page() -> List:
