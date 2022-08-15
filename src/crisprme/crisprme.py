@@ -8,6 +8,7 @@ from crisprme.crisprme_commands import (
     WebInterface, 
     GeneratePersonalCard,
 )
+from crisprme.complete_search import run_complete_search
 from crisprme.utils import exception_handler
 
 import sys
@@ -40,12 +41,11 @@ def complete_search(args: CompleteSearch) -> None:
     # job start message to stderr
     sys.stderr.write(
         f"Launching job {args.outname}. Stdout is redirected to log_verbose.txt. "
-        "Stderr is redirected to log_error.txt"
+        "Stderr is redirected to log_error.txt\n"
     )
     try:
-        # TODO: create log_verbose.txt and log_error.txt
-        # TODO: launch crisprme complete-search function
         print("Running CRISPRme...")
+        run_complete_search(args)
     except:
         pass
 

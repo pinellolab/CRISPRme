@@ -3,9 +3,11 @@
 
 
 from argparse import Namespace
+from contextlib import redirect_stdout, redirect_stderr
 from typing import List, NoReturn, Optional, Tuple
 from colorama import Fore, init
 from Bio.Seq import Seq
+from io import TextIOWrapper
 
 import pybedtools
 import subprocess
@@ -23,7 +25,7 @@ ORIGIN_PATH = os.path.dirname(
     os.path.join(os.path.abspath(__file__), "../..")
 )[:-3] + CONDA_PATH
 # WEB_PATH = ORIGIN_PATH[:-3] + "opt/crisprme"
-CURRENT_WORKING_DIRECTORY = os.path.join(os.getcwd(), "../..")
+CURRENT_WORKING_DIRECTORY = os.path.join(os.getcwd())
 CRISPRme_COMMANDS = [
     "complete-search", 
     "gnomAD-converter", 
@@ -81,6 +83,10 @@ PAM_DICT = {
         'V':  "ARWMDHVYSBCKG",
         'N':  "ACGTRYSWKMBDHV",
     }
+LOG_FILE = "log.txt"
+LOG_VERBOSE = "log_verbose.txt"
+LOG_ERROR = "log_error.txt"
+QUEUE_FILE = "queue.txt"
 
 
 # ------------------------------------------------------------------------------
@@ -624,4 +630,60 @@ def get_guides(
                     )
     assert bool(guides)  # check that at least one guide  has been found
     return guides  # return guides for when adding to app.py
+
+
+def redir_stdout(stream: TextIOWrapper, msg: str) -> None:
+    """Redirect the stout to the given stream channel.
+
+    ...
+
+    Parameters
+    ----------
+    stream : TextIOWrapper
+        Stream to which the stdout is redicrected
+    msg : str
+        Message to redirect
+
+    Returns
+    -------
+    None
+    """
+
+    assert isinstance(msg, str)
+    try:
+        with redirect_stdout(stream):
+            sys.stdout.write("".join([msg, "\n"]))
+    except:
+        # always trace back such errors
+        exception_handler(
+            IOError, "An error occurred while redirecting stdout.", True
+        )
+
+
+def redir_stderr(stream: TextIOWrapper, msg: str) -> None:
+    """Redirect the sterr to the given stream channel.
+
+    ...
+
+    Parameters
+    ----------
+    stream : TextIOWrapper
+        Stream to which the stderr is redicrected
+    msg : str
+        Message to redirect
+
+    Returns
+    -------
+    None
+    """
+
+    assert isinstance(msg, str)
+    try:
+        with redirect_stderr(stream):
+            sys.stderr.write("".join([msg, "\n"]))
+    except:
+        # always trace back such kind of errors
+        exception_handler(
+            IOError, "An error occurred while redicrecting stderr.", True
+        )
                

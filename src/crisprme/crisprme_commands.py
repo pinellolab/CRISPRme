@@ -96,6 +96,7 @@ class CompleteSearch(CRISPRmeCommand):
         ref_genome: str,
         search_index: bool,
         genome_index: str,
+        vcf: str, 
         guides: str,
         pam_seq: str,
         bmax: int,
@@ -103,15 +104,18 @@ class CompleteSearch(CRISPRmeCommand):
         bdna: int,
         brna: int,
         annotation_file: str,
+        samples_file: str,
         nuclease: str,
         ref_comparison: bool,
         outname: str,
         outdir: str,
+        merge_thresh: int,
     ) -> None:
         super().__init__(threads, verbose, debug)  # initialize parent class
         self._ref_genome = ref_genome
         self._search_index = search_index
         self._genome_index = genome_index
+        self._vcf = vcf
         self._guides = guides
         self._pam_seq = pam_seq
         self._bmax = bmax
@@ -119,10 +123,12 @@ class CompleteSearch(CRISPRmeCommand):
         self._bdna = bdna
         self._brna = brna
         self._annotation_file = annotation_file
+        self._samples_file = samples_file
         self._nuclease = nuclease
         self._ref_comparison = ref_comparison
         self._outname = outname
         self._outdir = outdir
+        self.merge_thresh = merge_thresh
 
     def set_guides(self, guides: List[str]) -> None:
         """Set _guides attribute.
@@ -175,6 +181,20 @@ class CompleteSearch(CRISPRmeCommand):
     def outname(self):
         return self._get_outname()
 
+    def _get_vcf(self):
+        return self._vcf
+
+    @property
+    def vcf(self):
+        return self._get_vcf()
+
+    def _get_ref_genome(self):
+        return self._ref_genome
+
+    @property
+    def ref_genome(self):
+        return self._get_ref_genome()
+
     def write_params_file(self) -> None:
         """Write complete search Paramaters in a TXT file.
         
@@ -191,7 +211,7 @@ class CompleteSearch(CRISPRmeCommand):
 
         try:
             with open(
-                os.path.join(self._outdir, "Params.txt"), mode="w"
+                os.path.join(self._outdir, ".Params.txt"), mode="w"
             ) as handle:
                 handle.write(
                     f"Genome_selected\t{self._ref_genome.replace(' ', '_')}\n"
@@ -211,7 +231,7 @@ class CompleteSearch(CRISPRmeCommand):
                 handle.write(f"Ref_comp\t{self._ref_comparison}\n")
         except:
             # aleays better to trace this kind of errors ;)
-            exception_handler(OSError, "Unable to write 'Params.txt'", True)
+            exception_handler(OSError, "Unable to write '.Params.txt'", True)
         finally:
             handle.close()  # close channel
 

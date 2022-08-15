@@ -483,6 +483,7 @@ def complete_search_input_check(
     variant = True
     if args.vcf == "_":  # no VCF provided
         variant = False
+        vcf = args.vcf
     else:
         vcf = os.path.abspath(args.vcf)
         if not os.path.isfile(vcf):
@@ -570,7 +571,7 @@ def complete_search_input_check(
         assert isinstance(args.merge, int)
         if args.merge < 0:
             parser.error(f"Forbidden merge threshold value ({args.merge})")
-        merge_thresh = args.merge
+    merge_thresh = args.merge
     # TODO: maybe move output directory check on top
     if not args.output_name:
         parser.error("Missing results name")
@@ -580,6 +581,7 @@ def complete_search_input_check(
             CURRENT_WORKING_DIRECTORY, CRISPRme_DIRS[1], outname
         )
         if not os.path.exists(outdir):  
+            print("entered")
             # if the output directory does not exists, create it
             os.makedirs(outdir)
         # make sure that the results directory exists
@@ -658,6 +660,7 @@ def complete_search_input_check(
         ref_genome, 
         search_index, 
         genome_index, 
+        vcf,
         guides,
         pam_seq, 
         bmax, 
@@ -665,10 +668,12 @@ def complete_search_input_check(
         bdna, 
         brna, 
         annotation,
+        samples_file,
         nuclease, 
         ref_comparison, 
         outname,
-        outdir
+        outdir,
+        merge_thresh,
     )
     # force empty mail value
     complete_search.set_mail("_")
@@ -1002,7 +1007,7 @@ def main(cmdline_args: Optional[List[str]] = None) -> None:
                 True  # safer to always fully trace this error
             )
         stop = time()  # end of CRISPRme run
-        sys.stderr.write(f"Elapsed time %.2fs" % (stop - start))
+        sys.stderr.write(f"Elapsed time %.2fs\n\n" % (stop - start))
     except KeyboardInterrupt:
         sigint_handler()
     finally:
