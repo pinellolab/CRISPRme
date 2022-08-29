@@ -557,8 +557,7 @@ def change_url(
                         continue
                     # line_split = line.strip().split()
                     line_split = re.split("|;|-|,|.|:|[\s]+", line.strip())
-                    assert isinstance(line_split[1], int)
-                    assert isinstance(line_split[2], int)
+                    print(line_split)
                     seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
                     assert bool(seqname)
                     assert bool(seq_read)
@@ -1174,6 +1173,7 @@ def check_input(
                         continue
                     # line_split = line.strip().split()
                     line_split = re.split("|;|-|,|.|:|[\s]+", line.strip())
+                    print(line_split)
                     seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
                     assert bool(seqname)
                     assert bool(seq_read)
@@ -2099,6 +2099,7 @@ def update_base_editing_dropdown(
                         continue
                     # line_split = line.strip().split()
                     line_split = re.split("|;|-|,|.|:|[\s]+", line.strip())
+                    print(line_split)
                     seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
                     seq_read = extract_seq.extractSequence(
                         seqname, seq_read, genome.replace(" ", "_")
