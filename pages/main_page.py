@@ -1160,7 +1160,7 @@ def check_input(
         raise e
     if guide_type == "GS":
         # Extract sequence and create the guides
-        guides = []
+        guides = list()
         for seqname_and_seq in text_guides.split(">"):
             if not seqname_and_seq:
                 continue
@@ -2087,7 +2087,7 @@ def update_base_editing_dropdown(
     if guide_type == "IP":  # individual spacers
         guides = text_guides.strip()
     elif guide_type == "GS":  # genomic sequences
-        guides = []
+        guides = list()
         for seqname_and_seq in text_guides.split(">"):
             if not seqname_and_seq:
                 continue
