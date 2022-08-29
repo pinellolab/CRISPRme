@@ -3,6 +3,7 @@ The main webpage read the input data and manages the analysis.
 """
 
 
+import re
 from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
@@ -543,7 +544,7 @@ def change_url(
     if guide_type == "GS":
         # text_sequence = text_guides
         # Extract sequence and create the guides
-        guides = []
+        guides = list()
         for seqname_and_seq in text_guides.split(">"):
             if not seqname_and_seq:
                 continue
@@ -554,7 +555,10 @@ def change_url(
                 for line in seq.split("\n"):
                     if not line:
                         continue
-                    line_split = line.strip().split()
+                    # line_split = line.strip().split()
+                    line_split = re.split("|;|-|,|.|[\s]+", line.strip())
+                    assert isinstance(line_split[1], int)
+                    assert isinstance(line_split[2], int)
                     seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
                     assert bool(seqname)
                     assert bool(seq_read)
@@ -564,8 +568,8 @@ def change_url(
                     )
             else:
                 seq_read = "".join(seq.split()).strip()
-            guides = convert_pam.getGuides(seq_read, pam_char,
-                                           guide_seqlen, pam_begin)
+            guides.extend(convert_pam.getGuides(seq_read, pam_char,
+                                                guide_seqlen, pam_begin))
         guides = list(set(guides))  # remove potential duplicate guides
         # create new guides dataset
         if not guides:
