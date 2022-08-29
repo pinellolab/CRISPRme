@@ -3,4 +3,7 @@ use this as notes:
     positive strand - standard FASTA
     negative strand - reverse complemented FASTA
     try to use only one index for any sequence with len<=fix_length(30-40bp)
-    (NO SIGNIFICANT IMPROVEMENTE IN SPEED OR SPACE SAVING)
+    (NO SIGNIFICANT IMPROVEMENTE IN SPEED OR SPACE SAVING WITH THIS OPERATION)
+
+-fix bed file reading in GUI
+-big report creation with summarized data for single guides (guide|on-target|total_count|cfd_score|crista_score)
