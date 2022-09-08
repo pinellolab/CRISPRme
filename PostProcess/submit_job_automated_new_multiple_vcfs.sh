@@ -72,7 +72,7 @@ while read vcf_f; do
 	# echo -e 'Job\tStart\t'$(date) > $log
 	# echo -e 'Job\tStart\t'$(date) >&2
 
-	unset real_chroms
+	unset real_chroms  # chroms_list
 	declare -a real_chroms
 	for file_chr in "$ref_folder"/*.fa; do
 		file_name=$(basename $file_chr)
@@ -113,6 +113,9 @@ while read vcf_f; do
 	else
 		true_pam=${fullseqpam:0:-$pos}
 	fi
+
+
+	# --- TODO: HERE
 
 	# if ! [ -d "$current_working_directory/Results" ]; then
 	# 	mkdir "$current_working_directory/Results"

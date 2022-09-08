@@ -93,12 +93,15 @@ class CompleteSearch(CRISPRmeCommand):
         threads : int,
         verbose : bool,
         debug : bool,
+        genome: str,
         ref_genome: str,
         search_index: bool,
         genome_index: str,
         vcf: str, 
         guides: str,
         pam_seq: str,
+        pam_full: str,
+        pam_start: int,
         bmax: int,
         mm: int,
         bdna: int,
@@ -112,12 +115,15 @@ class CompleteSearch(CRISPRmeCommand):
         merge_thresh: int,
     ) -> None:
         super().__init__(threads, verbose, debug)  # initialize parent class
+        self._genome = genome
         self._ref_genome = ref_genome
         self._search_index = search_index
         self._genome_index = genome_index
         self._vcf = vcf
         self._guides = guides
         self._pam_seq = pam_seq
+        self._pam_full = pam_full
+        self._pam_start = pam_start
         self._bmax = bmax
         self._mm = mm
         self._bdna = bdna
@@ -188,12 +194,19 @@ class CompleteSearch(CRISPRmeCommand):
     def vcf(self):
         return self._get_vcf()
 
-    def _get_ref_genome(self):
-        return self._ref_genome
+    def _get_genome(self):
+        return self._genome
 
     @property
-    def ref_genome(self):
-        return self._get_ref_genome()
+    def genome(self):
+        return self._get_genome()
+
+    def _get_PAM(self):
+        return self._pam_seq, self._pam_full, self._pam_start
+
+    @property
+    def pam(self):
+        return self._get_PAM()
 
     def write_params_file(self) -> None:
         """Write complete search Paramaters in a TXT file.

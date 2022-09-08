@@ -309,41 +309,38 @@ def parse_PAM_sequence_file(sequence_file: str, debug: bool) -> Tuple:
             debug
         )
     try:
-        pam_length = 0
-        pam_total_length = 0
+        # read the PAM file to recover the PAM sequence and start position
         with open(sequence_file, mode="r") as handle:
-            pam_char = handle.readline()
-            pam_total_length = len(pam_char.split()[0])
+            full_pam, pam_value_idx = handle.readline().strip().split()
+            full_pam_length = len(full_pam)  # full PAM length
             try:
-                pam_value_idx = pam_char.split()[-1]
-                pam_value_idx = int(pam_value_idx)
+                pam_value_idx = int(pam_value_idx)  # must be integer value
             except ValueError as verr:
                 exception_handler(
                     ValueError,
-                    f"Forbidden PAM character index found ({pam_value_idx})"
+                    f"Forbidden PAM character index found ({pam_value_idx})",
+                    debug
                 )
             except Exception as e:
                 exception_handler(
-                    Exception,
-                    "Unable to read PAM caharacter index"
+                    Exception, "Unable to read PAM caharacter index", debug
                 )
+            # the PAM is placed at the end of the full sequence -> the start 
+            # position is based on the end of the sequence
+            # E.g. NNNNNNNGG -> PAM == NGG;  start == 3 
             if pam_value_idx < 0:
-                end_idx = -pam_value_idx
-                pam_char = pam_char.split()[0][:end_idx]
-                pam_length = end_idx
+                pam_seq = full_pam[:-pam_value_idx]
+                pam_length = -pam_value_idx
                 pam_start = True
             else:
-                end_idx = pam_value_idx
-                pam_char = pam_char.split()[0][-end_idx:]
-                pam_length = end_idx
+                pam_seq = full_pam[-pam_value_idx:]
+                pam_length = pam_value_idx
                 pam_start = False
     except:
         exception_handler(
-            OSError,
-            f"An error occurred while reading {sequence_file}",
-            debug
+            OSError, f"An error occurred while reading {sequence_file}", debug
         )
-    return pam_char, pam_length, pam_total_length, pam_start
+    return pam_seq, pam_length, full_pam, full_pam_length, pam_start
 
 
 def parse_guide_sequences_file(

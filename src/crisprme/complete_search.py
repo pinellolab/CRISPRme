@@ -4,6 +4,7 @@ Functions required to run CRISPRme complete search
 """
 
 
+from typing import Optional
 from crisprme.crisprme_commands import CompleteSearch
 from crisprme.utils import (
     exception_handler, 
@@ -24,7 +25,9 @@ import sys
 import os
 
 
-def run_complete_search(args: CompleteSearch) -> None:
+def run_complete_search(
+    args: CompleteSearch, online: Optional[bool] = False
+) -> None:
     """Run CRISPRme complete search using the input parameters selected by the 
     user.
 
@@ -34,6 +37,9 @@ def run_complete_search(args: CompleteSearch) -> None:
     ----------
     args : CompleteSearch
         Parsed commandline arguments
+    online : bool 
+        Flag value to establish if the function was called by the online version
+        of CRISPRme
 
     Returns
     -------
@@ -57,24 +63,27 @@ def run_complete_search(args: CompleteSearch) -> None:
             exception_handler(
                 IOError, f"An error occurred while creating {LOG_FILE}", args.debug
             )
-    # redirect stdout to log file called log_verbose.txt
-    log_verbose = os.path.join(
-            CURRENT_WORKING_DIRECTORY, CRISPRme_DIRS[1], args.outname, LOG_FILE
-        )
-    if not os.path.exists(log_verbose):  # create log_verbose.txt if it doesn't exist
+    if online:  
+        # if the function was called form the online version then redirect
+        # stdout and sterr
+        # redirect stdout to log file called log_verbose.txt
+        log_verbose = os.path.join(
+                CURRENT_WORKING_DIRECTORY, CRISPRme_DIRS[1], args.outname, LOG_FILE
+            )
+        # create log_verbose.txt if it doesn't exist and write stdout to it
         try:
-            open(log_verbose, mode="w")
+            sys.stdout = open(log_verbose, mode="w")
         except:
             exception_handler(
                 IOError, f"An error occurred while creating {LOG_VERBOSE}", args.debug
             )
-    # redirect stderr to log file called log_error.txt
-    log_error = os.path.join(
-        CURRENT_WORKING_DIRECTORY, CRISPRme_DIRS[1], args.outname, LOG_ERROR
-    )
-    if not os.path.exists(log_error): # create log_error.txt if it doesn't exist
+        # redirect stderr to log file called log_error.txt
+        log_error = os.path.join(
+            CURRENT_WORKING_DIRECTORY, CRISPRme_DIRS[1], args.outname, LOG_ERROR
+        )
+        # create log_error.txt if it doesn't exist and write stderr to it
         try:
-            open(log_error, mode="w")
+            sys.stderr = open(log_error, mode="w")
         except:
             exception_handler(
                 IOError, f"An error occurred while creating {LOG_ERROR}", args.debug
@@ -109,18 +118,26 @@ def run_complete_search(args: CompleteSearch) -> None:
         handle = open(args.vcf, mode="r")  # assume one directory per line
     vcf_list = [line.strip() for line in handle if line.strip()]
     handle.close()
-    # vcf_name = "+".join([vcf_list])
-    # print(vcf_name)
-    print(args.vcf)
     # recover FASTA files within the reference genome directory
-    print(args.ref_genome)
-    # chroms_fasta = 
+    chroms_fasta = glob(os.path.join(args.genome, "*.fa"))
+    # recover the chromosome names list
+    chroms_list = [
+        os.path.basename(chrom).split(".")[0] for chrom in chroms_fasta
+    ]
     # perform the analysis for each VCF in the list
     for vcf in vcf_list:
         vcf_dir = os.path.join(CURRENT_WORKING_DIRECTORY, CRISPRme_DIRS[3], vcf)
         start_analysis = time()
         sys.stderr.write(f"Starting analysis for {vcf}\n")
+        
+        # TODO: see fake chromosomes creation
 
+        # recover PAM data
+        pam_seq, pam_full, pam_start = args.pam
+        
+
+        
+        
 
 
 

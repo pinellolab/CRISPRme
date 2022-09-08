@@ -588,9 +588,9 @@ def complete_search_input_check(
         if not os.path.isdir(outdir):
             parser.error(f"Unable to locate {outdir}")
     # recover PAM sequences from file
-    pam_seq, pam_length, pam_total_length, pam_start = parse_PAM_sequence_file(
-        pam, args.debug
-    )
+    (
+        pam_seq, pam_length, full_pam, full_pam_length, pam_start
+    ) = parse_PAM_sequence_file(pam, args.debug)
     # recover directories basename
     ref_genome = os.path.basename(genome)
     annotation_bname = os.path.basename(annotation)
@@ -618,7 +618,8 @@ def complete_search_input_check(
     else:  # search only on reference genome
         genome_index = f"{pam_seq}_{bmax}_{ref_genome}"
         ref_comparison = False  # no required comparison
-    guide_length = pam_total_length - pam_length  # compute guide length
+    # length of the sequence preceding the PAM (guide length)
+    guide_length = full_pam_length - pam_length  
     # recover the guides from sequence file
     if useseqs: 
         guides = parse_guide_sequences_file(
@@ -657,12 +658,15 @@ def complete_search_input_check(
         args.threads,
         args.verbose,
         args.debug,
-        ref_genome, 
+        genome, 
+        ref_genome,
         search_index, 
         genome_index, 
         vcf,
         guides,
-        pam_seq, 
+        pam_seq,
+        full_pam, 
+        pam_start,
         bmax, 
         mm, 
         bdna, 
