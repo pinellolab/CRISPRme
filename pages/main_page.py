@@ -1160,7 +1160,7 @@ def check_input(
         raise e
     if guide_type == "GS":
         # Extract sequence and create the guides
-        guides = list()
+        guides = []
         for seqname_and_seq in text_guides.split(">"):
             if not seqname_and_seq:
                 continue
@@ -1172,6 +1172,37 @@ def check_input(
                     if not line.strip():
                         continue
                     line_split = line.strip().split()
+                    # check suitable BED-like input
+                    if len(line_split) < 3:  # chr start stop (minimal)
+                        miss_input_list.append(
+                            str(
+                                "Wrong guides BED coordinates read. Please input "
+                                "genomic coordinates as 'chr    start   stop'"
+                            )
+                        )
+                        guides = []  # reset guides
+                        break
+                    if not line_split[1].isdigit():
+                        miss_input_list.append(
+                            str("The start coordinate must contain only digits")
+                        )
+                        guides = []  # reset guides
+                        break
+                    if not line_split[2].isdigit():
+                        miss_input_list.append(
+                            str("The stop coordinate must contain only digits")
+                        )
+                        guides = []  # reset guides
+                        break
+                    if int(line_split[1]) > int(line_split[2]):
+                        miss_input_list.append(
+                            str(
+                                "Wrong genomic coordinates. The stop coordinate "
+                                "seems larger than the start coordinate."
+                            )
+                        )
+                        guides = []  # reset guides
+                        break
                     # line_split = re.split(r";|,|.|:|-| ", line.strip())
                     # print(line_split)
                     seq_read = f"{line_split[0]}:{line_split[1]}-{line_split[2]}"
@@ -1217,8 +1248,9 @@ def check_input(
     if len(text_guides.split("\n")) > 1000000000:
         text_guides = "\n".join(text_guides.split("\n")[:1000000000]).strip()
     if no_guides:
-        text_update = {"width": "300px",
-                       "height": "30px", "border": "1px solid red"}
+        text_update = {
+            "width": "300px", "height": "30px", "border": "1px solid red"
+        }
         update_style = True
         miss_input_list.append(
             str(
@@ -1229,7 +1261,7 @@ def check_input(
         )
     miss_input = html.Div(
         [
-            html.P("The following inputs are missing:"),
+            html.P("The following inputs are wrong or missing:"),
             html.Ul([html.Li(x) for x in miss_input_list]),
             html.P("Please fill in the values before submitting the job"),
         ]
@@ -1592,7 +1624,7 @@ def index_page() -> html.Div:
         [
             dbc.Modal(
                 [
-                    dbc.ModalHeader("WARNING! Missing inputs"),
+                    dbc.ModalHeader("WARNING! Missing or wrong input"),
                     dbc.ModalBody(
                         str(
                             "The following inputs are missing, please select "
@@ -1601,8 +1633,7 @@ def index_page() -> html.Div:
                         id="warning-list",
                     ),
                     dbc.ModalFooter(
-                        dbc.Button("Close", id="close",
-                                   className="modal-button")
+                        dbc.Button("Close", id="close",className="modal-button")
                     ),
                 ],
                 id="modal",
@@ -2037,7 +2068,7 @@ def update_visibility_base_editor_dropdowns(radio_value: str) -> Dict:
     Dict
     """
 
-    if radio_value == 'Y':
+    if radio_value == "Y":
         return {"display": ""}
     else:
         return {"display": "none"}
