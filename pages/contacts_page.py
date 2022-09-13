@@ -1,28 +1,27 @@
 """Display the contact page on CRISPRme website.
 
 Contacts list:
-    - Samuele Cancellieri, PhD 
-    - Linda Lin <linda.yq.lin@yale.edu>
+    - Samuele Cancellieri, PhD <samuele.cancellieri@univr.it>
+    - Manuel Tognon <manuel.tognon@univr.it> <mtognon@mgh.harvard.edu>
     - Daniel Bauer, MD, PhD <bauer@bloodgroup.tch.harvard.edu>
-    - Nicola Bombieri, PhD
     - Rosalba Giugno, PhD <rosalba.giugno@univr.it>
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 
 
 Contacts list for bug reports and maintainers:
     - Samuele Cancellieri, PhD <samuele.cancellieri@univr.it>
-    - Manuel Tognon <manuel.tognon@univr.it>
+    - Manuel Tognon <manuel.tognon@univr.it> <mtognon@mgh.harvard.edu>
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 
 CRISPRme developers:
     - Samuele Cancellieri, PhD <samuele.cancellieri@univr.it>
     - Elia Dirupo
     - Francesco Masillo
-    - Manuel Tognon <manuel.tognon@univr.it>
+    - Manuel Tognon <manuel.tognon@univr.it> <mtognon@mgh.harvard.edu>
     
 Current CRISPRme maintainers:
     - Samuele Cancellieri, PhD <samuele.cancellieri@univr.it>
-    - Manuel Tognon <manuel.tognon@univr.it>
+    - Manuel Tognon <manuel.tognon@univr.it> <mtognon@mgh.harvard.edu>
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 """
 
@@ -38,7 +37,6 @@ import dash_html_components as html
 # TODO: maintain the following list up to date as much as possible
 INFOMICS_DEVS = [
     "Samuele Cancellieri",
-    "Francesco Masillo",
     "Manuel Tognon",
     "Nicola Bombieri",
     "Rosalba Giugno",
