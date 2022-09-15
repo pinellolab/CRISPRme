@@ -288,6 +288,8 @@ VARIANTS_DATA = ["1000G", "HGDP", "PV"]
 PREPRINT_LINK = "https://www.biorxiv.org/content/10.1101/2021.05.20.445054v2"
 # CRISPRme github page link
 GITHUB_LINK = "https://github.com/pinellolab/CRISPRme"
+# manual page image directory
+MANUAL_IMGS = "manual_page-images"
 
 
 def drop_columns(table: pd.DataFrame, filter_criterion: str) -> List[str]:
