@@ -1,182 +1,202 @@
 # CRISPRme
 
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/crisprme/README.html)
+![GitHub release (latest by date)](https://img.shields.io/github/v/release/pinellolab/crisprme)
+![Conda](https://img.shields.io/conda/dn/bioconda/crisprme)
+![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
 
-CRISPRme is a web based tool dedicated to perform predictive analysis and result assessement on CRISPR/Cas experiments with a user-friendly GUI and the precise scope of searching individual variant in VCF dateset.
+CRISPRme is a web-based tool to perform predictive analysis and result assessement on CRISPR/Cas experiments with a user-friendly GUI and the precise scope of searching individual variant in VCF dateset.
 
-With this aim in mind we created a simple package that takes care of any step, from downloading the necessary data, to execute a complete search and present to the user an exhaustive result report with images and tabulated targets to navigate with the included web-based GUI.
+With this aim in mind we created a tool that takes care of any step, downloading the required data, executing a complete search and presenting to the user an exhaustive results report with images and tabulated targets to navigate with the included web-based GUI.
 
-The software is composed of two principal function:
+The software has two main functionalities:
 
-- complete-search, function to perform a search starting from scratch input data, like a reference genome, a set of VCF data and list of sgRNAs targets.
-- targets-integration, function to perform the integration of results targets with a gencode proximity file to identify genes near targets and collect only the top scoring targets in term of CFD score.
-- web-interface, function to start the web-interface accessible locally from a web browser
+- ```complete-search```, performs a search starting from scratch input data, like a reference genome, a set of genetic variants in VCF format and a list of sgRNAs targets.
+- ```targets-integration```, integrates results targets with a gencode proximity file to identify genes close to targets, and collect only the top scoring targets in term of CFD score, CRISTA score, or number of mismatches/bulges.
+- ```web-interface```, starts a local web-interface accessible from a web browser.
 
-# CRISPRme Installation and Usage
+## Installation
 
-The two fastest way to use CRISPRitz is through the installation of Docker or Conda.
-Here we summarize the steps to install CRISPRitz with Docker and Conda.
+CRISPRme can be installed both via **Conda** (only Linux users) and **Docker** (all operating systems, including OSX and Windows).
 
-## Installation (Phase 1)
+### Installation via Conda
 
-**Conda installation (Linux only):**
+If conda is not already available on your machine, the next section will describe how to obtain a fresh ```conda``` distribution. If ```conda``` is already available on your machine you can skip the next section and go to **Create CRISPRme conda environment** section.
 
-- Open a terminal window
-- Paste this command into the terminal (Linux):
-  ```
-  curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh --output Miniconda3-latest-Linux-x86_64.sh
-  ```
-- If the file is correctly downloaded you now need to execute it to complete the installation, so paste this command into the terminal:
-  - Linux
-  ```
-  bash Miniconda3-latest-Linux-x86_64.sh
-  ```
-- Press ENTER when requested and yes when an answer is requested, in this way you allow conda to set all the directories in your HOME path for an easy use
-- After the complete installation you will receive this message “Thank you for installing Miniconda3!” to certify the correct installation.
-- Now you need to close the terminal window you are using and open a new one, to allow the system to start conda.
-- In the new terminal window you should see something like this:
-  ```
-  (base) user@nameofPC:~$
-  ```
-  If you read the "(base)" like this, conda is loaded correctly and you can start using it.
-- Now you need to set the channels to allow conda to access different repositories and set the default version of python to version 3.8, so paste these commands into the terminal you just opened:
-  ```
-  conda config --add channels defaults
-  conda config --add channels bioconda
-  conda config --add channels conda-forge
-  conda install python=3.8
-  ```
-- Now, you can install CRISPRme by typing the command:
-  ```
-  conda create -n crisprme python=3.8 crisprme -y
-  conda activate crisprme
-  ```
-- To test your installation, type the command:
-  ```
-  crisprme.py
-  ```
-- After the execution of the command you should see a list of CRISPRitz tools.
+#### Obtaining a fresh conda distribution
+If conda is not already available in your environment you can get a fresh ```miniconda``` distribution. To obtain a fresh ```miniconda``` distribution, open a new terminal window and type:
+```
+curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64
+bash Miniconda3-latest-Linux-x86_64.sh
+```
+Press ENTER when requested and answer ```yes``` when required. Conda will set all the directories in your ```HOME``` path for an easy use.
 
-Now the software is installed and ready to be used.
+Close the current terminal window and reopen it to allow the system to start ```conda```. If you see in the new window something similar to 
+```
+(base) user@nameofPC:~$
+```
+```conda``` was correctly installed and it is ready to run.
 
-**Docker installation (Linux, Mac OSX and Windows):  
-Note: if you are using MasOS or Windows, you just need to download the installer file
-and follow the on screen instructions.  
-https://docs.docker.com/docker-for-windows/install/ (Windows)  
-https://docs.docker.com/docker-for-mac/install/ (MacOS)**
+The next step, will be a one-time set up of ```conda``` channels. To set up the channels type on your terminal:
+```
+conda config --add channels defaults
+conda config --add channels bioconda
+conda config --add channels conda-forge
+conda install python=3.8
+```
 
-**Ubuntu installation guide:**
+#### Create CRISPRme conda environment
+To create the ```conda``` environment for CRISPRme, it is suggested to use ```mamba```. ```mamba``` is a drop-in replacement for conda that uses a faster dependency solving library and parts reimplemented in C++ for speed. To install ```mamba```, in your terminal window type:
+```
+conda install mamba -n base -c conda-forge
+```
 
-- Open a terminal window
-- Paste this command to update the index repository:
-  ```
-  sudo apt-get update
-  ```
-- Paste this command to allow package installation over HTTPS:
-  ```
-  sudo apt-get install \
-  apt-transport-https \
-  ca-certificates \
-  curl \
-  gnupg-agent \
-  software-properties-common
-  ```
-- Paste this command to add the docker key:
-  ```
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-  ```
-- Paste this command to set the correct version of docker for your system:
-  ```
-  sudo add-apt-repository \
-  "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) \
-  Stable"
-  ```
-- Paste this command to update the index repository another time, to make sure everything is ready and set to install docker:
-  ```
-  sudo apt-get update
-  ```
-- Then paste this command to finally install docker:
-  ```
-  sudo apt-get install docker-ce docker-ce-cli containerd.io
-  ```
-- Paste this last command to check if the installation is complete and functional:
-  ```
-  sudo docker run hello-world
-  ```
-- If this message is printed, everything is perfectly installed
-  ![docker hello world](https://user-images.githubusercontent.com/40895152/63214349-769e3880-c117-11e9-8ee2-d754096b3aca.png)
-- Now, we need to do some more steps to complete the settings. Paste this command to create a user group for docker user:
-  ```
-  sudo groupadd docker
-  ```
-- Paste this command to add your current user to the created group:
-  ```
-  sudo usermod -aG docker $USER
-  ```
-- Now you need to restart your machine or the virtual environment, to re-evaluate the user groups.
-- One last command to test if the group is well configured. Paste this command:
-  ```
-  docker run hello-world
-  ```
-- If the previous “hello from docker” message is printed, everything is perfectly set.
+Once installed ```mamba```, you are ready to build the CRISPRme environmet. To build the environment, type:
+```
+mamba create -n crisprme python=3.8 crisprme -y
+```
 
-## Post installation test (Phase <a name="phase2">2</a>):
+To activate the environmment, type:
+```
+conda activate crisprme
+```
 
-- Download and untar this package:
-  ```
-  wget https://www.dropbox.com/s/urciozkana5md0z/crisprme_test.tar.gz?dl=1 -O crisprme_test.tar.gz
-  tar -xvf crisprme_test.tar.gz
-  ```
-- Then move into the directory
-  ```
-  cd crisprme_test/
-  ```
-- Write this command to execute the script if you installed with Conda:
-  ```
-  bash crisprme_auto_test_conda.sh
-  ```
-- Write this command to execute the script if you want to use Docker (the script will automatically download the necessary docker image):
-  ```
-  bash crisprme_auto_test_docker.sh
-  ```
-- You will see the processing starting, first with the download of all the necessary data and then with the analysis, depending on the system hardware and internet connection this may take very different time
+To test the installation, type in your terminal window:
+```
+crisprme.py
+```
 
-After downloading and untaring the package, you will have a ready to use CRISPRme directory, remember DO NOT change any name of folders in the directory to avoid losing data or force the recreation of indexing and dictionaries. You MUST use the default directories to store all your data since the software recognizes only files and folder in the own folders structure.
-Here a more detailed explanation of the folder structure:
-![Folder_structure](https://github.com/samuelecancellieri/CRISPRme/blob/main/assets/directory_tree.png)
+If you see all CRSIPRme's functionalities listed, you succesfully installed CRISPRme on your machine, and it is ready to be used on your machine.
 
-- Genomes: folder containing all the genomes in fasta format, each genome has to be saved into a specific folder and the name of the folder will be used to identify the genome itself and all the correlated data (VCF and samplesID).
-  - hg19: folder containing fasta files of human genome 19.
-  - hg38: folder containing fasta file of human genome 38.
-- VCFs: folder containing all the VCFs datasets, each dataset has to be saved into a specific folder and the name must contain the genome release correlated to the variant data.
-  - hg38_HGDP: folder containing vcf files of HGDP set correlated with hg38.
-  - hg38_1000G: folder containing vcf files of 1000G set correlated with hg38.
-- samplesIDs: folder containing all the samplesID files, one for each VCF dataset, the name of the file must contain the identifier of a VCF dataset and the samplesID suffix.
-  - hg38_HGDP.samplesID.txt: tabulated file with header to identify samples for HGDP dataset.
-  - hg38_1000G.samplesID.txt: tabulated file with header to identify samples for 1000G dataset.
-- Annotations: folder containing all the annotation bed files, there is no restriction on the name for this file.
-  - gencode_encode.hg38.bed: bed file containing all the pregenerated annotations from gencode and encode datasets.
-- PAMs: folder containing all the PAM text files, one for each PAM, the name of the file must contain the name of the Cas protein as last field (field separator character “-”).
-  - 20bp-NGG-spCas9.txt: text file containing the single line PAM, in the name is contained the position of the crRNA (the first 20bps), the position of the PAM sequence (the following 3 nucleotides, NGG) and the Cas protein (spCas9).
+## Installation via Docker
+For OSX and Windows users is suggested to run CRISPRme via [Docker](https://www.docker.com/get-started). Follow the following links to install Docker on [OSX](https://docs.docker.com/docker-for-mac/install/) or [Windows](https://docs.docker.com/docker-for-windows/install/), and follow the on-screen instructions.
 
-## Usage (Phase 3):
+If you plan to use CRISPRme via Docker on a Linux-based OS read and follow the instructions listed in the next section, skip it otherwise.
 
-**<a name="Complete-Search">3.1</a> CRISPRme Complete-Search function**  
-This function perform a complete search from scratch producing all the results and post-analysis data.
+### Install Docker on Linux machines
+Open a new terminal window and type:
+```
+sudo apt-get update
+```
 
-Input:
+To allow packages installation/update type over ```HTTPS``` channels:
+```
+sudo apt-get install \
+apt-transport-https \
+ca-certificates \
+curl \
+gnupg-agent \
+software-properties-common
+```
 
-- Directory containing a genome in fasta format, need to be separated into single
-  chromosome files.
-- Text file containing path to VCF directories [OPTIONAL]
-- Text file with a list of guide (1 to N)
+To add the docker key type:
+```
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+```
+
+To set the right Docker version for your system, type:
+```
+sudo add-apt-repository \
+"deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+$(lsb_release -cs) \
+Stable"
+```
+
+To make sure everythign is set to install Docker, refresh the repositories index again by typing:
+```
+sudo apt-get update
+```
+
+To install Docker, type:
+```
+sudo apt-get install docker-ce docker-ce-cli containerd.io
+```
+
+To test your Docker installation, type
+```
+sudo docker run hello-world
+```
+
+If the following message is printed, Docker is correctly running on your machine:
+![fig1](./docs/readme/hello-world-docker.png)
+
+To complete Docker's set up a few more steps are required. First, we need to create a Docker group. To do it, type:
+```
+sudo groupadd docker
+```
+
+To add your current user to the Docker group, type:
+```
+sudo usermod -aG docker $USER
+```
+
+Repeat the above command for all the user you plan to add to the Docker group (**NB** on most system you must be a ```sudo``` user to be able to do so).
+
+To make all changes effective, you will need to restart the machine or the environment.
+
+To test if the Docker group has been correctly configured, open a new terminal window and type:
+```
+docker run hello-world
+```
+
+If the above "hello from Docker!" message is printed, Docker has been suceesfully installed and propoerly set on your machine.
+
+### Install CRISPRme docker image
+Once obtained docker, open a new terminal window and type:
+```
+docker pull pinellolab/crisprme
+```
+This command will download and install CRISPRme Docker image on your machine.
+
+## Test CRISPRme
+To test your CRISPRme installation, open a new terminal window and type:
+```
+wget https://www.dropbox.com/s/urciozkana5md0z/crisprme_test.tar.gz?dl=1 -O crisprme_test.tar.gz
+tar -xvf crisprme_test.tar.gz
+```
+This will download a folder containing some test data, to run and test CRISPRme.
+
+Once downloaded, enter the folder by typing:
+```
+cd crisprme_test
+```
+
+If you installed CRISPRme via ```conda```, test your conda installation by typing:
+```
+bash crisprme_auto_test_conda.sh
+```
+
+Otherwise, if you installed CRISPRme via Docker, test your Docker installation by typing:
+```
+bash crisprme_auto_test_docker.sh
+```
+
+After starting, the tests will download the required test data, then CRISPRme will start its analysis. 
+**NB** Depending on your hardware the test may take very different time to complete.
+
+Once downloaded and untared the folder, you will have a ready to use CRISPRme directory tree.
+**NB  DO NOT CHANGE ANY FOLDER NAME** to avoid losing data or forcing to recompute indexes and dictionaries. **YOU MUST USE THE DEFAULT FOLDERS TO STORE THE DATA** since the software have been designed to recognize only files and folders in its own folder tree (see **Usage** section).
+
+
+## Usage
+CRISPRme is designed to work and recognize its specific directories tree structure. See the following image for a detailed explanantion of CRISPRme's folders structure
+![fig2](./docs/readme/directory_tree.png)
+
+The following sections will describe the main functionalities of CRISPRme, listing their input data, and the expected output.
+
+#### Complete-search function
+```complete-search``` performs a complete search from scratch returing all the results and post-analysis data.
+
+**Input**:
+- Directory containing a reference genome (FASTA format). The reference genome must be separated into single chromosome files (e.g. chr1.fa, chr2.fa, etc.).
+- Text file storing path to the VCF directories [OPTIONAL]
+- Text file with a list of guides (1 to N)
 - Text file with a single PAM sequence
-- Bed file with annotation, containing a list of genetic regions with a function associated
-- Text file containing a list of path to samplesID file (1 to N) equal to the number of VCF dataset used [OPTIONAL]
+- BED file with annotations, containing a list of genetic regions with a function associated
+- Text file containing a list of path to a samplesID file (1 to N) equal to the number of VCF dataset used [OPTIONAL]
 - Base editor window, used to specify the window to search for susceptibilty to certain base editor [OPTIONAL]
 - Base editor nucleotide(s), used to specify the base(s) to check for the choosen editor [OPTIONAL]
-- Bed file extracted from Gencode data to find gene proximity of targets
+- BED file extracted from Gencode data to find gene proximity of targets
 - Maximal number of allowed bulges of any kind to compute in the index genome
 - Threshold of mismatches allowed
 - Size of DNA bulges allowed
@@ -185,8 +205,7 @@ Input:
 - Output directory, in which all the data will be produced
 - Number of threads to use in computation
 
-Output:
-
+**Output**
 - bestMerge targets file, containing all the highest scoring targets, in terms of CFD and targets with the lowest combination of mismatches and bulges (with preference to lowest mismatches count), each genomic position is represent by one target
 - altMerge targets file, containing all the discarded targets from the bestMerge file, each genomic position can be represented by more than target
 - Parameters data file, containing all the parameters used in the search
@@ -195,102 +214,96 @@ Output:
 - Directory with raw targets, containing the un-processed results from the search, useful to recover any possible target found during the search
 - Directory with images, containing all the images generated to be used with the web-tool
 
-Example call:
-
-- Conda
+**Example**
+- via ```conda```:
   ```
   crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
   ```
-- Docker
+- via Docker:
   ```
   docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
   ```
 
-**<a name="Targets-Integration">3.2</a> CRISPRme Targets-Integration function**  
-This function produces an integrated_result file with paired empirical targets from an integrated_results file.
+#### Targets-integration function
+```targets-integration``` returns an ```integrated_result``` file with paired empirical targets from an ```integrated_results``` file.
 
-Input:
-
+**Input**
 - Integrated results from a search, containing the processed targets
-- Bed file containing empirical verified OT, like via GUIDE-seq, CIRCLE-seq and other sequencing protocols
+- BED file containing empirical verified OT, like via GUIDE-seq, CIRCLE-seq and other sequencing protocols
 - Output directory, in which the integrated result file with empirical data will be created
 
-Output:
-
+**Output**
 - Directory containing the integrated result with each target pair with an existing empirical target (if found)
 
-Example call:
-
-- Conda
+**Example**
+- via ```conda```:
   ```
   crisprme.py targets-integration --targets *integrated_results.tsv --empirical_data empirical_data.tsv --output dir/
   ```
-- Docker
+- via Docker:
   ```
   docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py targets-integration --targets *integrated_results.tsv --empirical_data empirical_data.tsv --output dir/
   ```
 
-**<a name="Web-Interface">3.3</a> CRISPRme gnomAD converter function**
-This function convertes a set of gnomADv3.1 VCFs into compatible VCFs.
+#### gnomAD-converter function
+```gnomAD-converter``` converts a set of gnomADv3.1 VCFs into compatible VCFs.
 
-Input:
-
+**Input**
 - gnomAD_VCFdir, used to specify the directory containing gnomADv3.1 original VCFs
 - samplesID, used to specify the pre-generated samplesID file necessary to introduce samples into gnomAD variant
 - thread, the number of threads used in the process (default is ALL available minus 2)
 
-Output:
-
+**Output**
 - original gnomAD directory with the full set of gnomAD VCFs converted to compatible format
 
-Example call:
+**Example**
+- via ```conda```:
+  ```
+  crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
+  ```
+- via Docker:
+  ```
+  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4 
+  ```
 
-- Conda
+#### Generate-personal-card function
+```generate-personal-card``` generates a personal card for a specified input sample.
 
-```
-crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
-```
-
-- Docker
-
-```
-    docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
-```
-
-**<a name="Web-Interface">3.3</a> CRISPRme generate-personal-card function**
-This function generate a personal card for a specified input sample.
-
-Input:
-
+**Input**
 - result_dir, directory containing the result from which extract the targets to generate the card
 - guide_seq, sequence of the guide to use in order to exctract the targets
 - sample_id, ID of the sample to use in order to generate the card
 
-Output:
-
+**Output**
 - Set of plots generated with personal and private targets containing the variant CFD score and the reference CFD score
 - Filtered file with private targets of the sample directly extracted from integrated file
 
-Example call:
+**Example**
+- via ```conda```:
+  ```
+  crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
+  ```
+- via Docker
+  ```
+  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
+  ```
 
-- Conda
+#### Web-interface function (only via conda)
+```web-interface``` starts a local server to use CRISPRme's web interface.
 
-```
-crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
-```
-
-- Docker
-
-```
-    docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
-```
-
-**<a name="Web-Interface">3.3</a> CRISPRme Web-Interface function**  
-This function starts the server to use the web-interface
-
-Example call:
-
-- Conda
+**Example**
+- via ```conda```
   ```
   crisprme.py web-interface
   ```
+
+## Citation
+If you use CRISPRme in your research, please cite us:
+
+Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, ... & Pinello L. (2022). Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nature Genetics, 1-10. [https://doi.org/10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y)
+
+## License
+AGPL-3.0 (academic research only).
+
+For-profit institutions must purchase a license before using CRISPRme. 
+Contact lpinello@mgh.harvard.edu for further details.
