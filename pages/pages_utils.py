@@ -1,5 +1,5 @@
-"""Define static variables and utilities functions used throughout CRISPRme's 
-webpages. 
+"""Define static variables and utilities functions used throughout CRISPRme's
+webpages.
 """
 
 
@@ -284,8 +284,8 @@ JOBID_MAXLEN = 20
 JOBID_ITERATIONS_MAX = 10
 # allowed variants datasets (1000 genomes, human diversity project, custom data)
 VARIANTS_DATA = ["1000G", "HGDP", "PV"]
-# CRISPRme preprint link (bioRxiv)
-PREPRINT_LINK = "https://www.biorxiv.org/content/10.1101/2021.05.20.445054v2"
+# CRISPRme paper link
+PAPER_LINK = "https://rdcu.be/c1GYQ"
 # CRISPRme github page link
 GITHUB_LINK = "https://github.com/pinellolab/CRISPRme"
 # manual page image directory

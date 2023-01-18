@@ -5,15 +5,13 @@
 ![Conda](https://img.shields.io/conda/dn/bioconda/crisprme)
 ![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
 
-CRISPRme is a web-based tool to perform predictive analysis and result assessement on CRISPR/Cas experiments with a user-friendly GUI and the precise scope of searching individual variant in VCF dateset.
+CRISPRme is a tool for comprehensive off-target assessment available as a web application [online](crisprme.di.univr.it), offline, and command line. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:protospacer mismatches and bulges, and is suitable for population and personal genome analyses. CRISPRme takes care of all steps in the process including data download, executing the complete search, and presents an exhaustive report with tables and figures within interactive web-based GUI.
 
-With this aim in mind we created a tool that takes care of any step, downloading the required data, executing a complete search and presenting to the user an exhaustive results report with images and tabulated targets to navigate with the included web-based GUI.
+The software has the following main functionalities:
 
-The software has two main functionalities:
-
-- ```complete-search```, performs a search starting from scratch input data, like a reference genome, a set of genetic variants in VCF format and a list of sgRNAs targets.
-- ```targets-integration```, integrates results targets with a gencode proximity file to identify genes close to targets, and collect only the top scoring targets in term of CFD score, CRISTA score, or number of mismatches/bulges.
-- ```web-interface```, starts a local web-interface accessible from a web browser.
+- ```complete-search``` performs a search from scratch with the given inputs (including gRNA, reference genome, and genetic variants).
+- ```targets-integration``` integrates the search results with GENCODE data to identify genes close to the candidate off-targets and collect the top ranking candidates in term of CFD score, CRISTA score, or number of mismatches/bulges.
+- ```web-interface``` starts a local instance of the web interface accessible from any browser.
 
 ## Installation
 
@@ -31,7 +29,7 @@ bash Miniconda3-latest-Linux-x86_64.sh
 ```
 Press ENTER when requested and answer ```yes``` when required. Conda will set all the directories in your ```HOME``` path for an easy use.
 
-Close the current terminal window and reopen it to allow the system to start ```conda```. If you see in the new window something similar to 
+Close the current terminal window and reopen it to allow the system to start ```conda```. If you see in the new window something similar to
 ```
 (base) user@nameofPC:~$
 ```
@@ -171,7 +169,7 @@ Otherwise, if you installed CRISPRme via Docker, test your Docker installation b
 bash crisprme_auto_test_docker.sh
 ```
 
-After starting, the tests will download the required test data, then CRISPRme will start its analysis. 
+After starting, the tests will download the required test data, then CRISPRme will start its analysis.
 **NB** Depending on your hardware the test may take very different time to complete.
 
 Once downloaded and untared the folder, you will have a ready to use CRISPRme directory tree.
@@ -263,7 +261,7 @@ The following sections will describe the main functionalities of CRISPRme, listi
   ```
 - via Docker:
   ```
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4 
+  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
   ```
 
 #### Generate-personal-card function
@@ -298,12 +296,12 @@ The following sections will describe the main functionalities of CRISPRme, listi
   ```
 
 ## Citation
-If you use CRISPRme in your research, please cite us:
+If you use CRISPRme in your research, please cite our paper [(shareable link to full text)](https://rdcu.be/c1GYQ):
 
-Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, ... & Pinello L. (2022). Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nature Genetics, 1-10. [https://doi.org/10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y)
+Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, ... Giugno R, Bauer DE, Pinello L. (2022). Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nature Genetics, 1-10. [https://doi.org/10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y)
 
 ## License
 AGPL-3.0 (academic research only).
 
-For-profit institutions must purchase a license before using CRISPRme. 
+For-profit institutions must purchase a license before using CRISPRme.
 Contact lpinello@mgh.harvard.edu for further details.

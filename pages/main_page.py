@@ -1,5 +1,5 @@
-"""Build the layout of the main webopage of CRISPRme.
-The main webpage read the input data and manages the analysis.
+"""Build the layout of the main webpage of CRISPRme.
+The main webpage reads the input data and manages the analysis.
 """
 
 
@@ -19,7 +19,7 @@ from .pages_utils import (
     PAMS_FILE,
     PARAMS_FILE,
     POSTPROCESS_DIR,
-    PREPRINT_LINK,
+    PAPER_LINK,
     QUEUE_FILE,
     RESULTS_DIR,
     SAMPLES_FILE_LIST,
@@ -1606,8 +1606,8 @@ def index_page() -> html.Div:
             ),
             html.Div(
                 [
-                    "Check out our preprint on bioRxiv ",
-                    html.A("here!", target="_blank", href=PREPRINT_LINK),
+                    "Check out our paper in Nature Genetics ",
+                    html.A("here!", target="_blank", href=PAPER_LINK),
                 ]
             ),
             html.Div(
@@ -2041,8 +2041,8 @@ def index_page() -> html.Div:
                 "and offers additional functionalities, including the option to "
                 "input personal data (such as genetic variants, annotations, "
                 "and/or empirical off-target results) as well as custom PAMs and "
-                "genomes. There is no limit on the number of spacers, mismatches, "
-                "and/or bulges used in the offline search."
+                "genomes. There is no limit on the length or number of spacers, "
+                "mismatches, and/or bulges used in the offline search."
             )
         )
     )
@@ -2083,7 +2083,7 @@ def update_visibility_base_editor_dropdowns(radio_value: str) -> Dict:
 def update_base_editing_dropdown(
     text_guides: str, guide_type: str, genome: str
 ) -> Tuple:
-    """Update base editing dropdown dinamically. The start and stop values for 
+    """Update base editing dropdown dinamically. The start and stop values for
     base editing are changed accordingly to the guides provided in input by
     the user.
 
