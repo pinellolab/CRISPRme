@@ -60,7 +60,7 @@ from .pages_utils import (
 from app import (
     app,
     cache,
-    app_main_directory,
+    app_directory,
     current_working_directory,
     URL,
 )
@@ -1482,7 +1482,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
 
         # TODO: review this part
         os.system(
-            f"python {app_main_directory}/PostProcess/change_headers_bestMerge.py {cluster_grep_result} {cluster_grep_result}.tmp"
+            f"python {app_directory}/PostProcess/change_headers_bestMerge.py {cluster_grep_result} {cluster_grep_result}.tmp"
         )
         os.system(
             f"mv -f {cluster_grep_result}.tmp {cluster_grep_result} > /dev/null 2>&1"
@@ -4064,7 +4064,7 @@ def update_images_tabs(
         ),
     )
     # TODO: do not call python script, rather define functions
-    cmd = f"python {app_main_directory}/PostProcess/generate_img_radar_chart.py {guide} {job_directory}/.guide_dict_{guide}_{filter_criterion}.json {job_directory}/.motif_dict_{guide}_{filter_criterion}.json {mm} {bulge} TOTAL_{filter_criterion} {job_directory}/imgs/"
+    cmd = f"python {app_directory}/PostProcess/generate_img_radar_chart.py {guide} {job_directory}/.guide_dict_{guide}_{filter_criterion}.json {job_directory}/.motif_dict_{guide}_{filter_criterion}.json {mm} {bulge} TOTAL_{filter_criterion} {job_directory}/imgs/"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
         raise ValueError(f'An error occurred while running "{cmd}"')
@@ -4268,10 +4268,10 @@ def generate_sample_card(
     # plot images in personal card tab
     # TODO: avoid calling scripts, use functions instead
     os.system(
-        f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
+        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
     )
     os.system(
-        f"python {app_main_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
+        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
     )
     cmd = f"rm -rf {integrated_personal}"
     code = subprocess.call(cmd, shell=True)

@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+# from index import index
+
+
 import sys
 import os
 import subprocess
@@ -900,6 +903,7 @@ def web_interface():
         print("Open your web-browser and write 127.0.0.1:8080 in the search bar if you are executing locally, if you are executing on an external server write <yourserverip>:8080 in search bar")
         exit(0)
     subprocess.run(corrected_web_path+'/./index.py')
+    # index()
 
 
 # HELP FUNCTION
