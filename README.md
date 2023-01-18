@@ -5,7 +5,7 @@
 ![Conda](https://img.shields.io/conda/dn/bioconda/crisprme)
 ![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
 
-CRISPRme is a tool for comprehensive off-target assessment available as a web application [online](crisprme.di.univr.it), offline, and command line. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:protospacer mismatches and bulges, and is suitable for population and personal genome analyses. CRISPRme takes care of all steps in the process including data download, executing the complete search, and presents an exhaustive report with tables and figures within interactive web-based GUI.
+CRISPRme is a tool for comprehensive off-target assessment available as a web application [online](http://crisprme.di.univr.it/), offline, and command line. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:protospacer mismatches and bulges, and is suitable for population and personal genome analyses. CRISPRme takes care of all steps in the process including data download, executing the complete search, and presents an exhaustive report with tables and figures within interactive web-based GUI.
 
 The software has the following main functionalities:
 
@@ -40,7 +40,6 @@ The next step, will be a one-time set up of ```conda``` channels. To set up the 
 conda config --add channels defaults
 conda config --add channels bioconda
 conda config --add channels conda-forge
-conda install python=3.8
 ```
 
 #### Create CRISPRme conda environment
