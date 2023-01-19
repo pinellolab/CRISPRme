@@ -10,7 +10,7 @@ the webapp.
 
 
 from .pages_utils import ASSETS_DIR, MANUAL_IMGS
-from app import app_main_directory
+from app import app_directory
 
 import dash_html_components as html
 
@@ -72,7 +72,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory,
+                                            app_directory,
                                             ASSETS_DIR,
                                             MANUAL_IMGS,
                                             "mainpage.png",
@@ -246,7 +246,7 @@ def helpPage() -> html.Div:
                         base64.b64encode(
                             open(
                                 os.path.join(
-                                    app_main_directory, ASSETS_DIR, MANUAL_IMGS, "jobpage.png"
+                                    app_directory, ASSETS_DIR, MANUAL_IMGS, "jobpage.png"
                                 ),
                                 mode="rb",
                             ).read()
@@ -276,7 +276,7 @@ def helpPage() -> html.Div:
                             base64.b64encode(
                                 open(
                                     os.path.join(
-                                        app_main_directory, ASSETS_DIR, MANUAL_IMGS, "resultsummary.png",
+                                        app_directory, ASSETS_DIR, MANUAL_IMGS, "resultsummary.png",
                                     ),
                                     mode="rb",
                                 ).read()
@@ -334,7 +334,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, ASSETS_DIR, MANUAL_IMGS, "customranking.png",
+                                            app_directory, ASSETS_DIR, MANUAL_IMGS, "customranking.png",
                                         ),
                                         mode="rb",
                                     ).read()
@@ -356,7 +356,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, ASSETS_DIR, MANUAL_IMGS, "summarybyguide.png",
+                                            app_directory, ASSETS_DIR, MANUAL_IMGS, "summarybyguide.png",
                                         ),
                                         mode="rb",
                                     ).read()
@@ -413,7 +413,7 @@ def helpPage() -> html.Div:
                                         base64.b64encode(
                                             open(
                                                 os.path.join(
-                                                    app_main_directory, ASSETS_DIR, MANUAL_IMGS, "summarybyguide_targets.png",
+                                                    app_directory, ASSETS_DIR, MANUAL_IMGS, "summarybyguide_targets.png",
                                                 ),
                                                 mode="rb",
                                             ).read()
@@ -434,7 +434,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, ASSETS_DIR, MANUAL_IMGS, "summarybysample.png",
+                                            app_directory, ASSETS_DIR, MANUAL_IMGS, "summarybysample.png",
                                         ),
                                         mode="rb",
                                     ).read()
@@ -479,7 +479,7 @@ def helpPage() -> html.Div:
                                         base64.b64encode(
                                             open(
                                                 os.path.join(
-                                                    app_main_directory, ASSETS_DIR, MANUAL_IMGS, "summarybysample_targets.png",
+                                                    app_directory, ASSETS_DIR, MANUAL_IMGS, "summarybysample_targets.png",
                                                 ),
                                                 mode="rb",
                                             ).read()
@@ -503,7 +503,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, ASSETS_DIR, MANUAL_IMGS, "summarybyposition.png",
+                                            app_directory, ASSETS_DIR, MANUAL_IMGS, "summarybyposition.png",
                                         ),
                                         mode="rb",
                                     ).read()
@@ -526,7 +526,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, ASSETS_DIR, MANUAL_IMGS, "lolliplot.png",
+                                            app_directory, ASSETS_DIR, MANUAL_IMGS, "lolliplot.png",
                                         ),
                                         mode="rb",
                                     ).read()
@@ -552,7 +552,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, ASSETS_DIR, MANUAL_IMGS, "barplotradarmotif.png",
+                                            app_directory, ASSETS_DIR, MANUAL_IMGS, "barplotradarmotif.png",
                                         ),
                                         mode="rb",
                                     ).read()
@@ -595,7 +595,7 @@ def helpPage() -> html.Div:
                                 base64.b64encode(
                                     open(
                                         os.path.join(
-                                            app_main_directory, ASSETS_DIR, MANUAL_IMGS, "personalcard.png",
+                                            app_directory, ASSETS_DIR, MANUAL_IMGS, "personalcard.png",
                                         ),
                                         mode="rb",
                                     ).read()

@@ -37,10 +37,10 @@ from app import (
     app,
     operators,
     current_working_directory,
-    app_main_directory,
+    app_directory,
     DISPLAY_OFFLINE,
     ONLINE,
-    exeggutor,
+    pool_executor,
 )
 
 from dash.exceptions import PreventUpdate
@@ -974,7 +974,7 @@ def change_url(
     )
     # TODO: use functions rather than calling scripts
     run_job_sh = os.path.join(
-        app_main_directory, POSTPROCESS_DIR, "submit_job_automated_new_multiple_vcfs.sh"
+        app_directory, POSTPROCESS_DIR, "submit_job_automated_new_multiple_vcfs.sh"
     )
     genome = os.path.join(current_working_directory, GENOMES_DIR, genome_ref)
     vcfs = os.path.join(result_dir, ".list_vcfs.txt")
@@ -985,7 +985,7 @@ def change_url(
         current_working_directory, PAMS_DIR, f"{pam}.txt"
     )
     samples_ids = os.path.join(result_dir, SAMPLES_FILE_LIST)
-    postprocess = os.path.join(app_main_directory, POSTPROCESS_DIR)
+    postprocess = os.path.join(app_directory, POSTPROCESS_DIR)
     gencode = os.path.join(current_working_directory,
                            ANNOTATIONS_DIR, gencode_name)
     log_verbose = os.path.join(result_dir, "log_verbose.txt")
@@ -994,7 +994,7 @@ def change_url(
     assert isinstance(rna, int)
     cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} 1> {log_verbose} 2>{log_error}"
     # run job
-    exeggutor.submit(subprocess.run, cmd, shell=True)
+    pool_executor.submit(subprocess.run, cmd, shell=True)
     return ("/load", f"?job={job_id}")
 
 
