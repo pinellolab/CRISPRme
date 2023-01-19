@@ -186,4 +186,3 @@ Procfile text
 *.*rc text
 # Ignore files (like .npmignore or .gitignore)
 *.*ignore text
-PostProcess/CRISTA_predictors.pkl filter=lfs diff=lfs merge=lfs -text
