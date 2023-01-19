@@ -14,7 +14,7 @@
 ##   This will handle all files NOT defined below.
 * text=auto
 # Source code
-*.pkl text eol=lf
+*.pkl binary
 *.bash text eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
