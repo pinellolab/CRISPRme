@@ -21,6 +21,8 @@ annotationDict = dict()
 with open(inAnnotationFile, 'r') as annotations:
     for line in annotations:
         x = line.split('\t')
+        if 'vuoto.txt' in inAnnotationFile:
+            break
         annotations_list = str(x[3]).strip()
         if str(x[0]) in annotationDict.keys():
             annotationDict[str(x[0])][int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list

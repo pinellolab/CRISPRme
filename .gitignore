@@ -15,3 +15,4 @@ guides/
 *.pkl
 *.txt
 *.zip
+PostProcess/dnaShape.pkl
