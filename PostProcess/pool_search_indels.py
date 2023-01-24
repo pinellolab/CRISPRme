@@ -20,7 +20,7 @@ bRNA = sys.argv[9]
 output_folder = sys.argv[10]
 true_pam = sys.argv[11]
 current_working_directory = sys.argv[12]
-threads = sys.argv[13]
+threads = int(sys.argv[13])
 
 
 def search_indels(f):
