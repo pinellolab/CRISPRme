@@ -17,8 +17,8 @@ pam_file = sys.argv[9]
 dict_folder = sys.argv[10]
 final_res = sys.argv[11]
 final_res_alt = sys.argv[12]
-# ncpus=int(sys.argv[13])
-ncpus = 4
+ncpus=int(sys.argv[13])
+# ncpus = 4
 
 
 def start_analysis(f):
@@ -35,8 +35,8 @@ for f in os.listdir(vcf_folder):
     if 'vcf.gz' in f:
         chrs.append(f)
 
-t = 6
-if ncpus < 6:
-    t = ncpus
-with Pool(processes=t) as pool:
+# t = 6
+# if ncpus < 6:
+#     t = ncpus
+with Pool(processes=ncpus) as pool:
     pool.map(start_analysis, chrs)

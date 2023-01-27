@@ -20,10 +20,11 @@ bRNA = sys.argv[9]
 output_folder = sys.argv[10]
 true_pam = sys.argv[11]
 current_working_directory = sys.argv[12]
+threads = int(sys.argv[13])
 
 
 def search_indels(f):
-    global use_thread
+    # global use_thread
     splitted = f.split('.')
     for elem in splitted:
         if "chr" in elem:
@@ -42,18 +43,18 @@ for f in os.listdir(vcf_dir):
     if 'vcf.gz' == f[-6:]:
         chrs.append(f)
 
-cpus = len(os.sched_getaffinity(0))
-if cpus - 3 < 10:
-    if cpus - 3 < 0:
-        t = 1
-    else:
-        t = cpus - 3
-else:
-    t = 10
+# cpus = len(os.sched_getaffinity(0))
+# if cpus - 3 < 10:
+#     if cpus - 3 < 0:
+#         t = 1
+#     else:
+#         t = cpus - 3
+# else:
+#     t = 10
 
 os.chdir(output_folder)
 # with Pool(processes=t) as pool:
-with Pool(processes=t) as pool:
+with Pool(processes=threads) as pool:
     pool.map(search_indels, chrs)
 
 

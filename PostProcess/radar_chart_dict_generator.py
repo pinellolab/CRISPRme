@@ -332,6 +332,8 @@ populationDict = dict()
 
 # read all the annotations
 for line in inAnnotationsFile:
+    if 'vuoto.txt' in sys.argv[4]: #se vuoto.txt usato come annotazione, skippa lettura
+            break
     annotations_list = line.strip().split('\t')[3].split(',')
     for annotation in annotations_list:
         if '_personal' not in annotation:
