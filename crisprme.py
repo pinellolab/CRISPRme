@@ -204,8 +204,10 @@ def complete_search():
             "\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]")
         print(
             "\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]")
+        print(
+            "\t--merge, used to specify the window (# of nucleotides) within which to merge candidate off-targets, using the off-target with the highest score as the pivot [default 3]")
         print("\t--output, used to specify the output name for the results (these results will be saved into Results/<name>)")
-        print("\t--thread, used to set the number of thread used in the process (default is 8)")
+        print("\t--thread, used to set the number of thread used in the process [default 8]")
         exit(0)
 
     # check if all directories are found, if not, create them
