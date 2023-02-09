@@ -52,6 +52,8 @@ class CRISPRmeArgumentParser(ArgumentParser):
         """
         # recover command raising error
         command = sys.argv[1] if sys.argv[1] in CRISPRME_COMMANDS else ""
+        if "invalid choice:" in message:
+            message = message.replace("choice", "command")  # for clarity
         message = Fore.RED + "\nERROR: " + f"{message}." + Fore.RESET  # error in red
         message = message + f"\n\nRun crisprme.py {command} -h for usage\n\n"
         sys.stderr.write(message)  # write the error message

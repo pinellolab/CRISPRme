@@ -11,20 +11,12 @@ prioritize CRISPR-Cas off-target sites at scale.
 
 IMPORTANT NOTE:
 
-ALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND CHROMOSOME SEPARATED, ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED AND CHROMOSOME SEPARATED
-
-Commands:
-
-crisprme.py complete-search FUNCTION SEARCHING THE WHOLE GENOME (REFERENCE AND VARIANT IF REQUESTED) AND PERFORM CFD ANALYSIS AND TARGET SELECTION 
-crisprme.py targets-integration FUNCTION THAT INTEGRATES IN-SILICO TARGETS WITH EMPIRICAL DATA GENERATING A USABLE PANEL 
-crisprme.py gnomAD-converter FUNCTION THAT CONVERTS ALL gnomADv3.1 vcf.bgz FILES INTO COMPATIBLE VCFs 
-crisprme.py generate-personal-card FUNCTION TO GENERATE PERSONAL CARD FOR A SPECIFIC SAMPLE EXTRACTING ALL THE PRIVATE TARGETS 
-crisprme.py web-interface FUNCTION TO ACTIVATE WEB INTERFACE OF CRISPRme TO USE WITH A BROWSER LOCALLY
-
-Type 'crisprme.py <command> -h' to view the help of each command
+ALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND CHROMOSOME SEPARATED, 
+ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED AND CHROMOSOME SEPARATED
 """
 
 from crisprme_argparse import CRISPRmeArgumentParser
+from subcommands import complete_search
 from utils import CRISPRME_COMMANDS, CRISPRME_PATH, IUPAC_DNA, __version__
 
 from Bio.Seq import Seq
@@ -96,6 +88,7 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
     group.add_argument(
         "--pam",
         type=str,
+        required=True,
         metavar="PAM-FILE",
         help="File storing the PAM sequences"
     )
@@ -205,7 +198,14 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
         metavar="THREADS",
         nargs="?",
         default=8,
-        help="Number of threads to use during the search"
+        help="Number of threads to use during the search (use 0 to autodetect "
+             "and use all the available resources)"
+    )
+    group.add_argument(
+        "--debug",
+        action="store_true",
+        default=False,
+        help="Run CRISPRme complete-search in debug mode"
     )
     # web-interface arguments
     parser_website = subparsers.add_parser(
@@ -224,14 +224,10 @@ def main():
         parser.error_noargs()  # no arg seen, print help
         sys.exit(2)
     args = parser.parse_args(args)
-    print(args)
-    # if args[0] not in CRISPRME_COMMANDS:  # second argument is not a command
-    #     parser_commands = parseargs_crisprme()
-    #     commands = parser_commands.parse_args(args)  # always show help
-    # command = args[0]
-    # args = sys.argv[2:]  # read command args
-    # if command == CRISPRME_COMMANDS[0]:  # complete-search
-    #     complete_search(args)
+    command = sys.argv[1]  # recover the called command
+    assert command in CRISPRME_COMMANDS
+    if command == CRISPRME_COMMANDS[0]:  # complete-search
+        complete_search(parser, args)
 
 if __name__ == "__main__":
     main()
