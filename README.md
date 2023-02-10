@@ -63,7 +63,18 @@ To test the installation, type in your terminal window:
 crisprme.py
 ```
 
-If you see all CRSIPRme's functionalities listed, you succesfully installed CRISPRme on your machine, and it is ready to be used on your machine.
+If you see all CRISPRme's functionalities listed, you succesfully installed CRISPRme on your machine, and it is ready to be used on your machine.
+
+#### Updating CRISPRme conda installation
+If you want to update an older CRISPRme installation to the latest version, we suggest updating as:
+```
+mamba install crisprme==<latest_version>
+```
+For example:
+```
+mamba install crisprme==2.1.0
+```
+You can find the latest release indicated at the top of our [README](https://github.com/pinellolab/CRISPRme#crisprme).
 
 ## Installation via Docker
 For OSX and Windows users is suggested to run CRISPRme via [Docker](https://www.docker.com/get-started). Follow the following links to install Docker on [OSX](https://docs.docker.com/docker-for-mac/install/) or [Windows](https://docs.docker.com/docker-for-windows/install/), and follow the on-screen instructions.
