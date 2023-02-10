@@ -1,8 +1,9 @@
 """Define static variables and utilities functions used throughout CRISPRme.
 """
 
+from argparse import Namespace
 from colorama import Fore, init
-from typing import NoReturn, Optional
+from typing import NoReturn, Optional, Tuple
 
 import tempfile
 import sys

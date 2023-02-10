@@ -2,6 +2,7 @@
 """
 
 from crisprme_argparse import CRISPRmeArgumentParser
+from parsers import parse_pam, parse_sequence
 from utils import IUPAC_DNA, process_personal_annotation, raise_warning
 
 from argparse import Namespace
@@ -143,4 +144,36 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     if not os.path.exists(args.output):  # create the directory
         os.makedirs(args.output)
     assert os.path.isdir(args.output)
+    # recover genome directory name
+    ref_genome = args.genome[:-1] if args.genome.endswith("/") else args.genome
+    ref_genome = os.path.basename(ref_genome)
+    # recover the PAM sequence
+    pam, guide_expected_len, pam_at_beginning = parse_pam(args.pam, args.debug) 
+    search_index = True if bmax !=0 else False  # construct the genome index
+    compare_ref_genome = False  # compare results with those recovered on the ref
+    if usevariants:  # enrich the genome
+        assert args.vcf
+        # list each VCF file contained in the input file (--vcf)
+        genome_indexes = []
+        with open(args.vcf, mode="r") as infile:
+            for line in infile:
+                line = line.strip()
+                if line:
+                    if line.endswith("/"):  # to recover basename
+                        line = line[:-1]
+                    vcfbasename = os.path.basename(line)
+                    genome_indexes.append(f"{pam}_{bmax}_{ref_genome}+{vcfbasename}")
+        genome_index = ",".join(genome_indexes)
+        compare_ref_genome = True
+    else:
+        genome_index = f"{pam}_{bmax}_{ref_genome}"
+    # TODO: when verbosity is high print this info 
+    # TODO: for web-site write the parameters
+    if usesequence:  # sequence provided in input
+        pass
+
+
+
+
+
         
