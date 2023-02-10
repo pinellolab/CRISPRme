@@ -2,7 +2,7 @@
 """
 
 from crisprme_argparse import CRISPRmeArgumentParser
-from utils import IUPAC_DNA, raise_warning
+from utils import IUPAC_DNA, process_personal_annotation, raise_warning
 
 from argparse import Namespace
 from colorama import Fore
@@ -13,6 +13,8 @@ import os
 def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     """_summary_
 
+    :param parser: _description_
+    :type parser: CRISPRmeArgumentParser
     :param args: _description_
     :type args: Namespace
     """
@@ -55,8 +57,10 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
         if not os.path.isfile(args.sequence):  # check sequence file existence
             parser.error(f"Unable to locate {args.sequence}")
     # check genome argument consistency
-    if not os.path.isdir(args.genome):
+    if not os.path.exists(args.genome):
         parser.error(f"Unable to locate {args.genome}")
+    if not os.path.isdir(args.genome):
+        parser.error(f"{args.genome} is not a directory")
     # check threads number consistency
     assert isinstance(args.threads, int)
     if args.threads < 0:
@@ -72,13 +76,71 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     usevariants = True if args.vcf else False  # wheter to use or not variants in the search
     if usevariants:
         assert bool(args.vcf)
-        if not os.path.isfile(args.vcf):
+        if not os.path.exists(args.vcf):
             parser.error(f"Unable to locate {args.vcf}")
+        if not os.path.isfile(args.vcf):
+            parser.error(f"{args.vcf} is not a file")
     # check gene-annotation consistency
     usegeneannotation = True if args.gene_annotation else False
     if usegeneannotation: 
-        if not os.path.isfile(args.gen_annotation):
+        if not os.path.isfile(args.gene_annotation):
             parser.error(f"Unable to locate {args.gene_annotation}")
     # check pam consistency
     if not os.path.isfile(args.pam):
         parser.error(f"Uanble to locate {args.pam}")
+    # check functional annotation consistency
+    if not args.annotation:  # TODO: should it be linked to empty.txt 
+        if args.personal_annotation:  # use only personal annotation
+            if not os.path.isfile(args.personal_annotation):
+                parser.error(f"Unable to locate {args.personal_annotation}")
+            raise_warning("only personal annotation provided")  # warn the user that only personal annotation data have been provided
+            args.annotation = process_personal_annotation(
+                args.personal_annotation, args.personal_annotation, args.debug, onlypann=True
+            )
+        else:
+            raise_warning("annotation file not provided, skipping annotation")
+    else:
+        if not os.path.isfile(args.annotation):
+            parser.error(f"Unable to locate {args.annotation}")
+        # check if any personal-annotation file was provided
+        if args.personal_annotation:
+            if not os.path.isfile(args.personal_annotation):
+                parser.error(f"Unable to locate {args.personal_annotation}")
+            # combine annotation and personal annotation data
+            args.annotation = process_personal_annotation(
+                args.personal_annotation, args.annotation, args.debug
+            )
+    # check samples-id consistency
+    if usevariants and not args.samples_id:
+        parser.error("Sample IDs required when when searching with variants (--vcf option)")
+    if not usevariants and bool(args.samples_id):
+        parser.error("Sample IDs supplied, but the VCF files are missing")
+    if args.samples_id:
+        if not os.path.exists(args.samples_id):
+            parser.error(f"Unable to locate {args.samples_id}")
+        if not os.path.isfile(args.samples_id):
+            parser.error(f"{args.samples_id} is not a file")
+    # check mismatch argument consistency
+    if args.mm < 0:
+        parser.error(f"Forbidden number of mismatches ({args.mm})")
+    # check DNA bulges consistency
+    if args.bDNA < 0:
+        parser.error(f"Forbidden number of DNA bulges ({args.bDNA})")
+    # check RNA bulges consistency
+    if args.bRNA < 0:
+        parser.error(f"Forbidden number of RNA bulges ({args.bRNA})")
+    bmax = max(args.bDNA, args.bRNA)  # number of bulges used during indexing
+    # check genome-index consistency
+    if args.genome_index:
+        if not os.path.isfile(args.genome_index):
+            parser.error(f"Unable to locate {args.genome_index}")
+    # check merge consistency
+    if args.merge < 0:
+        parser.error(f"Forbidden merging window width ({args.merge})")
+    # check output consistency
+    if os.path.isdir(args.output):
+        raise_warning(f"{args.output} already exists, some content could be lost")
+    if not os.path.exists(args.output):  # create the directory
+        os.makedirs(args.output)
+    assert os.path.isdir(args.output)
+        

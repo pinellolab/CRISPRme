@@ -150,6 +150,7 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
     group.add_argument(
         "--mm",
         type=int,
+        required=True,
         metavar="MM",
         help="Number of allowed mismatches during the search"
     )
@@ -157,12 +158,16 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
         "--bDNA",
         type=int,
         metavar="BULGES-DNA",
+        nargs="?",
+        default=0,
         help="Number of DNA bulges allowed during the search"
     )
     group.add_argument(
         "--bRNA",
         type=int,
         metavar="BULGES-RNA",
+        nargs="?",
+        default=0,
         help="Number of RNA bulges allowed during the search"
     )
     group.add_argument(
@@ -188,6 +193,7 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
     group.add_argument(
         "--output",
         type=str,
+        required=True,
         metavar="OUTPUT-NAME",
         help="Specify output name (Results written in CRISPRme/Results/<OUTPUT-NAME>)"
     )
