@@ -50,6 +50,23 @@ IUPAC_DNA = {
     "h",
     "v",
 }
+PAM_DICT = {
+    "A":  "ARWMDHV",
+    "C":  "CYSMBHV",
+    "G":  "GRSKBDV",
+    "T":  "TYWKBDH",
+    "R":  "ARWMDHVSKBG",
+    "Y":  "CYSMBHVWKDT",
+    "S":  "CYSMBHVKDRG",
+    "W":  "ARWMDHVYKBT",
+    "K":  "GRSKBDVYWHT",
+    "M":  "ARWMDHVYSBC",
+    "B":  "CYSMBHVRKDGWT",
+    "D":  "ARWMDHVSKBGYT",
+    "H":  "ARWMDHVYSBCKT",
+    "V":  "ARWMDHVYSBCKG",
+    "N":  "ACGTRYSWKMBDHV",
+}
 
 # --- utils functions
 def exception_handler(exception_type: Exception, exception: str, debug: bool) -> NoReturn:
@@ -155,6 +172,24 @@ def process_personal_annotation(personal_annotation: str, annotation: str, debug
     assert not os.path.isfile(personal_annotation_tmp)
     assert os.path.isfile(f"{annotation}+personal.bed")
     return f"{annotation}+personal.bed"
+
+def add_n(guide: str, pam_len: str, pam_at_beginning: bool) -> str:
+    """Add PAM_LEN Ns zs prefix or suffix to the guide sequence
+
+    :param guide: guide sequence
+    :type guide: str
+    :param pam_len: PAM length
+    :type pam_len: str
+    :param pam_at_beginning: PAM occurs at the guide beginning
+    :type pam_at_beginning: bool
+    :return: complete guide sequence 
+    :rtype: str
+    """
+    ns = "N" * pam_len
+    if pam_at_beginning:
+        return ns + guide
+    return guide + ns
+        
 
 def check_directories(basedir: str) -> None:
     if not isinstance(basedir, str):

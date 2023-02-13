@@ -1,10 +1,10 @@
 """
 """
 
-from sequence import extract_sequence
-from utils import exception_handler
+from sequence import extract_sequence, recover_guides
+from utils import add_n, exception_handler
 
-from typing import Tuple
+from typing import List, Tuple
 
 import os
 
@@ -36,14 +36,32 @@ def parse_pam(pamfile: str, debug: bool) -> Tuple[str, int, bool]:
     pam = pam[:stop] if pam_at_beginning else pam[stop:] 
     return pam, total_pam_length - len(pam), pam_at_beginning
 
-def parse_sequence(sequencefile: str, genome: str, debug: bool) -> None:
+def parse_sequence(sequencefile: str, genome: str, pam: str, guide_length: int, pam_at_beginning: bool, debug: bool) -> List[str]:
+    """Extract the guide sequences from the input sequence file, which include 
+    the specified PAM sequence
+
+    :param sequencefile: sequences file
+    :type sequencefile: str
+    :param genome: genome directory
+    :type genome: str
+    :param pam: PAM
+    :type pam: str
+    :param guide_length: guide length
+    :type guide_length: int
+    :param pam_at_beginning: PAM occurs at guide beginning 
+    :type pam_at_beginning: bool
+    :param debug: debug mode
+    :type debug: bool
+    :return: guides 
+    :rtype: List[str]
+    """
     guides = []
     try:
         with open(sequencefile, mode="r") as infile:
             sequence_data = infile.read()  # read sequence file content
     except OSError:
         exception_handler(
-            OSError, "AN error occurred while parsing the sequence file", debug
+            OSError, "An error occurred while parsing the sequence file", debug
         )
     sequences = sequence_data.split(">")  # recover seqname and associated sequence
     for seqname_sequence in sequences:
@@ -60,3 +78,19 @@ def parse_sequence(sequencefile: str, genome: str, debug: bool) -> None:
                 genomefile = os.path.join(genome, f"{coord[0]}.fa")
                 assert os.path.isfile(genomefile)
                 seqname, sequence = extract_sequence(seqname, coord, genomefile, debug)
+                guides.extend(recover_guides(sequence, pam, guide_length, pam_at_beginning, debug))
+        else:  # FASTA like sequence
+            sequence = "".join(sequence.split())  # clean the sequence from speces
+            sequence = sequence.strip()
+            # recover the guides sequences
+            guides.extend(recover_guides(sequence, pam, guide_length, pam_at_beginning, debug))
+    # compute guides appending N as prefix/suffix
+    try:
+        temp_guides = [add_n(guide, len(pam), pam_at_beginning) for guide in guides]
+    except RuntimeError:
+        exception_handler(
+            RuntimeError, "An error occurred while appending N to guide sequences", debug
+        )
+    # keep 1000000000 guides at most
+    guides = temp_guides[:1000000000] if len(guides) > 1000000000 else temp_guides
+    return guides
