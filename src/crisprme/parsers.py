@@ -6,7 +6,11 @@ from utils import add_n, exception_handler
 
 from typing import List, Tuple
 
+import warnings
 import os
+
+# suppress runtime warnings
+warnings.filterwarnings(action="ignore", category=RuntimeWarning)
 
 def parse_pam(pamfile: str, debug: bool) -> Tuple[str, int, bool]:
     """Recover the PAM sequence from the input PAM file
@@ -65,7 +69,10 @@ def parse_sequence(sequencefile: str, genome: str, pam: str, guide_length: int, 
         )
     sequences = sequence_data.split(">")  # recover seqname and associated sequence
     for seqname_sequence in sequences:
-        seqname, sequence = seqname_sequence.strip().split("\n")
+        if not seqname_sequence:
+            continue  # avoid empty chunks
+        seqname, sequence = seqname_sequence.strip().split("\n", 1)
+        sequence = sequence.strip()
         if "chr" in sequence:  # BED like coordinates
             coordinates = sequence.split("\n")  # search if several consecutive coords
             for coordinate in coordinates:
@@ -74,10 +81,10 @@ def parse_sequence(sequencefile: str, genome: str, pam: str, guide_length: int, 
                     exception_handler(
                         ValueError, "Expected BED like coordinates, but the requirement is not satisfied", debug
                     )
-                coord = f"{coord[0]}\t{coord[1]}\t{coord[2]}"  # ensure they are tab-separated
+                c = f"{coord[0]}\t{coord[1]}\t{coord[2]}"  # ensure they are tab-separated
                 genomefile = os.path.join(genome, f"{coord[0]}.fa")
                 assert os.path.isfile(genomefile)
-                seqname, sequence = extract_sequence(seqname, coord, genomefile, debug)
+                seqname, sequence = extract_sequence(seqname, c, genomefile, debug)
                 guides.extend(recover_guides(sequence, pam, guide_length, pam_at_beginning, debug))
         else:  # FASTA like sequence
             sequence = "".join(sequence.split())  # clean the sequence from speces
@@ -93,4 +100,27 @@ def parse_sequence(sequencefile: str, genome: str, pam: str, guide_length: int, 
         )
     # keep 1000000000 guides at most
     guides = temp_guides[:1000000000] if len(guides) > 1000000000 else temp_guides
+    return guides
+
+def parse_guide(guidefile: str, debug: bool) -> List[str]:
+    """Extract the guide sequences from the input file, where each line is 
+    assumed to contain a single guide along with its PAM sequence, indicated by 
+    N characters
+
+    :param guidefile: guides file
+    :type guidefile: str
+    :param debug: debug mode
+    :type debug: bool
+    :return: guides
+    :rtype: List[str]
+    """
+    guides = []
+    try:
+        with open(guidefile, mode="r") as infile:
+            for line in infile:
+                guides.append(line.strip())
+    except OSError:
+        exception_handler(
+            OSError, "An error occurred while parsing the guides file", debug
+        )
     return guides

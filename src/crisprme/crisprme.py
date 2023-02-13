@@ -9,6 +9,8 @@ CRISPRme is a tool for comprehensive off-target assessment, integrating human
 genetic variant datasets with orthogonal genomic annotations to predict and 
 prioritize CRISPR-Cas off-target sites at scale.
 
+usage: crisprme.py <command> [options]
+
 IMPORTANT NOTE:
 
 ALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND CHROMOSOME SEPARATED, 

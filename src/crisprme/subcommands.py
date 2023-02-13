@@ -2,7 +2,7 @@
 """
 
 from crisprme_argparse import CRISPRmeArgumentParser
-from parsers import parse_pam, parse_sequence
+from parsers import parse_guide, parse_pam, parse_sequence
 from utils import IUPAC_DNA, exception_handler, process_personal_annotation, raise_warning
 
 from argparse import Namespace
@@ -52,11 +52,15 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     assert useguide or usesequence  # at least one of the two should be used
     assert (useguide + usesequence) == 1  # only one of the two
     if useguide:
-        if not os.path.isfile(args.guide):  # check guide file existence
+        if not os.path.exists(args.guide):  # check guide file existence
             parser.error(f"Unable to locate {args.sequence}")
+        if not os.path.isfile(args.guide):
+            parser.error(f"{args.guide} is not a file")
     if usesequence:
-        if not os.path.isfile(args.sequence):  # check sequence file existence
+        if not os.path.exists(args.sequence):  # check sequence file existence
             parser.error(f"Unable to locate {args.sequence}")
+        if not os.path.isfile(args.sequence):
+            parser.error(f"{args.sequence} is not a file")
     # check genome argument consistency
     if not os.path.exists(args.genome):
         parser.error(f"Unable to locate {args.genome}")
@@ -174,9 +178,9 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
         guides = parse_sequence(
             args.sequence, args.genome, pam, guide_expected_len, pam_at_beginning, args.debug
         )
-    if useguide:
+    if useguide:  # guides provided in input
         assert not usesequence
-        pass  # TODO: guides file parser
+        guides = parse_guide(args.guide, args.debug)
     # write the guides to a file stored in the output directory
     try:
         with open(os.path.join(args.output, "guides.txt"), mode="w") as outfile:
@@ -186,6 +190,9 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
         exception_handler(
             OSError, "An error occurred while writing the guides file", args.debug
         )
+    # TODO: verbosity level to launch the job
+    # TODO: launch the job
+    
     
     
 

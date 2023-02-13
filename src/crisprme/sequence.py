@@ -3,11 +3,11 @@
 
 from utils import PAM_DICT, exception_handler
 
+from pybedtools import BedTool
 from itertools import product
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 from Bio.Seq import Seq
 
-import pybedtools
 import re
 
 def extract_sequence(seqname: str, coord: str, genome: str, debug: bool) -> Tuple[str, str]:
@@ -34,9 +34,18 @@ def extract_sequence(seqname: str, coord: str, genome: str, debug: bool) -> Tupl
             TypeError, f"Expected {str.__name__}, got {type(coord).__name__}", debug
         )
     seqname = "_".join(seqname.split())  # remove blank or tabs if any
-    coordinate = pybedtools.BedTool(f"{coord}", from_string=True)  # initialize the object
+    coordinate = BedTool(f"{coord}", from_string=True)  # initialize the object
     # extract the sequence
-    sequence = coordinate.sequence(fi=genome).strip()
+    try:
+        coordinate = coordinate.sequence(fi=genome)
+        with open(coordinate.seqfn, mode="r") as infile:
+            sequences = [seq.strip() for seq in infile if not seq.startswith(">")]
+    except RuntimeError:
+        exception_handler(
+            RuntimeError, "An error occurred while extracting guide sequence", debug
+        )
+    assert len(sequences) == 1  # each coordinate should correspond to one sequence
+    sequence = sequences[0]
     return seqname, sequence
 
 def _generate_iupac_pam(pam: str) -> List[str]:
@@ -52,7 +61,7 @@ def _generate_iupac_pam(pam: str) -> List[str]:
     iupac_pam = ["".join(e) for e in product(*product_lst)]
     return iupac_pam
 
-def _extract_guides(sequence: str, iupac_pam: List[str], pam_len: int, guide_len: int, pam_at_beginning: bool, debug: bool) -> List[str]:
+def _extract_guides(sequence: str, iupac_pam: List[str], pam_len: int, guide_len: int, pam_at_beginning: bool, debug: bool, reverse: Optional[bool] = False) -> List[str]:
     """(PRIVATE)
     Extract guide sequences from the input sequence, matching the input PAM 
     sequences.
@@ -69,6 +78,8 @@ def _extract_guides(sequence: str, iupac_pam: List[str], pam_len: int, guide_len
     :type pam_at_beginning: bool
     :param debug: debug mode
     :type debug: bool
+    :param reverse: reverse strand, defaults to False
+    :type reverse: Optional[bool], optional
     :return: matching guide sequences
     :rtype: List[str]
     """
@@ -77,11 +88,19 @@ def _extract_guides(sequence: str, iupac_pam: List[str], pam_len: int, guide_len
         for pam in iupac_pam:
             # find PAM occurrences in the input sequence
             pam_indices = [m.start() for m in re.finditer(f'(?={pam})', sequence)]
-            for idx in pam_indices:  # recover guide start and stop positions
-                start, stop = (idx + pam_len, idx + pam_len + guide_len) if pam_at_beginning else (idx - guide_len, idx)
-                if (pam_at_beginning and stop > len(sequence) - guide_len) or (not pam_at_beginning and start < 0):
-                    continue  # out of bounds -> skip
-                guides.append(sequence[start:stop])
+            if pam_indices:
+                for idx in pam_indices:  # recover guide start and stop positions
+                    if reverse:  # reverse strand
+                        start, stop = (idx - guide_len, idx) if pam_at_beginning else (idx + pam_len, idx + guide_len + pam_len)
+                        if (pam_at_beginning and idx < guide_len) or (not pam_at_beginning and idx > len(sequence) - guide_len - pam_len):
+                            continue  # out of bounds -> skip
+                        guide = str(Seq(sequence[start:stop]).reverse_complement())
+                    else:  # forward strand
+                        start, stop = (idx + pam_len, idx + pam_len + guide_len) if pam_at_beginning else (idx - guide_len, idx)
+                        if (pam_at_beginning and stop > len(sequence) - guide_len) or (not pam_at_beginning and start < 0):
+                            continue  # out of bounds -> skip
+                        guide = sequence[start:stop]
+                    guides.append(guide)
     except RuntimeError:
         exception_handler(
             RuntimeError, "An error occurred while extracting guide sequences", debug
@@ -126,7 +145,7 @@ def recover_guides(sequence: str, pam: str, guide_length: int, pam_at_beginning:
         sequence, iupac_pam_fwd, len(pam), guide_length, pam_at_beginning, debug
     )  # forward strand guides
     guides_rev = _extract_guides(
-        sequence, iupac_pam_rev, len(pam), guide_length, pam_at_beginning, debug
+        sequence, iupac_pam_rev, len(pam), guide_length, pam_at_beginning, debug, reverse=True
     )  # reverse strand guides
     guides = guides_fwd + guides_rev
     assert len(guides) == (len(guides_fwd) + len(guides_rev))
