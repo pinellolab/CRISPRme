@@ -1,15 +1,26 @@
 """
 """
 
+from crisprme_errors import CompleteSearchError
 from crisprme_argparse import CRISPRmeArgumentParser
 from parsers import parse_guide, parse_pam, parse_sequence
-from utils import IUPAC_DNA, exception_handler, process_personal_annotation, raise_warning
+from utils import ERRORLOG, IUPAC_DNA, exception_handler, process_personal_annotation, raise_warning, write_logerror
+from complete_search import run_complete_search
 
 from argparse import Namespace
 from colorama import Fore
 
 import multiprocessing
+import traceback
+import logging
 import os
+
+logging.basicConfig(
+    filename=ERRORLOG,
+    level=logging.ERROR,
+    format='%(asctime)s %(levelname)s %(message)s',
+    datefmt='%m/%d/%Y %I:%M:%S %p'
+)
 
 def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     """_summary_
@@ -173,6 +184,7 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
         genome_index = f"{pam}_{bmax}_{ref_genome}"
     # TODO: when verbosity is high print this info 
     # TODO: for web-site write the parameters
+    # TODO: recover nuclease for web-site
     if usesequence:  # sequence provided in input
         assert not useguide
         guides = parse_sequence(
@@ -190,8 +202,16 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
         exception_handler(
             OSError, "An error occurred while writing the guides file", args.debug
         )
+    # TODO: assign mail for web-site
     # TODO: verbosity level to launch the job
     # TODO: launch the job
+    try:
+        run_complete_search(args.genome, args.vcf, pam, guides, args.output, 0, args.debug)
+    except Exception:
+        write_logerror()
+        exception_handler(
+            CompleteSearchError, "An error occurred while running complete-search", True
+        )
     
     
     

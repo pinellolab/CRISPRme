@@ -1,7 +1,8 @@
 """
 """
 
-from utils import __version__, CRISPRME_COMMANDS
+from version import __version__
+from utils import CRISPRME_COMMANDS
 
 from argparse import SUPPRESS, ArgumentParser, HelpFormatter
 from typing import Dict, NoReturn, Optional, Tuple

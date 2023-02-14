@@ -19,7 +19,8 @@ ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED AND CHROMOSOME SEPARATED
 
 from crisprme_argparse import CRISPRmeArgumentParser
 from subcommands import complete_search
-from utils import CRISPRME_COMMANDS, CRISPRME_PATH, IUPAC_DNA, __version__
+from utils import CRISPRME_COMMANDS, CRISPRME_PATH, IUPAC_DNA
+from version import __version__
 
 from Bio.Seq import Seq
 
@@ -215,13 +216,118 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
         default=False,
         help="Run CRISPRme complete-search in debug mode"
     )
+    # target-integration arguments
+    parser_targetintegration = subparsers.add_parser(
+        f"{CRISPRME_COMMANDS[1]}",
+        description="Integrates in-silico targets with empirical data, generating "
+                    "a usable panel",
+        usage=f"crisprme.py {CRISPRME_COMMANDS[1]}",
+        help="Automated integration process, processing CRISPRme results to "
+             "generate a usable target panel"
+    )
+    group = parser_targetintegration.add_argument_group("Options")
+    group.add_argument(
+        "--targets",
+        type=str,
+        required=True,
+        metavar="TARGETS-FILE",
+        help="CRISPRme results file to process"
+    )
+    group.add_argument(
+        "--empirical-data",
+        type=str,
+        metavar="EMPRICAL-DATA",
+        nargs="?",
+        default="",
+        help="File containing empirical data to assess in-silico targets"
+    )
+    group.add_argument(
+        "--output",
+        type=str,
+        required=True,
+        metavar="OUTPUT-FOLDER",
+        help="Output folder"
+    )
+    # gnomAD-converter
+    parser_gnomADconverter = subparsers.add_parser(
+        f"{CRISPRME_COMMANDS[2]}",
+        description="Convert all gnomADv3.1 VCF.bgz files into compatible VCF files",
+        usage=f"crisprme.py {CRISPRME_COMMANDS[2]}",
+        help="VCF gnomAD converter to convert gnomADv3.1 VCFs in VCF files "
+             "compatible with CRISPRme"
+    )
+    group = parser_gnomADconverter.add_argument_group("Options")
+    group.add_argument(
+        "--gnomAD-VCF-dir",
+        type=str,
+        required=True,
+        metavar="GNOMAD-VCF-DIR",
+        help="Folder containing gnomADv3.1 VCFs"
+    )
+    group.add_argument(
+        "--samples-id",
+        type=str,
+        required=True,
+        metavar="SAMPLES-ID",
+        help="Samples ID file, used to associate samples to gnomAD variants"
+    )
+    group.add_argument(
+        "-t",
+        "--threads",
+        type=int,
+        metavar="THREADS",
+        nargs="?",
+        default=8,
+        help="Number of threads to use during the VCF processing (use 0 to "
+             "autodetect and use all the available resources)"
+    )
+    # generate-personal-card arguments
+    parser_personalcard = subparsers.add_parser(
+        f"{CRISPRME_COMMANDS[3]}",
+        description="Generate personal for a specific sample, highlighting all "
+                    "all sample's private targets found by CRISPRme",
+        usage=f"crisprme.py {CRISPRME_COMMANDS[3]}",
+        help="Generate personal cards for the input sample, highlighting all "
+             "sample's private targets and storing the results to files"
+    )
+    group = parser_personalcard.add_argument_group("Options")
+    group.add_argument(
+        "--results-dir",
+        type=str,
+        required=True,
+        metavar="RESULTS-DIR",
+        help="Folder containing CRISPRme's search results"
+    )
+    group.add_argument(
+        "--guide-seq",
+        type=str,
+        required=True,
+        metavar="GUIDE-SEQUENCE",
+        help="Sequence of the guide to use during targets extraction"
+    )
+    group.add_argument(
+        "--sample-id",
+        type=str,
+        required=True,
+        metavar="SAMPLE-ID",
+        help="Sample ID for which a personal card will be generated"
+    )
     # web-interface arguments
     parser_website = subparsers.add_parser(
         f"{CRISPRME_COMMANDS[4]}", 
         description="Starts a local web-server to use CRISPRme via a local web browser",
         usage=f"crisprme.py {CRISPRME_COMMANDS[4]}",
         help="Create and start a local server to run CRISPRme's web-interface. "
-             "The website can be accessed locally through a web browser."
+             "The website can be accessed locally through a web browser"
+    )
+    group = parser_website.add_argument_group("Options")
+    group.add_argument(
+        "--port",
+        type=str,
+        metavar="IP-ADDRESS",
+        nargs="?",
+        default="",  # TODO: change to localhost
+        help="Port to use when starting the local web-interface instance"
     )
     return parser
 

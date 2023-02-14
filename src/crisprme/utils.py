@@ -1,15 +1,19 @@
 """Define static variables and utilities functions used throughout CRISPRme.
 """
 
+from version import __version__
+
 from argparse import Namespace
 from colorama import Fore, init
 from typing import NoReturn, Optional, Tuple
+from time import ctime
 
+import traceback
+import resource
 import tempfile
+import logging
 import sys
 import os
-
-__version__ = "2.1.1"
 
 # --- static variables 
 BUFSIZE = 1024 * 1024
@@ -67,6 +71,8 @@ PAM_DICT = {
     "V":  "ARWMDHVYSBCKG",
     "N":  "ACGTRYSWKMBDHV",
 }
+LOG = "log.txt"
+ERRORLOG = "crisprme_error.log"
 
 # --- utils functions
 def exception_handler(exception_type: Exception, exception: str, debug: bool) -> NoReturn:
@@ -101,6 +107,17 @@ def raise_warning(message: str) -> None:
         raise TypeError(f"Expected {str.__name__}, got {type(message).__name__}")
     message = Fore.YELLOW + f"Warning: {message}" + Fore.RESET
     sys.stderr.write(f"\n{message}\n")
+
+def write_logerror() -> None:
+    """Redirect the full error stack to the log error file for debugging purposes
+    """
+    errorlog = open(ERRORLOG, mode="w")  # open log error file
+    # write run info
+    errorlog.write(f"CRISPRme v{__version__}\n\n")
+    errorlog.write(f"Command line:\n{' '.join(sys.argv[:])}\n\n")
+    errorlog.write(f"Time: {ctime()}\n")
+    errorlog.write(f"Memory usage: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 / 1024 / 1024} GB\n\n")
+    traceback.print_exc(file=errorlog)  # trace the error stack
 
 def process_personal_annotation_line(line: str, debug: bool) -> str:
     """Append the '_personal' suffix to the fourth column (feature field) of the 
@@ -189,8 +206,15 @@ def add_n(guide: str, pam_len: str, pam_at_beginning: bool) -> str:
     if pam_at_beginning:
         return ns + guide
     return guide + ns
-        
 
+def write(message: str) -> None:
+    """Write the message to stderr
+
+    :param message: message
+    :type message: str
+    """
+    sys.stderr.write(f"{message}\n")
+        
 def check_directories(basedir: str) -> None:
     if not isinstance(basedir, str):
         raise TypeError(f"Expected {str.__name__}, got {type(basedir).__name__}")
