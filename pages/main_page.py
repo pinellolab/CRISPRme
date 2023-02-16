@@ -405,7 +405,9 @@ def change_url(
     gencode_name = "gencode.protein_coding.bed"
     annotation_name = ".dummy.bed"  # to proceed without annotation file
     if "EN" in annotation_var:
-        annotation_name = "encode+gencode.hg38.bed"
+        # annotation_name = "encode+gencode.hg38.bed"
+        ##use annotation wiht dhs
+        annotation_name = "dhs+encode+gencode.hg38.bed"
         if "MA" in annotation_var:
             annotation_name = "".join(
                 [
