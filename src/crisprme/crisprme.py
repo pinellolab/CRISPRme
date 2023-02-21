@@ -211,6 +211,17 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
              "and use all the available resources)"
     )
     group.add_argument(
+        "--verbosity",
+        type=int,
+        nargs="?",
+        default=1,
+        metavar="VERBOSITY",
+        help="CRISPRme run verbosity: choose 0 for quiet run, 1 to display basic "
+             "information, 2 to display more details about the run, 3 to print "
+             "several information regarding the current run (suggested while "
+             "debugging)"
+    )
+    group.add_argument(
         "--debug",
         action="store_true",
         default=False,

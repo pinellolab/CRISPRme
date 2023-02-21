@@ -12,6 +12,7 @@ import traceback
 import resource
 import tempfile
 import logging
+import shutil
 import sys
 import os
 
@@ -214,6 +215,40 @@ def write(message: str) -> None:
     :type message: str
     """
     sys.stderr.write(f"{message}\n")
+
+def move(source: str, dest: str, debug: bool) -> None:
+    """wrapper function to call the mv shell command, which allows you to move 
+    or rename files in Unix-like operating systems
+
+    :param source: source file/directory
+    :type source: str
+    :param dest: destination file/directory
+    :type dest: str
+    :param debug: debug mode
+    :type debug: bool
+    :raises OSError: an error occurs while moving the source to destination
+    """
+    try:
+        os.system(f"mv {source} {dest}")
+    except OSError:
+        exception_handler(OSError, f"An error occurred while renaming/moving {source}", debug)
+
+def remove_dir(folder: str, debug: bool) -> None:
+    """Delete the input directory, regardless of wheter it's empty or not
+
+    :param folder: folder to delete
+    :type folder: str
+    :param debug: debug mode
+    :type debug: bool
+    :raises ValueError: the input folder is not a directory
+    :raises OSError: an error occurs while removing the directory
+    """
+    if not os.path.isdir(folder):
+        exception_handler(ValueError, f"{folder} is not a directory", debug)
+    try:
+        shutil.rmtree(folder)
+    except OSError:
+        exception_handler(OSError, f"An error occurred while deleting {folder}", debug)
         
 def check_directories(basedir: str) -> None:
     if not isinstance(basedir, str):

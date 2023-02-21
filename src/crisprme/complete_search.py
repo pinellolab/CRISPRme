@@ -1,16 +1,18 @@
 """
 """
 
-from crispritz import crispritz_add_variants
-from utils import LOG, exception_handler, write
+from crispritz import ENRICHED_GENOME, GENOME_SNPS, crispritz_add_variants
+from indels_index import index_indels
+from utils import CRISPRME_DIRS, LOG, exception_handler, move, remove_dir, write
 
 from typing import List
 from glob import glob
 from time import ctime, time
 
+import sys
 import os
 
-def run_complete_search(genome: str, vcf: str, pam: str, guides: List[str], output: str, verbosity: int, debug: bool) -> None:
+def run_complete_search(genome: str, vcf: str, pam: str, pam_file: str, bmax: int, guides: List[str], output: str, threads: int, verbosity: int, debug: bool) -> None:
     """_summary_
 
     :param genome: _description_
@@ -58,7 +60,7 @@ def run_complete_search(genome: str, vcf: str, pam: str, guides: List[str], outp
                     for chrom_fasta in glob(os.path.join(genome, "*.fa"))
                 ]
                 if verbosity > 2:
-                    write(f"Chromosomes read: {', '.join(chromosomes)}")
+                    write(f"Chromosomes found in {genome}: {','.join(chromosomes)}")
                 if vcf:  # chromosomes with indels
                     if verbosity > 2:
                         write("Reading VCFs associated to each chromosome")
@@ -69,24 +71,63 @@ def run_complete_search(genome: str, vcf: str, pam: str, guides: List[str], outp
                         ][0]
                         chromosomes_indels.append(f"fake{chrom}")
                 # TODO: create directories structure for web-site?
+                # TODO: check existence of enriched genome
                 if vcf:  # enrich the genome with crispritz
                     if verbosity > 0:
-                        write(f"Started adding variants to the genome at {ctime}")
+                        write(f"Started adding variants to the genome at {ctime()}")
                         if verbosity > 1:
                             start_addvariants = time()
                     # add variants to the input genome with crispritz
-                    crispritz_add_variants(vcf_dataset, genome, debug)
-                    # TODO: move output directory for SNPs
+                    crispritz_add_variants(vcf_dataset, genome, verbosity, debug)
                     if verbosity > 0:
-                        write(f"Ended adding variants at {ctime}")
+                        write(f"Ended adding variants at {ctime()}")
                         if verbosity > 1:
                             write("Adding variants took %.2fs" % (time() - start_addvariants))
+                    # change name to variants genome
+                    gname = os.path.basename(genome[:-1]) if genome.endswith("/") else os.path.basename(genome)
+                    vname = os.path.basename(vcf_dataset[:-1]) if vcf_dataset.endswith("/") else os.path.basename(vcf_dataset)
+                    source = os.path.join(GENOME_SNPS, f"{gname}_enriched")
+                    variants_genome = f"{gname}+{vname}"
+                    move(source, variants_genome, debug)
+                    # store snps dictionaries
+                    variants_dictionaries = os.path.join(CRISPRME_DIRS[2], f"dictionaries_{vname}")
+                    if not os.path.isdir(CRISPRME_DIRS[2]):  # Dictionaries folder
+                        os.mkdir(CRISPRME_DIRS[2])
+                    if not os.path.isdir(variants_dictionaries):
+                        os.mkdir(variants_dictionaries)
+                    move(os.path.join(GENOME_SNPS, "*.json"), variants_dictionaries, debug)
+                    # store indels dictionaries
+                    assert os.path.isdir(CRISPRME_DIRS[2])
+                    indels_dictionaries = os.path.join(CRISPRME_DIRS[2], f"log_indels_{vname}")
+                    if not os.path.isdir(indels_dictionaries):
+                        os.mkdir(indels_dictionaries)
+                    move(os.path.join(GENOME_SNPS, "log*.txt"), indels_dictionaries, debug)
                     # start indexing indels
                     if verbosity > 0:
-                        write(f"Started indexing indels at {ctime}")
+                        write(f"Started indels indexing at {ctime()}")
                         if verbosity > 1:
                             start_indel_index = time()
-                    
+                    # genome library stores the results of indexed chromosomes
+                    genome_library = "genome_library"  # genome library directory
+                    if not os.path.isdir(genome_library):
+                        os.mkdir(genome_library)
+                    indels_folder = os.path.join(genome_library, f"{pam}_{bmax}_{gname}+{vname}_INDELS")
+                    if not os.path.isdir(indels_folder):
+                        os.mkdir(indels_folder)
+                    # index indels by chromosome using crispritz
+                    index_indels(ENRICHED_GENOME, pam_file, pam, gname, vname, bmax, threads, verbosity, debug)
+                    if verbosity > 0:
+                        write(f"Ended indels indexing at {ctime()}")
+                        if verbosity > 1:
+                            write("Indels indexing took %.2fs" % (time() - start_indel_index))
+                    # store indels genome
+                    variants_genome_indels = f"{variants_genome}_INDELS"
+                    if not os.path.isdir(variants_genome_indels):
+                        os.mkdir(variants_genome_indels)
+                    move(os.path.join(ENRICHED_GENOME, "fake*"), variants_genome_indels, debug)
+                    # delete temporary directories storing enriched genomes
+                    remove_dir(ENRICHED_GENOME)
+
                     
                     
                 

@@ -103,7 +103,7 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
             parser.error(f"Unable to locate {args.gene_annotation}")
     # check pam consistency
     if not os.path.isfile(args.pam):
-        parser.error(f"Uanble to locate {args.pam}")
+        parser.error(f"Unable to locate {args.pam}")
     # check functional annotation consistency
     if not args.annotation:  # TODO: should it be linked to empty.txt 
         if args.personal_annotation:  # use only personal annotation
@@ -159,6 +159,9 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     if not os.path.exists(args.output):  # create the directory
         os.makedirs(args.output)
     assert os.path.isdir(args.output)
+    # check verbosity consistency
+    if args.verbosity < 0 or args.verbosity > 3:
+        parser.error(f"Forbidden verbosity value ({args.verbosity}). Allowed verbosity values: < 0|1|2|3 >")
     # recover genome directory name
     ref_genome = args.genome[:-1] if args.genome.endswith("/") else args.genome
     ref_genome = os.path.basename(ref_genome)
@@ -206,7 +209,7 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     # TODO: verbosity level to launch the job
     # TODO: launch the job
     try:
-        run_complete_search(args.genome, args.vcf, pam, guides, args.output, 0, args.debug)
+        run_complete_search(args.genome, args.vcf, pam, args.pam, bmax, guides, args.output, args.threads, args.verbosity, args.debug)
     except Exception:
         write_logerror()
         exception_handler(
