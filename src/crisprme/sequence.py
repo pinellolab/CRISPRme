@@ -10,8 +10,11 @@ from Bio.Seq import Seq
 
 import re
 
-def extract_sequence(seqname: str, coord: str, genome: str, debug: bool) -> Tuple[str, str]:
-    """Retrieve the sequence corresponding to the provided genomic coordinates, 
+
+def extract_sequence(
+    seqname: str, coord: str, genome: str, debug: bool
+) -> Tuple[str, str]:
+    """Retrieve the sequence corresponding to the provided genomic coordinates,
     given in BED format
 
     :param seqname: sequence name
@@ -48,22 +51,32 @@ def extract_sequence(seqname: str, coord: str, genome: str, debug: bool) -> Tupl
     sequence = sequences[0]
     return seqname, sequence
 
+
 def _generate_iupac_pam(pam: str) -> List[str]:
-    """ (PRIVATE)
+    """(PRIVATE)
     Generate all possible IUPAC PAMs based on the input PAM characters
 
     :param pam: input PAM
     :type pam: str
-    :return: IUPAC PAMs 
+    :return: IUPAC PAMs
     :rtype: List[str]
     """
     product_lst = [PAM_DICT[c] for c in pam]
     iupac_pam = ["".join(e) for e in product(*product_lst)]
     return iupac_pam
 
-def _extract_guides(sequence: str, iupac_pam: List[str], pam_len: int, guide_len: int, pam_at_beginning: bool, debug: bool, reverse: Optional[bool] = False) -> List[str]:
+
+def _extract_guides(
+    sequence: str,
+    iupac_pam: List[str],
+    pam_len: int,
+    guide_len: int,
+    pam_at_beginning: bool,
+    debug: bool,
+    reverse: Optional[bool] = False,
+) -> List[str]:
     """(PRIVATE)
-    Extract guide sequences from the input sequence, matching the input PAM 
+    Extract guide sequences from the input sequence, matching the input PAM
     sequences.
 
     :param sequence: input sequence
@@ -87,17 +100,30 @@ def _extract_guides(sequence: str, iupac_pam: List[str], pam_len: int, guide_len
     try:
         for pam in iupac_pam:
             # find PAM occurrences in the input sequence
-            pam_indices = [m.start() for m in re.finditer(f'(?={pam})', sequence)]
+            pam_indices = [m.start() for m in re.finditer(f"(?={pam})", sequence)]
             if pam_indices:
                 for idx in pam_indices:  # recover guide start and stop positions
                     if reverse:  # reverse strand
-                        start, stop = (idx - guide_len, idx) if pam_at_beginning else (idx + pam_len, idx + guide_len + pam_len)
-                        if (pam_at_beginning and idx < guide_len) or (not pam_at_beginning and idx > len(sequence) - guide_len - pam_len):
+                        start, stop = (
+                            (idx - guide_len, idx)
+                            if pam_at_beginning
+                            else (idx + pam_len, idx + guide_len + pam_len)
+                        )
+                        if (pam_at_beginning and idx < guide_len) or (
+                            not pam_at_beginning
+                            and idx > len(sequence) - guide_len - pam_len
+                        ):
                             continue  # out of bounds -> skip
                         guide = str(Seq(sequence[start:stop]).reverse_complement())
                     else:  # forward strand
-                        start, stop = (idx + pam_len, idx + pam_len + guide_len) if pam_at_beginning else (idx - guide_len, idx)
-                        if (pam_at_beginning and stop > len(sequence) - guide_len) or (not pam_at_beginning and start < 0):
+                        start, stop = (
+                            (idx + pam_len, idx + pam_len + guide_len)
+                            if pam_at_beginning
+                            else (idx - guide_len, idx)
+                        )
+                        if (pam_at_beginning and stop > len(sequence) - guide_len) or (
+                            not pam_at_beginning and start < 0
+                        ):
                             continue  # out of bounds -> skip
                         guide = sequence[start:stop]
                     guides.append(guide)
@@ -107,13 +133,16 @@ def _extract_guides(sequence: str, iupac_pam: List[str], pam_len: int, guide_len
         )
     return guides
 
-def recover_guides(sequence: str, pam: str, guide_length: int, pam_at_beginning: bool, debug: bool) -> List[str]:
-    """Recover guide sequences from the input sequence. The guide sequences 
-    search is lead using the input PAM sequence 
+
+def recover_guides(
+    sequence: str, pam: str, guide_length: int, pam_at_beginning: bool, debug: bool
+) -> List[str]:
+    """Recover guide sequences from the input sequence. The guide sequences
+    search is lead using the input PAM sequence
 
     :param sequence: input sequence
     :type sequence: str
-    :param pam: input PAM 
+    :param pam: input PAM
     :type pam: str
     :param guide_length: guide length
     :type guide_length: int
@@ -134,7 +163,9 @@ def recover_guides(sequence: str, pam: str, guide_length: int, pam_at_beginning:
         )
     if not isinstance(guide_length, int):
         exception_handler(
-            TypeError, f"Expected {int.__name__}, got {type(guide_length).__name__}", debug
+            TypeError,
+            f"Expected {int.__name__}, got {type(guide_length).__name__}",
+            debug,
         )
     # generate IUPAC PAMs (e.g. NNNNN NGG / CCN NNNNN)
     iupac_pam_fwd = _generate_iupac_pam(pam)  # forward
@@ -145,11 +176,14 @@ def recover_guides(sequence: str, pam: str, guide_length: int, pam_at_beginning:
         sequence, iupac_pam_fwd, len(pam), guide_length, pam_at_beginning, debug
     )  # forward strand guides
     guides_rev = _extract_guides(
-        sequence, iupac_pam_rev, len(pam), guide_length, pam_at_beginning, debug, reverse=True
+        sequence,
+        iupac_pam_rev,
+        len(pam),
+        guide_length,
+        pam_at_beginning,
+        debug,
+        reverse=True,
     )  # reverse strand guides
     guides = guides_fwd + guides_rev
     assert len(guides) == (len(guides_fwd) + len(guides_rev))
     return guides
-
-
-

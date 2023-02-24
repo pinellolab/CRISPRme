@@ -12,6 +12,7 @@ import os
 # suppress runtime warnings
 warnings.filterwarnings(action="ignore", category=RuntimeWarning)
 
+
 def parse_pam(pamfile: str, debug: bool) -> Tuple[str, int, bool]:
     """Recover the PAM sequence from the input PAM file
 
@@ -26,7 +27,9 @@ def parse_pam(pamfile: str, debug: bool) -> Tuple[str, int, bool]:
         with open(pamfile, mode="r") as infile:
             pam_split = infile.readline().strip().split()
     except OSError:
-        exception_handler(OSError, "An error occurred while parsing the PAM file", debug)
+        exception_handler(
+            OSError, "An error occurred while parsing the PAM file", debug
+        )
     pam = pam_split[0]
     total_pam_length = len(pam)
     try:
@@ -37,11 +40,19 @@ def parse_pam(pamfile: str, debug: bool) -> Tuple[str, int, bool]:
         )
     stop = abs(pam_index) if pam_index < 0 else -(pam_index)
     pam_at_beginning = pam_index < 0
-    pam = pam[:stop] if pam_at_beginning else pam[stop:] 
+    pam = pam[:stop] if pam_at_beginning else pam[stop:]
     return pam, total_pam_length - len(pam), pam_at_beginning
 
-def parse_sequence(sequencefile: str, genome: str, pam: str, guide_length: int, pam_at_beginning: bool, debug: bool) -> List[str]:
-    """Extract the guide sequences from the input sequence file, which include 
+
+def parse_sequence(
+    sequencefile: str,
+    genome: str,
+    pam: str,
+    guide_length: int,
+    pam_at_beginning: bool,
+    debug: bool,
+) -> List[str]:
+    """Extract the guide sequences from the input sequence file, which include
     the specified PAM sequence
 
     :param sequencefile: sequences file
@@ -52,11 +63,11 @@ def parse_sequence(sequencefile: str, genome: str, pam: str, guide_length: int, 
     :type pam: str
     :param guide_length: guide length
     :type guide_length: int
-    :param pam_at_beginning: PAM occurs at guide beginning 
+    :param pam_at_beginning: PAM occurs at guide beginning
     :type pam_at_beginning: bool
     :param debug: debug mode
     :type debug: bool
-    :return: guides 
+    :return: guides
     :rtype: List[str]
     """
     guides = []
@@ -79,32 +90,41 @@ def parse_sequence(sequencefile: str, genome: str, pam: str, guide_length: int, 
                 coord = coordinate.split()  # expected chr start stop
                 if len(coord) != 3:
                     exception_handler(
-                        ValueError, "Expected BED like coordinates, but the requirement is not satisfied", debug
+                        ValueError,
+                        "Expected BED like coordinates, but the requirement is not satisfied",
+                        debug,
                     )
                 c = f"{coord[0]}\t{coord[1]}\t{coord[2]}"  # ensure they are tab-separated
                 genomefile = os.path.join(genome, f"{coord[0]}.fa")
                 assert os.path.isfile(genomefile)
                 seqname, sequence = extract_sequence(seqname, c, genomefile, debug)
-                guides.extend(recover_guides(sequence, pam, guide_length, pam_at_beginning, debug))
+                guides.extend(
+                    recover_guides(sequence, pam, guide_length, pam_at_beginning, debug)
+                )
         else:  # FASTA like sequence
             sequence = "".join(sequence.split())  # clean the sequence from speces
             sequence = sequence.strip()
             # recover the guides sequences
-            guides.extend(recover_guides(sequence, pam, guide_length, pam_at_beginning, debug))
+            guides.extend(
+                recover_guides(sequence, pam, guide_length, pam_at_beginning, debug)
+            )
     # compute guides appending N as prefix/suffix
     try:
         temp_guides = [add_n(guide, len(pam), pam_at_beginning) for guide in guides]
     except RuntimeError:
         exception_handler(
-            RuntimeError, "An error occurred while appending N to guide sequences", debug
+            RuntimeError,
+            "An error occurred while appending N to guide sequences",
+            debug,
         )
     # keep 1000000000 guides at most
     guides = temp_guides[:1000000000] if len(guides) > 1000000000 else temp_guides
     return guides
 
+
 def parse_guide(guidefile: str, debug: bool) -> List[str]:
-    """Extract the guide sequences from the input file, where each line is 
-    assumed to contain a single guide along with its PAM sequence, indicated by 
+    """Extract the guide sequences from the input file, where each line is
+    assumed to contain a single guide along with its PAM sequence, indicated by
     N characters
 
     :param guidefile: guides file

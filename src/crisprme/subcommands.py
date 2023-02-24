@@ -4,7 +4,14 @@
 from crisprme_errors import CompleteSearchError
 from crisprme_argparse import CRISPRmeArgumentParser
 from parsers import parse_guide, parse_pam, parse_sequence
-from utils import ERRORLOG, IUPAC_DNA, exception_handler, process_personal_annotation, raise_warning, write_logerror
+from utils import (
+    ERRORLOG,
+    IUPAC_DNA,
+    exception_handler,
+    process_personal_annotation,
+    raise_warning,
+    write_logerror,
+)
 from complete_search import run_complete_search
 
 from argparse import Namespace
@@ -18,9 +25,10 @@ import os
 logging.basicConfig(
     filename=ERRORLOG,
     level=logging.ERROR,
-    format='%(asctime)s %(levelname)s %(message)s',
-    datefmt='%m/%d/%Y %I:%M:%S %p'
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%m/%d/%Y %I:%M:%S %p",
 )
+
 
 def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     """_summary_
@@ -33,7 +41,7 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     # check base editing arguments consistency
     if args.be_window and not args.be_base:
         parser.error(
-            "Base(s) editor missing, when specifying the base editing window the " 
+            "Base(s) editor missing, when specifying the base editing window the "
             "base(s) editor is required"
         )
     if args.be_base and not args.be_window:
@@ -57,8 +65,8 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     if not args.guide and not args.sequence:  # one of the two is required
         parser.error(
             "Either a guide or sequence file must be specified, but both are missing"
-        ) 
-    useguide = True if args.guide else False 
+        )
+    useguide = True if args.guide else False
     usesequence = True if args.sequence else False
     assert useguide or usesequence  # at least one of the two should be used
     assert (useguide + usesequence) == 1  # only one of the two
@@ -82,14 +90,16 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     if args.threads < 0:
         warnmessage = str(
             f"forbidden number of threads requested ({args.threads}), reverting "
-            f"to default ({8})" 
-        ) 
+            f"to default ({8})"
+        )
         raise_warning(warnmessage)
         args.threads = 8
-    if args.threads == 0:  # reserve all resources 
+    if args.threads == 0:  # reserve all resources
         args.threads = multiprocessing.cpu_count()
     # check VCF consistency
-    usevariants = True if args.vcf else False  # wheter to use or not variants in the search
+    usevariants = (
+        True if args.vcf else False
+    )  # wheter to use or not variants in the search
     if usevariants:
         assert bool(args.vcf)
         if not os.path.exists(args.vcf):
@@ -98,20 +108,25 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
             parser.error(f"{args.vcf} is not a file")
     # check gene-annotation consistency
     usegeneannotation = True if args.gene_annotation else False
-    if usegeneannotation: 
+    if usegeneannotation:
         if not os.path.isfile(args.gene_annotation):
             parser.error(f"Unable to locate {args.gene_annotation}")
     # check pam consistency
     if not os.path.isfile(args.pam):
         parser.error(f"Unable to locate {args.pam}")
     # check functional annotation consistency
-    if not args.annotation:  # TODO: should it be linked to empty.txt 
+    if not args.annotation:  # TODO: should it be linked to empty.txt
         if args.personal_annotation:  # use only personal annotation
             if not os.path.isfile(args.personal_annotation):
                 parser.error(f"Unable to locate {args.personal_annotation}")
-            raise_warning("only personal annotation provided")  # warn the user that only personal annotation data have been provided
+            raise_warning(
+                "only personal annotation provided"
+            )  # warn the user that only personal annotation data have been provided
             args.annotation = process_personal_annotation(
-                args.personal_annotation, args.personal_annotation, args.debug, onlypann=True
+                args.personal_annotation,
+                args.personal_annotation,
+                args.debug,
+                onlypann=True,
             )
         else:
             raise_warning("annotation file not provided, skipping annotation")
@@ -128,7 +143,9 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
             )
     # check samples-id consistency
     if usevariants and not args.samples_id:
-        parser.error("Sample IDs required when when searching with variants (--vcf option)")
+        parser.error(
+            "Sample IDs required when when searching with variants (--vcf option)"
+        )
     if not usevariants and bool(args.samples_id):
         parser.error("Sample IDs supplied, but the VCF files are missing")
     if args.samples_id:
@@ -146,6 +163,8 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     if args.bRNA < 0:
         parser.error(f"Forbidden number of RNA bulges ({args.bRNA})")
     bmax = max(args.bDNA, args.bRNA)  # number of bulges used during indexing
+    if bmax > 2:
+        parser.error(f"Maximum bulge value must be <= 2 (input: {bmax})")
     # check genome-index consistency
     if args.genome_index:
         if not os.path.isfile(args.genome_index):
@@ -161,13 +180,15 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     assert os.path.isdir(args.output)
     # check verbosity consistency
     if args.verbosity < 0 or args.verbosity > 3:
-        parser.error(f"Forbidden verbosity value ({args.verbosity}). Allowed verbosity values: < 0|1|2|3 >")
+        parser.error(
+            f"Forbidden verbosity value ({args.verbosity}). Allowed verbosity values: < 0|1|2|3 >"
+        )
     # recover genome directory name
     ref_genome = args.genome[:-1] if args.genome.endswith("/") else args.genome
     ref_genome = os.path.basename(ref_genome)
     # recover the PAM sequence
-    pam, guide_expected_len, pam_at_beginning = parse_pam(args.pam, args.debug) 
-    search_index = True if bmax !=0 else False  # construct the genome index
+    pam, guide_expected_len, pam_at_beginning = parse_pam(args.pam, args.debug)
+    search_index = True if bmax != 0 else False  # construct the genome index
     compare_ref_genome = False  # compare results with those recovered on the ref
     if usevariants:  # enrich the genome
         assert args.vcf
@@ -185,13 +206,18 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
         compare_ref_genome = True
     else:
         genome_index = f"{pam}_{bmax}_{ref_genome}"
-    # TODO: when verbosity is high print this info 
+    # TODO: when verbosity is high print this info
     # TODO: for web-site write the parameters
     # TODO: recover nuclease for web-site
     if usesequence:  # sequence provided in input
         assert not useguide
         guides = parse_sequence(
-            args.sequence, args.genome, pam, guide_expected_len, pam_at_beginning, args.debug
+            args.sequence,
+            args.genome,
+            pam,
+            guide_expected_len,
+            pam_at_beginning,
+            args.debug,
         )
     if useguide:  # guides provided in input
         assert not usesequence
@@ -209,17 +235,20 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
     # TODO: verbosity level to launch the job
     # TODO: launch the job
     try:
-        run_complete_search(args.genome, args.vcf, pam, args.pam, bmax, guides, args.output, args.threads, args.verbosity, args.debug)
+        run_complete_search(
+            args.genome,
+            args.vcf,
+            pam,
+            args.pam,
+            bmax,
+            guides,
+            args.output,
+            args.threads,
+            args.verbosity,
+            args.debug,
+        )
     except Exception:
         write_logerror()
         exception_handler(
             CompleteSearchError, "An error occurred while running complete-search", True
         )
-    
-    
-    
-
-
-
-
-        

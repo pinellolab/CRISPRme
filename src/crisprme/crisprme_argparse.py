@@ -10,8 +10,9 @@ from colorama import Fore
 
 import sys
 
+
 class CRISPRmeArgumentParser(ArgumentParser):
-    """Class extending the original :class:`ArgumentParser` printing custom 
+    """Class extending the original :class:`ArgumentParser` printing custom
     help messages for CRISPRme.
 
     :param ArgumentParser: object of type :class:`ArgumentParser`
@@ -19,13 +20,16 @@ class CRISPRmeArgumentParser(ArgumentParser):
     """
 
     class CRISPRmeHelpFormatter(HelpFormatter):
-        """This class extends :class:`HelpFormatter` from `argparse` package. 
+        """This class extends :class:`HelpFormatter` from `argparse` package.
         This extension allows to print custom help messages.
 
         :param HelpFormatter: object of type :class:`HelpFormatter`
         :type HelpFormatter: HelpFormatter
         """
-        def add_usage(self, usage: str, actions: str, groups: str, prefix: Optional[str] = "None") -> None:
+
+        def add_usage(
+            self, usage: str, actions: str, groups: str, prefix: Optional[str] = "None"
+        ) -> None:
             """Add the usage message to the HelpFormatter class object.
 
             Args:
@@ -37,10 +41,9 @@ class CRISPRmeArgumentParser(ArgumentParser):
             if usage is not SUPPRESS:
                 args = usage, actions, groups, ""
                 self._add_item(self._format_usage, args)
-    
+
     def __init__(self, *args: Tuple, **kwargs: Dict) -> None:
-        """Constructor method
-        """
+        """Constructor method"""
         kwargs["formatter_class"] = self.CRISPRmeHelpFormatter
         kwargs["usage"] = kwargs["usage"].replace("{version}", __version__)
         super().__init__(*args, **kwargs)

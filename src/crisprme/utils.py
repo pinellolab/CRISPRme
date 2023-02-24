@@ -16,14 +16,24 @@ import shutil
 import sys
 import os
 
-# --- static variables 
+# --- static variables
 BUFSIZE = 1024 * 1024
 CRISPRME_PATH = os.path.dirname(os.path.abspath(__file__))
 CRISPRME_DIRS = [
-    "Genomes", "Results", "Dictionaries", "VCFs", "Annotations", "PAMs", "samplesIDs"
+    "Genomes",
+    "Results",
+    "Dictionaries",
+    "VCFs",
+    "Annotations",
+    "PAMs",
+    "samplesIDs",
 ]
 CRISPRME_COMMANDS = [
-    "complete-search", "targets-integration", "gnomAD-converter", "generate-personal-card", "web-interface"
+    "complete-search",
+    "targets-integration",
+    "gnomAD-converter",
+    "generate-personal-card",
+    "web-interface",
 ]
 IUPAC_DNA = {
     "a",
@@ -56,28 +66,30 @@ IUPAC_DNA = {
     "v",
 }
 PAM_DICT = {
-    "A":  "ARWMDHV",
-    "C":  "CYSMBHV",
-    "G":  "GRSKBDV",
-    "T":  "TYWKBDH",
-    "R":  "ARWMDHVSKBG",
-    "Y":  "CYSMBHVWKDT",
-    "S":  "CYSMBHVKDRG",
-    "W":  "ARWMDHVYKBT",
-    "K":  "GRSKBDVYWHT",
-    "M":  "ARWMDHVYSBC",
-    "B":  "CYSMBHVRKDGWT",
-    "D":  "ARWMDHVSKBGYT",
-    "H":  "ARWMDHVYSBCKT",
-    "V":  "ARWMDHVYSBCKG",
-    "N":  "ACGTRYSWKMBDHV",
+    "A": "ARWMDHV",
+    "C": "CYSMBHV",
+    "G": "GRSKBDV",
+    "T": "TYWKBDH",
+    "R": "ARWMDHVSKBG",
+    "Y": "CYSMBHVWKDT",
+    "S": "CYSMBHVKDRG",
+    "W": "ARWMDHVYKBT",
+    "K": "GRSKBDVYWHT",
+    "M": "ARWMDHVYSBC",
+    "B": "CYSMBHVRKDGWT",
+    "D": "ARWMDHVSKBGYT",
+    "H": "ARWMDHVYSBCKT",
+    "V": "ARWMDHVYSBCKG",
+    "N": "ACGTRYSWKMBDHV",
 }
 LOG = "log.txt"
 ERRORLOG = "crisprme_error.log"
 
 # --- utils functions
-def exception_handler(exception_type: Exception, exception: str, debug: bool) -> NoReturn:
-    """Trigger a runtime error that halts execution, and optionally display a 
+def exception_handler(
+    exception_type: Exception, exception: str, debug: bool
+) -> NoReturn:
+    """Trigger a runtime error that halts execution, and optionally display a
     full error stack trace if debugging is enabled
 
     :param exception_type: exception type
@@ -93,11 +105,12 @@ def exception_handler(exception_type: Exception, exception: str, debug: bool) ->
     if debug:  # display full error stack
         raise exception_type(f"\n\n{exception}")
     # gracefully trigger runtime error and exit
-    sys.stderr.write(Fore.RED + f"\n\nERROR: {exception}" + Fore.RESET)
+    sys.stderr.write(Fore.RED + f"\n\nERROR: {exception}\n" + Fore.RESET)
     sys.exit(1)
 
+
 def raise_warning(message: str) -> None:
-    """Emit a yellow-colored warning message without interrupting program 
+    """Emit a yellow-colored warning message without interrupting program
     execution
 
     :param message: warning message
@@ -109,19 +122,32 @@ def raise_warning(message: str) -> None:
     message = Fore.YELLOW + f"Warning: {message}" + Fore.RESET
     sys.stderr.write(f"\n{message}\n")
 
-def write_logerror() -> None:
-    """Redirect the full error stack to the log error file for debugging purposes
+
+def sigint_handler() -> NoReturn:
+    """Catch SIGINT and exit
+
+    :return: stop execution
+    :rtype: NoReturn
     """
+    sys.stderr.write("Caught SIGINT. Exit CRISPRme\n")
+    sys.exit(1)
+
+
+def write_logerror() -> None:
+    """Redirect the full error stack to the log error file for debugging purposes"""
     errorlog = open(ERRORLOG, mode="w")  # open log error file
     # write run info
     errorlog.write(f"CRISPRme v{__version__}\n\n")
     errorlog.write(f"Command line:\n{' '.join(sys.argv[:])}\n\n")
     errorlog.write(f"Time: {ctime()}\n")
-    errorlog.write(f"Memory usage: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 / 1024 / 1024} GB\n\n")
+    errorlog.write(
+        f"Memory usage: {resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024 / 1024 / 1024} GB\n\n"
+    )
     traceback.print_exc(file=errorlog)  # trace the error stack
 
+
 def process_personal_annotation_line(line: str, debug: bool) -> str:
-    """Append the '_personal' suffix to the fourth column (feature field) of the 
+    """Append the '_personal' suffix to the fourth column (feature field) of the
     personal annotation file in its corresponding BED format.
 
     :param line: BED file line
@@ -142,9 +168,15 @@ def process_personal_annotation_line(line: str, debug: bool) -> str:
     line_processed = line_processed.replace(" ", "\t")  # replace blank with tabs
     return f"{line_processed}\n"
 
-def process_personal_annotation(personal_annotation: str, annotation: str, debug: bool, onlypann: Optional[bool] = False) -> str:
-    """Combine the contents of the annotation file and the personal annotation 
-    file while preserving the origin of each line, with lines from the personal 
+
+def process_personal_annotation(
+    personal_annotation: str,
+    annotation: str,
+    debug: bool,
+    onlypann: Optional[bool] = False,
+) -> str:
+    """Combine the contents of the annotation file and the personal annotation
+    file while preserving the origin of each line, with lines from the personal
     annotation file clearly identified
 
     :param personal_annotation: personal annotation file
@@ -172,7 +204,9 @@ def process_personal_annotation(personal_annotation: str, annotation: str, debug
                     )
     except OSError:
         exception_handler(
-            OSError, "A problem occurred while processing personal annotation file", debug
+            OSError,
+            "A problem occurred while processing personal annotation file",
+            debug,
         )
     # merge the two files into a single annotation file
     try:
@@ -184,12 +218,15 @@ def process_personal_annotation(personal_annotation: str, annotation: str, debug
                         outfile.write(ann_infile.read())
     except OSError:
         exception_handler(
-            OSError, "A problem occurred while processing personal annotation file", debug
+            OSError,
+            "A problem occurred while processing personal annotation file",
+            debug,
         )
     os.remove(personal_annotation_tmp)  # delete the tmp personal annotation file
     assert not os.path.isfile(personal_annotation_tmp)
     assert os.path.isfile(f"{annotation}+personal.bed")
     return f"{annotation}+personal.bed"
+
 
 def add_n(guide: str, pam_len: str, pam_at_beginning: bool) -> str:
     """Add PAM_LEN Ns zs prefix or suffix to the guide sequence
@@ -200,13 +237,14 @@ def add_n(guide: str, pam_len: str, pam_at_beginning: bool) -> str:
     :type pam_len: str
     :param pam_at_beginning: PAM occurs at the guide beginning
     :type pam_at_beginning: bool
-    :return: complete guide sequence 
+    :return: complete guide sequence
     :rtype: str
     """
     ns = "N" * pam_len
     if pam_at_beginning:
         return ns + guide
     return guide + ns
+
 
 def write(message: str) -> None:
     """Write the message to stderr
@@ -216,8 +254,9 @@ def write(message: str) -> None:
     """
     sys.stderr.write(f"{message}\n")
 
+
 def move(source: str, dest: str, debug: bool) -> None:
-    """wrapper function to call the mv shell command, which allows you to move 
+    """wrapper function to call the mv shell command, which allows you to move
     or rename files in Unix-like operating systems
 
     :param source: source file/directory
@@ -231,7 +270,10 @@ def move(source: str, dest: str, debug: bool) -> None:
     try:
         os.system(f"mv {source} {dest}")
     except OSError:
-        exception_handler(OSError, f"An error occurred while renaming/moving {source}", debug)
+        exception_handler(
+            OSError, f"An error occurred while renaming/moving {source}", debug
+        )
+
 
 def remove_dir(folder: str, debug: bool) -> None:
     """Delete the input directory, regardless of wheter it's empty or not
@@ -249,7 +291,8 @@ def remove_dir(folder: str, debug: bool) -> None:
         shutil.rmtree(folder)
     except OSError:
         exception_handler(OSError, f"An error occurred while deleting {folder}", debug)
-        
+
+
 def check_directories(basedir: str) -> None:
     if not isinstance(basedir, str):
         raise TypeError(f"Expected {str.__name__}, got {type(basedir).__name__}")
@@ -258,5 +301,3 @@ def check_directories(basedir: str) -> None:
     for d in CRISPRME_DIRS:
         if not os.path.exists(os.path.join(basedir, d)):
             os.makedirs(os.path.join(basedir, d))
-
-
