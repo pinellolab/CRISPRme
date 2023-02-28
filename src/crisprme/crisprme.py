@@ -19,10 +19,11 @@ ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED AND CHROMOSOME SEPARATED
 
 from crisprme_argparse import CRISPRmeArgumentParser
 from subcommands import complete_search
-from utils import CRISPRME_COMMANDS, CRISPRME_PATH, IUPAC_DNA, sigint_handler
+from utils import CRISPRME_COMMANDS, CRISPRME_PATH, IUPAC_DNA, sigint_handler, write
 from version import __version__
 
 from Bio.Seq import Seq
+from time import time
 
 import subprocess
 import itertools
@@ -349,6 +350,7 @@ def parseargs_crisprme() -> CRISPRmeArgumentParser:
 
 def main():
     try:  # start crisprme
+        start = time()  # start time
         parser = parseargs_crisprme()
         args = sys.argv[1:]  # read command or help options
         if len(args) == 0:
@@ -361,6 +363,8 @@ def main():
             complete_search(parser, args)
     except KeyboardInterrupt:
         sigint_handler()
+    stop = time()  # stop time
+    write(f"CRISPRme {command} elapsed time {(stop - start):.2f}s")
 
 
 if __name__ == "__main__":

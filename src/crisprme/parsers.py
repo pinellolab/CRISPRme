@@ -96,7 +96,8 @@ def parse_sequence(
                     )
                 c = f"{coord[0]}\t{coord[1]}\t{coord[2]}"  # ensure they are tab-separated
                 genomefile = os.path.join(genome, f"{coord[0]}.fa")
-                assert os.path.isfile(genomefile)
+                if not os.path.isfile(genomefile):
+                    exception_handler(FileNotFoundError, f"Requested parsing for coordinate {coordinate}, but {os.path.basename(genomefile)} not found in {genome}", debug)
                 seqname, sequence = extract_sequence(seqname, c, genomefile, debug)
                 guides.extend(
                     recover_guides(sequence, pam, guide_length, pam_at_beginning, debug)
@@ -137,8 +138,7 @@ def parse_guide(guidefile: str, debug: bool) -> List[str]:
     guides = []
     try:
         with open(guidefile, mode="r") as infile:
-            for line in infile:
-                guides.append(line.strip())
+            guides.extend(line.strip() for line in infile)
     except OSError:
         exception_handler(
             OSError, "An error occurred while parsing the guides file", debug

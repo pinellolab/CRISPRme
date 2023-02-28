@@ -38,7 +38,7 @@ class CRISPRmeArgumentParser(ArgumentParser):
                 groups (str): arguments groups
                 prefix (Optional[str], optional): arguments prefixes. Defaults to "None".
             """
-            if usage is not SUPPRESS:
+            if usage != SUPPRESS:
                 args = usage, actions, groups, ""
                 self._add_item(self._format_usage, args)
 
@@ -59,7 +59,7 @@ class CRISPRmeArgumentParser(ArgumentParser):
         if "invalid choice:" in message:
             message = message.replace("choice", "command")  # for clarity
         message = Fore.RED + "\nERROR: " + f"{message}." + Fore.RESET  # error in red
-        message = message + f"\n\nRun crisprme.py {command} -h for usage\n\n"
+        message += f"\n\nRun crisprme.py {command} -h for usage\n\n"
         sys.stderr.write(message)  # write the error message
         sys.exit(2)
 

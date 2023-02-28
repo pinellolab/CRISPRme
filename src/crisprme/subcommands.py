@@ -167,7 +167,7 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
         parser.error(f"Maximum bulge value must be <= 2 (input: {bmax})")
     # check genome-index consistency
     if args.genome_index:
-        if not os.path.isfile(args.genome_index):
+        if not os.path.isdir(args.genome_index):
             parser.error(f"Unable to locate {args.genome_index}")
     # check merge consistency
     if args.merge < 0:
@@ -232,8 +232,6 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
             OSError, "An error occurred while writing the guides file", args.debug
         )
     # TODO: assign mail for web-site
-    # TODO: verbosity level to launch the job
-    # TODO: launch the job
     try:
         run_complete_search(
             args.genome,
@@ -242,10 +240,14 @@ def complete_search(parser: CRISPRmeArgumentParser, args: Namespace) -> None:
             args.pam,
             bmax,
             guides,
+            args.mm,
+            args.bDNA,
+            args.bRNA,
             args.output,
             args.threads,
             args.verbosity,
             args.debug,
+            genome_index=args.genome_index,
         )
     except Exception:
         write_logerror()

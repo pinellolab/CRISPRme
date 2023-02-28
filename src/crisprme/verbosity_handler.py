@@ -18,7 +18,7 @@ def write_verbosity(message: str, verbosity: int, thresh: int, debug: bool) -> N
     :type thresh: int
     :param debug: debug mode
     :type debug: bool
-    :raise VerbosityHandlerError: raise on write() error
+    :raises VerbosityHandlerError: raise on write() error
     """
     try:
         if verbosity > thresh:
@@ -42,7 +42,7 @@ def time_verbosity(verbosity: int, thresh: int, debug: bool) -> float:
     :type debug: bool
     :return: current time
     :rtype: float
-    :raise VerbosityHandlerError: raise on time() error
+    :raises VerbosityHandlerError: raise on time() error
     """
     try:
         if verbosity > thresh:
@@ -53,3 +53,4 @@ def time_verbosity(verbosity: int, thresh: int, debug: bool) -> float:
             "An error occurred while handling verbosity time measuring",
             debug,
         )
+    return .0

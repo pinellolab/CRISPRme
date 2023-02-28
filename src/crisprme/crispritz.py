@@ -11,6 +11,7 @@ import os
 CRISPRITZ = "crispritz.py"
 ADDVARIANTS = "add-variants"
 INDEXGENOME = "index-genome"
+SEARCH = "search"
 # crispritz outputs
 ENRICHED_GENOME = "variants_genome"
 GENOME_SNPS = os.path.join(ENRICHED_GENOME, "SNPs_genome")
@@ -120,6 +121,59 @@ def crispritz_index_genome(
         )
     # build crispritz command
     crispritz_run = f"{CRISPRITZ} {INDEXGENOME} {genome} {genome_folder} {pam} -bMax {bulges} -th {threads}"
-    run_crispritz(
-        crispritz_run, INDEXGENOME, verbosity, debug
-    )  # run crispritz index-genome
+    # run crispritz index-genome
+    run_crispritz(crispritz_run, INDEXGENOME, verbosity, debug)  
+
+
+def crispritz_search(tst_index: str, pam: str, guide: str, reportname: str, mm: int, bDNA: int, bRNA: int, threads: int, verbosity: int, debug: bool) -> None:
+    """The wrapper function invokes crispritz to search for potential offtargets
+    for the input guide
+
+    :param tst_index: TST index directory
+    :type tst_index: str
+    :param pam: PAM file
+    :type pam: str
+    :param guide: guide file
+    :type guide: str
+    :param reportname: report output name
+    :type reportname: str
+    :param mm: number of mismatches
+    :type mm: int
+    :param bDNA: DNA bulges
+    :type bDNA: int
+    :param bRNA: RNA bulges
+    :type bRNA: int
+    :param threads: threads
+    :type threads: int
+    :param verbosity: verbosity level
+    :type verbosity: int
+    :param debug: debug mode
+    :type debug: bool
+    :raises TypeError: raise on tst_index type mismatch
+    :raises FileNotFoundError: raise if tst_index not found
+    :raises TypeError: raise on pam type mismatch
+    :raises FileNotFoundError: raise if pam not found
+    :raises TypeError: raise on guide type mismatch
+    :raises FileNotFoundError: raise if guide not found
+    """
+    if not isinstance(tst_index, str):
+        exception_handler(
+            TypeError, f"Expected {str.__name__}, got {type(tst_index).__name__}", debug
+        )
+    if not os.path.isdir(tst_index):
+        exception_handler(FileNotFoundError, f"Unable to locate {tst_index}", debug)
+    if not isinstance(pam, str):
+        exception_handler(
+            TypeError, f"Expected {str.__name__}, got {type(pam).__name__}", debug
+        )
+    if not os.path.isfile(pam):
+        exception_handler(FileNotFoundError, f"Unable to locate {pam}", debug)
+    if not isinstance(guide, str):
+        exception_handler(
+            TypeError, f"Expected {str.__name__}, got {type(guide).__name__}", debug
+        )
+    if not os.path.isfile(guide):
+        exception_handler(FileNotFoundError, f"Unable to locate {guide}", debug)
+    crispritz_run = f"{CRISPRITZ} {SEARCH} {tst_index} {pam} {guide} {reportname} -index -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -t -th {threads}"
+    # run crispritz search
+    run_crispritz(crispritz_run, SEARCH, verbosity, debug)

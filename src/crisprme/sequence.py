@@ -1,6 +1,7 @@
 """
 """
 
+from verbosity_handler import write_verbosity
 from utils import PAM_DICT, exception_handler
 
 from pybedtools import BedTool
@@ -9,6 +10,7 @@ from typing import List, Optional, Tuple
 from Bio.Seq import Seq
 
 import re
+import os
 
 
 def extract_sequence(
@@ -62,8 +64,7 @@ def _generate_iupac_pam(pam: str) -> List[str]:
     :rtype: List[str]
     """
     product_lst = [PAM_DICT[c] for c in pam]
-    iupac_pam = ["".join(e) for e in product(*product_lst)]
-    return iupac_pam
+    return ["".join(e) for e in product(*product_lst)]
 
 
 def _extract_guides(
@@ -100,8 +101,9 @@ def _extract_guides(
     try:
         for pam in iupac_pam:
             # find PAM occurrences in the input sequence
-            pam_indices = [m.start() for m in re.finditer(f"(?={pam})", sequence)]
-            if pam_indices:
+            if pam_indices := [
+                m.start() for m in re.finditer(f"(?={pam})", sequence)
+            ]:
                 for idx in pam_indices:  # recover guide start and stop positions
                     if reverse:  # reverse strand
                         start, stop = (
@@ -187,3 +189,26 @@ def recover_guides(
     guides = guides_fwd + guides_rev
     assert len(guides) == (len(guides_fwd) + len(guides_rev))
     return guides
+
+def write_guidefile(guide: str, verbosity: int, debug: bool) -> str:
+    """Store the guide to a TXT file
+
+    :param guide: guide
+    :type guide: str
+    :param verbosity: verbosity level
+    :type verbosity: int
+    :param debug: debug mode
+    :type debug: bool
+    :raises OSError: raise on errors occurring while writing the guide file
+    :return: guide filename
+    :rtype: str
+    """
+    guidefile = f".{guide}.guide"
+    write_verbosity(f"writing guide {guide} to {guidefile}", verbosity, 2, debug)
+    try:
+        with open(guidefile, mode="w") as handle:
+            handle.write(f"{guide}\n")
+    except OSError:
+        exception_handler(OSError, f"An error occurred while writing guide file for {guide}", debug)
+    assert os.path.isfile(guidefile)
+    return guidefile

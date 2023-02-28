@@ -105,7 +105,7 @@ def exception_handler(
     if debug:  # display full error stack
         raise exception_type(f"\n\n{exception}")
     # gracefully trigger runtime error and exit
-    sys.stderr.write(Fore.RED + f"\n\nERROR: {exception}\n" + Fore.RESET)
+    sys.stderr.write(f"{Fore.RED}\n\nERROR: {exception}\n{Fore.RESET}")
     sys.exit(1)
 
 
@@ -119,7 +119,7 @@ def raise_warning(message: str) -> None:
     """
     if not isinstance(message, str):  # trace this error
         raise TypeError(f"Expected {str.__name__}, got {type(message).__name__}")
-    message = Fore.YELLOW + f"Warning: {message}" + Fore.RESET
+    message = f"{Fore.YELLOW}Warning: {message}{Fore.RESET}"
     sys.stderr.write(f"\n{message}\n")
 
 
@@ -187,6 +187,8 @@ def process_personal_annotation(
     :type debug: bool
     :param onlypann: only personal annotation available, defaults to False
     :type onlypann: Optional[bool], optional
+    :raises OSError: raise when errors occur processing personal annotation file
+    :raises OSError: raise when errors occur processing personal annotation file
     :return: _description_
     :rtype: str
     """
@@ -196,12 +198,12 @@ def process_personal_annotation(
             personal_annotation_tmp = tempfile.NamedTemporaryFile().name
             with open(personal_annotation_tmp, mode="w") as outfile:
                 while True:
-                    lines = infile.readlines(BUFSIZE)  # read file in chunks of BUFSIZE
-                    if not lines:
+                    if lines := infile.readlines(BUFSIZE):
+                        outfile.writelines(
+                            process_personal_annotation_line(line, debug) for line in lines
+                        )
+                    else:
                         break
-                    outfile.writelines(
-                        process_personal_annotation_line(line, debug) for line in lines
-                    )
     except OSError:
         exception_handler(
             OSError,
@@ -241,9 +243,7 @@ def add_n(guide: str, pam_len: str, pam_at_beginning: bool) -> str:
     :rtype: str
     """
     ns = "N" * pam_len
-    if pam_at_beginning:
-        return ns + guide
-    return guide + ns
+    return ns + guide if pam_at_beginning else guide + ns
 
 
 def write(message: str) -> None:
@@ -291,6 +291,23 @@ def remove_dir(folder: str, debug: bool) -> None:
         shutil.rmtree(folder)
     except OSError:
         exception_handler(OSError, f"An error occurred while deleting {folder}", debug)
+
+def remove(filename: str, debug: bool) -> None:
+    """Delete the input file
+
+    :param filename: file to delete
+    :type filename: str
+    :param debug: debug mode
+    :type debug: bool
+    :raises ValueError: the input file is not a file
+    :raises OSError: an error occurs while removing the file
+    """
+    if not os.path.isfile(filename):
+        exception_handler(ValueError, f"{filename} is not a file", debug)
+    try:
+        os.remove(filename)  # remove the file
+    except OSError:
+        exception_handler(OSError, f"An error occurred while deleting {filename}", debug)
 
 
 def check_directories(basedir: str) -> None:
