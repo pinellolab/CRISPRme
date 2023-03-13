@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # trace all commands failures
+
 # Script per l'analisi dei targets della ricerca REF e ENR con PAM NNN
 # Il file dei targets della ricerca sul genoma reference si chiama $REFtargets  -> INPUT $1
 # Il file dei targets della ricerca sul genoma enriched si chiama $ENRtargets   -> INPUT $2
@@ -39,7 +41,10 @@ output_folder=${12}
 echo $jobid
 # 1) Rimozione duplicati, estrazione semicommon e unique e creazione file total
 #echo 'Creazione file .total.txt'
-./extraction.sh $REFtargets $ENRtargets $jobid # OUTPUT    $jobid.common_targets.txt -> Non usato
+./extraction.sh $REFtargets $ENRtargets $jobid || {
+	echo "CRISPRme ERROR: targets extraction failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+} # OUTPUT    $jobid.common_targets.txt -> Non usato
 #           $jobid.semi_common_targets.txt
 #           $jobid.unique_targets.txt
 rm $jobid.common_targets.txt
@@ -57,7 +62,10 @@ rm $jobid.semi_common_targets.minmaxdisr.txt
 
 #echo 'Creazione cluster del file .total.txt'
 # 3) Clustering
-./cluster.dict.py $jobid.total.txt 'no' 'True' 'True' "$guide_file" 'total' 'orderChr' # OUTPUT     $jobid.total.cluster.txt
+./cluster.dict.py $jobid.total.txt 'no' 'True' 'True' "$guide_file" 'total' 'orderChr' || {
+	echo "CRISPRme ERROR: targets clustering failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+} # OUTPUT     $jobid.total.cluster.txt
 rm $jobid.total.txt
 
 #sed -i ':a;N;$!ba;s/\n/\tn\tn\tn\n/g' $jobid.total.cluster.txt
@@ -86,7 +94,10 @@ rm $jobid.total.txt
 #echo 'Estrazione sample dal file .total.cluster.txt'
 
 # ./simpleAnalysis_v3.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" $mismatch "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA
-./new_simple_analysis.py "$referencegenome" "$dictionaries" "$jobid.total.cluster.txt" "${pam_file}" "$jobid" "$mismatch"
+./new_simple_analysis.py "$referencegenome" "$dictionaries" "$jobid.total.cluster.txt" "${pam_file}" "$jobid" "$mismatch" || {
+	echo "CRISPRme ERROR: annotation analysis failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 # cp $jobid.bestCFD.txt $jobid.bestCFD.txt.check_analysis
 # cp $jobid.bestmmblg.txt $jobid.bestmmblg.txt.check_analysis
 # cp $jobid.bestCRISTA.txt $jobid.bestCRISTA.txt.check_analysis
@@ -118,9 +129,18 @@ echo 'Sorting and adjusting results'
 # cp $jobid.bestCRISTA.txt $jobid.bestCRISTA.txt.after_sort
 
 #adjustin columns to have the correct order and remove uncessary ones
-./adjust_cols.py $jobid.bestCFD.txt
-./adjust_cols.py $jobid.bestmmblg.txt
-./adjust_cols.py $jobid.bestCRISTA.txt
+./adjust_cols.py $jobid.bestCFD.txt || {
+	echo "CRISPRme ERROR: CFD report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./adjust_cols.py $jobid.bestmmblg.txt || {
+	echo "CRISPRme ERROR: mismatch+bulges report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./adjust_cols.py $jobid.bestCRISTA.txt || {
+	echo "CRISPRme ERROR: CRISTA report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 # ./adjust_cols.py $jobid.altmmblg.txt
 
 # sed -i 1i"#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref\t_#Bulge_type\t_crRNA\t_DNA\t_Reference\t_Chromosome\t_Position\t_Cluster_Position\t_Direction\t_Mismatches\t_Bulge_Size\t_Total\t_PAM_gen\t_Var_uniq\t_Samples\t_Annotation_Type\t_Real_Guide\t_rsID\t_AF\t_SNP\t_#Seq_in_cluster\t_CFD\t_CFD_ref\tCRISTA_#Bulge_type\tCRISTA_crRNA\tCRISTA_DNA\tCRISTA_Reference\tCRISTA_Chromosome\tCRISTA_Position\tCRISTA_Cluster_Position\tCRISTA_Direction\tCRISTA_Mismatches\tCRISTA_Bulge_Size\tCRISTA_Total\tCRISTA_PAM_gen\tCRISTA_Var_uniq\tCRISTA_Samples\tCRISTA_Annotation_Type\tCRISTA_Real_Guide\tCRISTA_rsID\tCRISTA_AF\tCRISTA_SNP\tCRISTA_#Seq_in_cluster\tCRISTA_CFD\tCRISTA_CFD_ref" "$final_res"

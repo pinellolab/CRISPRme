@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # trace all errors 
+
 # Script per l'analisi dei targets della ricerca REF e ENR con PAM NNN
 # Il file dei targets della ricerca sul genoma reference si chiama $REFtargets  -> INPUT $1
 # Il file dei targets della ricerca sul genoma enriched si chiama $ENRtargets   -> INPUT $2
@@ -45,7 +47,10 @@ touch $REFtargets.corrected
 
 # 1) Rimozione duplicati, estrazione semicommon e unique e creazione file total
 #echo 'Creazione file .total.txt'
-./extraction.sh "$REFtargets.corrected" "$ENRtargets" "$jobid" # OUTPUT    $jobid.common_targets.txt -> Non usato
+./extraction.sh "$REFtargets.corrected" "$ENRtargets" "$jobid" || {
+	echo "CRISPRme ERROR: indels analysis failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+} # OUTPUT    $jobid.common_targets.txt -> Non usato
 #           $jobid.semi_common_targets.txt
 #           $jobid.unique_targets.txt
 
@@ -68,7 +73,10 @@ rm "$jobid.semi_common_targets.minmaxdisr.txt"
 
 #echo 'Creazione cluster del file .total.txt'
 # 3) Clustering
-./cluster.dict.py "$jobid.total.txt" 'no' 'True' 'True' "$guide_file" 'total' 'orderChr' # OUTPUT     $jobid.total.cluster.txt
+./cluster.dict.py "$jobid.total.txt" 'no' 'True' 'True' "$guide_file" 'total' 'orderChr' || {
+	echo "CRISPRme ERROR: indels clustering failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+} # OUTPUT     $jobid.total.cluster.txt
 
 #sed -i ':a;N;$!ba;s/\n/\tn\tn\tn\n/g' $jobid.total.cluster.txt
 #sed -i '$s/$/\tn\tn\tn/g' $jobid.total.cluster.txt
@@ -96,7 +104,10 @@ rm "$jobid.total.txt"
 
 #echo 'Estrazione sample dal file .total.cluster.txt'
 
-./analisi_indels_NNN.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" "$mismatch" "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA
+./analisi_indels_NNN.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" "$mismatch" "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA || {
+	echo "CRISPRme ERROR: indels analysis failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 # OUTPUT    $jobid.bestCFD_INDEL.txt
 #           $jobid.CFDGraph.txt     (per fare l'area graph dei CFD REF vs ENR)
 # NOTA AnnotatorAllTargets.py salva su disco SOLO il target con CFD più alto nel cluster e tra le scomposizioni esistenti
@@ -122,9 +133,18 @@ echo 'Sorting and adjusting results'
 # #tail file w/o header and sort for realguide,chr,cluster_pos,score
 # tail -n +2 $jobid.bestCRISTA_INDEL.txt | LC_ALL=C sort -k15,15 -k4,4 -k6,6n -k21,21rg -T ./ >>$jobid.tmp && mv $jobid.tmp $jobid.bestCRISTA_INDEL.txt
 
-./adjust_cols.py "$jobid.bestCFD_INDEL.txt"
-./adjust_cols.py "$jobid.bestCRISTA_INDEL.txt"
-./adjust_cols.py "$jobid.bestmmblg_INDEL.txt"
+./adjust_cols.py "$jobid.bestCFD_INDEL.txt" || {
+	echo "CRISPRme ERROR: CFD indels report failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./adjust_cols.py "$jobid.bestCRISTA_INDEL.txt" || {
+	echo "CRISPRme ERROR: CRISTA indels report failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./adjust_cols.py "$jobid.bestmmblg_INDEL.txt" || {
+	echo "CRISPRme ERROR: mismatch+bulges indels report failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 
 # sed -i '1s/.*/MMBLG_#Bulge_type\tMMBLG_crRNA\tMMBLG_DNA\tMMBLG_Reference\tMMBLG_Chromosome\tMMBLG_Position\tMMBLG_Cluster_Position\tMMBLG_Direction\tMMBLG_Mismatches\tMMBLG_Bulge_Size\tMMBLG_Total\tMMBLG_PAM_gen\tMMBLG_Var_uniq\tMMBLG_Samples\tMMBLG_Annotation_Type\tMMBLG_Real_Guide\tMMBLG_rsID\tMMBLG_AF\tMMBLG_SNP\tMMBLG_#Seq_in_cluster\tMMBLG_CFD\tMMBLG_CFD_ref/' $jobid.bestmmblg_INDEL.txt
 # sed -i '1s/.*/MMBLG_#Bulge_type\tMMBLG_crRNA\tMMBLG_DNA\tMMBLG_Reference\tMMBLG_Chromosome\tMMBLG_Position\tMMBLG_Cluster_Position\tMMBLG_Direction\tMMBLG_Mismatches\tMMBLG_Bulge_Size\tMMBLG_Total\tMMBLG_PAM_gen\tMMBLG_Var_uniq\tMMBLG_Samples\tMMBLG_Annotation_Type\tMMBLG_Real_Guide\tMMBLG_rsID\tMMBLG_AF\tMMBLG_SNP\tMMBLG_#Seq_in_cluster\tMMBLG_CFD\tMMBLG_CFD_ref/' $jobid.altmmblg.txt
@@ -132,9 +152,18 @@ echo 'Sorting and adjusting results'
 # pr -m -t -J $jobid.bestCFD_INDEL.txt $jobid.bestmmblg_INDEL.txt >$jobid.bestMerge.txt
 # pr -m -t -J $jobid.altCFD.txt $jobid.altmmblg.txt >$jobid.altMerge.txt
 
-./remove_bad_indel_targets.py "$jobid.bestCFD_INDEL.txt"
-./remove_bad_indel_targets.py "$jobid.bestCRISTA_INDEL.txt"
-./remove_bad_indel_targets.py "$jobid.bestmmblg_INDEL.txt"
+./remove_bad_indel_targets.py "$jobid.bestCFD_INDEL.txt" || {
+	echo "CRISPRme ERROR: CFD indels report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./remove_bad_indel_targets.py "$jobid.bestCRISTA_INDEL.txt" || {
+	echo "CRISPRme ERROR: CRISTA indels report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./remove_bad_indel_targets.py "$jobid.bestmmblg_INDEL.txt" || {
+	echo "CRISPRme ERROR: mismatch+bulges indels report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 
 #merge targets in same chr when they are at distance 3 from each other (inclusive) preserving the highest scoring one
 # ./merge_close_targets_cfd.sh $jobid.bestCFD_INDEL.txt $jobid.bestCFD_INDEL.txt.trimmed 3 'score'
