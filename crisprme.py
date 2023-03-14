@@ -18,11 +18,11 @@ origin_path = os.path.dirname(os.path.abspath(__file__))
 conda_path = "opt/crisprme/PostProcess/"
 # path corrected to use with conda
 corrected_origin_path = script_path[:-3]+conda_path
-corrected_web_path = origin_path[:-3]+"opt/crisprme/"
+corrected_web_path = f"{origin_path[:-3]}opt/crisprme/"
 # corrected_web_path = os.getcwd()
 
 script_path = corrected_origin_path
-current_working_directory = os.getcwd() + '/'
+current_working_directory = f'{os.getcwd()}/'
 # script_path = corrected_web_path+"/PostProcess/"
 
 input_args = sys.argv
@@ -661,8 +661,18 @@ def complete_search():
     # start search with set parameters
     with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
         with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
-            subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), str(vcfdir), str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(
-                samplefile), str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation),void_mail,str(base_start),str(base_end),str(base_set)], stdout=log_verbose, stderr=log_error)
+            crisprme_run = (
+                f"{os.path.join(script_path, 'submit_job_automated_new_multiple_vcfs.sh')} "
+                f"{genomedir} {vcfdir} {os.path.join(outputfolder, 'guides.txt')} "
+                f"{pamfile} {annotationfile} {samplefile} {bMax} {mm} {bDNA} {bRNA} "
+                f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
+                f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set}"
+            )
+            code = subprocess.call(crisprme_run, shell=True, stderr=log_error, stdout=log_verbose)
+            if code != 0:
+                raise OSError(f"\nCRISPRme run failed! See {os.path.join(outputfolder, 'log_error.txt')} for details\n")
+            # subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), str(vcfdir), str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(
+            #     samplefile), str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation),void_mail,str(base_start),str(base_end),str(base_set)], stdout=log_verbose, stderr=log_error)
     # else:
     #     with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
     #         with open(f"{outputfolder}/log_error.txt", 'w') as log_error:

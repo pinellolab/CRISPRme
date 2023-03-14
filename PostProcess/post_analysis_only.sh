@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # trace all failures
+
 #file for automated search of guide+pam in reference and variant genomes
 
 ref_folder=$(realpath $1)
@@ -119,7 +121,10 @@ if [ "$vcf_name" != "_" ]; then
 		exit
 	fi
 
-	./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID $dict_folder $final_res $final_res_alt $ncpus
+	./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID $dict_folder $final_res $final_res_alt $ncpus || {
+		echo "CRISPRme ERROR: indels postprocessing failed (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 
 	echo "Post-analysis SNPs End: "$(date +%F-%T) >>$output_folder/$log
 
@@ -150,7 +155,10 @@ else
 		echo "Processing $key"
 		LC_ALL=C grep -F -w $key "$output_folder/crispritz_targets/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/crispritz_targets/${ref_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 		touch "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
-		./scriptAnalisiNNN_v3.sh "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key" "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key" "${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key" "$annotation_file" "_" "$ref_folder" $mm $bDNA $bRNA "$guide_file" "$pam_file" "$sampleID" "$output_folder"
+		./scriptAnalisiNNN_v3.sh "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key" "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key" "${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key" "$annotation_file" "_" "$ref_folder" $mm $bDNA $bRNA "$guide_file" "$pam_file" "$sampleID" "$output_folder" || {
+			echo "CRISPRme ERROR: analysis failed (script: ${0} line $((LINENO-1)))" >&2
+			exit 1
+		}
 		rm "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 		rm "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 		header=$(head -1 "$output_folder/${ref_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt")
@@ -172,7 +180,10 @@ if [ "$vcf_name" != "_" ]; then
 	cd "$starting_dir"
 
 	echo "Post-analysis INDELs Start: "$(date +%F-%T) >>$output_folder/$log
-	./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID "$output_folder/log_indels_$vcf_name" $final_res $final_res_alt $ncpus
+	./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID "$output_folder/log_indels_$vcf_name" $final_res $final_res_alt $ncpus || {
+		echo "CRISPRme ERROR:indels analysis failed (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 	echo "Post-analysis INDELs End: "$(date +%F-%T) >>$output_folder/$log
 	for key in "${array_fake_chroms[@]}"; do
 		tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt" >>"$final_res" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
@@ -186,7 +197,10 @@ fi
 cd "$starting_dir"
 
 echo "Merging Close Targets Start: "$(date +%F-%T) >>$output_folder/$log
-./merge_close_targets_cfd.sh $final_res $final_res.trimmed $merge_t
+./merge_close_targets_cfd.sh $final_res $final_res.trimmed $merge_t || {
+	echo "CRISPRme ERROR: CFD targets merge failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 mv $final_res.trimmed $final_res
 mv $final_res.trimmed.discarded_samples $final_res_alt
 
@@ -195,7 +209,10 @@ mv $final_res.trimmed.discarded_samples $final_res_alt
 echo "Merging Close Targets End: "$(date +%F-%T) >>$output_folder/$log
 
 echo "Merging Alternative Chromosomes Start: "$(date +%F-%T) >>$output_folder/$log
-./merge_alt_chr.sh $final_res $final_res.chr_merged
+./merge_alt_chr.sh $final_res $final_res.chr_merged  || {
+	echo "CRISPRme ERROR: alternative targets merge failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 #rm $final_res.trimmed
 
 #./merge_alt_chr.sh $final_res_alt.trimmed $final_res_alt.trimmed.chr_merged
@@ -213,7 +230,10 @@ echo "Cleaning directory"
 if ! [ -d "$output_folder/cfd_graphs" ]; then
 	mkdir $output_folder/cfd_graphs
 fi
-./assemble_cfd_graphs.py $output_folder
+./assemble_cfd_graphs.py $output_folder || {
+	echo "CRISPRme ERROR: CFD graph creation failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 mv $output_folder/snps.CFDGraph.txt $output_folder/cfd_graphs
 mv $output_folder/indels.CFDGraph.txt $output_folder/cfd_graphs
 

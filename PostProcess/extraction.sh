@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # trace all errors
+
 #PARAM $1 is ref targets file
 #PARAM $2 is var targets file
 #PARAM $3 is job_id

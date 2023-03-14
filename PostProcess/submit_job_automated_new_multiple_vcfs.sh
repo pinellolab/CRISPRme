@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # capture any failure
+
 #file for automated search of guide+pam in reference and variant genomes
 
 ref_folder=$(realpath $1)
@@ -141,7 +143,10 @@ while read vcf_f; do
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
 			# echo -e 'Add-variants\tStart\t'$(date) >&2
 			echo -e "Adding variants"
-			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true"
+			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true" || {
+				echo "CRISPRme ERROR: genome enrichment failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 			#if ! [ -d "${ref_name}+${vcf_name}" ]; then
 			#	mkdir "${ref_name}+${vcf_name}"
 			#fi
@@ -158,11 +163,15 @@ while read vcf_f; do
 			if ! [ -d "genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS" ]; then
 				mkdir "genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS"
 			fi
+		
 			echo -e 'Add-variants\tEnd\t'$(date) >>$log
 			# echo -e 'Add-variants\tEnd\t'$(date) >&2
 			echo -e 'Indexing Indels\tStart\t'$(date) >>$log
 			# echo -e 'Indexing Indels\tStart\t'$(date) >&2
-			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/variants_genome/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus
+			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/variants_genome/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus || {
+				echo "CRISPRme ERROR: indels indexing failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 			echo -e 'Indexing Indels\tEnd\t'$(date) >>$log
 			# echo -e 'Indexing Indels\tEnd\t'$(date) >&2
 			if ! [ -d $current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS ]; then
@@ -182,7 +191,10 @@ while read vcf_f; do
 		if ! [ -d "$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS" ]; then
 			echo -e 'Indexing Indels\tStart\t'$(date) >>$log
 			# echo -e 'Indexing Indels\tStart\t'$(date) >&2
-			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus
+			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus || {
+				echo "CRISPRme ERROR: indels indexing failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 			echo -e 'Indexing Indels\tEnd\t'$(date) >>$log
 			# echo -e 'Indexing Indels\tEnd\t'$(date) >&2
 		fi
@@ -201,7 +213,10 @@ while read vcf_f; do
 					# echo -e 'Index-genome Reference\tStart\t'$(date) >&2
 					# echo -e 'Indexing_Reference' > $output
 					echo -e "Indexing reference genome"
-					crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
+					crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus || {
+						echo "CRISPRme ERROR: TST-index construction failed (script: ${0} line $((LINENO-1)))" >&2
+						exit 1
+					}
 					pid_index_ref=$!
 					echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
 					# echo -e 'Index-genome Reference\tEnd\t'$(date) >&2
@@ -215,7 +230,10 @@ while read vcf_f; do
 				# echo -e 'Index-genome Reference\tStart\t'$(date) >&2
 				# echo -e 'Indexing_Reference' > $output
 				echo -e "Indexing reference genome"
-				crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
+				crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus || {
+					echo "CRISPRme ERROR: TST-index construction failed (script: ${0} line $((LINENO-1)))" >&2
+					exit 1
+				}
 				pid_index_ref=$!
 				echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
 				# echo -e 'Index-genome Reference\tEnd\t'$(date) >&2
@@ -243,7 +261,10 @@ while read vcf_f; do
 						# echo -e 'Index-genome Variant\tStart\t'$(date) >&2
 						# echo -e 'Indexing_Enriched' > $output
 						echo -e "Indexing variant genome"
-						crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus #${ref_folder%/}+${vcf_name}/
+						crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus || {
+							echo "CRISPRme ERROR: TST-index construction failed (script: ${0} line $((LINENO-1)))" >&2
+							exit 1
+						}
 						pid_index_var=$!
 						echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
 						# echo -e 'Index-genome Variant\tEnd\t'$(date) >&2
@@ -257,7 +278,10 @@ while read vcf_f; do
 					# echo -e 'Index-genome Variant\tStart\t'$(date) >&2
 					# echo -e 'Indexing_Enriched' > $output
 					echo -e "Indexing variant genome"
-					crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus
+					crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus || {
+						echo "CRISPRme ERROR: TST-index construction failed (script: ${0} line $((LINENO-1)))" >&2
+						exit 1
+					}
 					pid_index_ref=$!
 					echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
 					# echo -e 'Index-genome Variant\tEnd\t'$(date) >&2
@@ -293,10 +317,16 @@ while read vcf_f; do
 		# echo -e 'Search Reference\tStart\t'$(date) >&2
 		# echo -e 'Search Reference' >  $output
 		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then
-			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
+			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result & wait || {
+				echo "CRISPRme ERROR: off-targets search failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			} # TODO:
 			pid_search_ref=$!
 		else
-			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
+			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result & wait || {
+				echo "CRISPRme ERROR: off-targets search failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 			pid_search_ref=$!
 		fi
 	else
@@ -310,11 +340,17 @@ while read vcf_f; do
 			# echo -e 'Search Variant\tStart\t'$(date) >&2
 			# echo -e 'Search Variant' >  $output
 			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then
-				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var
+				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var || {
+					echo "CRISPRme ERROR: off-targets search failed (script: ${0} line $((LINENO-1)))" >&2
+					exit 1
+				}
 				# mv "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 				echo -e 'Search Variant\tEnd\t'$(date) >>$log
 			else
-				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
+				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result & wait || {
+					echo "CRISPRme ERROR: off-targets search failed (script: ${0} line $((LINENO-1)))" >&2
+					exit 1
+				}
 				echo -e 'Search Variant\tEnd\t'$(date) >>$log
 				# mv "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 			fi
@@ -329,9 +365,15 @@ while read vcf_f; do
 			cd $starting_dir
 			#commented to avoid indels search
 			#TODO REMOVE POOL SCRIPT FROM PROCESSING
-			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus"
+			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus" || {
+				echo "CRISPRme ERROR: off-targets search on indels failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 			# mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
-			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp"
+			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp" || {
+				echo "CRISPRme ERROR: off-targets report construction failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 			mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp" "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
 			echo -e "Search INDELs End"
 			echo -e 'Search INDELs\tEnd\t'$(date) >>$log
@@ -374,7 +416,10 @@ while read vcf_f; do
 		fi
 
 		#TODO ANALISI DEGLI SNP IN PARALLELO
-		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus
+		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus || {
+			echo "CRISPRme ERROR: SNP analysis failed (script: ${0} line $((LINENO-1)))" >&2
+			exit 1
+		}
 
 		#CONCATENATE REF&VAR RESULTS
 		for key in "${real_chroms[@]}"; do
@@ -406,7 +451,10 @@ while read vcf_f; do
 			touch "$final_res_alt"
 		fi
 
-		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
+		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus || {
+			echo "CRISPRme ERROR: SNP analysis failed (script: ${0} line $((LINENO-1)))" >&2
+			exit 1
+		}
 
 		#CONCATENATE REF&VAR RESULTS
 		for key in "${real_chroms[@]}"; do
@@ -435,7 +483,10 @@ while read vcf_f; do
 		#SKIP INDELS ANALYSIS IF NO RESULTS FOUND
 		if [ $(wc -l <"$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt") -gt 1 ]; then
 
-			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
+			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus || {
+				echo "CRISPRme ERROR: indels analysis failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 
 			#CONCATENATE INDELS RESULTS
 			for key in "${array_fake_chroms[@]}"; do
@@ -470,7 +521,10 @@ while read samples; do
 done <$sampleID
 # if [ "$vcf_name" != "_" ]; then
 touch "$output_folder/.sampleID.txt"
-sed -i 1i"#SAMPLE_ID\tPOPULATION_ID\tSUPERPOPULATION_ID\tSEX" "$output_folder/.sampleID.txt"
+sed -i 1i"#SAMPLE_ID\tPOPULATION_ID\tSUPERPOPULATION_ID\tSEX" "$output_folder/.sampleID.txt" || {
+	echo "CRISPRme ERROR: Samples report construction failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 # fi
 
 sampleID=$output_folder/.sampleID.txt
@@ -536,53 +590,113 @@ echo -e 'Annotating results\tStart\t'$(date) >>$log
 
 #ANNOTATE BEST TARGETS
 #TODO SISTEMARE ANNOTAZIONE (DIVISIONE INTERVAL TREE / PARALLEL SEARCH)
-./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
-./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
-./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
+./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated & wait || {
+	echo "CRISPRme ERROR: CFD annotation failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated & wait || {
+	echo "CRISPRme ERROR: CRISTA annotation failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated & wait || {
+	echo "CRISPRme ERROR: mismatch+bulges annotation failed - reference(script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 wait
 mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
 mv $final_res.bestCRISTA.txt.annotated $final_res.bestCRISTA.txt
 #ANNOTATE ALT TARGETS
-./annotate_final_results.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
-./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
-./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
+./annotate_final_results.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated & wait || {
+	echo "CRISPRme ERROR: CFD annotation failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated & wait || {
+	echo "CRISPRme ERROR: CRISTA annotation failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated & wait || {
+	echo "CRISPRme ERROR: mismatch+bulges annotation failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 wait
 mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
 mv $final_res_alt.bestCRISTA.txt.annotated $final_res_alt.bestCRISTA.txt
 
 #SCORING BEST RESULTS
-./add_risk_score.py $final_res.bestCFD.txt $final_res.bestCFD.txt.risk "False" &
-./add_risk_score.py $final_res.bestmmblg.txt $final_res.bestmmblg.txt.risk "False" &
-./add_risk_score.py $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.risk "False" &
+./add_risk_score.py $final_res.bestCFD.txt $final_res.bestCFD.txt.risk "False" & wait || {
+	echo "CRISPRme ERROR: CFD risk score analysis failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./add_risk_score.py $final_res.bestmmblg.txt $final_res.bestmmblg.txt.risk "False" & wait || {
+	echo "CRISPRme ERROR: CRISTA risk score analysis failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./add_risk_score.py $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.risk "False" & wait || {
+	echo "CRISPRme ERROR: mismatch+bulges risk score analysis failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 wait
 mv $final_res.bestCFD.txt.risk $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.risk $final_res.bestmmblg.txt
 mv $final_res.bestCRISTA.txt.risk $final_res.bestCRISTA.txt
 #SCORING ALT RESULTS
-./add_risk_score.py $final_res_alt.bestCFD.txt $final_res_alt.bestCFD.txt.risk "False" &
-./add_risk_score.py $final_res_alt.bestmmblg.txt $final_res_alt.bestmmblg.txt.risk "False" &
-./add_risk_score.py $final_res_alt.bestCRISTA.txt $final_res_alt.bestCRISTA.txt.risk "False" &
+./add_risk_score.py $final_res_alt.bestCFD.txt $final_res_alt.bestCFD.txt.risk "False" & wait || {
+	echo "CRISPRme ERROR: CFD risk score analysis failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./add_risk_score.py $final_res_alt.bestmmblg.txt $final_res_alt.bestmmblg.txt.risk "False" & wait || {
+	echo "CRISPRme ERROR: CRISTA risk score analysis failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./add_risk_score.py $final_res_alt.bestCRISTA.txt $final_res_alt.bestCRISTA.txt.risk "False" & wait || {
+	echo "CRISPRme ERROR: mismatch+bulges risk score analysis failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 wait
 mv $final_res_alt.bestCFD.txt.risk $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.risk $final_res_alt.bestmmblg.txt
 mv $final_res_alt.bestCRISTA.txt.risk $final_res_alt.bestCRISTA.txt
 
 #remove N's and dots from rsID from BEST FILES
-./remove_n_and_dots.py $final_res.bestCFD.txt &
-./remove_n_and_dots.py $final_res.bestmmblg.txt &
-./remove_n_and_dots.py $final_res.bestCRISTA.txt &
+./remove_n_and_dots.py $final_res.bestCFD.txt & wait || {
+	echo "CRISPRme ERROR: CFD reports cleaning failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./remove_n_and_dots.py $final_res.bestmmblg.txt & wait || {
+	echo "CRISPRme ERROR: CRISTA reports cleaning failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./remove_n_and_dots.py $final_res.bestCRISTA.txt & wait || {
+	echo "CRISPRme ERROR: mismatch+bulges reports cleaning failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 wait
 #remove N's and dots from rsID from ALT FILES
-./remove_n_and_dots.py $final_res_alt.bestCFD.txt &
-./remove_n_and_dots.py $final_res_alt.bestmmblg.txt &
-./remove_n_and_dots.py $final_res_alt.bestCRISTA.txt &
+./remove_n_and_dots.py $final_res_alt.bestCFD.txt & wait || {
+	echo "CRISPRme ERROR: CFD reports cleaning failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./remove_n_and_dots.py $final_res_alt.bestmmblg.txt & wait || {
+	echo "CRISPRme ERROR: CRISTA reports cleaning failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+./remove_n_and_dots.py $final_res_alt.bestCRISTA.txt & wait || {
+	echo "CRISPRme ERROR: mismatch+bulges reports cleaning failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 wait
 
 #join targets by columns for BEST and ALT files
-pr -m -t -J $final_res.bestCFD.txt $final_res.bestmmblg.txt $final_res.bestCRISTA.txt >$final_res
-pr -m -t -J $final_res_alt.bestCFD.txt $final_res_alt.bestmmblg.txt $final_res_alt.bestCRISTA.txt >$final_res_alt
+pr -m -t -J $final_res.bestCFD.txt $final_res.bestmmblg.txt $final_res.bestCRISTA.txt >$final_res || {
+	echo "CRISPRme ERROR: final report generation failed - reference (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
+pr -m -t -J $final_res_alt.bestCFD.txt $final_res_alt.bestmmblg.txt $final_res_alt.bestCRISTA.txt >$final_res_alt || {
+	echo "CRISPRme ERROR: final report generation failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 
 #MERGE ALTERNATIVE CHR IF SAME SEQUENCE OF ALIGNED CHR
 # ./merge_alt_chr.sh $final_res $final_res.chr_merged
@@ -611,14 +725,32 @@ mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
 cd $starting_dir
 if [ "$vcf_name" != "_" ]; then
 	# ./process_summaries.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt" $guide_file $sampleID $mm $bMax "${output_folder}" "var"
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CFD" || {
+		echo "CRISPRme ERROR: CFD report summary failed - reference (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "fewest" || {
+		echo "CRISPRme ERROR: mismatch+bulges report summary failed - reference (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CRISTA" || {
+		echo "CRISPRme ERROR: CRISTA report summary failed - reference (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 else
 	# ./process_summaries.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt" $guide_file $sampleID $mm $bMax "${output_folder}" "ref"
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CFD" || {
+		echo "CRISPRme ERROR: CFD report summary failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "fewest" || {
+		echo "CRISPRme ERROR: mismatch+bulges report summary failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CRISTA" || {
+		echo "CRISPRme ERROR: CRISTA report summary failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 fi
 
 if ! [ -d "$output_folder/imgs" ]; then
@@ -630,9 +762,18 @@ if [ "$vcf_name" != "_" ]; then
 	while IFS= read -r line || [ -n "$line" ]; do
 		for total in $(seq 0 $(expr $mm + $bMax)); do
 			# python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution.txt" $total $line
-			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_CFD.txt" $total $line "CFD"
-			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_CRISTA.txt" $total $line "CRISTA"
-			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_fewest.txt" $total $line "fewest"
+			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_CFD.txt" $total $line "CFD" || {
+				echo "CRISPRme ERROR: CFD population report failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
+			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_CRISTA.txt" $total $line "CRISTA" || {
+				echo "CRISPRme ERROR: CRISTA population report failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
+			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_fewest.txt" $total $line "fewest" || {
+				echo "CRISPRme ERROR: mismatch+bulges population report failed (script: ${0} line $((LINENO-1)))" >&2
+				exit 1
+			}
 		done
 
 	done <$guide_file
@@ -641,15 +782,33 @@ fi
 cd $starting_dir
 if [ "$vcf_name" != "_" ]; then
 	# ./radar_chart_dict_generator.py $guide_file "${output_folder}/$(basename ${output_folder}).bestMerge.txt" $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CFD" || {
+		echo "CRISPRme ERROR: CFD radar chart report failed - reference (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA" || {
+		echo "CRISPRme ERROR: CRISTA radar chart report failed - reference (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "fewest" || {
+		echo "CRISPRme ERROR: mismatch+bulges radar chart report failed - reference (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 else
 	echo -e "dummy_file" >dummy.txt
 	# ./radar_chart_dict_generator.py $guide_file "${output_folder}/$(basename ${output_folder}).bestMerge.txt" dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CFD" || {
+		echo "CRISPRme ERROR: CFD radar chart report failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA" || {
+		echo "CRISPRme ERROR: CRISTA radar chart report failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "fewest" || {
+		echo "CRISPRme ERROR: mismatch+bulges radar chart report failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 	rm dummy.txt
 fi
 echo -e 'Creating images\tEnd\t'$(date) >>$log
@@ -662,10 +821,19 @@ if [ $gene_proximity != "_" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	echo $genome_version
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set || {
+		echo "CRISPRme ERROR: postprocessing failed - reference (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set || {
+		echo "CRISPRme ERROR: postprocessing failed - alternative (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 	rm "${output_folder}/dummy.txt"
-	python $starting_dir/CRISPRme_plots.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/imgs/" &>"${output_folder}/warnings.txt"
+	python $starting_dir/CRISPRme_plots.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/imgs/" &>"${output_folder}/warnings.txt" || {
+		echo "CRISPRme ERROR: plots generation failed (script: ${0} line $((LINENO-1)))" >&2
+		exit 1
+	}
 	rm -f "${output_folder}/warnings.txt" #delete warnings file
 
 fi
@@ -683,7 +851,10 @@ if [ -f "${output_folder}/$(basename ${output_folder}).db" ]; then
 	rm -f "${output_folder}/$(basename ${output_folder}).db"
 fi
 #python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${output_folder}/$(basename ${output_folder})"
-python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/.$(basename ${output_folder})"
+python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/.$(basename ${output_folder})" || {
+	echo "CRISPRme ERROR: database creation failed (script: ${0} line $((LINENO-1)))" >&2
+	exit 1
+}
 echo -e 'Creating database\tEnd\t'$(date) >>$log
 # echo -e 'Creating database\tEnd\t'$(date) >&2
 

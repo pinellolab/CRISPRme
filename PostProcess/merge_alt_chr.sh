@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e  # trace all failures
+
 dir=$(dirname $1)
 fileIn=$1
 fileOut=$2
