@@ -173,14 +173,15 @@ outFile_name = outputDir+originFileName+'.integrated_results.tsv'
 
 # list file in vcf directory
 checkVCF = False
-if 'vuota' not in vcfFileDirectory:
-    checkVCF = True
-    vcfList = glob.glob(vcfFileDirectory+'/*.gz')
-    redirectFile = open(outputDir + originFileName + '.redirectFile.out', 'w')
-    for vcfFile in vcfList:
-        # create tabix index if not already done
-        subprocess.run(['tabix', str(vcfFile)], stderr=redirectFile)
-    redirectFile.close()
+##UNCOMMENT TO ACTIVATE VCF ANALYSIS (TESTED ONLY WITH 1000G AND NEVER USED)
+# if 'vuota' not in vcfFileDirectory:
+#     checkVCF = True
+#     vcfList = glob.glob(vcfFileDirectory+'/*.gz')
+#     redirectFile = open(outputDir + originFileName + '.redirectFile.out', 'w')
+#     for vcfFile in vcfList:
+#         # create tabix index if not already done
+#         subprocess.run(['tabix', str(vcfFile)], stderr=redirectFile)
+#     redirectFile.close()
 
 
 empiricalTree = IntervalTree()

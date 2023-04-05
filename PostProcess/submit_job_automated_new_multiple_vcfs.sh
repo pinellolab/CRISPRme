@@ -43,6 +43,15 @@ start_time='Job\tStart\t'$(date)
 
 # output=$output_folder/output.txt
 # touch $output
+##CREATE DUMMY FILE WITH ONE LINE
+echo -e "dummy_file" >"${output_folder}/.dummy.txt"
+dummy_file="${output_folder}/.dummy.txt"
+##CREATE EMPTY FILE
+touch "${output_folder}/.empty.txt"
+empty_file="${output_folder}/.empty.txt"
+##CREATE EMPTY DIR
+mkdir "${output_folder}/.empty"
+empty_dir="${output_folder}/.empty"
 
 rm -f $output_folder/queue.txt
 #for vcf_f in "${vcf_list[@]}";
@@ -816,22 +825,18 @@ if [ "$vcf_name" != "_" ]; then
 		exit 1
 	}
 else
-	echo -e "dummy_file" >dummy.txt
-	echo -e "dummy_file" >"${output_folder}/dummy.txt"
-	# ./radar_chart_dict_generator.py $guide_file "${output_folder}/$(basename ${output_folder}).bestMerge.txt" dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt "${output_folder}/dummy.txt" $annotation_file "$output_folder" $ncpus $mm $bMax "CFD" || {
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $empty_file $annotation_file "$output_folder" $ncpus $mm $bMax "CFD" || {
 		echo "CRISPRme ERROR: CFD radar chart report failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
 		exit 1
 	}
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt "${output_folder}/dummy.txt" $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA" || {
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $empty_file $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA" || {
 		echo "CRISPRme ERROR: CRISTA radar chart report failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
 		exit 1
 	}
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt "${output_folder}/dummy.txt" $annotation_file "$output_folder" $ncpus $mm $bMax "fewest" || {
+	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $empty_file $annotation_file "$output_folder" $ncpus $mm $bMax "fewest" || {
 		echo "CRISPRme ERROR: mismatch+bulges radar chart report failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
 		exit 1
 	}
-	#rm dummy.txt
 fi
 echo -e 'Creating images\tEnd\t'$(date) >>$log
 
@@ -840,18 +845,16 @@ echo -e 'Integrating results\tStart\t'$(date) >>$log
 echo >>$guide_file
 
 if [ $gene_proximity != "_" ]; then
-	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	echo $genome_version
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set || {
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" $empty_file "${guide_file}" $genome_version "${output_folder}" $empty_dir $starting_dir/ $base_check_start $base_check_end $base_check_set || {
 		echo "CRISPRme ERROR: postprocessing failed - reference (script: ${0} line $((LINENO - 1)))" >&2
 		exit 1
 	}
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set || {
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" $empty_file "${guide_file}" $genome_version "${output_folder}" $empty_dir $starting_dir/ $base_check_start $base_check_end $base_check_set || {
 		echo "CRISPRme ERROR: postprocessing failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
 		exit 1
 	}
-	rm "${output_folder}/dummy.txt"
 	python $starting_dir/CRISPRme_plots.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/imgs/" &>"${output_folder}/warnings.txt" || {
 		echo "CRISPRme ERROR: plots generation failed (script: ${0} line $((LINENO - 1)))" >&2
 		exit 1
