@@ -817,7 +817,7 @@ if [ "$vcf_name" != "_" ]; then
 	}
 else
 	echo -e "dummy_file" >dummy.txt
-	touch "${output_folder}/dummy.txt"
+	echo -e "dummy_file" >"${output_folder}/dummy.txt"
 	# ./radar_chart_dict_generator.py $guide_file "${output_folder}/$(basename ${output_folder}).bestMerge.txt" dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax
 	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt "${output_folder}/dummy.txt" $annotation_file "$output_folder" $ncpus $mm $bMax "CFD" || {
 		echo "CRISPRme ERROR: CFD radar chart report failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
