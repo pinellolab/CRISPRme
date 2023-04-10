@@ -72,7 +72,7 @@ mamba install crisprme==<latest_version>
 ```
 For example:
 ```
-mamba install crisprme==2.1.0
+mamba install crisprme==2.1.1
 ```
 You can find the latest release indicated at the top of our [README](https://github.com/pinellolab/CRISPRme#crisprme).
 
