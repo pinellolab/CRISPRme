@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e  # trace all commands failures
+set -e # trace all commands failures
 
 # Script per l'analisi dei targets della ricerca REF e ENR con PAM NNN
 # Il file dei targets della ricerca sul genoma reference si chiama $REFtargets  -> INPUT $1
@@ -42,31 +42,31 @@ echo $jobid
 # 1) Rimozione duplicati, estrazione semicommon e unique e creazione file total
 #echo 'Creazione file .total.txt'
 ./extraction.sh $REFtargets $ENRtargets $jobid || {
-	echo "CRISPRme ERROR: targets extraction failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: targets extraction failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 } # OUTPUT    $jobid.common_targets.txt -> Non usato
 #           $jobid.semi_common_targets.txt
 #           $jobid.unique_targets.txt
-rm $jobid.common_targets.txt
+#rm $jobid.common_targets.txt
 
 # 2) Creazione colonne PAM creation etc
 awk '{real_guide=$2; gsub("-","",real_guide); print $0"\tn\tn\tn\tn\t"real_guide"\tn\tn\tn"}' $jobid.semi_common_targets.txt >$jobid.semi_common_targets.minmaxdisr.txt
-rm $jobid.semi_common_targets.txt
+#rm $jobid.semi_common_targets.txt
 
 awk '{real_guide=$2; gsub("-","",real_guide); print $0"\tn\tn\tn\tn\t"real_guide"\tn\tn\tn"}' $jobid.unique_targets.txt >$jobid.unique_targets.pamcreation.txt #Add pam creation, variant unique, real guide column
-rm $jobid.unique_targets.txt
+#rm $jobid.unique_targets.txt
 
 cat $jobid.unique_targets.pamcreation.txt $jobid.semi_common_targets.minmaxdisr.txt >$jobid.total.txt
-rm $jobid.unique_targets.pamcreation.txt
-rm $jobid.semi_common_targets.minmaxdisr.txt
+#rm $jobid.unique_targets.pamcreation.txt
+#rm $jobid.semi_common_targets.minmaxdisr.txt
 
 #echo 'Creazione cluster del file .total.txt'
 # 3) Clustering
 ./cluster.dict.py $jobid.total.txt 'no' 'True' 'True' "$guide_file" 'total' 'orderChr' || {
-	echo "CRISPRme ERROR: targets clustering failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: targets clustering failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 } # OUTPUT     $jobid.total.cluster.txt
-rm $jobid.total.txt
+#rm $jobid.total.txt
 
 #sed -i ':a;N;$!ba;s/\n/\tn\tn\tn\n/g' $jobid.total.cluster.txt
 #sed -i '$s/$/\tn\tn\tn/g' $jobid.total.cluster.txt
@@ -95,7 +95,7 @@ rm $jobid.total.txt
 
 # ./simpleAnalysis_v3.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" $mismatch "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA
 ./new_simple_analysis.py "$referencegenome" "$dictionaries" "$jobid.total.cluster.txt" "${pam_file}" "$jobid" "$mismatch" || {
-	echo "CRISPRme ERROR: annotation analysis failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: annotation analysis failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 # cp $jobid.bestCFD.txt $jobid.bestCFD.txt.check_analysis
@@ -107,7 +107,7 @@ rm $jobid.total.txt
 # NOTA AnnotatorAllTargets.py salva su disco SOLO il target con CFD più alto nel cluster e tra le scomposizioni esistenti
 # Quindi i files jobid.samples.annotation (contentente le scomposizioni del TOP1 esistenti) e jobid.cluster.tmp.txt (contenente il miglior TOP1
 # scomposto e i target dei cluster con quell'aplotipo) NON sono creati
-rm "$jobid.total.cluster.txt"
+#rm "$jobid.total.cluster.txt"
 
 echo 'Sorting and adjusting results'
 #copy header in tmp file
@@ -130,15 +130,15 @@ echo 'Sorting and adjusting results'
 
 #adjustin columns to have the correct order and remove uncessary ones
 ./adjust_cols.py $jobid.bestCFD.txt || {
-	echo "CRISPRme ERROR: CFD report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CFD report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./adjust_cols.py $jobid.bestmmblg.txt || {
-	echo "CRISPRme ERROR: mismatch+bulges report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: mismatch+bulges report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./adjust_cols.py $jobid.bestCRISTA.txt || {
-	echo "CRISPRme ERROR: CRISTA report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CRISTA report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 # ./adjust_cols.py $jobid.altmmblg.txt
