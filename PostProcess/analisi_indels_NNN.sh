@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e  # trace all errors 
+set -e # trace all errors
 
 # Script per l'analisi dei targets della ricerca REF e ENR con PAM NNN
 # Il file dei targets della ricerca sul genoma reference si chiama $REFtargets  -> INPUT $1
@@ -48,33 +48,33 @@ touch $REFtargets.corrected
 # 1) Rimozione duplicati, estrazione semicommon e unique e creazione file total
 #echo 'Creazione file .total.txt'
 ./extraction.sh "$REFtargets.corrected" "$ENRtargets" "$jobid" || {
-	echo "CRISPRme ERROR: indels analysis failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: indels analysis failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 } # OUTPUT    $jobid.common_targets.txt -> Non usato
 #           $jobid.semi_common_targets.txt
 #           $jobid.unique_targets.txt
 
-rm "$jobid.common_targets.txt"
-rm "$REFtargets.corrected"
+#rm "$jobid.common_targets.txt"
+#rm "$REFtargets.corrected"
 #rm "$ENRtargets.corrected"
 
 # 2) Creazione colonne PAM creation etc
 awk '{real_guide=$2; gsub("-","",real_guide); print $0"\tn\tn\tn\tn\t"real_guide"\tn\tn\tn"}' "$jobid.semi_common_targets.txt" >"$jobid.semi_common_targets.minmaxdisr.txt"
-rm "$jobid.semi_common_targets.txt"
+#rm "$jobid.semi_common_targets.txt"
 
 awk '{real_guide=$2; gsub("-","",real_guide); print $0"\tn\tn\tn\tn\t"real_guide"\tn\tn\tn"}' "$jobid.unique_targets.txt" >"$jobid.unique_targets.pamcreation.txt" #Add pam creation, variant unique, real guide column
-rm "$jobid.unique_targets.txt"
+#rm "$jobid.unique_targets.txt"
 
 cat "$jobid.unique_targets.pamcreation.txt" "$jobid.semi_common_targets.minmaxdisr.txt" >"$jobid.total.txt"
-rm "$jobid.unique_targets.pamcreation.txt"
-rm "$jobid.semi_common_targets.minmaxdisr.txt"
+#rm "$jobid.unique_targets.pamcreation.txt"
+#rm "$jobid.semi_common_targets.minmaxdisr.txt"
 
 #awk '{real_guide=$2; gsub("-","",real_guide); print $0"\tn\tn\tn\tn\t"real_guide"\tn\tn\tn"}' $ENRtargets.corrected > $jobid.total.txt
 
 #echo 'Creazione cluster del file .total.txt'
 # 3) Clustering
 ./cluster.dict.py "$jobid.total.txt" 'no' 'True' 'True' "$guide_file" 'total' 'orderChr' || {
-	echo "CRISPRme ERROR: indels clustering failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: indels clustering failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 } # OUTPUT     $jobid.total.cluster.txt
 
@@ -82,7 +82,7 @@ rm "$jobid.semi_common_targets.minmaxdisr.txt"
 #sed -i '$s/$/\tn\tn\tn/g' $jobid.total.cluster.txt
 
 sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster Position\tDirection\tMismatches\tBulge_Size\tTotal\tChromosome_fake\tPAM_gen\tVar_uniq\tSamples\tAnnotation Type\tReal Guide\tID\tAF\tSNP/' "$jobid.total.cluster.txt"
-rm "$jobid.total.txt"
+#rm "$jobid.total.txt"
 
 # 4) Estrazione del samples
 
@@ -105,7 +105,7 @@ rm "$jobid.total.txt"
 #echo 'Estrazione sample dal file .total.cluster.txt'
 
 ./analisi_indels_NNN.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" "$mismatch" "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA || {
-	echo "CRISPRme ERROR: indels analysis failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: indels analysis failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 # OUTPUT    $jobid.bestCFD_INDEL.txt
@@ -113,7 +113,7 @@ rm "$jobid.total.txt"
 # NOTA AnnotatorAllTargets.py salva su disco SOLO il target con CFD più alto nel cluster e tra le scomposizioni esistenti
 # Quindi i files jobid.samples.annotation (contentente le scomposizioni del TOP1 esistenti) e jobid.cluster.tmp.txt (contenente il miglior TOP1
 # scomposto e i target dei cluster con quell'aplotipo) NON sono creati
-rm "$jobid.total.cluster.txt"
+#rm "$jobid.total.cluster.txt"
 #rm "$jobid.bed_for_ref"
 #rm "$jobid.ref_seq.fa"
 
@@ -134,15 +134,15 @@ echo 'Sorting and adjusting results'
 # tail -n +2 $jobid.bestCRISTA_INDEL.txt | LC_ALL=C sort -k15,15 -k4,4 -k6,6n -k21,21rg -T ./ >>$jobid.tmp && mv $jobid.tmp $jobid.bestCRISTA_INDEL.txt
 
 ./adjust_cols.py "$jobid.bestCFD_INDEL.txt" || {
-	echo "CRISPRme ERROR: CFD indels report failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CFD indels report failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./adjust_cols.py "$jobid.bestCRISTA_INDEL.txt" || {
-	echo "CRISPRme ERROR: CRISTA indels report failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CRISTA indels report failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./adjust_cols.py "$jobid.bestmmblg_INDEL.txt" || {
-	echo "CRISPRme ERROR: mismatch+bulges indels report failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: mismatch+bulges indels report failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 
@@ -153,15 +153,15 @@ echo 'Sorting and adjusting results'
 # pr -m -t -J $jobid.altCFD.txt $jobid.altmmblg.txt >$jobid.altMerge.txt
 
 ./remove_bad_indel_targets.py "$jobid.bestCFD_INDEL.txt" || {
-	echo "CRISPRme ERROR: CFD indels report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CFD indels report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./remove_bad_indel_targets.py "$jobid.bestCRISTA_INDEL.txt" || {
-	echo "CRISPRme ERROR: CRISTA indels report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CRISTA indels report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./remove_bad_indel_targets.py "$jobid.bestmmblg_INDEL.txt" || {
-	echo "CRISPRme ERROR: mismatch+bulges indels report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: mismatch+bulges indels report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 

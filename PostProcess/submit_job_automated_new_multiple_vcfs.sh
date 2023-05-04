@@ -53,7 +53,7 @@ empty_file="${output_folder}/.empty.txt"
 mkdir "${output_folder}/.empty"
 empty_dir="${output_folder}/.empty"
 
-rm -f $output_folder/queue.txt
+#rm -f $output_folder/queue.txt
 #for vcf_f in "${vcf_list[@]}";
 if [ $2 == "_" ]; then
 	echo -e "_" >>$output_folder/tmp_list_vcf.txt
@@ -744,10 +744,10 @@ echo -e 'Creating images\tStart\t'$(date) >>$log
 cd $output_folder
 #FIX FILES NAMES AND REMOVE UNUSED FILES
 echo -e "Cleaning directory"
-rm -f *.CFDGraph.txt
-rm -f indels.CFDGraph.txt
-rm -r "crispritz_prof"
-rm -r "crispritz_targets" #remove targets in online version to avoid memory saturation
+#rm -f *.CFDGraph.txt
+#rm -f indels.CFDGraph.txt
+#rm -r "crispritz_prof"
+#rm -r "crispritz_targets" #remove targets in online version to avoid memory saturation
 #change name to best and alt files
 mv $final_res "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
 mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
@@ -921,12 +921,12 @@ mv $output_folder/log_error.txt $output_folder/log_error_no_check.txt
 #removing single best files after use and clean merged file to save space
 #keep the two integrated files with all the targets
 #save these files to test
-rm $final_res.bestCFD.txt
-rm $final_res.bestmmblg.txt
-rm $final_res.bestCRISTA.txt
-rm $final_res_alt.bestCFD.txt
-rm $final_res_alt.bestmmblg.txt
-rm $final_res_alt.bestCRISTA.txt
+#rm $final_res.bestCFD.txt
+#rm $final_res.bestmmblg.txt
+#rm $final_res.bestCRISTA.txt
+#rm $final_res_alt.bestCFD.txt
+#rm $final_res_alt.bestmmblg.txt
+#rm $final_res_alt.bestCRISTA.txt
 #save bestMerge and altMerge
 # rm "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
 # rm "${output_folder}/$(basename ${output_folder}).altMerge.txt"
