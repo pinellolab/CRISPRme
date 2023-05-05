@@ -661,7 +661,7 @@ def complete_search():
     log_verbose = open(f"{outputfolder}/log_verbose.txt", 'w')
     log_error = open(f"{outputfolder}/log_error.txt", 'w')
     crisprme_run = (
-                f"{os.path.join(script_path, 'submit_job_automated_new_multiple_vcfs.sh')} "
+                f"{os.path.join(script_path, 'execute_complete.py')} "
                 f"{genomedir} {vcfdir} {os.path.join(outputfolder, 'guides.txt')} "
                 f"{pamfile} {annotationfile} {samplefile} {bMax} {mm} {bDNA} {bRNA} "
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
