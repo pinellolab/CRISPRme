@@ -47,7 +47,7 @@ log_file=open(os.path.join(output_folder,"log.txt"),"w")
 pam_complete=""
 pam_seq=""
 pam_position=0
-ref_name=os.path.basename(ref_folder)
+ref_name=os.path.basename(ref_folder).replace("/","")
 
 ##USER FUNCTIONS
 def write_to_log(message):
