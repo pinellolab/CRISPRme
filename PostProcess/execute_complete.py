@@ -131,6 +131,9 @@ def generate_index(genome_folder, process_indels=False):
             )
         ):
             write_to_verbose("genome already indexed")
+            write_to_log(
+                f"Index-genome {genome_name}\tEnd\t" + str(datetime.datetime.now())
+            )
             return 0
 
     index_run = f"'crispritz.py' 'index-genome' {genome_name} {genome_folder} {pam_file} '-bMax' {bMax} '-th' {ncpus}"
