@@ -162,6 +162,7 @@ def generate_dict(vcf_data):
                 if "chr" in elem:
                     fake_chr_list.append("fake"+elem)
     
+    write_to_verbose(f"name of genome is: {ref_name}")
     ##rename indexed variant genome folder
     shutil.move(os.path.join(current_working_directory,"variants_genome"),os.path.join(genomes_folder,"variants_genome"))
     os.rename(os.path.join(genomes_folder,"variants_genome","SNPs_genome",ref_name,"_enriched"),os.path.join(genomes_folder,ref_name+"+"+vcf_name))
