@@ -109,7 +109,7 @@ def pre_process():
     pam_seq = pam_complete.split(" ")[0]
     pam_position = int(pam_complete.split(" ")[1])
     if pam_position > 0:
-        pam_seq = pam_seq[::-pam_position]
+        pam_seq = pam_seq[-pam_position]
     else:
         pam_seq = pam_seq[:pam_position]
 
