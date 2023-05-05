@@ -16,3 +16,4 @@ guides/
 *.txt
 *.zip
 PostProcess/dnaShape.pkl
+*.fa

@@ -166,7 +166,7 @@ def generate_dict(vcf_data):
     
     ##rename indexed variant genome folder
     shutil.move(os.path.join(current_working_directory,"variants_genome"),os.path.join(genomes_folder,"variants_genome"))
-    os.rename(os.path.join(genomes_folder,"variants_genome","SNPs_genome",ref_name,"_enriched"),os.path.join(genomes_folder,ref_name+"+"+vcf_name))
+    os.rename(os.path.join(genomes_folder,"variants_genome","SNPs_genome","{ref_name}_enriched"),os.path.join(genomes_folder,ref_name+"+"+vcf_name))
     os.makedirs(os.path.join(genomes_folder,ref_name,"+",vcf_name,"_INDELS"),exist_ok=True)
     os.makedirs(os.path.join(dictionaries_folder,"dictionaries_"+vcf_name),exist_ok=True)
     os.makedirs(os.path.join(dictionaries_folder,"log_indels_"+vcf_name),exist_ok=True)
