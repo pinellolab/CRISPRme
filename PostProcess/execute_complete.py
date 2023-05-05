@@ -67,8 +67,7 @@ def pre_process():
     write_to_verbose("input ncpus is: {ncpus}")
     
     ##GENERATE LOG FILE AND START TIME
-    start_time="Job\tStart\t"+str(datetime.datetime.now())
-    write_to_log(start_time)
+    write_to_log(f"Job\tStart\t"+str(datetime.datetime.now())
     ##CREATE DUMMY FILE WITH ONE LINE
     dummy_file=open(f"{output_folder}/.dummy.txt","w")
     dummy_file.write("dummy_file")
@@ -107,10 +106,10 @@ def pre_process():
     
     return 0
 
-def generate_index(genome_folder):
+def generate_index(genome_folder,process):
     ##generate index for input genome
     genome_name=os.path.basename(genome_folder)
-    write_to_log("Index-genome {genome_name}}\tStart\t"+str(datetime.datetime.now()))
+    write_to_log(f"Index-genome {genome_name}\tStart\t"+str(datetime.datetime.now()))
     ##check if genome is already indexed for all bulges from bMax to bMax+20
     for bulge in range(int(bMax),int(bMax)+20):
         if os.path.isdir(os.path.join(genomes_libraries_folder,pam_seq,"_",str(bulge),"_",genome_name)):
@@ -123,20 +122,20 @@ def generate_index(genome_folder):
         write_to_error("index-genome failed")
         write_to_error(code.stderr.decode("utf-8"))
         sys.exit(1)
-    if vcf_process:
+    if process:
         index_run = ["crispritz.py","index-genome",genome_name+"_INDELS",os.path.join(genome_folder,"_INDELS"),pam_file,"-bMax",bMax,"-th",ncpus]
 
-    write_to_log("Index-genome {genome_name}\tEnd\t"+str(datetime.datetime.now()))
+    write_to_log(f"Index-genome {genome_name}\tEnd\t"+str(datetime.datetime.now()))
     return 0
     
     
 def generate_dict(vcf_data):
     vcf_name=vcf_data
-    write_to_log("Add-variants\tStart\t"+str(datetime.datetime.now()))
+    write_to_log(f"Add-variants\tStart\t"+str(datetime.datetime.now()))
     
     if os.path.isdir(os.path.join(genomes_folder,ref_name+"+"+vcf_name)):
         write_to_verbose("variants already added")
-        write_to_log("Add-variants\tEnd\t"+str(datetime.datetime.now()))
+        write_to_log(f"Add-variants\tEnd\t"+str(datetime.datetime.now()))
         return 0
     
     write_to_verbose("Starting dictionary generation for vcf: {vcf_name}")
@@ -172,7 +171,7 @@ def generate_dict(vcf_data):
     for fakechr in fake_chr_list:
         os.rename(os.path.join(genomes_folder,"variants_genome","fake_",vcf_name,"_",fakechr.replace("fake","")),os.path.join(genomes_folder,ref_name,"+",vcf_name,"_INDELS",fakechr,".fa"))
         
-    write_to_log("Add-variants\tEnd\t"+str(datetime.datetime.now()))
+    write_to_log(f"Add-variants\tEnd\t"+str(datetime.datetime.now()))
 
 
 ##START PROCESS FROM SCRATCH AND CHECK IF ANY STEP CAN BE SKIPPED
@@ -180,9 +179,9 @@ code=pre_process()
 if code!=0:
     write_to_error("pre_process failed")
     sys.exit(1)
-generate_index(ref_folder)##generate index for reference genome
+generate_index(ref_folder,False)##generate index for reference genome
 for vcf_data in vcf_list_checked:
     generate_dict(vcf_data)##generate dictionary for vcf
-    generate_index(os.path.join(genomes_folder,ref_name,"+",vcf_data))##generate index for vcf genome
+    generate_index(os.path.join(genomes_folder,ref_name,"+",vcf_data),True)##generate index for vcf genome
     
     
