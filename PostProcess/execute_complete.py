@@ -157,11 +157,15 @@ def generate_index(genome_folder, process_indels=False):
 
 def generate_dict(vcf_data):
     vcf_name = vcf_data
-    write_to_log(f"Add-variants\tStart\t" + str(datetime.datetime.now()))
+    write_to_log(
+        f"Add-variants for VCF {vcf_name}\tStart\t" + str(datetime.datetime.now())
+    )
 
     if os.path.isdir(os.path.join(genomes_folder, ref_name + "+" + vcf_name)):
         write_to_verbose("variants already added")
-        write_to_log(f"Add-variants\tEnd\t" + str(datetime.datetime.now()))
+        write_to_log(
+            f"Add-variants for VCF {vcf_name}\tEnd\t" + str(datetime.datetime.now())
+        )
         return 0
 
     write_to_verbose(f"name of genome is: {ref_name}")
@@ -231,8 +235,11 @@ def generate_dict(vcf_data):
                 genomes_folder, f"{ref_name}+{vcf_name}_INDELS", f"{fakechr}.fa"
             ),
         )
-
-    write_to_log(f"Add-variants\tEnd\t" + str(datetime.datetime.now()))
+    ##remove temporary folder for variant genome
+    os.removedirs(os.path.join(genomes_folder, "variants_genome"))
+    write_to_log(
+        f"Add-variants for VCF {vcf_name}\tEnd\t" + str(datetime.datetime.now())
+    )
 
 
 ##START PROCESS FROM SCRATCH AND CHECK IF ANY STEP CAN BE SKIPPED
@@ -242,6 +249,10 @@ if code != 0:
     sys.exit(1)
 generate_index(ref_folder, False)  ##generate index for reference genome
 for vcf_data in vcf_list_checked:
+    if len(vcf_data):
+        pass
+    else:
+        continue
     generate_dict(vcf_data)  ##generate dictionary for vcf
     generate_index(
         os.path.join(genomes_folder, ref_name, "+", vcf_data), True
