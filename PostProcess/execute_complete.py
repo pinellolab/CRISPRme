@@ -107,7 +107,7 @@ def pre_process():
     
     return 0
 
-def generate_index(genome_folder,process):
+def generate_index(genome_folder,process_indels=False):
     ##generate index for input genome
     genome_name=os.path.basename(genome_folder)
     write_to_log(f"Index-genome {genome_name}\tStart\t"+str(datetime.datetime.now()))
@@ -117,14 +117,16 @@ def generate_index(genome_folder,process):
             write_to_verbose("genome already indexed")
             return 0
     
-    index_run = ["crispritz.py","index-genome",genome_name,genome_folder,pam_file,"-bMax",bMax,"-th",ncpus]
+    index_run = ["crispritz.py", "index-genome", genome_name, genome_folder, pam_file, "-bMax", bMax, "-th", ncpus]
     code = subprocess.run(index_run, shell=True, capture_output=True)
     write_to_verbose(code.stdout.decode("utf-8"))
     if code.returncode!=0:
         write_to_error("index-genome failed")
         write_to_error(code.stderr.decode("utf-8"))
         sys.exit(1)
-    if process:
+        
+    ##if process_indels is True, index genome for indels
+    if process_indels:
         index_run = ["crispritz.py","index-genome",genome_name+"_INDELS",os.path.join(genome_folder,"_INDELS"),pam_file,"-bMax",bMax,"-th",ncpus]
 
     write_to_log(f"Index-genome {genome_name}\tEnd\t"+str(datetime.datetime.now()))
