@@ -272,8 +272,7 @@ def complete_search():
     sequence_use = False
     if '--sequence' in input_args:
         try:
-            sequence_file = os.path.abspath(
-                input_args[input_args.index("--sequence")+1])
+            sequence_file = os.path.abspath(input_args[input_args.index("--sequence")+1])
             sequence_use = True
         except IndexError:
             print("Please input some parameter for flag --sequence")
@@ -318,7 +317,7 @@ def complete_search():
     #check input vcf
     if "--vcf" not in input_args:
         variant = False
-        vcfdir='_'
+        vcfdir='NULL'
     else:
         try:
             vcfdir = os.path.realpath(input_args[input_args.index("--vcf")+1])
@@ -653,32 +652,26 @@ def complete_search():
         extracted_guides_file.close()
     # print(guides)
     # exit(0)
-    void_mail='_'
+    void_mail='NULL'
     if sequence_use == False:
         os.system(f'cp {guidefile} {outputfolder}/guides.txt')
     print(
         f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt")
     # start search with set parameters
-    with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
-        with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
-            crisprme_run = (
+    log_verbose = open(f"{outputfolder}/log_verbose.txt", 'w')
+    log_error = open(f"{outputfolder}/log_error.txt", 'w')
+    crisprme_run = (
                 f"{os.path.join(script_path, 'submit_job_automated_new_multiple_vcfs.sh')} "
                 f"{genomedir} {vcfdir} {os.path.join(outputfolder, 'guides.txt')} "
                 f"{pamfile} {annotationfile} {samplefile} {bMax} {mm} {bDNA} {bRNA} "
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set}"
             )
-            code = subprocess.call(crisprme_run, shell=True, stderr=log_error, stdout=log_verbose)
-            if code != 0:
-                raise OSError(f"\nCRISPRme run failed! See {os.path.join(outputfolder, 'log_error.txt')} for details\n")
-            # subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), str(vcfdir), str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(
-            #     samplefile), str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation),void_mail,str(base_start),str(base_end),str(base_set)], stdout=log_verbose, stderr=log_error)
-    # else:
-    #     with open(f"{outputfolder}/log_verbose.txt", 'w') as log_verbose:
-    #         with open(f"{outputfolder}/log_error.txt", 'w') as log_error:
-    #             subprocess.run([script_path+'./submit_job_automated_new_multiple_vcfs.sh', str(genomedir), '_', str(outputfolder)+"/guides.txt", str(pamfile), str(annotationfile), str(script_path+'vuoto.txt'),
-    #                             str(bMax), str(mm), str(bDNA), str(bRNA), str(merge_t), str(outputfolder), str(script_path), str(thread), str(current_working_directory), str(gene_annotation),void_mail,str(base_start),str(base_end),str(base_set)], stdout=log_verbose, stderr=log_error)
-    # change name of guide and param files to hidden
+    code = subprocess.call(crisprme_run, shell=True, stderr=log_error, stdout=log_verbose)
+    if code != 0:
+        log_verbose.close()
+        log_error.close()
+        raise OSError(f"\nCRISPRme run failed! See {os.path.join(outputfolder, 'log_error.txt')} for details\n")
     os.system(f"mv {outputfolder}/guides.txt {outputfolder}/.guides.txt")
     os.system(f"mv {outputfolder}/Params.txt {outputfolder}/.Params.txt")
 
