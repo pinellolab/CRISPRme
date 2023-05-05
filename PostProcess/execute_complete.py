@@ -45,7 +45,7 @@ log_file=open(os.path.join(output_folder,"log.txt"),"w")
 pam_complete=""
 pam_seq=""
 pam_position=0
-ref_name=""
+ref_name=os.path.basename(ref_folder)
 
 ##USER FUNCTIONS
 def write_to_log(message):
@@ -79,8 +79,7 @@ def pre_process():
     ##CREATE EMPTY DIR
     empty_dir=f"{output_folder}/.empty"
     os.mkdir(empty_dir)
-    
-    ref_name=os.path.basename(ref_folder)
+
     ##extract list of chromosomes from reference genome
     tmp_list = os.listdir(ref_folder)
     for f in tmp_list:
