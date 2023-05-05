@@ -67,7 +67,8 @@ def pre_process():
     write_to_verbose("input ncpus is: {ncpus}")
     
     ##GENERATE LOG FILE AND START TIME
-    write_to_log(f"Job\tStart\t"+str(datetime.datetime.now())
+    write_to_log(f"Job\tStart\t"+str(datetime.datetime.now()))
+
     ##CREATE DUMMY FILE WITH ONE LINE
     dummy_file=open(f"{output_folder}/.dummy.txt","w")
     dummy_file.write("dummy_file")
