@@ -63,8 +63,8 @@ def write_to_error(message):
 def pre_process():
     ## WRITE TO LOG_VERBOSE
     write_to_verbose("Starting pre-processing")
-    write_to_verbose("input mail is: {email}")
-    write_to_verbose("input ncpus is: {ncpus}")
+    write_to_verbose(f"input mail is: {email}")
+    write_to_verbose(f"input ncpus is: {ncpus}")
     
     ##GENERATE LOG FILE AND START TIME
     write_to_log(f"Job\tStart\t"+str(datetime.datetime.now()))
@@ -93,8 +93,8 @@ def pre_process():
             break
         else:
             vcf_list_checked.append(elem.strip().replace("/",""))
-    write_to_verbose("vcf_process is: {vcf_process}")
-    write_to_verbose("vcf_list is: {vcf_list_checked}")
+    write_to_verbose(f"vcf_process is: {vcf_process}")
+    write_to_verbose(f"vcf_list is: {vcf_list_checked}")
     
     ##generate pam_seq and pam_position
     pam_complete=open(pam_file).readlines()[0].strip() # type: ignore
@@ -142,8 +142,8 @@ def generate_dict(vcf_data):
         write_to_log(f"Add-variants\tEnd\t"+str(datetime.datetime.now()))
         return 0
     
-    write_to_verbose("Starting dictionary generation for vcf: {vcf_name}")
-    variant_run=(f"'crispritz.py' 'add-variants' {vcf_name} {ref_folder} 'true'")
+    write_to_verbose(f"Starting dictionary generation for vcf: {vcf_name}")
+    variant_run=(f"'crispritz.py' 'add-variants' {os.path.join(vcfs_folder,vcf_data)} {ref_folder} 'true'")
     # variant_run = ["crispritz.py","add-variants",os.path.join(vcfs_folder,vcf_data),ref_folder,"true"]
     code = subprocess.run(variant_run, shell=True, capture_output=True)
     if code.returncode!=0:
