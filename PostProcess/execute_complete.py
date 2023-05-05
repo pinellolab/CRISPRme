@@ -224,7 +224,8 @@ def generate_dict(vcf_data):
             os.path.join(
                 genomes_folder,
                 "variants_genome",
-                f"fake_{vcf_name}_{fakechr.replace('fake','')}.fa",
+                f"fake_{vcf_name}_{fakechr.replace('fake','')}",
+                f"{fakechr}.fa",
             ),
             os.path.join(
                 genomes_folder, f"{ref_name}+{vcf_name}_INDELS", f"{fakechr}.fa"
