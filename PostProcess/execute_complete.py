@@ -40,7 +40,7 @@ vcfs_folder=os.path.join(current_working_directory,"VCFs")
 chr_list = list()
 fake_chr_list=list()
 vcf_list_checked=list()
-vcf_process = True
+vcf_process=""
 log_file=open(os.path.join(output_folder,"log.txt"),"w")
 pam_complete=""
 pam_seq=""
@@ -81,12 +81,13 @@ def pre_process():
     os.mkdir(empty_dir)
 
     ##extract list of chromosomes from reference genome
-    tmp_list = os.listdir(ref_folder)
+    tmp_list = os.listdir(ref_folder) # type: ignore
     for f in tmp_list:
         if ".fa" in f and ".fai" not in f:
             chr_list.append(f.replace(".fa", ""))
     
     ##check if vcf_list is empty
+    vcf_process=True
     for elem in vcf_list:
         if elem=="NULL":
             vcf_process=False
