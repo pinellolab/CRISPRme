@@ -99,7 +99,9 @@ def pre_process():
             vcf_process = False
             break
         else:
-            vcf_list_checked.append(elem.strip().replace("/", ""))
+            if len(elem.strip().replace("/", "")) > 0:
+                vcf_list_checked.append(elem.strip().replace("/", ""))
+
     write_to_verbose(f"vcf_process is: {vcf_process}")
     write_to_verbose(f"vcf_list is: {vcf_list_checked}")
 
