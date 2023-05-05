@@ -44,9 +44,7 @@ fake_chr_list = list()
 vcf_list_checked = list()
 vcf_process = ""
 log_file = open(os.path.join(output_folder, "log.txt"), "w")
-pam_complete = ""
 pam_seq = ""
-pam_position = 0
 ref_name = os.path.basename(ref_folder).replace("/", "")
 
 
@@ -66,7 +64,7 @@ def write_to_error(message):
     print(message, file=sys.stderr)
 
 
-def pre_process(pam_file, pam_complete, pam_seq, pam_position):
+def pre_process():
     ## WRITE TO LOG_VERBOSE
     write_to_verbose("Starting pre-processing")
     write_to_verbose(f"input mail is: {email}")
@@ -107,6 +105,7 @@ def pre_process(pam_file, pam_complete, pam_seq, pam_position):
 
     ##generate pam_seq and pam_position
     pam_complete = open(pam_file).readlines()[0].strip()  # type: ignore
+    global pam_seq
     pam_seq = pam_complete.split(" ")[0]
     pam_position = int(pam_complete.split(" ")[1])
     if pam_position > 0:
@@ -245,12 +244,7 @@ def generate_dict(vcf_data):
 
 
 ##START PROCESS FROM SCRATCH AND CHECK IF ANY STEP CAN BE SKIPPED
-code = pre_process(
-    pam_file=pam_file,
-    pam_seq=pam_seq,
-    pam_complete=pam_complete,
-    pam_position=pam_position,
-)
+code = pre_process()
 if code != 0:
     write_to_error("pre_process failed")
     sys.exit(1)
