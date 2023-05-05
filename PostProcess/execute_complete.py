@@ -231,8 +231,9 @@ def generate_dict(vcf_data):
                 genomes_folder, f"{ref_name}+{vcf_name}_INDELS", f"{fakechr}.fa"
             ),
         )
+
     ##remove temporary folder for variant genome
-    os.removedirs(os.path.join(genomes_folder, "variants_genome"))
+    shutil.rmtree(os.path.join(genomes_folder, "variants_genome"), ignore_errors=True)
     write_to_log(
         f"Add-variants for VCF {vcf_name}\tEnd\t" + str(datetime.datetime.now())
     )
