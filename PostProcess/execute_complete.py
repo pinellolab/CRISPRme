@@ -195,15 +195,14 @@ def generate_dict(vcf_data):
         os.path.join(genomes_folder, ref_name + "+" + vcf_name),
     )
     os.makedirs(
-        os.path.join(genomes_folder, ref_name, "+", vcf_name, "_INDELS"), exist_ok=True
+        os.path.join(genomes_folder, f"{ref_name}+{vcf_name}_INDELS"), exist_ok=True
     )
     os.makedirs(
-        os.path.join(dictionaries_folder, "dictionaries_" + vcf_name), exist_ok=True
+        os.path.join(dictionaries_folder, f"dictionaries_{vcf_name}"), exist_ok=True
     )
     os.makedirs(
-        os.path.join(dictionaries_folder, "log_indels_" + vcf_name), exist_ok=True
+        os.path.join(dictionaries_folder, f"log_indels_{vcf_name}"), exist_ok=True
     )
-    # os.makedirs(os.path.join(genomes_libraries_folder,pam_seq,"_",str(bMax),"_",ref_name,"+",vcf_name,"_INDELS"),exist_ok=True)
 
     list_files = os.listdir(
         os.path.join(genomes_folder, "variants_genome", "SNPs_genome")
@@ -212,12 +211,12 @@ def generate_dict(vcf_data):
         if ".json" in file:
             os.rename(
                 os.path.join(genomes_folder, "variants_genome", "SNPs_genome", file),
-                os.path.join(dictionaries_folder, "dictionaries_" + vcf_name, file),
+                os.path.join(dictionaries_folder, f"dictionaries_{vcf_name}", file),
             )
         if "log" in file:
             os.rename(
                 os.path.join(genomes_folder, "variants_genome", "SNPs_genome", file),
-                os.path.join(dictionaries_folder, "log_indels_" + vcf_name, file),
+                os.path.join(dictionaries_folder, f"log_indels_{vcf_name}", file),
             )
 
     for fakechr in fake_chr_list:
@@ -225,13 +224,10 @@ def generate_dict(vcf_data):
             os.path.join(
                 genomes_folder,
                 "variants_genome",
-                "fake_",
-                vcf_name,
-                "_",
-                fakechr.replace("fake", ""),
+                f"fake_{vcf_name}_{fakechr.replace('fake','')}.fa",
             ),
             os.path.join(
-                genomes_folder, ref_name, "+", vcf_name, "_INDELS", fakechr, ".fa"
+                genomes_folder, f"{ref_name}+{vcf_name}_INDELS", f"{fakechr}.fa"
             ),
         )
 
