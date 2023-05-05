@@ -117,9 +117,8 @@ def generate_index(genome_folder,process_indels=False):
             write_to_verbose("genome already indexed")
             return 0
     
-    # index_run = ["crispritz.py", "index-genome", genome_name, genome_folder, pam_file, "-bMax", bMax, "-th", ncpus]
-    index_run=["crispritz.py","index-genome"]
-    index_run = [ str(x) for x in index_run ]
+    index_run = (f"'crispritz.py' 'index-genome' {genome_name} {genome_folder} {pam_file} '-bMax' {bMax} '-th' {ncpus}")
+    # index_run = (f"'execute_complete.py'", "index-genome", genome_name, genome_folder, pam_file, "-bMax", bMax, "-th", ncpus)
     for x in index_run:
         write_to_verbose(x)
     
