@@ -145,6 +145,8 @@ def generate_dict(vcf_data):
         write_to_log(f"Add-variants\tEnd\t"+str(datetime.datetime.now()))
         return 0
     
+    write_to_verbose(f"name of genome is: {ref_name}")
+
     write_to_verbose(f"Starting dictionary generation for vcf: {vcf_name}")
     variant_run=(f"'crispritz.py' 'add-variants' {os.path.join(vcfs_folder,vcf_data)} {ref_folder} 'true'")
     # variant_run = ["crispritz.py","add-variants",os.path.join(vcfs_folder,vcf_data),ref_folder,"true"]
@@ -162,7 +164,6 @@ def generate_dict(vcf_data):
                 if "chr" in elem:
                     fake_chr_list.append("fake"+elem)
     
-    write_to_verbose(f"name of genome is: {ref_name}")
     ##rename indexed variant genome folder
     shutil.move(os.path.join(current_working_directory,"variants_genome"),os.path.join(genomes_folder,"variants_genome"))
     os.rename(os.path.join(genomes_folder,"variants_genome","SNPs_genome",ref_name,"_enriched"),os.path.join(genomes_folder,ref_name+"+"+vcf_name))
