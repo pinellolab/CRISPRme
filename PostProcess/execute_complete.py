@@ -125,9 +125,7 @@ def generate_index(genome_folder, process_indels=False):
     for bulge in range(int(bMax), int(bMax) + 20):
         if os.path.isdir(
             os.path.join(
-                genomes_libraries_folder, pam_seq, "_", str(bulge), "_", genome_name
-            )
-        ):
+                genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_genome_name")):
             write_to_verbose("genome already indexed")
             return 0
 
