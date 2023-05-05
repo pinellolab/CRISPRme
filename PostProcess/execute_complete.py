@@ -164,7 +164,7 @@ def generate_dict(vcf_data):
         f"Add-variants for VCF {vcf_name}\tStart\t" + str(datetime.datetime.now())
     )
 
-    if os.path.isdir(os.path.join(genomes_folder, ref_name + "+" + vcf_name)):
+    if os.path.isdir(os.path.join(dictionaries_folder, f"dictionaries_{vcf_name}")):
         write_to_verbose("variants already added")
         write_to_log(
             f"Add-variants for VCF {vcf_name}\tEnd\t" + str(datetime.datetime.now())
