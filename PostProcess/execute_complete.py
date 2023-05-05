@@ -66,7 +66,7 @@ def write_to_error(message):
     print(message, file=sys.stderr)
 
 
-def pre_process():
+def pre_process(pam_file, pam_complete, pam_seq, pam_position):
     ## WRITE TO LOG_VERBOSE
     write_to_verbose("Starting pre-processing")
     write_to_verbose(f"input mail is: {email}")
@@ -123,6 +123,9 @@ def generate_index(genome_folder, process_indels=False):
     write_to_log(f"Index-genome {genome_name}\tStart\t" + str(datetime.datetime.now()))
     ##check if genome is already indexed for all bulges from bMax to bMax+20
     for bulge in range(int(bMax), int(bMax) + 20):
+        write_to_verbose(
+            f"checking presence of indexed genome for {pam_seq}_{str(bulge)}_{genome_name}"
+        )
         if os.path.isdir(
             os.path.join(
                 genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_{genome_name}"
@@ -242,7 +245,12 @@ def generate_dict(vcf_data):
 
 
 ##START PROCESS FROM SCRATCH AND CHECK IF ANY STEP CAN BE SKIPPED
-code = pre_process()
+code = pre_process(
+    pam_file=pam_file,
+    pam_seq=pam_seq,
+    pam_complete=pam_complete,
+    pam_position=pam_position,
+)
 if code != 0:
     write_to_error("pre_process failed")
     sys.exit(1)
