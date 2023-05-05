@@ -139,17 +139,13 @@ def generate_index(genome_folder, process_indels=False):
 
     ##if process_indels is True, index genome for indels
     if process_indels:
-        index_run = [
-            "crispritz.py",
-            "index-genome",
-            genome_name + "_INDELS",
-            os.path.join(genome_folder, "_INDELS"),
-            pam_file,
-            "-bMax",
-            bMax,
-            "-th",
-            ncpus,
-        ]
+        index_run = f"'crispritz.py' 'index-genome' {genome_name}_INDELS {genome_folder}_INDELS {pam_file} '-bMax' {bMax} '-th' {ncpus}"
+        code = subprocess.run(index_run, shell=True, capture_output=True)
+        write_to_verbose(code.stdout.decode("utf-8"))
+        if code.returncode != 0:
+            write_to_error("index-genome for indels failed")
+            write_to_error(code.stderr.decode("utf-8"))
+            sys.exit(1)
 
     write_to_log(f"Index-genome {genome_name}\tEnd\t" + str(datetime.datetime.now()))
     return 0
@@ -255,5 +251,5 @@ for vcf_data in vcf_list_checked:
         continue
     generate_dict(vcf_data)  ##generate dictionary for vcf
     generate_index(
-        os.path.join(genomes_folder, ref_name, "+", vcf_data), True
+        os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
     )  ##generate index for vcf genome
