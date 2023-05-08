@@ -45,6 +45,9 @@ vcf_list_checked = list()
 vcf_process = ""
 log_file = open(os.path.join(output_folder, "log.txt"), "w")
 pam_seq = ""
+pam_name = ""
+guide_name = ""
+annotation_name = ""
 ref_name = os.path.basename(ref_folder).replace("/", "")
 
 
@@ -112,6 +115,11 @@ def pre_process():
         pam_seq = pam_seq[-pam_position:]
     else:
         pam_seq = pam_seq[:pam_position]
+
+    global pam_name
+    global guide_name
+    pam_name = os.path.basename(pam_file).replace("/", "")
+    guide_name = os.path.basename(guide_file).replace("/", "")
 
     return 0
 
@@ -244,6 +252,31 @@ def generate_dict(vcf_data):
     write_to_log(
         f"Add-variants for VCF {vcf_name}\tEnd\t" + str(datetime.datetime.now())
     )
+
+
+def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
+    idx_ref = ""
+    ##extracting ref index to launch search
+    for bulge in range(int(bMax), int(bMax) + 20):
+        if os.path.isdir(
+            os.path.join(genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_{ref_name}")
+        ):
+            idx_ref = "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
+            break
+    ref_search_run = f"'crispritz.py' 'search' {idx_ref} {pam_file} {guide_file} {ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
+    code = subprocess.run(ref_search_run, shell=True, capture_output=True)
+    if code.returncode != 0:
+        write_to_error("reference search failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    idx_var = idx_ref.replace(ref_name, ref_name + "+" + vcf_data)
+    var_search_run = f"'crispritz.py' 'search' {idx_var} {pam_file} {guide_file} {ref_name}_{vcf_data}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
+    code = subprocess.run(var_search_run, shell=True, capture_output=True)
+    if code.returncode != 0:
+        write_to_error("variant search failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
 
 
 ##START PROCESS FROM SCRATCH AND CHECK IF ANY STEP CAN BE SKIPPED
