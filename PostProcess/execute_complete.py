@@ -328,12 +328,12 @@ def post_process(target_file, vcf_data, ref_only=False):
     write_to_verbose(f"target_file is: {target_file}")
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
     for chr in chr_list:
-        target_df_chr = target_df[target_df["Chromosome"] == chr]
+        target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
         target_df_chr["Var_uniq"] = "n"
         target_df_chr["Samples"] = "n"
         target_df_chr["Annotation_type"] = "n"
-        target_df_chr["Real_Guide"] = target_df_chr["crRNA"].replace("-", "")
+        target_df_chr["Real_Guide"] = target_df_chr["crRNA"].str.replace("-", "")
         target_df_chr["rsID"] = "n"
         target_df_chr["AF"] = "n"
         target_df_chr["SNP_position"] = "n"
@@ -370,12 +370,12 @@ def post_process_indels(target_file, vcf_data, ref_only=False):
 
     for chr in chr_list:
         fake_chr = "fake" + chr
-        target_df_chr = target_df[target_df["Chromosome"] == fake_chr]
+        target_df_chr = target_df.loc[target_df["Chromosome"] == fake_chr]
         target_df_chr["PAM_gen"] = "n"
         target_df_chr["Var_uniq"] = "n"
         target_df_chr["Samples"] = "n"
         target_df_chr["Annotation_type"] = "n"
-        target_df_chr["Real_Guide"] = target_df_chr["crRNA"].replace("-", "")
+        target_df_chr["Real_Guide"] = target_df_chr["crRNA"].str.replace("-", "")
         target_df_chr["rsID"] = "n"
         target_df_chr["AF"] = "n"
         target_df_chr["SNP_position"] = "n"
@@ -385,7 +385,6 @@ def post_process_indels(target_file, vcf_data, ref_only=False):
             index=False,
         )
 
-        write_to_verbose("arrivo a start indel")
         os.chdir(processes_dir)
         # indel_analysis_run = "./analisi_indels_NNN.py"
         indel_analysis_run = f"./analisi_indels_NNN.py {os.path.join(output_folder,'.empty.txt')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {os.path.join(output_folder,output_folder_name)} {os.path.join(dictionaries_folder,'log_indels_'+vcf_data)} {pam_file} {mm} {os.path.join(ref_folder,chr+'.fa')} {guide_file} {bDNA} {bRNA}"
@@ -409,7 +408,6 @@ def fix_columns(output_folder_name):
     adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestCFD.txt')}"
     code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
     write_to_verbose(code.stdout.decode("utf-8"))
-
     if code.returncode != 0:
         write_to_error("adjust bestCFD failed")
         write_to_error(code.stderr.decode("utf-8"))
@@ -418,20 +416,137 @@ def fix_columns(output_folder_name):
     adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestCRISTA.txt')}"
     code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
     write_to_verbose(code.stdout.decode("utf-8"))
-
     if code.returncode != 0:
         write_to_error("adjust bestCRISTA failed")
         write_to_error(code.stderr.decode("utf-8"))
         sys.exit(1)
+
     adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestmmblg.txt')}"
     code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
     write_to_verbose(code.stdout.decode("utf-8"))
-
     if code.returncode != 0:
         write_to_error("adjust bestMMBUL failed")
         write_to_error(code.stderr.decode("utf-8"))
         sys.exit(1)
 
+    os.chdir(current_working_directory)
+    return 0
+
+
+def remove_bad_indels(output_folder_name):
+    write_to_verbose(f"Starting removing bad indels in best files")
+
+    os.chdir(processes_dir)
+    remove_bad_indels_run = f"./remove_bad_indel_targets.py {os.path.join(output_folder,output_folder_name+'.bestCFD.txt')}"
+    code = subprocess.run(remove_bad_indels_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+    if code.returncode != 0:
+        write_to_error("bad indels removing bestCFD failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    remove_bad_indels_run = f"./remove_bad_indel_targets.py {os.path.join(output_folder,output_folder_name+'.bestCRISTA.txt')}"
+    code = subprocess.run(remove_bad_indels_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+    if code.returncode != 0:
+        write_to_error("bad indels removing bestCRISTA failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    remove_bad_indels_run = f"./remove_bad_indel_targets.py {os.path.join(output_folder,output_folder_name+'.bestmmblg.txt')}"
+    code = subprocess.run(remove_bad_indels_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+    if code.returncode != 0:
+        write_to_error("bad indels removing bestMMBUL failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    os.chdir(current_working_directory)
+    write_to_verbose(f"Removing bad indels in best files ended correctly")
+    return 0
+
+
+def merge_results(output_folder_name):
+    ##positional arguments to start merge results
+    chrom = 5  # column for chromosome
+    position = 7  # column for cluster_position
+    total = 11  # column for total (mm+bul)
+    true_guide = 16  # column for true guide (original guide without bulges)
+    snp_info = 19  # column for snp info
+    cfd = 21  # column for cfd score
+
+    # sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
+    # tail -n +2 $final_res.bestCRISTA.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestCRISTA.txt
+    # #sort using guide_seq,chr,cluster_pos,total(mm+bul)
+    # head -1 $final_res.bestmmblg.txt >$final_res.tmp
+    # tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
+
+    write_to_verbose(f"Start merging results in best files")
+    os.chdir(processes_dir)
+    to_merge_df = pd.read_csv(
+        os.path.join(output_folder, output_folder_name + ".bestCFD.txt"), sep="\t"
+    )
+    to_merge_df.sort_values(
+        ["Real_Guide", "Chromosome", "Cluster_Position"],
+        ascending=[True, True, True],
+        inplace=True,
+    )
+    to_merge_df.to_csv(
+        os.path.join(output_folder, output_folder_name + ".bestCFD_sorted.txt"),
+        sep="\t",
+        index=False,
+    )
+    merge_resuts_run = f"./remove_contiguous_samples_cfd.py {os.path.join(output_folder,output_folder_name+'.bestCFD_sorted.txt')} {os.path.join(output_folder,output_folder_name+'.bestCFD.trimmed.txt')} {merge_t} {chrom} {position} {total} {true_guide} {snp_info} {cfd} 'score'"
+    code = subprocess.run(merge_resuts_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+    if code.returncode != 0:
+        write_to_error("merge bestCFD failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    to_merge_df = pd.read_csv(
+        os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt"), sep="\t"
+    )
+    to_merge_df.sort_values(
+        ["Real_Guide", "Chromosome", "Cluster_Position"],
+        ascending=[True, True, True],
+        inplace=True,
+    )
+    to_merge_df.to_csv(
+        os.path.join(output_folder, output_folder_name + ".bestCRISTA_sorted.txt"),
+        sep="\t",
+        index=False,
+    )
+    merge_resuts_run = f"./remove_contiguous_samples_cfd.py {os.path.join(output_folder,output_folder_name+'.bestCRISTA_sorted.txt')} {os.path.join(output_folder,output_folder_name+'.bestCRISTA.trimmed.txt')} {merge_t} {chrom} {position} {total} {true_guide} {snp_info} {cfd} 'score'"
+    code = subprocess.run(merge_resuts_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+    if code.returncode != 0:
+        write_to_error("merge bestCFD failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    to_merge_df = pd.read_csv(
+        os.path.join(output_folder, output_folder_name + ".bestmmblg.txt"), sep="\t"
+    )
+    to_merge_df.sort_values(
+        ["Real_Guide", "Chromosome", "Cluster_Position"],
+        ascending=[True, True, True],
+        inplace=True,
+    )
+    to_merge_df.to_csv(
+        os.path.join(output_folder, output_folder_name + ".bestmmblg_sorted.txt"),
+        sep="\t",
+        index=False,
+    )
+    merge_resuts_run = f"./remove_contiguous_samples_cfd.py {os.path.join(output_folder,output_folder_name+'.bestmmblg_sorted.txt')} {os.path.join(output_folder,output_folder_name+'.bestmmblg.trimmed.txt')} {merge_t} {chrom} {position} {total} {true_guide} {snp_info} {cfd} 'total'"
+    code = subprocess.run(merge_resuts_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+    if code.returncode != 0:
+        write_to_error("merge bestCFD failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    write_to_verbose(f"merging results in best files completed")
     os.chdir(current_working_directory)
     return 0
 
@@ -442,13 +557,13 @@ if code != 0:
     write_to_error("pre_process failed")
     sys.exit(1)
 
-generate_index(ref_folder, False)  ##generate index for reference genome
+generate_index(ref_folder, process_indels=False)  ##generate index for reference genome
 search(
-    ref_name, "", pam_seq, bMax, ncpus, mm, pam_name, True
+    ref_name, "", pam_seq, bMax, ncpus, mm, pam_name, do_ref=True
 )  ##search on reference genome
 
 target_file = f"{ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.txt"
-post_process(target_file, "", True)
+post_process(target_file, "", ref_only=True)
 
 ##start process for vcf data if any
 for vcf_data in vcf_list_checked:
@@ -471,4 +586,8 @@ for vcf_data in vcf_list_checked:
         vcf_data,
         False,
     )
+
+##fix columns in best files
 fix_columns(output_folder_name)
+remove_bad_indels(output_folder_name)
+merge_results(output_folder_name)
