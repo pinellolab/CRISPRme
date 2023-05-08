@@ -5,6 +5,7 @@ import datetime
 import os
 import subprocess
 import shutil
+import pandas as pd
 
 # set -e # capture any failure
 
@@ -49,6 +50,7 @@ pam_name = ""
 guide_name = ""
 annotation_name = ""
 ref_name = os.path.basename(ref_folder).replace("/", "")
+output_folder_name = os.path.basename(output_folder).replace("/", "")
 
 
 ##USER FUNCTIONS
@@ -89,6 +91,7 @@ def pre_process():
 
     ##extract list of chromosomes from reference genome
     tmp_list = os.listdir(ref_folder)  # type: ignore
+    global chr_list
     for f in tmp_list:
         if ".fa" in f and ".fai" not in f:
             chr_list.append(f.replace(".fa", ""))
@@ -182,6 +185,7 @@ def generate_dict(vcf_data):
 
     write_to_verbose(f"name of genome is: {ref_name}")
 
+    os.chdir(output_folder)
     write_to_verbose(f"Starting dictionary generation for vcf: {vcf_name}")
     variant_run = f"'crispritz.py' 'add-variants' {os.path.join(vcfs_folder,vcf_data)} {ref_folder} 'true'"
     # variant_run = ["crispritz.py","add-variants",os.path.join(vcfs_folder,vcf_data),ref_folder,"true"]
@@ -192,6 +196,7 @@ def generate_dict(vcf_data):
         sys.exit(1)
     ##generate fake chr list for INDELS analysis
     tmp_list = os.listdir(os.path.join(vcfs_folder, vcf_data))
+    global fake_chr_list
     for f in tmp_list:
         if ".vcf.gz" in f:
             split = f.split(".")
@@ -199,9 +204,10 @@ def generate_dict(vcf_data):
                 if "chr" in elem:
                     fake_chr_list.append("fake" + elem)
 
+    os.chdir(current_working_directory)
     ##rename indexed variant genome folder
     shutil.move(
-        os.path.join(current_working_directory, "variants_genome"),
+        os.path.join(output_folder, "variants_genome"),
         os.path.join(genomes_folder, "variants_genome"),
     )
     os.rename(
@@ -255,13 +261,11 @@ def generate_dict(vcf_data):
     )
 
 
-def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
+def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, do_ref=False):
+    ##move to output folder to save results
+    os.chdir(output_folder)
+    ##extract name for index ref
     idx_ref = ""
-    write_to_verbose(
-        f"Starting search for genome: {ref_name}, vcf process is: {vcf_process}"
-    )
-    write_to_log(f"Search Reference\tStart\t" + str(datetime.datetime.now()))
-    ##extracting ref index to launch search
     for bulge in range(int(bMax), int(bMax) + 20):
         if os.path.isdir(
             os.path.join(genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_{ref_name}")
@@ -270,25 +274,165 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
                 genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_{ref_name}"
             )
             break
-    ref_search_run = f"'crispritz.py' 'search' {idx_ref} {pam_file} {guide_file} {ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} '-mm' {mm} '-bDNA' {bDNA} '-bRNA' {bRNA} '-th' {ncpus} '-t'"
-    code = subprocess.run(ref_search_run, shell=True, capture_output=True)
-    if code.returncode != 0:
-        write_to_error("reference search failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
-    write_to_log(f"Search Reference\tEnd\t" + str(datetime.datetime.now()))
+    if do_ref:  ##if ref not already done, search it
+        write_to_verbose(
+            f"Starting search for genome: {ref_name}, vcf process is: {vcf_process}"
+        )
+        write_to_log(f"Search Reference\tStart\t" + str(datetime.datetime.now()))
+        write_to_verbose(f"idx_ref is: {idx_ref}")
+        ref_search_run = f"'crispritz.py' 'search' {idx_ref} {pam_file} {guide_file} {ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} '-mm' {mm} '-bDNA' {bDNA} '-bRNA' {bRNA} '-th' {ncpus} '-t'"
+        code = subprocess.run(ref_search_run, shell=True, capture_output=True)
+        write_to_verbose(code.stdout.decode("utf-8"))
+        if code.returncode != 0:
+            write_to_error("reference search failed")
+            write_to_error(code.stderr.decode("utf-8"))
+            sys.exit(1)
+        write_to_log(f"Search Reference\tEnd\t" + str(datetime.datetime.now()))
 
-    if vcf_process:
+    if vcf_process and len(vcf_data):  ##vcf is process and not empty, search variant
+        write_to_verbose(
+            f"Starting search for genome: {ref_name}+{vcf_data}, vcf process is: {vcf_process}"
+        )
         write_to_log(f"Search Variant\tStart\t" + str(datetime.datetime.now()))
         idx_var = idx_ref.replace(ref_name, ref_name + "+" + vcf_data)
+        write_to_verbose(f"idx_var is: {idx_var}")
         var_search_run = f"'crispritz.py' 'search' {idx_var} {pam_file} {guide_file} {ref_name}_{vcf_data}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} '-mm' {mm} '-bDNA' {bDNA} '-bRNA' {bRNA} '-th' {ncpus} '-t'"
         code = subprocess.run(var_search_run, shell=True, capture_output=True)
+        write_to_verbose(code.stdout.decode("utf-8"))
         if code.returncode != 0:
             write_to_error("variant search failed")
             write_to_error(code.stderr.decode("utf-8"))
             sys.exit(1)
         write_to_log(f"Search Variant\tEnd\t" + str(datetime.datetime.now()))
 
+        write_to_log(f"Search Indels\tStart\t" + str(datetime.datetime.now()))
+        idx_indels = idx_var.replace(
+            ref_name + "+" + vcf_data, ref_name + "+" + vcf_data + "_INDELS"
+        )
+        indel_search_run = f"'crispritz.py' 'search' {idx_indels} {pam_file} {guide_file} {ref_name}_{vcf_data}_INDELS_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} '-mm' {mm} '-bDNA' {bDNA} '-bRNA' {bRNA} '-th' {ncpus} '-t'"
+        code = subprocess.run(indel_search_run, shell=True, capture_output=True)
+        write_to_verbose(code.stdout.decode("utf-8"))
+        if code.returncode != 0:
+            write_to_error("indels search failed")
+            write_to_error(code.stderr.decode("utf-8"))
+            sys.exit(1)
+
+        write_to_log(f"Search Indels\tEnds\t" + str(datetime.datetime.now()))
+
+    os.chdir(current_working_directory)
+    return 0
+
+
+def post_process(target_file, vcf_data, ref_only=False):
+    write_to_verbose(f"Starting post process")
+    write_to_verbose(f"target_file is: {target_file}")
+    target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    for chr in chr_list:
+        target_df_chr = target_df[target_df["Chromosome"] == chr]
+        target_df_chr["PAM_gen"] = "n"
+        target_df_chr["Var_uniq"] = "n"
+        target_df_chr["Samples"] = "n"
+        target_df_chr["Annotation_type"] = "n"
+        target_df_chr["Real_Guide"] = target_df_chr["crRNA"].replace("-", "")
+        target_df_chr["rsID"] = "n"
+        target_df_chr["AF"] = "n"
+        target_df_chr["SNP_position"] = "n"
+        target_df_chr.to_csv(
+            os.path.join(output_folder, chr + "_process_before_simple_analysis.txt"),
+            sep="\t",
+            index=False,
+        )
+
+        os.chdir(
+            processes_dir
+        )  ##move to processes dir to execute and find all necessary files
+
+        snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
+        code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)
+
+        write_to_verbose(code.stdout.decode("utf-8"))
+        if code.returncode != 0:
+            write_to_error("simple analysis failed")
+            write_to_error(code.stderr.decode("utf-8"))
+            sys.exit(1)
+
+    os.chdir(current_working_directory)
+
+    return 0
+
+
+def post_process_indels(target_file, vcf_data, ref_only=False):
+    write_to_verbose(f"Starting post process indels")
+    write_to_verbose(f"target_file is: {target_file}")
+
+    target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    # write_to_verbose(f"fake_chr_list is: {fake_chr_list}")
+
+    for chr in chr_list:
+        fake_chr = "fake" + chr
+        target_df_chr = target_df[target_df["Chromosome"] == fake_chr]
+        target_df_chr["PAM_gen"] = "n"
+        target_df_chr["Var_uniq"] = "n"
+        target_df_chr["Samples"] = "n"
+        target_df_chr["Annotation_type"] = "n"
+        target_df_chr["Real_Guide"] = target_df_chr["crRNA"].replace("-", "")
+        target_df_chr["rsID"] = "n"
+        target_df_chr["AF"] = "n"
+        target_df_chr["SNP_position"] = "n"
+        target_df_chr.to_csv(
+            os.path.join(output_folder, chr + "_process_before_simple_analysis.txt"),
+            sep="\t",
+            index=False,
+        )
+
+        write_to_verbose("arrivo a start indel")
+        os.chdir(processes_dir)
+        # indel_analysis_run = "./analisi_indels_NNN.py"
+        indel_analysis_run = f"./analisi_indels_NNN.py {os.path.join(output_folder,'.empty.txt')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {os.path.join(output_folder,output_folder_name)} {os.path.join(dictionaries_folder,'log_indels_'+vcf_data)} {pam_file} {mm} {os.path.join(ref_folder,chr+'.fa')} {guide_file} {bDNA} {bRNA}"
+        code = subprocess.run(indel_analysis_run, shell=True, capture_output=True)
+
+        write_to_verbose(code.stdout.decode("utf-8"))
+        if code.returncode != 0:
+            write_to_error("indel analysis failed")
+            write_to_error(code.stderr.decode("utf-8"))
+            sys.exit(1)
+
+    write_to_verbose(f"Post process indel ended correctly")
+    os.chdir(current_working_directory)
+    return 0
+
+
+def fix_columns(output_folder_name):
+    write_to_verbose(f"Starting fix columns in best files")
+
+    os.chdir(processes_dir)
+    adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestCFD.txt')}"
+    code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+
+    if code.returncode != 0:
+        write_to_error("adjust bestCFD failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestCRISTA.txt')}"
+    code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+
+    if code.returncode != 0:
+        write_to_error("adjust bestCRISTA failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+    adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestmmblg.txt')}"
+    code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
+    write_to_verbose(code.stdout.decode("utf-8"))
+
+    if code.returncode != 0:
+        write_to_error("adjust bestMMBUL failed")
+        write_to_error(code.stderr.decode("utf-8"))
+        sys.exit(1)
+
+    os.chdir(current_working_directory)
     return 0
 
 
@@ -298,10 +442,15 @@ if code != 0:
     write_to_error("pre_process failed")
     sys.exit(1)
 
-##move to output folder
-os.chdir(output_folder)
 generate_index(ref_folder, False)  ##generate index for reference genome
-search(ref_name, "", pam_seq, bMax, ncpus, mm, pam_name)  ##search on reference genome
+search(
+    ref_name, "", pam_seq, bMax, ncpus, mm, pam_name, True
+)  ##search on reference genome
+
+target_file = f"{ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.txt"
+post_process(target_file, "", True)
+
+##start process for vcf data if any
 for vcf_data in vcf_list_checked:
     if len(vcf_data):
         pass
@@ -312,5 +461,14 @@ for vcf_data in vcf_list_checked:
         os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
     )  ##generate index for vcf genome
     search(
-        ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name
+        ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, False
     )  ##search on vcf genome
+    post_process(
+        target_file.replace(ref_name, ref_name + "_" + vcf_data), vcf_data, False
+    )
+    post_process_indels(
+        target_file.replace(ref_name, ref_name + "_" + vcf_data + "_INDELS"),
+        vcf_data,
+        False,
+    )
+fix_columns(output_folder_name)
