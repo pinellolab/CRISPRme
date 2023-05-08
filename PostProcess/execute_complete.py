@@ -256,6 +256,8 @@ def generate_dict(vcf_data):
 
 def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
     idx_ref = ""
+    # echo -e 'Search Reference\tStart\t'$(date) >>$log
+    write_to_log(f"Search Reference\tStart\t" + str(datetime.datetime.now()))
     ##extracting ref index to launch search
     for bulge in range(int(bMax), int(bMax) + 20):
         if os.path.isdir(
@@ -269,8 +271,10 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
         write_to_error("reference search failed")
         write_to_error(code.stderr.decode("utf-8"))
         sys.exit(1)
+    write_to_log(f"Search Reference\tEnd\t" + str(datetime.datetime.now()))
 
     if vcf_process:
+        write_to_log(f"Search Variant\tStart\t" + str(datetime.datetime.now()))
         idx_var = idx_ref.replace(ref_name, ref_name + "+" + vcf_data)
         var_search_run = f"'crispritz.py' 'search' {idx_var} {pam_file} {guide_file} {ref_name}_{vcf_data}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
         code = subprocess.run(var_search_run, shell=True, capture_output=True)
@@ -278,6 +282,8 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
             write_to_error("variant search failed")
             write_to_error(code.stderr.decode("utf-8"))
             sys.exit(1)
+        write_to_log(f"Search Variant\tEnd\t" + str(datetime.datetime.now()))
+
     return 0
 
 
@@ -300,4 +306,6 @@ for vcf_data in vcf_list_checked:
     generate_index(
         os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
     )  ##generate index for vcf genome
-    search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name)  ##search on vcf genome
+    search(
+        ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name
+    )  ##search on vcf genome
