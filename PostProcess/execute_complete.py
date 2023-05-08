@@ -265,7 +265,9 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
         if os.path.isdir(
             os.path.join(genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_{ref_name}")
         ):
-            idx_ref = "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
+            idx_ref = os.path.join(
+                genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_{ref_name}"
+            )
             break
     ref_search_run = f"'crispritz.py' 'search' {idx_ref} {pam_file} {guide_file} {ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
     code = subprocess.run(ref_search_run, shell=True, capture_output=True)
