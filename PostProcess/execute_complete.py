@@ -270,13 +270,15 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
         write_to_error(code.stderr.decode("utf-8"))
         sys.exit(1)
 
-    idx_var = idx_ref.replace(ref_name, ref_name + "+" + vcf_data)
-    var_search_run = f"'crispritz.py' 'search' {idx_var} {pam_file} {guide_file} {ref_name}_{vcf_data}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
-    code = subprocess.run(var_search_run, shell=True, capture_output=True)
-    if code.returncode != 0:
-        write_to_error("variant search failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    if vcf_process:
+        idx_var = idx_ref.replace(ref_name, ref_name + "+" + vcf_data)
+        var_search_run = f"'crispritz.py' 'search' {idx_var} {pam_file} {guide_file} {ref_name}_{vcf_data}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
+        code = subprocess.run(var_search_run, shell=True, capture_output=True)
+        if code.returncode != 0:
+            write_to_error("variant search failed")
+            write_to_error(code.stderr.decode("utf-8"))
+            sys.exit(1)
+    return 0
 
 
 ##START PROCESS FROM SCRATCH AND CHECK IF ANY STEP CAN BE SKIPPED
@@ -284,7 +286,11 @@ code = pre_process()
 if code != 0:
     write_to_error("pre_process failed")
     sys.exit(1)
+
+##move to output folder
+os.chdir(output_folder)
 generate_index(ref_folder, False)  ##generate index for reference genome
+search(ref_name, "", pam_seq, bMax, ncpus, mm, pam_name)  ##search on reference genome
 for vcf_data in vcf_list_checked:
     if len(vcf_data):
         pass
@@ -294,3 +300,4 @@ for vcf_data in vcf_list_checked:
     generate_index(
         os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
     )  ##generate index for vcf genome
+    search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name)  ##search on vcf genome
