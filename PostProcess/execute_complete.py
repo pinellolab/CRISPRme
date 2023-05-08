@@ -94,6 +94,7 @@ def pre_process():
             chr_list.append(f.replace(".fa", ""))
 
     ##check if vcf_list is empty
+    global vcf_process
     vcf_process = True
     for elem in vcf_list:
         if elem == "NULL":
@@ -269,7 +270,7 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
                 genomes_libraries_folder, f"{pam_seq}_{str(bulge)}_{ref_name}"
             )
             break
-    ref_search_run = f"'crispritz.py' 'search' {idx_ref} {pam_file} {guide_file} {ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
+    ref_search_run = f"'crispritz.py' 'search' {idx_ref} {pam_file} {guide_file} {ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} '-mm' {mm} '-bDNA' {bDNA} '-bRNA' {bRNA} '-th' {ncpus} '-t'"
     code = subprocess.run(ref_search_run, shell=True, capture_output=True)
     if code.returncode != 0:
         write_to_error("reference search failed")
@@ -280,7 +281,7 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
     if vcf_process:
         write_to_log(f"Search Variant\tStart\t" + str(datetime.datetime.now()))
         idx_var = idx_ref.replace(ref_name, ref_name + "+" + vcf_data)
-        var_search_run = f"'crispritz.py' 'search' {idx_var} {pam_file} {guide_file} {ref_name}_{vcf_data}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -th {ncpus} -t"
+        var_search_run = f"'crispritz.py' 'search' {idx_var} {pam_file} {guide_file} {ref_name}_{vcf_data}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} '-mm' {mm} '-bDNA' {bDNA} '-bRNA' {bRNA} '-th' {ncpus} '-t'"
         code = subprocess.run(var_search_run, shell=True, capture_output=True)
         if code.returncode != 0:
             write_to_error("variant search failed")
