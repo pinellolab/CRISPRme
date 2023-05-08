@@ -256,7 +256,9 @@ def generate_dict(vcf_data):
 
 def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name):
     idx_ref = ""
-    # echo -e 'Search Reference\tStart\t'$(date) >>$log
+    write_to_verbose(
+        f"Starting search for genome: {ref_name}, vcf process is: {vcf_process}"
+    )
     write_to_log(f"Search Reference\tStart\t" + str(datetime.datetime.now()))
     ##extracting ref index to launch search
     for bulge in range(int(bMax), int(bMax) + 20):
