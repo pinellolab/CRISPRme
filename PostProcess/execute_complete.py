@@ -125,6 +125,48 @@ def pre_process():
     pam_name = os.path.basename(pam_file).replace("/", "")
     guide_name = os.path.basename(guide_file).replace("/", "")
 
+    ##prepare output files
+    header = [
+        "#Bulge_type",
+        "crRNA",
+        "DNA",
+        "Chromosome",
+        "Position",
+        "Cluster_Position",
+        "Direction",
+        "Mismatches",
+        "Bulge_Size",
+        "Total",
+        "PAM_gen",
+        "Var_uniq",
+        "Samples",
+        "Annotation_Type",
+        "Real_Guide",
+        "rsID",
+        "AF",
+        "SNP",
+        "Reference",
+        "CFD_ref",
+        "CFD",
+        "#Seq_in_cluster",
+    ]
+
+    bestCFD = open(
+        os.path.join(output_folder, output_folder_name + ".bestCFD.txt"), "w"
+    )
+    bestCRISTA = open(
+        os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt"), "w"
+    )
+    bestMMBUL = open(
+        os.path.join(output_folder, output_folder_name + ".bestmmblg.txt"), "w"
+    )
+    bestCFD.write("\t".join(header) + "\n")
+    bestCRISTA.write("\t".join(header) + "\n")
+    bestMMBUL.write("\t".join(header) + "\n")
+    bestCFD.close()
+    bestCRISTA.close()
+    bestMMBUL.close()
+
     return 0
 
 
@@ -326,6 +368,9 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, do_ref=False)
 def post_process(target_file, vcf_data, ref_only=False):
     write_to_verbose(f"Starting post process")
     write_to_verbose(f"target_file is: {target_file}")
+
+    write_to_log(f"Post Process\tStart\t" + str(datetime.datetime.now()))
+
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
     for chr in chr_list:
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
@@ -357,6 +402,7 @@ def post_process(target_file, vcf_data, ref_only=False):
             sys.exit(1)
 
     os.chdir(current_working_directory)
+    write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
 
     return 0
 
@@ -364,6 +410,8 @@ def post_process(target_file, vcf_data, ref_only=False):
 def post_process_indels(target_file, vcf_data, ref_only=False):
     write_to_verbose(f"Starting post process indels")
     write_to_verbose(f"target_file is: {target_file}")
+
+    write_to_log(f"Post Process Indels\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
     # write_to_verbose(f"fake_chr_list is: {fake_chr_list}")
@@ -398,6 +446,9 @@ def post_process_indels(target_file, vcf_data, ref_only=False):
 
     write_to_verbose(f"Post process indel ended correctly")
     os.chdir(current_working_directory)
+
+    write_to_log(f"Post Process Indels\tEnd\t" + str(datetime.datetime.now()))
+
     return 0
 
 
@@ -586,6 +637,7 @@ for vcf_data in vcf_list_checked:
         vcf_data,
         False,
     )
+
 
 ##fix columns in best files
 fix_columns(output_folder_name)

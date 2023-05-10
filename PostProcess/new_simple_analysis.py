@@ -615,7 +615,7 @@ def preprocess_CRISTA_score(cluster_targets):
 
 
 def calculate_scores(cluster_to_save):
-    if len(cluster_to_save): ##check to avoid empty clusters and raise errors
+    if len(cluster_to_save):  ##check to avoid empty clusters and raise errors
         pass
     else:
         return [list(), list()]
@@ -662,15 +662,12 @@ cfd_for_graph = {"ref": [0] * 101, "var": [0] * 101}
 
 # file with best CFD targets
 cfd_best = open(outputFile + ".bestCFD.txt", "a")
-# cfd_best.write(header + "\tCFD\n")  # Write header
 
 # file with best mm+bul targets
 mmblg_best = open(outputFile + ".bestmmblg.txt", "a")
-# mmblg_best.write(header + "\tCFD\n")  # Write header
 
 # file with best CRISTA targets
 crista_best = open(outputFile + ".bestCRISTA.txt", "a")
-# crista_best.write(header + "\tCFD\n")  # Write header
 
 # check if dictionaries has haplotypes
 haplotype_check = False
@@ -836,21 +833,21 @@ cfd_best.close()
 mmblg_best.close()
 crista_best.close()
 
-os.system(
-    "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-    + outputFile
-    + ".bestCFD.txt"
-)
-os.system(
-    "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-    + outputFile
-    + ".bestmmblg.txt"
-)
-os.system(
-    "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-    + outputFile
-    + ".bestCRISTA.txt"
-)
+# os.system(
+#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
+#     + outputFile
+#     + ".bestCFD.txt"
+# )
+# os.system(
+#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
+#     + outputFile
+#     + ".bestmmblg.txt"
+# )
+# os.system(
+#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
+#     + outputFile
+#     + ".bestCRISTA.txt"
+# )
 
 
 cfd_dataframe = pd.DataFrame.from_dict(cfd_for_graph)

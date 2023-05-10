@@ -754,13 +754,10 @@ current_guide_chr_pos_direction = "no"
 
 # save best files
 cfd_best = open(outputFile + ".bestCFD.txt", "a")
-# cfd_best.write(header + "\tCFD\n")  # Write header
 
 crista_best = open(outputFile + ".bestCRISTA.txt", "a")
-# crista_best.write(header + "\tCFD\n")
 
 mmblg_best = open(outputFile + ".bestmmblg.txt", "a")
-# mmblg_best.write(header + "\tCFD\n")  # Write header
 
 
 INDELS_tree = IntervalTree()
@@ -956,21 +953,21 @@ cfd_best.close()
 mmblg_best.close()
 crista_best.close()
 
-os.system(
-    "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-    + outputFile
-    + ".bestCFD_INDEL.txt"
-)
-os.system(
-    "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-    + outputFile
-    + ".bestCRISTA_INDEL.txt"
-)
-os.system(
-    "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-    + outputFile
-    + ".bestmmblg_INDEL.txt"
-)
+# os.system(
+#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
+#     + outputFile
+#     + ".bestCFD_INDEL.txt"
+# )
+# os.system(
+#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
+#     + outputFile
+#     + ".bestCRISTA_INDEL.txt"
+# )
+# os.system(
+#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
+#     + outputFile
+#     + ".bestmmblg_INDEL.txt"
+# )
 
 
 print("Done", current_chr, time.time() - start_time)
