@@ -358,7 +358,7 @@ def preprocess_CFD_score(target, data_dict):
                 target[2].upper()[int(target[data_dict["bulge_pos"]]) : -3],
                 target[2].upper()[-2:],
                 data_dict["mm_scores"],
-                data_dict["pam_score"],
+                data_dict["pam_scores"],
                 data_dict["do_scores"],
             )
             # append to target the CFD score of the aligned sequence (alt or ref)
@@ -376,7 +376,7 @@ def preprocess_CFD_score(target, data_dict):
                     target[-4].upper()[int(target[data_dict["bulge_pos"]]) : -3],
                     target[-4].upper()[-2:],
                     data_dict["mm_scores"],
-                    data_dict["pam_score"],
+                    data_dict["pam_scores"],
                     data_dict["do_scores"],
                 )
                 target[-3] = "{:.3f}".format(cfd_ref_score)
@@ -386,7 +386,7 @@ def preprocess_CFD_score(target, data_dict):
                 target[2].upper()[:-3],
                 target[2].upper()[-2:],
                 data_dict["mm_scores"],
-                data_dict["pam_score"],
+                data_dict["pam_scores"],
                 data_dict["do_scores"],
             )
             target.append("{:.3f}".format(cfd_score))
@@ -398,7 +398,7 @@ def preprocess_CFD_score(target, data_dict):
                     target[-4].upper()[:-3],
                     target[-4].upper()[-2:],
                     data_dict["mm_scores"],
-                    data_dict["pam_score"],
+                    data_dict["pam_scores"],
                     data_dict["do_scores"],
                 )
                 target[-3] = "{:.3f}".format(cfd_ref_score)
@@ -704,7 +704,7 @@ def init(fasta_file, pam_file, dictionary_file, allowed_mms):
     return_dict["allowed_mms"] = allowed_mms
     return_dict["bulge_pos"] = bulge_pos
     return_dict["my_dict"] = mydict
-    return_dict["current_chr"] = cfd_for_graph
+    return_dict["current_chr"] = current_chr
 
     return return_dict
     # return do_scores, genomeStr, pam, pam_begin, pam_end, pos_beg, pos_end, mm_scores, pam_scores, haplotype_check
