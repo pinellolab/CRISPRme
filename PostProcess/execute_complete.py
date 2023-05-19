@@ -411,8 +411,8 @@ def post_process(target_file, vcf_data, ref_only=False):
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
     # file = open(bestCFD_file, "a")
-    for elem in lists_of_targets_list[0]:
-        write_to_verbose(elem + "\n")
+    # for elem in lists_of_targets_list[0]:
+    #     file.write(elem)
     # file.close()
     # print(lists_of_targets_list[0])
     # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
@@ -641,26 +641,26 @@ target_file = f"{ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.tx
 post_process(target_file, "", ref_only=True)
 
 ##start process for vcf data if any
-# for vcf_data in vcf_list_checked:
-#     if len(vcf_data):
-#         pass
-#     else:
-#         continue
-#     generate_dict(vcf_data)  ##generate dictionary for vcf
-#     generate_index(
-#         os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
-#     )  ##generate index for vcf genome
-#     search(
-#         ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, False
-#     )  ##search on vcf genome
-#     post_process(
-#         target_file.replace(ref_name, ref_name + "_" + vcf_data), vcf_data, False
-#     )
-#     post_process_indels(
-#         target_file.replace(ref_name, ref_name + "_" + vcf_data + "_INDELS"),
-#         vcf_data,
-#         False,
-#     )
+for vcf_data in vcf_list_checked:
+    if len(vcf_data):
+        pass
+    else:
+        continue
+    generate_dict(vcf_data)  ##generate dictionary for vcf
+    generate_index(
+        os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
+    )  ##generate index for vcf genome
+    search(
+        ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, False
+    )  ##search on vcf genome
+    post_process(
+        target_file.replace(ref_name, ref_name + "_" + vcf_data), vcf_data, False
+    )
+    # post_process_indels(
+    #     target_file.replace(ref_name, ref_name + "_" + vcf_data + "_INDELS"),
+    #     vcf_data,
+    #     False,
+    # )
 
 
 ##fix columns in best files
