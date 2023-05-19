@@ -393,7 +393,7 @@ def complete_search():
     # check input vcf
     if "--vcf" not in input_args:
         variant = False
-        vcfdir = ""
+        vcfdir = None
     else:
         try:
             vcfdir = os.path.realpath(input_args[input_args.index("--vcf") + 1])
@@ -759,7 +759,7 @@ def complete_search():
         extracted_guides_file.close()
     # print(guides)
     # exit(0)
-    void_mail = ""
+    void_mail = None
     if sequence_use == False:
         os.system(f"cp {guidefile} {outputfolder}/guides.txt")
     print(
@@ -883,7 +883,7 @@ def gnomAD_converter():
 
     if "--gnomAD_VCFdir" not in input_args:
         print("--gnomAD_VCFdir not in input, MANDATORY TO CONVERT DATA")
-        
+
         exit(1)
     else:
         try:
