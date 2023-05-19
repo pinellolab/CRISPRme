@@ -751,7 +751,7 @@ def start_processing(target_list, data_dict):
 
     for count, cluster in enumerate(clusters_with_scores):
         for target in cluster:
-            print(target)
+            target = [str(x) for x in target]  ##convert each element to string
             if count == 0:  # CFD target
                 # remove count of tmp_mms
                 target.pop(-2)
@@ -765,7 +765,7 @@ def start_processing(target_list, data_dict):
                 # save CRISTA targets
                 crista_best.append("\t".join(target) + "\t" + str(0) + "\n")
 
-    return cfd_best, mmblg_best, crista_best
+    return [cfd_best, mmblg_best, crista_best]
 
 
 # cfd_dataframe = pd.DataFrame.from_dict(cfd_for_graph)
