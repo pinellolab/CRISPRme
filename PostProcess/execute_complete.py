@@ -52,6 +52,9 @@ guide_name = ""
 annotation_name = ""
 ref_name = os.path.basename(ref_folder).replace("/", "")
 output_folder_name = os.path.basename(output_folder).replace("/", "")
+bestCFD_file = os.path.join(output_folder, output_folder_name + ".bestCFD.txt")
+bestCRISTA_file = os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt")
+bestMMBUL_file = os.path.join(output_folder, output_folder_name + ".bestmmblg.txt")
 
 
 ##USER FUNCTIONS
@@ -407,17 +410,16 @@ def post_process(target_file, vcf_data, ref_only=False):
         )
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
-    for lista in lists_of_targets_list:
-        for elem in lista:
-            print(elem)
-        # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
-        # code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)
+    file = open(bestCFD_file, "a")
+    map(lambda x: file.write("\t".join(x) + "\n"), lists_of_targets_list[0])
+    # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
+    # code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)
 
-        # write_to_verbose(code.stdout.decode("utf-8"))
-        # if code.returncode != 0:
-        #     write_to_error("simple analysis failed")
-        #     write_to_error(code.stderr.decode("utf-8"))
-        #     sys.exit(1)
+    # write_to_verbose(code.stdout.decode("utf-8"))
+    # if code.returncode != 0:
+    #     write_to_error("simple analysis failed")
+    #     write_to_error(code.stderr.decode("utf-8"))
+    #     sys.exit(1)
 
     # os.chdir(current_working_directory)
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
