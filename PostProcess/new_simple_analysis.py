@@ -357,7 +357,7 @@ def preprocess_CFD_score(target, data_dict):
                 target[1][int(target[data_dict["bulge_pos"]]) :],
                 target[2].upper()[int(target[data_dict["bulge_pos"]]) : -3],
                 target[2].upper()[-2:],
-                data_dict["mm_score"],
+                data_dict["mm_scores"],
                 data_dict["pam_score"],
                 data_dict["do_scores"],
             )
@@ -375,7 +375,7 @@ def preprocess_CFD_score(target, data_dict):
                     target[1][int(target[data_dict["bulge_pos"]]) :],
                     target[-4].upper()[int(target[data_dict["bulge_pos"]]) : -3],
                     target[-4].upper()[-2:],
-                    data_dict["mm_score"],
+                    data_dict["mm_scores"],
                     data_dict["pam_score"],
                     data_dict["do_scores"],
                 )
@@ -385,7 +385,7 @@ def preprocess_CFD_score(target, data_dict):
                 target[1],
                 target[2].upper()[:-3],
                 target[2].upper()[-2:],
-                data_dict["mm_score"],
+                data_dict["mm_scores"],
                 data_dict["pam_score"],
                 data_dict["do_scores"],
             )
@@ -397,7 +397,7 @@ def preprocess_CFD_score(target, data_dict):
                     target[1],
                     target[-4].upper()[:-3],
                     target[-4].upper()[-2:],
-                    data_dict["mm_score"],
+                    data_dict["mm_scores"],
                     data_dict["pam_score"],
                     data_dict["do_scores"],
                 )
