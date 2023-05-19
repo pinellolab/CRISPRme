@@ -398,17 +398,9 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         target_df_chr["rsID"] = "n"
         target_df_chr["AF"] = "n"
         target_df_chr["SNP_position"] = "n"
-        # target_df_chr.to_csv(
-        #     os.path.join(output_folder, chr + "_process_before_simple_analysis.txt"),
-        #     sep="\t",
-        #     index=False,
-        # )
 
-        # os.chdir(
-        #     processes_dir
-        # )  ##move to processes dir to execute and find all necessary files
+        ## convert df to list to be processed
         target_df_chr = target_df_chr.values.tolist()
-
         data_to_process = nsa.init(
             fasta_file=os.path.join(ref_folder, chr + ".fa"),
             pam_file=pam_file,
@@ -419,19 +411,21 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
             ),
             allowed_mms=mm,
         )
+        ##return list of lists with targets scored by CFD,MMBUL,CRISTA
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
-    file = open(bestCFD_file, "a")
-    file.write("".join(lists_of_targets_list[0]))
-    file.close()
+        # write to bestFILES to check
+        file = open(bestCFD_file, "a")
+        file.write("".join(lists_of_targets_list[0]))
+        file.close()
 
-    file = open(bestMMBUL_file, "a")
-    file.write("".join(lists_of_targets_list[1]))
-    file.close()
+        file = open(bestMMBUL_file, "a")
+        file.write("".join(lists_of_targets_list[1]))
+        file.close()
 
-    file = open(bestCRISTA_file, "a")
-    file.write("".join(lists_of_targets_list[2]))
-    file.close()
+        file = open(bestCRISTA_file, "a")
+        file.write("".join(lists_of_targets_list[2]))
+        file.close()
 
     # print(lists_of_targets_list[0])
     # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
@@ -446,8 +440,6 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
     # os.chdir(current_working_directory)
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Post Process END")
-
-    return 0
 
 
 def post_process_indels(target_file, vcf_data, ref_only=False):
