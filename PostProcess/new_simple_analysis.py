@@ -161,7 +161,7 @@ def iupac_decomposition(
         if c in utils.iupac_code:
             countIUPAC += 1
             snpToReplace, sampleSet, rsID, AF_var, snpInfo = retrieveFromDict(
-                pos_c + int(split[4], data_dict)
+                pos_c + int(split[4])
             )  # type: ignore
             for i, elem in enumerate(snpToReplace):
                 listReplaceTarget = list(refSeq)
