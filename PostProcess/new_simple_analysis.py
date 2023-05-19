@@ -751,6 +751,7 @@ def start_processing(target_list, data_dict):
 
     for count, cluster in enumerate(clusters_with_scores):
         for target in cluster:
+            print(target)
             if count == 0:  # CFD target
                 # remove count of tmp_mms
                 target.pop(-2)
