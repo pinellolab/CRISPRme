@@ -103,6 +103,7 @@ def pre_process():
     ##check if vcf_list is empty
     global vcf_process
     vcf_process = False
+    write_to_verbose(f"vcf list è: {vcf_list}")
     if vcf_list != None:
         vcf_list_read = open(vcf_list).readlines()
         vcf_process = True
