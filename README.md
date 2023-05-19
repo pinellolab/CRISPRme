@@ -190,6 +190,8 @@ Once downloaded and untared the folder, you will have a ready to use CRISPRme di
 CRISPRme is designed to work and recognize its specific directories tree structure. See the following image for a detailed explanantion of CRISPRme's folders structure
 ![fig2](./docs/readme/directory_tree.png)
 
+<br>**CAVEAT.** Before running CRISPRme make sure that your system has **>= 64 GB of memory** available.
+
 The following sections will describe the main functionalities of CRISPRme, listing their input data, and the expected output.
 
 #### Complete-search function
