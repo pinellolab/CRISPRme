@@ -226,8 +226,16 @@ def directoryCheck():
         "samplesIDs",
     ]
     for directory in directoryList:
-        if not os.path.exists(current_working_directory + directory):
-            os.makedirs(current_working_directory + directory)
+        os.makedirs(os.path.join(current_working_directory, directory), exist_ok=True)
+    ##create void files to prevent errors
+    # crete empty file
+    open(os.path.join(script_path, ".empty.txt"), "w").close()
+    # create dummy file with one line
+    ff = open(os.path.join(script_path, ".dummy.txt"), "w")
+    ff.write("dummy\n")
+    ff.close()
+    # create empty folder
+    os.makedirs(os.path.join(script_path, ".empty"), exist_ok=True)
 
 
 def complete_search():
@@ -393,7 +401,7 @@ def complete_search():
     # check input vcf
     if "--vcf" not in input_args:
         variant = False
-        vcfdir = None
+        vcfdir = os.path.join(script_path, ".empty.txt")
     else:
         try:
             vcfdir = os.path.realpath(input_args[input_args.index("--vcf") + 1])

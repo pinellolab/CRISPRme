@@ -100,16 +100,12 @@ def pre_process():
         if ".fa" in f and ".fai" not in f:
             chr_list.append(f.replace(".fa", ""))
 
-    ##check if vcf_list is empty
+    ## process vcf list to extract only non empty lines
     global vcf_process
     vcf_process = False
-    write_to_verbose(f"vcf list è: {vcf_list}")
-    if vcf_list != None:
-        vcf_list_read = open(vcf_list).readlines()
-        vcf_process = True
-        for elem in vcf_list_read:
-            if len(elem.strip().replace("/", "")) > 0:
-                vcf_list_checked.append(elem.strip().replace("/", ""))
+    for elem in open(vcf_list).readlines():
+        if len(elem.strip().replace("/", "")) > 0:
+            vcf_list_checked.append(elem.strip().replace("/", ""))
 
     write_to_verbose(f"vcf_process is: {vcf_process}")
     write_to_verbose(f"vcf_list is: {vcf_list_checked}")
