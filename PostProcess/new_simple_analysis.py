@@ -316,7 +316,7 @@ def iupac_decomposition(
                             ):
                                 found_creation = True
                         # value of mm and bulges is over allowed threshold, discard target
-                        if mm_new_t - int(split[8]) > data_dict["allowed_mms"]:
+                        if mm_new_t - int(split[8]) > int(data_dict["allowed_mms"]):
                             continue
                         elif pam_ok:
                             final_line[2] = "".join(target_to_list)
@@ -692,7 +692,7 @@ def init(fasta_file, pam_file, dictionary_file, allowed_mms):
 
     return_dict = dict()
 
-    return_dict["pam"]=pam
+    return_dict["pam"] = pam
     return_dict["genomeStr"] = genomeStr
     return_dict["pam_begin"] = pam_begin
     return_dict["pam_end"] = pam_end
