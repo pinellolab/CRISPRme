@@ -103,13 +103,12 @@ def pre_process():
     ##check if vcf_list is empty
     global vcf_process
     vcf_process = False
-    vcf_list_read = ""
     if vcf_list != None:
         vcf_list_read = open(vcf_list).readlines()
-    for elem in vcf_list_read:
         vcf_process = True
-        if len(elem.strip().replace("/", "")) > 0:
-            vcf_list_checked.append(elem.strip().replace("/", ""))
+        for elem in vcf_list_read:
+            if len(elem.strip().replace("/", "")) > 0:
+                vcf_list_checked.append(elem.strip().replace("/", ""))
 
     write_to_verbose(f"vcf_process is: {vcf_process}")
     write_to_verbose(f"vcf_list is: {vcf_list_checked}")
