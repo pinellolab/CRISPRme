@@ -6,6 +6,7 @@ import os
 import subprocess
 import shutil
 import pandas as pd
+import new_simple_analysis as nsa
 
 # set -e # capture any failure
 
@@ -370,6 +371,7 @@ def post_process(target_file, vcf_data, ref_only=False):
     write_to_verbose(f"target_file is: {target_file}")
 
     write_to_log(f"Post Process\tStart\t" + str(datetime.datetime.now()))
+    lists_of_targets_list = [[], [], []]
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
     for chr in chr_list:
@@ -382,26 +384,42 @@ def post_process(target_file, vcf_data, ref_only=False):
         target_df_chr["rsID"] = "n"
         target_df_chr["AF"] = "n"
         target_df_chr["SNP_position"] = "n"
-        target_df_chr.to_csv(
-            os.path.join(output_folder, chr + "_process_before_simple_analysis.txt"),
-            sep="\t",
-            index=False,
+        # target_df_chr.to_csv(
+        #     os.path.join(output_folder, chr + "_process_before_simple_analysis.txt"),
+        #     sep="\t",
+        #     index=False,
+        # )
+
+        # os.chdir(
+        #     processes_dir
+        # )  ##move to processes dir to execute and find all necessary files
+        target_df_chr = target_df_chr.values.tolist()
+
+        data_to_process = nsa.init(
+            fasta_file=os.path.join(ref_folder, chr + ".fa"),
+            pam_file=pam_file,
+            dictionary_file=os.path.join(
+                dictionaries_folder,
+                "dictionaries_" + vcf_data,
+                "my_dict_" + chr + ".json",
+            ),
+            allowed_mms=mm,
         )
+        lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
-        os.chdir(
-            processes_dir
-        )  ##move to processes dir to execute and find all necessary files
+    for lista in lists_of_targets_list:
+        for elem in lista:
+            print(elem)
+        # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
+        # code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)
 
-        snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
-        code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)
+        # write_to_verbose(code.stdout.decode("utf-8"))
+        # if code.returncode != 0:
+        #     write_to_error("simple analysis failed")
+        #     write_to_error(code.stderr.decode("utf-8"))
+        #     sys.exit(1)
 
-        write_to_verbose(code.stdout.decode("utf-8"))
-        if code.returncode != 0:
-            write_to_error("simple analysis failed")
-            write_to_error(code.stderr.decode("utf-8"))
-            sys.exit(1)
-
-    os.chdir(current_working_directory)
+    # os.chdir(current_working_directory)
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
 
     return 0
@@ -416,9 +434,9 @@ def post_process_indels(target_file, vcf_data, ref_only=False):
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
     # write_to_verbose(f"fake_chr_list is: {fake_chr_list}")
 
-    for chr in chr_list:
-        fake_chr = "fake" + chr
-        target_df_chr = target_df.loc[target_df["Chromosome"] == fake_chr]
+    for chr in fake_chr_list:
+        # fake_chr = "fake" + chr
+        target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
         target_df_chr["Var_uniq"] = "n"
         target_df_chr["Samples"] = "n"
@@ -435,7 +453,7 @@ def post_process_indels(target_file, vcf_data, ref_only=False):
 
         os.chdir(processes_dir)
         # indel_analysis_run = "./analisi_indels_NNN.py"
-        indel_analysis_run = f"./analisi_indels_NNN.py {os.path.join(output_folder,'.empty.txt')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {os.path.join(output_folder,output_folder_name)} {os.path.join(dictionaries_folder,'log_indels_'+vcf_data)} {pam_file} {mm} {os.path.join(ref_folder,chr+'.fa')} {guide_file} {bDNA} {bRNA}"
+        indel_analysis_run = f"./analisi_indels_NNN.py {os.path.join(output_folder,'.empty.txt')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {os.path.join(output_folder,output_folder_name)} {os.path.join(dictionaries_folder,'log_indels_'+vcf_data)} {pam_file} {mm} {os.path.join(ref_folder,chr.replace('fake','')+'.fa')} {guide_file} {bDNA} {bRNA}"
         code = subprocess.run(indel_analysis_run, shell=True, capture_output=True)
 
         write_to_verbose(code.stdout.decode("utf-8"))
@@ -617,29 +635,29 @@ target_file = f"{ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.tx
 post_process(target_file, "", ref_only=True)
 
 ##start process for vcf data if any
-for vcf_data in vcf_list_checked:
-    if len(vcf_data):
-        pass
-    else:
-        continue
-    generate_dict(vcf_data)  ##generate dictionary for vcf
-    generate_index(
-        os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
-    )  ##generate index for vcf genome
-    search(
-        ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, False
-    )  ##search on vcf genome
-    post_process(
-        target_file.replace(ref_name, ref_name + "_" + vcf_data), vcf_data, False
-    )
-    post_process_indels(
-        target_file.replace(ref_name, ref_name + "_" + vcf_data + "_INDELS"),
-        vcf_data,
-        False,
-    )
+# for vcf_data in vcf_list_checked:
+#     if len(vcf_data):
+#         pass
+#     else:
+#         continue
+#     generate_dict(vcf_data)  ##generate dictionary for vcf
+#     generate_index(
+#         os.path.join(genomes_folder, f"{ref_name}+{vcf_data}"), True
+#     )  ##generate index for vcf genome
+#     search(
+#         ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, False
+#     )  ##search on vcf genome
+#     post_process(
+#         target_file.replace(ref_name, ref_name + "_" + vcf_data), vcf_data, False
+#     )
+#     post_process_indels(
+#         target_file.replace(ref_name, ref_name + "_" + vcf_data + "_INDELS"),
+#         vcf_data,
+#         False,
+#     )
 
 
 ##fix columns in best files
-fix_columns(output_folder_name)
-remove_bad_indels(output_folder_name)
-merge_results(output_folder_name)
+# fix_columns(output_folder_name)
+# remove_bad_indels(output_folder_name)
+# merge_results(output_folder_name)
