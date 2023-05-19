@@ -12,7 +12,7 @@ import new_simple_analysis as nsa
 
 # file for automated search of guide+pam in reference and variant genomes
 ref_folder = sys.argv[1]
-vcf_list = open(sys.argv[2]).readlines()
+vcf_list = sys.argv[2]
 guide_file = sys.argv[3]
 pam_file = sys.argv[4]
 annotation_file = sys.argv[5]
@@ -102,14 +102,14 @@ def pre_process():
 
     ##check if vcf_list is empty
     global vcf_process
-    vcf_process = True
-    for elem in vcf_list:
-        if elem == "NULL":
-            vcf_process = False
-            break
-        else:
-            if len(elem.strip().replace("/", "")) > 0:
-                vcf_list_checked.append(elem.strip().replace("/", ""))
+    vcf_process = False
+    vcf_list_read = ""
+    if vcf_list != "":
+        vcf_list_read = open(vcf_list).readlines()
+    for elem in vcf_list_read:
+        vcf_process = True
+        if len(elem.strip().replace("/", "")) > 0:
+            vcf_list_checked.append(elem.strip().replace("/", ""))
 
     write_to_verbose(f"vcf_process is: {vcf_process}")
     write_to_verbose(f"vcf_list is: {vcf_list_checked}")
