@@ -410,10 +410,11 @@ def post_process(target_file, vcf_data, ref_only=False):
         )
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
-    file = open(bestCFD_file, "a")
-    for elem in lists_of_targets_list[0]:
-        file.write("\t".join(elem) + "\n")
-    file.close()
+    # file = open(bestCFD_file, "a")
+    # for elem in lists_of_targets_list[0]:
+    #     file.write("\t".join(elem) + "\n")
+    # file.close()
+    print(lists_of_targets_list[0])
     # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
     # code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)
 
