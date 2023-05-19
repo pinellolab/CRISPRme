@@ -70,7 +70,7 @@ import os
 warnings.filterwarnings("ignore")
 
 # globals
-RF_PICKLE_PATH = os.path.join(os.path.realpath(__file__), "CRISTA_predictors.pkl")
+RF_PICKLE_PATH = os.path.dirname(os.path.realpath(__file__)) + "/CRISTA_predictors.pkl"
 # os.path.dirname(os.path.realpath(__file__), "CRISTA_predictors.pkl")
 # open(
 #                 os.path.dirname(os.path.realpath(__file__)) + "/mismatch_score.pkl",
@@ -99,7 +99,7 @@ DNA_PAIRS_THERMODYNAMICS = {
     "TC": 5.6,
     "CC": 11.0,
 }  # Breslauer et al.
-DNASHAPE_DICT_FILE = os.path.join(os.path.realpath(__file__), "dnaShape.pkl")
+DNASHAPE_DICT_FILE = os.path.dirname(os.path.realpath(__file__)) + "/dnaShape.pkl"
 DNASHAPE_DICT = None
 ACGT_REPLACEMENT = {"A": "1", "C": "2", "G": "3", "T": "4", "N": "0"}
 
