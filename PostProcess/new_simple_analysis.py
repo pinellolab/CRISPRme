@@ -692,6 +692,7 @@ def init(fasta_file, pam_file, dictionary_file, allowed_mms):
 
     return_dict = dict()
 
+    return_dict["pam"]=pam
     return_dict["genomeStr"] = genomeStr
     return_dict["pam_begin"] = pam_begin
     return_dict["pam_end"] = pam_end
