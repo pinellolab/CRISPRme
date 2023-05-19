@@ -378,7 +378,7 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         ref_only (bool, optional): check if analysis is ref only (no variant). Defaults to False.
 
     Returns:
-        _type_: no return
+        None: [description]
     """
 
     write_to_verbose(f"Starting post process")
@@ -421,10 +421,18 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         )
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
-    # file = open(bestCFD_file, "a")
-    # for elem in lists_of_targets_list[0]:
-    #     file.write(elem)
-    # file.close()
+    file = open(bestCFD_file, "a")
+    file.write("".join(lists_of_targets_list[0]))
+    file.close()
+
+    file = open(bestMMBUL_file, "a")
+    file.write("".join(lists_of_targets_list[1]))
+    file.close()
+
+    file = open(bestCRISTA_file, "a")
+    file.write("".join(lists_of_targets_list[2]))
+    file.close()
+
     # print(lists_of_targets_list[0])
     # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
     # code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)

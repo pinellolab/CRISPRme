@@ -600,7 +600,20 @@ def calculate_scores(cluster_to_save, data_dict):
     return [cluster_with_CFD_score, cluster_with_CRISTA_score]
 
 
-def init(fasta_file, pam_file, dictionary_file, allowed_mms):
+def init(
+    fasta_file: str, pam_file: str, dictionary_file: str, allowed_mms: str
+) -> dict:
+    """init function to load all the data needed for the scoring function and SNP processing
+
+    Args:
+        fasta_file (str): path to fasta file containing the reference sequence for chromosome
+        pam_file (str): path to pam file with the PAM sequence and lenght
+        dictionary_file (str): path to dictionary to process SNPa
+        allowed_mms (str): max threshold for mm allowed in the search
+
+    Returns:
+        dict: dict containing all the data needed for the scoring function and SNP processing
+    """
     # For scoring of CFD And Doench
     # INPUT AND SETTINGS
     # fasta of the reference chromosome
