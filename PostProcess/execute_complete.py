@@ -104,7 +104,7 @@ def pre_process():
     global vcf_process
     vcf_process = False
     vcf_list_read = ""
-    if vcf_list != "":
+    if vcf_list != None:
         vcf_list_read = open(vcf_list).readlines()
     for elem in vcf_list_read:
         vcf_process = True
