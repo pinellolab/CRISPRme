@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import pandas as pd
 import new_simple_analysis as nsa
+import adjust_cols as ac
 
 # set -e # capture any failure
 
@@ -55,6 +56,7 @@ output_folder_name = os.path.basename(output_folder).replace("/", "")
 bestCFD_file = os.path.join(output_folder, output_folder_name + ".bestCFD.txt")
 bestCRISTA_file = os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt")
 bestMMBUL_file = os.path.join(output_folder, output_folder_name + ".bestmmblg.txt")
+header = ""
 
 
 ##USER FUNCTIONS
@@ -126,6 +128,7 @@ def pre_process():
     guide_name = os.path.basename(guide_file).replace("/", "")
 
     ##prepare output files
+    global header
     header = [
         "#Bulge_type",
         "crRNA",
@@ -379,12 +382,11 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
 
     write_to_verbose(f"Starting post process")
     write_to_verbose(f"target_file is: {target_file}")
-
     write_to_log(f"Post Process\tStart\t" + str(datetime.datetime.now()))
-    lists_of_targets_list = [[], [], []]
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
     for chr in chr_list:
+        lists_of_targets_list = [[], [], []]
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
         target_df_chr["Var_uniq"] = "n"
@@ -410,30 +412,32 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         ##return list of lists with targets scored by CFD,MMBUL,CRISTA
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
+        ##convert list of lists to df
+        df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
+        df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
+        df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
+
+        ##adjust columns for each df
+        df_CFD = ac.order_cols(df_CFD)
+        df_MMBUL = ac.order_cols(df_MMBUL)
+        df_CRISTA = ac.order_cols(df_CRISTA)
+        
+        
+        
+        
         # write to bestFILES to check
-        file = open(bestCFD_file, "a")
-        file.write("".join(lists_of_targets_list[0]))
-        file.close()
+        # file = open(bestCFD_file, "a")
+        # file.write("".join(lists_of_targets_list[0]))
+        # file.close()
 
-        file = open(bestMMBUL_file, "a")
-        file.write("".join(lists_of_targets_list[1]))
-        file.close()
+        # file = open(bestMMBUL_file, "a")
+        # file.write("".join(lists_of_targets_list[1]))
+        # file.close()
 
-        file = open(bestCRISTA_file, "a")
-        file.write("".join(lists_of_targets_list[2]))
-        file.close()
+        # file = open(bestCRISTA_file, "a")
+        # file.write("".join(lists_of_targets_list[2]))
+        # file.close()
 
-    # print(lists_of_targets_list[0])
-    # snp_analysis_run = f"./new_simple_analysis.py {os.path.join(ref_folder,chr+'.fa')} {os.path.join(dictionaries_folder,'dictionaries_'+vcf_data,'my_dict_' + chr + '.json')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {pam_file} {os.path.join(output_folder,output_folder_name)} {mm}"
-    # code = subprocess.run(snp_analysis_run, shell=True, capture_output=True)
-
-    # write_to_verbose(code.stdout.decode("utf-8"))
-    # if code.returncode != 0:
-    #     write_to_error("simple analysis failed")
-    #     write_to_error(code.stderr.decode("utf-8"))
-    #     sys.exit(1)
-
-    # os.chdir(current_working_directory)
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Post Process END")
 

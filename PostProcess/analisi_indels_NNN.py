@@ -49,6 +49,7 @@ import time
 import sys
 import warnings
 from CRISTA_score import CRISTA_predict_list
+import utils
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -56,7 +57,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # SIZE_DOENCH = 10000
 # N_THR = 3
 
-print("Start INDELS analysis")
+# print("Start INDELS analysis")
 
 # Return max doench value among list of extended targets
 # def doenchParallel(targets, model, result):
@@ -111,8 +112,6 @@ def revcom(s):
 
 
 # Calculates CFD score
-
-
 def calc_cfd(guide_seq, sg, pam, mm_scores, pam_scores, do_scores):
     score = 1
     sg = sg.replace("T", "U")
@@ -163,24 +162,24 @@ class reversor:
         return other.obj < self.obj
 
 
-def convert_fasta_to_dict(f):
-    fasta = {}
-    with open(f) as file_one:
-        for line in file_one:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                active_sequence_name = line[1:]
-                if active_sequence_name not in fasta:
-                    fasta[active_sequence_name] = ""
-                continue
-            sequence = line
-            fasta[active_sequence_name] = sequence
-    return fasta
+# def convert_fasta_to_dict(f):
+#     fasta = {}
+#     with open(f) as file_one:
+#         for line in file_one:
+#             line = line.strip()
+#             if not line:
+#                 continue
+#             if line.startswith(">"):
+#                 active_sequence_name = line[1:]
+#                 if active_sequence_name not in fasta:
+#                     fasta[active_sequence_name] = ""
+#                 continue
+#             sequence = line
+#             fasta[active_sequence_name] = sequence
+#     return fasta
 
 
-def alignRefFromVar(line):  # chr_fake, start_pos, len_guide, bulge):
+def alignRefFromVar(line, data_dict):  # chr_fake, start_pos, len_guide, bulge):
     t = line.copy()
     # chr_fake = t[10].split('_')
     len_guide = len(t[2])
@@ -188,7 +187,7 @@ def alignRefFromVar(line):  # chr_fake, start_pos, len_guide, bulge):
     true_chr = t[3]
     good_chr_fake = true_chr + ":" + str(start_pos) + "-" + str(start_pos + len_guide)
     # dict_ref_seq[good_chr_fake].upper() #file_fasta.readline().strip().upper()
-    sequence = genomeStr[start_pos : start_pos + len_guide].upper()
+    sequence = data_dict["genomeStr"][start_pos : start_pos + len_guide].upper()
     # print('ref sequence', sequence, len(sequence), len_guide)
 
     if t[6] == "-":  # if negative strand reverse ref sequence
@@ -219,178 +218,49 @@ def alignRefFromVar(line):  # chr_fake, start_pos, len_guide, bulge):
         #     sequence = sequence[len(tmp_gap_position):]
     # elif t[6] == '-':
     #     sequence = reverse_complement_table(sequence)
-    guide_no_pam = t[1][pos_beg:pos_end]
+    guide_no_pam = t[1][data_dict["pos_beg"] : data_dict["pos_end"]]
     list_t = list(sequence)
 
     # print('ref seq with bulges', sequence)
     # align ref sequence with var
-    for position_t, char_t in enumerate(sequence[pos_beg:pos_end]):
+    for position_t, char_t in enumerate(
+        sequence[data_dict["pos_beg"] : data_dict["pos_end"]]
+    ):
         if char_t.upper() != guide_no_pam[position_t]:
             if guide_no_pam[position_t] != "-":
-                list_t[sum_for_mms + position_t] = char_t.lower()
+                list_t[data_dict["sum_for_mms"] + position_t] = char_t.lower()
     sequence = "".join(list_t)
 
     return sequence
 
 
-# READ INPUT FILES
-annotationFile = sys.argv[1]  # file with annotation
-resultsFile = sys.argv[2]  # file with results from search
-outputFile = sys.argv[3]  # file with annotated results
-
-# Get pam and guide length for new count mismatch samples
-pam_at_beginning = False
-with open(sys.argv[5]) as pam:
-    line = pam.read().strip()
-    pam = line.split(" ")[0]
-    len_pam = int(line.split(" ")[1])
-    guide_len = len(pam) - len_pam
-    pos_beg = 0
-    pos_end = None
-    pam_begin = 0
-    pam_end = len_pam * (-1)
-    if len_pam < 0:
-        guide_len = len(pam) + len_pam
-        pam = pam[: (len_pam * (-1))]
-        len_pam = len_pam * (-1)
-        pos_beg = len_pam
-        pos_end = None
-        pam_begin = 0
-        pam_end = len_pam
-        pam_at_beginning = True
-    else:
-        pam = pam[(len_pam * (-1)) :]
-        pos_beg = 0
-        pos_end = len_pam * (-1)
-        pam_begin = len_pam * (-1)
-        pam_end = None
-
-do_scores = True
-if guide_len != 20 or len_pam != 3 or pam_at_beginning:
-    # sys.stderr.write('CFD SCORE IS NOT CALCULATED WITH GUIDES LENGTH != 20 OR PAM LENGTH !=3 OR UPSTREAM PAM')
-    do_scores = False
-    with open(outputFile + ".acfd.txt", "w+") as result:
-        result.write("NO SCORES")
-
-iupac_code_set = {
-    "R": {"A", "G"},
-    "Y": {"C", "T"},
-    "S": {"G", "C"},
-    "W": {"A", "T"},
-    "K": {"G", "T"},
-    "M": {"A", "C"},
-    "B": {"C", "G", "T"},
-    "D": {"A", "G", "T"},
-    "H": {"A", "C", "T"},
-    "V": {"A", "C", "G"},
-    "r": {"A", "G"},
-    "y": {"C", "T"},
-    "s": {"G", "C"},
-    "w": {"A", "T"},
-    "k": {"G", "T"},
-    "m": {"A", "C"},
-    "b": {"C", "G", "T"},
-    "d": {"A", "G", "T"},
-    "h": {"A", "C", "T"},
-    "v": {"A", "C", "G"},
-    "A": {"A"},
-    "T": {"T"},
-    "C": {"C"},
-    "G": {"G"},
-    "a": {"a"},
-    "t": {"t"},
-    "c": {"c"},
-    "g": {"g"},
-    "N": {"A", "T", "G", "C"},
-}
+# header = "#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tReference"
 
 
-# OPEN INPUT FILES AND PREPARE OUTPUT FILE
-inResult = open(resultsFile, "r")  # resultfile open
-# inAnnotationFile = open(annotationFile, "r")  # file with annotations open
-# outFileSampleAll = open(outputFile + '.samples.all.annotation.txt', 'w')  # outfile open (file with IUPAC targets and associated samples and annotation)
+# blank_add_begin = " "  # Needed for replacing IUPAC in cluster targets
+# blank_add_end = ""
+# pam_multiplier = 1
+# pam_multiplier_negative = 0
+# start_sample_for_cluster = 0
+# cluster_step = 1  # If PAM end, go left to right
+# # when updatig lowercase for nem_mm, this value represents the offset for the pam position (mainly needed only if pam at beginning)
+# sum_for_mms = 0
+# # Values to check new iupac when working on cluster targets
+# end_sample_for_cluster = max_dna_bulges + max_rna_bulges
+# if pam_at_beginning:
+#     blank_add_begin = ""
+#     blank_add_end = " "
+#     pam_multiplier = 0  # Since ' ' are at end, and '-' to reinsert are before the ' ', need to put max_dna_bulges and rna_bulges of target to 0
+#     pam_multiplier_negative = 1
+#     # For PAM at beginning, start from last nucleotide and go to left
+#     end_sample_for_cluster = len_pam + guide_len - max_rna_bulges
+#     start_sample_for_cluster = len_pam + guide_len + max_dna_bulges
+#     cluster_step = -1  # If PAM beginning, go right to left
+#     sum_for_mms = len_pam
+# # outFileSampleAll.write(header + '\n')
+# summary_samples = True
 
-count_removed_target = 0
-# process = subprocess.Popen(
-#     ["wc", "-l", resultsFile], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-# )
-# out, err = process.communicate()
-# total_line = int(out.decode("UTF-8").split(" ")[0])
-# if total_line < 1:
-#     print("WARNING! Input file has no targets")
-#     sys.exit()
-# if total_line < 10:
-#     mod_tot_line = 1
-# else:
-#     mod_tot_line = int(total_line / 10)
-# VARIABLE INIT
-guideDict = {}
-totalDict = {}
-
-start_time = time.time()
-
-# print("EXECUTING PRELIMINARY OPERATIONS")
-
-# annotationsTree = IntervalTree()
-# annotationsSet = set()
-# #guidesSet = set()       #NOTE/BUG if guide finds 0 targets, it will not be annotated
-
-# for line in inAnnotationFile:
-#     x = line.split('\t')
-#     x[3] = str(x[3]).rstrip("\n")
-#     annotationsTree[int(x[1]):int(x[2])] = str(x[0])+'\t'+str(x[3])
-#     annotationsSet.add(str(x[3]))
-
-# totalDict['targets'] = [0]*10
-# for item in annotationsSet:
-#     totalDict[item] = [0]*10
-
-# print("PRELIMINARY OPERATIONS COMPLETED IN: %s seconds" % (time.time() - start_time))
-
-start_time = time.time()
-
-# print("EXECUTING ANNOTATION")
-
-# with open(resultsFile, "r") as resFile:
-#     header_len = len(resFile.readline().strip().split("\t"))
-
-# if header_len == 15:    #'Both' case : comparison variant/ref is active
-# header = '#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation Type\tReal Guide'
-header = "#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tReference"
-
-
-mm_pos = 7  # position of mismatch column
-bulge_pos = 8
-max_dna_bulges = int(sys.argv[9])
-max_rna_bulges = int(sys.argv[10])
-max_bulges = max_dna_bulges
-if max_rna_bulges > max_bulges:
-    max_bulges = max_rna_bulges
-
-blank_add_begin = " "  # Needed for replacing IUPAC in cluster targets
-blank_add_end = ""
-pam_multiplier = 1
-pam_multiplier_negative = 0
-start_sample_for_cluster = 0
-cluster_step = 1  # If PAM end, go left to right
-# when updatig lowercase for nem_mm, this value represents the offset for the pam position (mainly needed only if pam at beginning)
-sum_for_mms = 0
-# Values to check new iupac when working on cluster targets
-end_sample_for_cluster = max_dna_bulges + max_rna_bulges
-if pam_at_beginning:
-    blank_add_begin = ""
-    blank_add_end = " "
-    pam_multiplier = 0  # Since ' ' are at end, and '-' to reinsert are before the ' ', need to put max_dna_bulges and rna_bulges of target to 0
-    pam_multiplier_negative = 1
-    # For PAM at beginning, start from last nucleotide and go to left
-    end_sample_for_cluster = len_pam + guide_len - max_rna_bulges
-    start_sample_for_cluster = len_pam + guide_len + max_dna_bulges
-    cluster_step = -1  # If PAM beginning, go right to left
-    sum_for_mms = len_pam
-# outFileSampleAll.write(header + '\n')
-summary_samples = True
-
-header_list = header.strip().split("\t")
+# header_list = header.strip().split("\t")
 # Variables for summary samples code
 """
 {
@@ -422,38 +292,38 @@ header_list = header.strip().split("\t")
 
 Per pop e superpop, se ho due sample stessa famiglia stesso target, conto solo una volta (visited_pop and visited_superpop array)
 """
-count_sample = (
-    dict()
-)  # NOTE cout_sample -> GUIDE -> SAMPLE -> has targets + ann1 + ann2 ... + refposition
-# refposition is a key unrelated to the other keys (targets ann1 ann2 ...) and it's used to classify the sample (0 0+ 1 1+).
-# it's put in here just to avoid to duplicate the entire guide -> sample ->     structure
-# refposition -> [class , number of specific VAR on target to add/remove]  #Save class (0 at start) and number of ontarget var specific
-# for that sample.
-# Count number of REF target and REF part of semicommon
-ontarget_reference_count = dict()
-count_pop = dict()
-# NOTE added key 'distributions' for population distribution images
-count_superpop = dict()
-# count_superpop-> GUIDE -> SUPERPOP -> targets ann1 ann2 ... distributions
-# distributions is an array of len mms+bulge, each position contains an array [0,0,0] of len bulge+1 (indicating no bulge, 1 bulge, 2bulge ...)
+# count_sample = (
+#     dict()
+# )  # NOTE cout_sample -> GUIDE -> SAMPLE -> has targets + ann1 + ann2 ... + refposition
+# # refposition is a key unrelated to the other keys (targets ann1 ann2 ...) and it's used to classify the sample (0 0+ 1 1+).
+# # it's put in here just to avoid to duplicate the entire guide -> sample ->     structure
+# # refposition -> [class , number of specific VAR on target to add/remove]  #Save class (0 at start) and number of ontarget var specific
+# # for that sample.
+# # Count number of REF target and REF part of semicommon
+# ontarget_reference_count = dict()
+# count_pop = dict()
+# # NOTE added key 'distributions' for population distribution images
+# count_superpop = dict()
+# # count_superpop-> GUIDE -> SUPERPOP -> targets ann1 ann2 ... distributions
+# # distributions is an array of len mms+bulge, each position contains an array [0,0,0] of len bulge+1 (indicating no bulge, 1 bulge, 2bulge ...)
 
-# Create -Summary_total for a file ref.Annotation.summary.txt from the y and n values of Var_uniq column
-summary_barplot_from_total = False
-if "Var_uniq" in header:
-    summary_barplot_from_total = True
-    vu_pos = header_list.index("Var_uniq")
-# count_unique = dict()
-# count_unique['targets'] = [0]*10
-# count_unique_for_guide = dict()
-# for item in annotationsSet:
-#     count_unique[item] = [0]*10
+# # Create -Summary_total for a file ref.Annotation.summary.txt from the y and n values of Var_uniq column
+# summary_barplot_from_total = False
+# if "Var_uniq" in header:
+#     summary_barplot_from_total = True
+#     vu_pos = header_list.index("Var_uniq")
+# # count_unique = dict()
+# # count_unique['targets'] = [0]*10
+# # count_unique_for_guide = dict()
+# # for item in annotationsSet:
+# #     count_unique[item] = [0]*10
 
-# Variables for samples calculation
-total_error = 0
+# # Variables for samples calculation
+# total_error = 0
 
 
-current_chr = "none"
-chr_name = "none"
+# current_chr = "none"
+# chr_name = "none"
 
 
 def rev_comp(a):
@@ -466,29 +336,35 @@ def rev_comp(a):
     return "C"
 
 
-def preprocess_CFD_score(target):
+def preprocess_CFD_score(target, data_dict):
     # preprocess target then calculate CFD score
-    if do_scores:
+    if data_dict["do_scores"]:
         if target[0] == "DNA":
             cfd_score = calc_cfd(
-                target[1][int(target[bulge_pos]) :],
-                target[2].upper()[int(target[bulge_pos]) : -3],
+                target[1][int(target[data_dict["bulge_pos"]]) :],
+                target[2].upper()[int(target[data_dict["bulge_pos"]]) : -3],
                 target[2].upper()[-2:],
-                mm_scores,
-                pam_scores,
-                do_scores,
+                data_dict["mm_scores"],
+                data_dict["pam_scores"],
+                data_dict["do_scores"],
             )
+            # append to target the CFD score of the aligned sequence (alt or ref)
             target.append("{:.3f}".format(cfd_score))
-            if target[-3] == 55:
+            # -3 position is a placeholder for ref score
+            if (
+                target[-3] == 55
+            ):  # if 55 sequence is ref so no score have to be calculated
                 target[-3] = "{:.3f}".format(cfd_score)
-            if target[-3] == 33:
+            if (
+                target[-3] == 33
+            ):  # if 33 sequence is alt so ref score must be calculated
                 cfd_ref_score = calc_cfd(
-                    target[1][int(target[bulge_pos]) :],
-                    target[-4].upper()[int(target[bulge_pos]) : -3],
+                    target[1][int(target[data_dict["bulge_pos"]]) :],
+                    target[-4].upper()[int(target[data_dict["bulge_pos"]]) : -3],
                     target[-4].upper()[-2:],
-                    mm_scores,
-                    pam_scores,
-                    do_scores,
+                    data_dict["mm_scores"],
+                    data_dict["pam_scores"],
+                    data_dict["do_scores"],
                 )
                 target[-3] = "{:.3f}".format(cfd_ref_score)
         else:
@@ -496,9 +372,9 @@ def preprocess_CFD_score(target):
                 target[1],
                 target[2].upper()[:-3],
                 target[2].upper()[-2:],
-                mm_scores,
-                pam_scores,
-                do_scores,
+                data_dict["mm_scores"],
+                data_dict["pam_scores"],
+                data_dict["do_scores"],
             )
             target.append("{:.3f}".format(cfd_score))
             if target[-3] == 55:
@@ -508,12 +384,13 @@ def preprocess_CFD_score(target):
                     target[1],
                     target[-4].upper()[:-3],
                     target[-4].upper()[-2:],
-                    mm_scores,
-                    pam_scores,
-                    do_scores,
+                    data_dict["mm_scores"],
+                    data_dict["pam_scores"],
+                    data_dict["do_scores"],
                 )
                 target[-3] = "{:.3f}".format(cfd_ref_score)
     else:
+        # no score calculated, append -1 in CFD score and in position -3 insert -1 value (-1 means no score calculated)
         cfd_score = -1
         target.append("{:.3f}".format(cfd_score))
         target[-3] = "{:.3f}".format(cfd_score)
@@ -522,7 +399,7 @@ def preprocess_CFD_score(target):
     return target
 
 
-def preprocess_CRISTA_score(cluster_targets):
+def preprocess_CRISTA_score(cluster_targets, data_dict):
     # list with scored targets
     cluster_scored = list()
     index_to_null = list()
@@ -530,7 +407,7 @@ def preprocess_CRISTA_score(cluster_targets):
     # skip scoring for CRISTA, remove to activate scoring
     # do_scores = False
 
-    if do_scores:
+    if data_dict["genomeStr"]:
         pass
     else:
         for target in cluster_targets:
@@ -552,13 +429,15 @@ def preprocess_CRISTA_score(cluster_targets):
         # list with aligned DNA
         DNA_aligned_list.append(str(target[2]))
         # first 5 nucleotide to add to protospacer
-        pre_protospacer_DNA = genomeStr[int(target[4]) - 5 : int(target[4])].upper()
+        pre_protospacer_DNA = data_dict["genomeStr"][
+            int(target[4]) - 5 : int(target[4])
+        ].upper()
         # protospacer taken directly from the aligned target
         protospacerDNA = str(target[2]).replace("-", "")
         if target[6] == "-":
             protospacerDNA = reverse_complement_table(protospacerDNA)
         # last 5 nucleotides to add to protospacer
-        post_protospacer_DNA = genomeStr[
+        post_protospacer_DNA = data_dict["genomeStr"][
             int(target[4]) + len(target[1]) : int(target[4]) + len(target[1]) + 5
         ].upper()
 
@@ -566,6 +445,10 @@ def preprocess_CRISTA_score(cluster_targets):
         complete_DNA_seq = (
             str(pre_protospacer_DNA) + protospacerDNA + str(post_protospacer_DNA)
         )
+
+        for elem in utils.iupac_nucleotides:
+            if elem in complete_DNA_seq:
+                complete_DNA_seq = complete_DNA_seq.replace(elem, "")
 
         # trim the 3' and 5' end to avoid sequences longer than 29
         len_DNA_seq = len(complete_DNA_seq)
@@ -575,6 +458,8 @@ def preprocess_CRISTA_score(cluster_targets):
         if target[6] == "-":
             complete_DNA_seq = reverse_complement_table(complete_DNA_seq)
 
+        # if 'N' is present in the reference DNA seq, we must use a fake DNA seq to complete the aligned
+        # that will be discarded after
         if (
             "N" in complete_DNA_seq
             or "n" in complete_DNA_seq
@@ -590,7 +475,7 @@ def preprocess_CRISTA_score(cluster_targets):
 
     # calculate scores for alt sequence
     crista_score_list_alt = list()
-    if do_scores:
+    if data_dict["do_scores"]:
         crista_score_list_alt = CRISTA_predict_list(
             sgRNA_non_aligned_list, DNA_aligned_list, DNAseq_from_genome_list
         )
@@ -609,11 +494,15 @@ def preprocess_CRISTA_score(cluster_targets):
         else:
             DNA_aligned_list.append(str(target[2]))
         # first 5 nucleotide to add to protospacer
-        pre_protospacer_DNA = genomeStr[int(target[4]) - 5 : int(target[4])]
+        pre_protospacer_DNA = data_dict["genomeStr"][
+            int(target[4]) - 5 : int(target[4])
+        ]
         # protospacer taken directly from the ref genome
-        protospacerDNA = genomeStr[int(target[4]) : int(target[4]) + len(target[1])]
+        protospacerDNA = data_dict["genomeStr"][
+            int(target[4]) : int(target[4]) + len(target[1])
+        ]
         # last 5 nucleotides to add to protospacer
-        post_protospacer_DNA = genomeStr[
+        post_protospacer_DNA = data_dict["genomeStr"][
             int(target[4]) + len(target[1]) : int(target[4]) + len(target[1]) + 5
         ]
 
@@ -621,6 +510,10 @@ def preprocess_CRISTA_score(cluster_targets):
         complete_DNA_seq = (
             str(pre_protospacer_DNA) + protospacerDNA + str(post_protospacer_DNA)
         )
+
+        for elem in utils.iupac_nucleotides:
+            if elem in complete_DNA_seq:
+                complete_DNA_seq = complete_DNA_seq.replace(elem, "")
 
         # trim the 3' and 5' end to avoid sequences longer than 29
         len_DNA_seq = len(complete_DNA_seq)
@@ -630,6 +523,8 @@ def preprocess_CRISTA_score(cluster_targets):
         if target[6] == "-":
             complete_DNA_seq = reverse_complement_table(complete_DNA_seq)
 
+        # if 'N' is present in the reference DNA seq, we must use a fake DNA seq to complete the aligned
+        # that will be discarded after
         if (
             "N" in complete_DNA_seq
             or "n" in complete_DNA_seq
@@ -645,7 +540,7 @@ def preprocess_CRISTA_score(cluster_targets):
 
     # calculate score
     crista_score_list_ref = list()
-    if do_scores:
+    if data_dict["do_scores"]:
         crista_score_list_ref = CRISTA_predict_list(
             sgRNA_non_aligned_list, DNA_aligned_list, DNAseq_from_genome_list
         )
@@ -660,18 +555,18 @@ def preprocess_CRISTA_score(cluster_targets):
         else:
             # else report the correct score
             if target_CRISTA[-2] == 55:  # reference target have duplicate score
-                target_CRISTA[-2] = "{:.3f}".format(crista_score_list_alt[index])
-                target_CRISTA.append("{:.3f}".format(crista_score_list_alt[index]))
+                target_CRISTA[-2] = "{:.3f}".format(crista_score_list_alt[index])  # type: ignore
+                target_CRISTA.append("{:.3f}".format(crista_score_list_alt[index]))  # type: ignore
             if target_CRISTA[-2] == 33:  # alternative target scoring
-                target_CRISTA[-2] = "{:.3f}".format(crista_score_list_ref[index])
-                target_CRISTA.append("{:.3f}".format(crista_score_list_alt[index]))
+                target_CRISTA[-2] = "{:.3f}".format(crista_score_list_ref[index])  # type: ignore
+                target_CRISTA.append("{:.3f}".format(crista_score_list_alt[index]))  # type: ignore
         # append to final score cluster
         cluster_scored.append(target_CRISTA)
 
     return cluster_scored
 
 
-def calculate_scores(cluster_to_save):
+def calculate_scores(cluster_to_save, data_dict):
     if len(cluster_to_save):  ##check to avoid empty clusters and raise errors
         pass
     else:
@@ -684,292 +579,298 @@ def calculate_scores(cluster_to_save):
 
     for target in cluster_to_save:  # calculate CFD score for each target
         target_CFD = target.copy()
-        cluster_with_CFD_score.append(preprocess_CFD_score(target_CFD))
+        cluster_with_CFD_score.append(preprocess_CFD_score(target_CFD, data_dict))
 
     # process score for each target in cluster, at the same time to improve execution time
-    cluster_with_CRISTA_score = preprocess_CRISTA_score(cluster_to_save)
+    cluster_with_CRISTA_score = preprocess_CRISTA_score(cluster_to_save, data_dict)
 
     return [cluster_with_CFD_score, cluster_with_CRISTA_score]
 
 
-iupac_code = {
-    "R": ("A", "G"),
-    "Y": ("C", "T"),
-    "S": ("G", "C"),
-    "W": ("A", "T"),
-    "K": ("G", "T"),
-    "M": ("A", "C"),
-    "B": ("C", "G", "T"),
-    "D": ("A", "G", "T"),
-    "H": ("A", "C", "T"),
-    "V": ("A", "C", "G"),
-    "r": ("A", "G"),
-    "y": ("C", "T"),
-    "s": ("G", "C"),
-    "w": ("A", "T"),
-    "k": ("G", "T"),
-    "m": ("A", "C"),
-    "b": ("C", "G", "T"),
-    "d": ("A", "G", "T"),
-    "h": ("A", "C", "T"),
-    "v": ("A", "C", "G"),
-    "N": ("A", "T", "C", "G"),
-}
+# iupac_code = {
+#     "R": ("A", "G"),
+#     "Y": ("C", "T"),
+#     "S": ("G", "C"),
+#     "W": ("A", "T"),
+#     "K": ("G", "T"),
+#     "M": ("A", "C"),
+#     "B": ("C", "G", "T"),
+#     "D": ("A", "G", "T"),
+#     "H": ("A", "C", "T"),
+#     "V": ("A", "C", "G"),
+#     "r": ("A", "G"),
+#     "y": ("C", "T"),
+#     "s": ("G", "C"),
+#     "w": ("A", "T"),
+#     "k": ("G", "T"),
+#     "m": ("A", "C"),
+#     "b": ("C", "G", "T"),
+#     "d": ("A", "G", "T"),
+#     "h": ("A", "C", "T"),
+#     "v": ("A", "C", "G"),
+#     "N": ("A", "T", "C", "G"),
+# }
 
 # For scoring of CFD And Doench
-tab = str.maketrans("ACTGRYSWMKHDBVactgryswmkhdbv", "TGACYRSWKMDHVBtgacyrswkmdhvb")
+# tab = str.maketrans("ACTGRYSWMKHDBVactgryswmkhdbv", "TGACYRSWKMDHVBtgacyrswkmdhvb")
 
 
 def reverse_complement_table(seq):
-    return seq.translate(tab)[::-1]
+    return seq.translate(utils.tab)[::-1]
 
 
-mm_scores, pam_scores = get_mm_pam_scores()
-guides_dict = dict()  # For CFD score
-guides_dict_doench = dict()
-targets_for_doench = dict()
+# guides_dict = dict()  # For CFD score
+# guides_dict_doench = dict()
+# targets_for_doench = dict()
 
 # N_THR = multiprocessing.cpu_count() // 2
 # refgenomedir = sys.argv[7]
 
 # with open( os.path.dirname(os.path.realpath(__file__)) + "/azimuth/saved_models/V3_model_nopos.pickle", 'rb') as f:
 #     model = pickle.load(f)
-max_doench = 0
-sum_cfd = 0
-cfd_scores = []
-
-# open fasta to read ref chromosome
-inFasta = open(sys.argv[7], "r")
-current_chr = inFasta.readline().strip().replace(">", "")  # lettura fasta del chr
-genomeStr = inFasta.readlines()  # lettura fasta del chr
-genomeStr = "".join(genomeStr).upper()
-# string of the whole chromosome on single line
-genomeStr = genomeStr.replace("\n", "")
+# max_doench = 0
+# sum_cfd = 0
+# cfd_scores = []
 
 
-start_time_total = time.time()
-lines_processed = 0
-allowed_mms = int(sys.argv[6])
-current_guide_chr_pos_direction = "no"
+def init(
+    pam_file: str,
+    indel_dict_path: str,
+    dna_bulges: int,
+    rna_bulges: int,
+    fasta_path: str,
+    max_mm: int,
+) -> dict:
+    """initilize the INDELS processing function
+
+    Args:
+        pam_file (str): path to original pam file
+        indel_dict_path (str): path to indel dictionary
+        dna_bulges (int): max allowed DNA bulges in search
+        rna_bulges (int): max allowed RNA bulges in search
+        fasta_path (str): path to fasta file for current chr
+        max_mm (int): max allowed mismatches in search
+
+    Returns:
+        dict: return a dictionary with all the parameters for the process function
+    """
+    mm_pos = 7  # position of mismatch column
+    bulge_pos = 8
+    max_dna_bulges = dna_bulges
+    max_rna_bulges = rna_bulges
+    max_bulges = max(max_dna_bulges, max_rna_bulges)
+    allowed_mms = max_mm
+    # open fasta to read ref chromosome
+    inFasta = open(fasta_path, "r")
+    current_chr = inFasta.readline().strip().replace(">", "")  # lettura fasta del chr
+    genomeStr = inFasta.readlines()  # lettura fasta del chr
+    genomeStr = "".join(genomeStr).upper().replace("\n", "")
+    # string of the whole chromosome on single line
+    # genomeStr = genomeStr.replace("\n", "")
+    sum_for_mms = 0
+
+    mm_scores, pam_scores = get_mm_pam_scores()
+
+    INDELS_tree = IntervalTree()  # tree with all indels for current chr
+    with open(indel_dict_path, "r") as log:
+        print("indel processing:", current_chr)
+        log.readline()
+        for entry in log:
+            splitted = entry.strip().split("\t")
+            fake_pos = splitted[5].strip().split(",")  # inizio,fine del fakechr
+            # start       end fakechr          #pos_vera,samples,rsID,MAF,INDELinfo,start_fake,ref_seq
+            INDELS_tree[int(fake_pos[0]) : int(fake_pos[1])] = [
+                splitted[0],
+                splitted[1],
+                splitted[2],
+                splitted[3],
+                splitted[4],
+                int(fake_pos[0]),
+                splitted[6],
+            ]
+
+    # Get pam and guide length for new count mismatch samples
+    pam_at_beginning = False
+    with open(pam_file) as pam:
+        line = pam.read().strip()
+        pam = line.split(" ")[0]
+        len_pam = int(line.split(" ")[1])
+        guide_len = len(pam) - len_pam
+        pos_beg = 0
+        pos_end = None
+        pam_begin = 0
+        pam_end = len_pam * (-1)
+        if len_pam < 0:
+            guide_len = len(pam) + len_pam
+            pam = pam[: (len_pam * (-1))]
+            len_pam = len_pam * (-1)
+            pos_beg = len_pam
+            pos_end = None
+            pam_begin = 0
+            pam_end = len_pam
+            pam_at_beginning = True
+            sum_for_mms = len_pam
+        else:
+            pam = pam[(len_pam * (-1)) :]
+            pos_beg = 0
+            pos_end = len_pam * (-1)
+            pam_begin = len_pam * (-1)
+            pam_end = None
+
+    do_scores = True
+    if guide_len != 20 or len_pam != 3 or pam_at_beginning:
+        # sys.stderr.write('CFD SCORE IS NOT CALCULATED WITH GUIDES LENGTH != 20 OR PAM LENGTH !=3 OR UPSTREAM PAM')
+        do_scores = False
+
+    return_dict = dict()
+    return_dict["pam"] = pam
+    return_dict["genomeStr"] = genomeStr
+    return_dict["pam_begin"] = pam_begin
+    return_dict["pam_end"] = pam_end
+    return_dict["pos_beg"] = pos_beg
+    return_dict["pos_end"] = pos_end
+    return_dict["mm_scores"] = mm_scores
+    return_dict["pam_scores"] = pam_scores
+    return_dict["pam_at_beginning"] = pam_at_beginning
+    return_dict["sum_for_mms"] = sum_for_mms
+    # return_dict["haplotype_check"] = haplotype_check
+    return_dict["do_scores"] = do_scores
+    return_dict["allowed_mms"] = allowed_mms
+    return_dict["bulge_pos"] = bulge_pos
+    return_dict["my_dict"] = INDELS_tree
+    return_dict["current_chr"] = current_chr
+
+    return return_dict
+
+
+# start_time_total = time.time()
+# # lines_processed = 0
+
+# current_guide_chr_pos_direction = "no"
 
 # save best files
-cfd_best = open(outputFile + ".bestCFD.txt", "a")
+# cfd_best = open(outputFile + ".bestCFD.txt", "a")
 
-crista_best = open(outputFile + ".bestCRISTA.txt", "a")
+# crista_best = open(outputFile + ".bestCRISTA.txt", "a")
 
-mmblg_best = open(outputFile + ".bestmmblg.txt", "a")
+# mmblg_best = open(outputFile + ".bestmmblg.txt", "a")
 
 
-INDELS_tree = IntervalTree()
-with open(os.path.realpath(sys.argv[4]) + "/log" + current_chr + ".txt", "r") as log:
-    print("indel processing:", current_chr)
-    log.readline()
-    for entry in log:
-        splitted = entry.strip().split("\t")
-        fake_pos = splitted[5].strip().split(",")  # inizio,fine del fakechr
-        # start       end fakechr          #pos_vera,samples,rsID,MAF,INDELinfo,start_fake,ref_seq
-        INDELS_tree[int(fake_pos[0]) : int(fake_pos[1])] = [
-            splitted[0],
-            splitted[1],
-            splitted[2],
-            splitted[3],
-            splitted[4],
-            int(fake_pos[0]),
-            splitted[6],
-        ]
 # datastore = datastore.to_dict(orient='index')
-print("Analysis of " + current_chr)
+# print("Analysis of " + current_chr)
 
-save_cluster_targets = True
-remove_iupac = False
-save_total_general_table = False
-# chiave ['add'] = target semicommon da aggiungere alla tab generale delle guide, metto i valori di total presi dal primo target REF nel cluster di un semicommon che esiste
-add_to_general_table = dict()
-# chiave ['distribution'] = array len total, ogni cella divisa per mm,1B,2B..., per populationDistribution
-last_annotation = ""  # in un cluster, l'annotazione è la stessa, quindi la calcolo solo una volta e poi la riscrivo per gli altri target del cluster
-last_samples = (
-    []
-)  # se due target hanno la stessa scomposizione, hanno gli stessi samples, quindi non li ricalcolo
-next(inResult)  # Skip header
+# save_cluster_targets = True
+# remove_iupac = False
+# save_total_general_table = False
+# # chiave ['add'] = target semicommon da aggiungere alla tab generale delle guide, metto i valori di total presi dal primo target REF nel cluster di un semicommon che esiste
+# add_to_general_table = dict()
+# # chiave ['distribution'] = array len total, ogni cella divisa per mm,1B,2B..., per populationDistribution
+# last_annotation = ""  # in un cluster, l'annotazione è la stessa, quindi la calcolo solo una volta e poi la riscrivo per gli altri target del cluster
+# last_samples = (
+#     []
+# )  # se due target hanno la stessa scomposizione, hanno gli stessi samples, quindi non li ricalcolo
+# next(inResult)  # Skip header
 # contains all targets for each cluster, it's then sorted by CFD. Only the target with highest CFD is saved
 # cluster_to_save = []
 # sum number times a cfd value appears, TODO aggiungere anche il conteggio per ogni sample
-cfd_for_graph = {"ref": [0] * 101, "var": [0] * 101}
+# cfd_for_graph = {"ref": [0] * 101, "var": [0] * 101}
 
-# Categorie per la scomposizione, chiavi: 'BulgeType' + 'BulgeSize'
-dictionary_entries = ["X0"]
-for i in range(int(max_dna_bulges)):
-    dictionary_entries.append("DNA" + str(i + 1))
-for i in range(int(max_rna_bulges)):
-    dictionary_entries.append("RNA" + str(i + 1))
+# # Categorie per la scomposizione, chiavi: 'BulgeType' + 'BulgeSize'
+# dictionary_entries = ["X0"]
+# for i in range(int(max_dna_bulges)):
+#     dictionary_entries.append("DNA" + str(i + 1))
+# for i in range(int(max_rna_bulges)):
+#     dictionary_entries.append("RNA" + str(i + 1))
 
 
 # dict_ref_seq = convert_fasta_to_dict(sys.argv[12])
 
-cluster_class = None
-datastore = None
+# cluster_class = None
+# datastore = None
 
 
-global_start = time.time()
+# global_start = time.time()
 
-# list saving all the targets reported in chr##
-cluster_to_save = list()
 
-for line in inResult:
-    # print("line in INDEL analysis", line)
-    line = line.strip().split("\t")
-    # print(line)
-    guide_no_bulge = line[1].replace("-", "")
-    # copy line to avoid problem with memory managament and intrisic pointers
-    final_result = line.copy()
-    # extract indel data from the INDEL tree
-    try:
-        indel_data = sorted(INDELS_tree[int(line[4])])[0].data
-    except:
-        # target found has no INDEL, so it's REF and must be skipped
-        continue
-    # assign extracted data to final target
-    final_result[3] = current_chr  # current analyzed chr
-    final_result[12] = indel_data[1]  # samples
-    final_result[15] = indel_data[2]  # rsID
-    final_result[16] = indel_data[3]  # MAF
-    final_result[17] = indel_data[4]  # INDELinfo
+def start_processing(target_list: list, data_dict: dict) -> list:
+    # list saving all the targets reported in chr##
+    cluster_to_save = list()
 
-    # correct position if PAM at beginning and strand
-    if pam_at_beginning:
-        if line[0] == "RNA" and line[6] == "-":
-            # cluster_position
-            fake_start_target = int(line[5]) - int(indel_data[5])
+    for line in target_list:
+        # print("line in INDEL analysis", line)
+        # line = line.strip().split("\t")
+        # print(line)
+        # guide_no_bulge = line[1].replace("-", "")
+        # copy line to avoid problem with memory managament and intrisic pointers
+        final_result = line.copy()
+        # extract indel data from the INDEL tree
+        try:
+            indel_data = sorted(data_dict["my_dict"][int(line[4])])[0].data
+        except:
+            # target found has no INDEL, so it's REF and must be skipped
+            continue
+        # assign extracted data to final target
+        final_result[3] = data_dict["current_chr"]  # current analyzed chr
+        final_result[12] = indel_data[1]  # samples
+        final_result[15] = indel_data[2]  # rsID
+        final_result[16] = indel_data[3]  # MAF
+        final_result[17] = indel_data[4]  # INDELinfo
+
+        # correct position if PAM at beginning and strand
+        if data_dict["pam_at_beginning"]:
+            if line[0] == "RNA" and line[6] == "-":
+                # cluster_position
+                fake_start_target = int(line[5]) - int(indel_data[5])
+            else:
+                # real_position
+                fake_start_target = int(line[4]) - int(indel_data[5])
         else:
-            # real_position
-            fake_start_target = int(line[4]) - int(indel_data[5])
-    else:
-        if line[0] == "RNA" and line[6] == "+":
-            # cluster_position
-            fake_start_target = int(line[5]) - int(indel_data[5])
-        else:
-            # real_position
-            fake_start_target = int(line[4]) - int(indel_data[5])
+            if line[0] == "RNA" and line[6] == "+":
+                # cluster_position
+                fake_start_target = int(line[5]) - int(indel_data[5])
+            else:
+                # real_position
+                fake_start_target = int(line[4]) - int(indel_data[5])
 
-    # correct start with real chr spatial info and length of the target
-    true_start_target = (
-        int(indel_data[0].split("_")[1].split("-")[0]) + fake_start_target
-    )
-    # correct cluster position
-    diff_pos_clus = int(line[4]) - int(line[5])
-    # real_start
-    final_result[4] = str(true_start_target)
-    # real_start_cluster
-    final_result[5] = str(true_start_target - diff_pos_clus)
+        # correct start with real chr spatial info and length of the target
+        true_start_target = (
+            int(indel_data[0].split("_")[1].split("-")[0]) + fake_start_target
+        )
+        # correct cluster position
+        diff_pos_clus = int(line[4]) - int(line[5])
+        # real_start
+        final_result[4] = str(true_start_target)
+        # real_start_cluster
+        final_result[5] = str(true_start_target - diff_pos_clus)
 
-    # real_target
-    # t = final_result[2]
-    # mm_new_t = 0
-    # tmp_pos_mms = None  # lista posizione dei mms
-    # guide_no_pam = line[1][pos_beg:pos_end]
-    # list_t = list(t)
-    # for position_t, char_t in enumerate(t[pos_beg:pos_end]):
-    #     if char_t.upper() != guide_no_pam[position_t]:
-    #         mm_new_t += 1
-    #         tmp_pos_mms = position_t
-    #         if guide_no_pam[position_t] != '-':
-    #             list_t[sum_for_mms + position_t] = char_t.lower()
-    # final_result[2] = ''.join(list_t)  # t
+        final_result.append(alignRefFromVar(final_result, data_dict))
+        # number to activate ref score calculation (active if target is alternative)
+        final_result.append(33)
+        # position of tmp_mms (removed later after processing)
+        final_result.append(0)
+        cluster_to_save.append(final_result)
 
-    # print('target with no process', final_result[2])
-    # if tmp_pos_mms:
-    #     final_result.append(int(tmp_pos_mms))
-    # else:  # NO mms found
-    #     final_result.append(-1)
+    clusters_with_scores = calculate_scores(cluster_to_save, data_dict)
 
-    # print('results before calc and ref alignment', final_result)
+    # return clusters_with_scores
+    cfd_best = list()
+    mmblg_best = list()
+    crista_best = list()
 
-    final_result.append(alignRefFromVar(final_result))
-    # number to activate ref score calculation (active if target is alternative)
-    final_result.append(33)
-    # position of tmp_mms (removed later after processing)
-    final_result.append(0)
-    cluster_to_save.append(final_result)
+    for count, cluster in enumerate(clusters_with_scores):
+        for target in cluster:
+            target = [str(x) for x in target]  ##convert each element to string
+            if count == 0:  # CFD target
+                # remove count of tmp_mms
+                target.pop(-2)
+                # save CFD targets
+                cfd_best.append("\t".join(target) + "\t" + str(0) + "\n")
+                # save mm-bul targets
+                mmblg_best.append("\t".join(target) + "\t" + str(0) + "\n")
+            if count == 1:  # CRISTA target
+                # remove count of tmp_mms
+                target.pop(-2)
+                # save CRISTA targets
+                crista_best.append("\t".join(target) + "\t" + str(0) + "\n")
 
-    if len(cluster_to_save) >= 100000:
-        # after reading 100k lines from file and creating the cluster, start processing it
-        clusters_with_scores = calculate_scores(cluster_to_save)
-
-        for count, cluster in enumerate(clusters_with_scores):
-            for target in cluster:
-                if count == 0:  # CFD target
-                    # remove count of tmp_mms
-                    target.pop(-2)
-                    # save CFD targets
-                    cfd_best.write("\t".join(target) + "\t" + str(0) + "\n")
-                    # save mm-bul targets
-                    mmblg_best.write("\t".join(target) + "\t" + str(0) + "\n")
-                if count == 1:  # CRISTA target
-                    # remove count of tmp_mms
-                    target.pop(-2)
-                    # save CRISTA targets
-                    crista_best.write("\t".join(target) + "\t" + str(0) + "\n")
-        cluster_to_save = list()
-
-# if len(cluster_to_save):
-#     pass
-# else:
-#     # skip processing and return empty file
-#     # close open files
-#     cfd_best.close()
-#     mmblg_best.close()
-#     crista_best.close()
-#     # update header
-#     os.system("sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "+outputFile + '.bestCFD_INDEL.txt')
-#     os.system("sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "+outputFile + '.bestCRISTA_INDEL.txt')
-#     os.system("sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "+outputFile + '.bestmmblg_INDEL.txt')
-#     # print exit messagge and exit 0
-#     print('Done', current_chr, time.time() - start_time)
-#     print('ANALYSIS COMPLETE IN', time.time() - global_start)
-#     exit(0)
-
-# start processing scores after the whole target file is read
-clusters_with_scores = calculate_scores(cluster_to_save)
-
-for count, cluster in enumerate(clusters_with_scores):
-    for target in cluster:
-        # print(target)
-        if count == 0:  # CFD target
-            # remove count of tmp_mms
-            target.pop(-2)
-            # save CFD targets
-            # print('CFD', target)
-            cfd_best.write("\t".join(target) + "\t" + str(0) + "\n")
-            # save mm-bul targets
-            mmblg_best.write("\t".join(target) + "\t" + str(0) + "\n")
-        if count == 1:  # CRISTA target
-            # remove count of tmp_mms
-            target.pop(-2)
-            # print('CRISTA', target)
-            # save CRISTA targets
-            crista_best.write("\t".join(target) + "\t" + str(0) + "\n")
-
-cfd_best.close()
-mmblg_best.close()
-crista_best.close()
-
-# os.system(
-#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-#     + outputFile
-#     + ".bestCFD_INDEL.txt"
-# )
-# os.system(
-#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-#     + outputFile
-#     + ".bestCRISTA_INDEL.txt"
-# )
-# os.system(
-#     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
-#     + outputFile
-#     + ".bestmmblg_INDEL.txt"
-# )
-
-
-print("Done", current_chr, time.time() - start_time)
-
-print("ANALYSIS COMPLETE IN", time.time() - global_start)
+    return [cfd_best, mmblg_best, crista_best]

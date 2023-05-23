@@ -724,7 +724,7 @@ def init(
     # return do_scores, genomeStr, pam, pam_begin, pam_end, pos_beg, pos_end, mm_scores, pam_scores, haplotype_check
 
 
-def start_processing(target_list, data_dict):
+def start_processing(target_list: list, data_dict: dict) -> list:
     # START TARGET PROCESSING
     # list with clusterized targets in list format (contains ref seq and all other alternative targets)
     cluster_to_save = list()
