@@ -108,6 +108,7 @@ def pre_process():
     for elem in open(vcf_list).readlines():
         if len(elem.strip().replace("/", "")) > 0:
             vcf_list_checked.append(elem.strip().replace("/", ""))
+            vcf_process = True
 
     write_to_verbose(f"vcf_process is: {vcf_process}")
     write_to_verbose(f"vcf_list is: {vcf_list_checked}")
@@ -421,10 +422,7 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         df_CFD = ac.order_cols(df_CFD)
         df_MMBUL = ac.order_cols(df_MMBUL)
         df_CRISTA = ac.order_cols(df_CRISTA)
-        
-        
-        
-        
+
         # write to bestFILES to check
         # file = open(bestCFD_file, "a")
         # file.write("".join(lists_of_targets_list[0]))
