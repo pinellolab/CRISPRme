@@ -56,7 +56,30 @@ output_folder_name = os.path.basename(output_folder).replace("/", "")
 bestCFD_file = os.path.join(output_folder, output_folder_name + ".bestCFD.txt")
 bestCRISTA_file = os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt")
 bestMMBUL_file = os.path.join(output_folder, output_folder_name + ".bestmmblg.txt")
-header = ""
+header = [
+    "#Bulge_type",
+    "crRNA",
+    "DNA",
+    "Chromosome",
+    "Position",
+    "Cluster_Position",
+    "Direction",
+    "Mismatches",
+    "Bulge_Size",
+    "Total",
+    "PAM_gen",
+    "Var_uniq",
+    "Samples",
+    "Annotation_Type",
+    "Real_Guide",
+    "rsID",
+    "AF",
+    "SNP",
+    "Reference",
+    "CFD_ref",
+    "CFD",
+    "#Seq_in_cluster",
+]
 
 
 ##USER FUNCTIONS
@@ -129,31 +152,6 @@ def pre_process():
     guide_name = os.path.basename(guide_file).replace("/", "")
 
     ##prepare output files
-    global header
-    header = [
-        "#Bulge_type",
-        "crRNA",
-        "DNA",
-        "Chromosome",
-        "Position",
-        "Cluster_Position",
-        "Direction",
-        "Mismatches",
-        "Bulge_Size",
-        "Total",
-        "PAM_gen",
-        "Var_uniq",
-        "Samples",
-        "Annotation_Type",
-        "Real_Guide",
-        "rsID",
-        "AF",
-        "SNP",
-        "Reference",
-        "CFD_ref",
-        "CFD",
-        "#Seq_in_cluster",
-    ]
 
     bestCFD = open(
         os.path.join(output_folder, output_folder_name + ".bestCFD.txt"), "w"
