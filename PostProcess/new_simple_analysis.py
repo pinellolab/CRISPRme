@@ -601,7 +601,7 @@ def calculate_scores(cluster_to_save, data_dict):
 
 
 def init(
-    fasta_file: str, pam_file: str, dictionary_file: str, allowed_mms: str
+    fasta_file: str, pam_file: str, dictionary_file: str, allowed_mms: int
 ) -> dict:
     """init function to load all the data needed for the scoring function and SNP processing
 

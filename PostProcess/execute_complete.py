@@ -379,7 +379,6 @@ def post_process(
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
 
     for chr in chr_list:
-        lists_of_targets_list = [[], [], []]
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
         target_df_chr["Var_uniq"] = "n"
@@ -400,7 +399,7 @@ def post_process(
                 "dictionaries_" + vcf_data,
                 "my_dict_" + chr + ".json",
             ),
-            allowed_mms=mm,
+            allowed_mms=int(mm),
         )
         ##return list of lists with targets scored by CFD,MMBUL,CRISTA
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
@@ -417,7 +416,7 @@ def post_process(
     # adjust cols to final df
     bestCFD_df = ac.order_cols(bestCFD_df)
     bestCFD_df = bestCFD_df.sort_values(by=["Chromosome", "Position"])
-    bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    # bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w") ##TO TEST UNCOMMENT
 
     bestCRISTA_df = ac.order_cols(bestCRISTA_df)
     bestCRISTA_df = bestCRISTA_df.sort_values(by=["Chromosome", "Position"])
@@ -430,16 +429,21 @@ def post_process(
 
 
 def post_process_indels(
-    target_file: str, vcf_data: str, ref_only: bool = False
+    target_file: str,
+    vcf_data: str,
+    bestCFD_df: pd.DataFrame,
+    bestCRISTA_df: pd.DataFrame,
+    bestMMBUL_df: pd.DataFrame,
+    ref_only: bool = False,
 ) -> None:
     write_to_verbose(f"Starting post process indels")
     write_to_verbose(f"target_file is: {target_file}")
     write_to_log(f"Post Process Indels\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
-    bestCFD_df = pd.DataFrame()
-    bestCRISTA_df = pd.DataFrame()
-    bestMMBUL_df = pd.DataFrame()
+    bestCFD_df_indel = pd.DataFrame()
+    bestCRISTA_df_indel = pd.DataFrame()
+    bestMMBUL_df_indel = pd.DataFrame()
 
     for chr in fake_chr_list:
         lists_of_targets_list = [[], [], []]
@@ -475,24 +479,24 @@ def post_process_indels(
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
         df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
         ##contatenate df to complete df for each category of scoring
-        bestCFD_df = pd.concat([bestCFD_df, df_CFD], axis=0)
-        bestCRISTA_df = pd.concat([bestCRISTA_df, df_CRISTA], axis=0)
-        bestMMBUL_df = pd.concat([bestMMBUL_df, df_MMBUL], axis=0)
+        bestCFD_df_indel = pd.concat([bestCFD_df_indel, df_CFD], axis=0)
+        bestCRISTA_df_indel = pd.concat([bestCRISTA_df_indel, df_CRISTA], axis=0)
+        bestMMBUL_df_indel = pd.concat([bestMMBUL_df_indel, df_MMBUL], axis=0)
 
     # adjust cols to final df
-    bestCFD_df = ac.order_cols(bestCFD_df)
-    bestCFD_df = bestCFD_df.sort_values(by=["Chromosome", "Position"])
-    bestCFD_df = bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="a")
+    bestCFD_df_indel = ac.order_cols(bestCFD_df_indel)
+    # bestCFD_df_indel = bestCFD_df_indel.sort_values(by=["Chromosome", "Position"])
+    # bestCFD_df = bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="a")
 
     bestCRISTA_df = ac.order_cols(bestCRISTA_df)
     bestCRISTA_df = bestCRISTA_df.sort_values(by=["Chromosome", "Position"])
-    bestCRISTA_df = bestCRISTA_df.to_csv(
-        bestCRISTA_file, sep="\t", index=False, mode="a"
-    )
+    # bestCRISTA_df = bestCRISTA_df.to_csv(
+    #     bestCRISTA_file, sep="\t", index=False, mode="a"
+    # )
 
     bestMMBUL_df = ac.order_cols(bestMMBUL_df)
     bestMMBUL_df = bestMMBUL_df.sort_values(by=["Chromosome", "Position"])
-    bestMMBUL_df = bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="a")
+    # bestMMBUL_df = bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="a")
 
     write_to_verbose(f"Post process INDELs END")
     write_to_log(f"Post Process Indels\tEnd\t" + str(datetime.datetime.now()))
