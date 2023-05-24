@@ -9,6 +9,7 @@ import pandas as pd
 import new_simple_analysis as nsa
 import adjust_cols as ac
 import analisi_indels_NNN as ain
+import remove_bad_indel_targets as rindel
 
 # set -e # capture any failure
 
@@ -356,9 +357,6 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, do_ref=False)
 def post_process(
     target_file: str,
     vcf_data: str,
-    bestCFD_df: pd.DataFrame,
-    bestCRISTA_df: pd.DataFrame,
-    bestMMBUL_df: pd.DataFrame,
     ref_only: bool = False,
 ) -> None:
     """_summary_
@@ -431,9 +429,6 @@ def post_process(
 def post_process_indels(
     target_file: str,
     vcf_data: str,
-    bestCFD_df: pd.DataFrame,
-    bestCRISTA_df: pd.DataFrame,
-    bestMMBUL_df: pd.DataFrame,
     ref_only: bool = False,
 ) -> None:
     write_to_verbose(f"Starting post process indels")
@@ -485,18 +480,26 @@ def post_process_indels(
 
     # adjust cols to final df
     bestCFD_df_indel = ac.order_cols(bestCFD_df_indel)
-    # bestCFD_df_indel = bestCFD_df_indel.sort_values(by=["Chromosome", "Position"])
-    # bestCFD_df = bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="a")
+    header_new = bestCFD_df_indel.columns.tolist()
+    bestCFD_df_indel = pd.DataFrame(
+        rindel.remove_bad_indels(bestCFD_df_indel.values.tolist()), columns=header_new
+    )
+    bestCFD_df = pd.concat([bestCFD_df, bestCFD_df_indel], axis=0)
 
-    bestCRISTA_df = ac.order_cols(bestCRISTA_df)
-    bestCRISTA_df = bestCRISTA_df.sort_values(by=["Chromosome", "Position"])
-    # bestCRISTA_df = bestCRISTA_df.to_csv(
-    #     bestCRISTA_file, sep="\t", index=False, mode="a"
-    # )
+    bestCRISTA_df_indel = ac.order_cols(bestCRISTA_df_indel)
+    header_new = bestCRISTA_df_indel.columns.tolist()
+    bestCRISTA_df_indel = pd.DataFrame(
+        rindel.remove_bad_indels(bestCRISTA_df_indel.values.tolist()),
+        columns=header_new,
+    )
+    bestCRISTA_df = pd.concat([bestCRISTA_df, bestCRISTA_df_indel], axis=0)
 
-    bestMMBUL_df = ac.order_cols(bestMMBUL_df)
-    bestMMBUL_df = bestMMBUL_df.sort_values(by=["Chromosome", "Position"])
-    # bestMMBUL_df = bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="a")
+    bestMMBUL_df_indel = ac.order_cols(bestMMBUL_df_indel)
+    header_new = bestMMBUL_df_indel.columns.tolist()
+    bestMMBUL_df_indel = pd.DataFrame(
+        rindel.remove_bad_indels(bestMMBUL_df_indel.values.tolist()), columns=header_new
+    )
+    bestMMBUL_df = pd.concat([bestMMBUL_df, bestMMBUL_df_indel], axis=0)
 
     write_to_verbose(f"Post process INDELs END")
     write_to_log(f"Post Process Indels\tEnd\t" + str(datetime.datetime.now()))
@@ -667,9 +670,6 @@ target_file = f"{ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.tx
 post_process(
     target_file,
     vcf_data="",
-    bestCFD_df=bestCFD_df,
-    bestCRISTA_df=bestCRISTA_df,
-    bestMMBUL_df=bestMMBUL_df,
     ref_only=True,
 )  ##post process for reference genome
 
@@ -690,16 +690,14 @@ for vcf_data in vcf_list_checked:
         target_file.replace(ref_name, ref_name + "_" + vcf_data),
         vcf_data,
         ref_only=False,
-        bestCFD_df=bestCFD_df,
-        bestCRISTA_df=bestCRISTA_df,
-        bestMMBUL_df=bestMMBUL_df,
     )
-    # post_process_indels(
-    #     target_file.replace(ref_name, ref_name + "_" + vcf_data + "_INDELS"),
-    #     vcf_data,
-    #     False,
-    # )
+    post_process_indels(
+        target_file.replace(ref_name, ref_name + "_" + vcf_data + "_INDELS"),
+        vcf_data,
+        ref_only=False,
+    )
 
+bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
 
 ##fix columns in best files
 # fix_columns(output_folder_name)
