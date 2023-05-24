@@ -191,18 +191,18 @@ def get_best_targets(
     return best_list, discard_list
 
 
-def merge_results(target_list, tau, sort_order):
+def merge_results(target_list: list, tau: int, sort_order: str):
     best_list_final = list()
     discard_list_final = list()
     tmp_best_list = list()
     tmp_discard_list = list()
 
-    chrom = 4  # chromosome pos in target
+    chrom = 4  # chromosome position in target
     pos = 6  # position of target
-    total = 10  # mm+bul value
+    total = 10  # mm+bul value position
     true_guide = 15  # real guide used in the search
-    snp_info = 18  # snp_info (ref_alt_allele)
-    cfd = 20  # score mode
+    snp_info = 18  # snp_info position(ref_alt_allele)
+    cfd = 20  # score position
 
     prev_pos = -(tau + 1)
     best_row = ""
