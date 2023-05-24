@@ -8,6 +8,7 @@ import shutil
 import pandas as pd
 import new_simple_analysis as nsa
 import adjust_cols as ac
+import analisi_indels_NNN as ain
 
 # set -e # capture any failure
 
@@ -383,6 +384,10 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
     write_to_log(f"Post Process\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    bestCFD_df = pd.DataFrame()
+    bestCRISTA_df = pd.DataFrame()
+    bestMMBUL_df = pd.DataFrame()
+
     for chr in chr_list:
         lists_of_targets_list = [[], [], []]
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
@@ -414,43 +419,31 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
         df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
+        ##contatenate df to complete df for each category of scoring
+        bestCFD_df = pd.concat([bestCFD_df, df_CFD], axis=0)
+        bestCRISTA_df = pd.concat([bestCRISTA_df, df_CRISTA], axis=0)
+        bestMMBUL_df = pd.concat([bestMMBUL_df, df_MMBUL], axis=0)
 
-        ##adjust columns for each df
-        df_CFD = ac.order_cols(df_CFD)
-        df_MMBUL = ac.order_cols(df_MMBUL)
-        df_CRISTA = ac.order_cols(df_CRISTA)
-
-        ## write to bestFILES to check
-        df_CFD.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
-        df_MMBUL.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
-        df_CRISTA.to_csv(bestCRISTA_file, sep="\t", index=False, mode="w")
-        # file = open(bestCFD_file, "a")
-        # file.write("".join(lists_of_targets_list[0]))
-        # file.close()
-
-        # file = open(bestMMBUL_file, "a")
-        # file.write("".join(lists_of_targets_list[1]))
-        # file.close()
-
-        # file = open(bestCRISTA_file, "a")
-        # file.write("".join(lists_of_targets_list[2]))
-        # file.close()
+    # adjust cols to final df
+    bestCFD_df = ac.order_cols(bestCFD_df)
+    bestCFD_df = bestCFD_df.sort_values(by=["Chromosome", "Position"])
+    bestCFD_df = bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
 
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Post Process END")
 
 
-def post_process_indels(target_file, vcf_data, ref_only=False):
+def post_process_indels(
+    target_file: str, vcf_data: str, ref_only: bool = False
+) -> None:
     write_to_verbose(f"Starting post process indels")
     write_to_verbose(f"target_file is: {target_file}")
-
     write_to_log(f"Post Process Indels\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
-    # write_to_verbose(f"fake_chr_list is: {fake_chr_list}")
 
     for chr in fake_chr_list:
-        # fake_chr = "fake" + chr
+        lists_of_targets_list = [[], [], []]
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
         target_df_chr["Var_uniq"] = "n"
@@ -460,29 +453,47 @@ def post_process_indels(target_file, vcf_data, ref_only=False):
         target_df_chr["rsID"] = "n"
         target_df_chr["AF"] = "n"
         target_df_chr["SNP_position"] = "n"
-        target_df_chr.to_csv(
-            os.path.join(output_folder, chr + "_process_before_simple_analysis.txt"),
-            sep="\t",
-            index=False,
+
+        ## convert df to list to be processed
+        target_df_chr = target_df_chr.values.tolist()
+        data_to_process = ain.init(
+            fasta_path=os.path.join(ref_folder, chr + ".fa"),
+            indel_dict_path=os.path.join(
+                dictionaries_folder,
+                "log_indels_" + vcf_data,
+                "log" + chr.replace("fake", "") + ".txt",
+            ),
+            max_mm=int(mm),
+            dna_bulges=int(bDNA),
+            rna_bulges=int(bRNA),
+            pam_file=pam_file,
         )
+        ##return list of lists with targets scored by CFD,MMBUL,CRISTA
+        lists_of_targets_list = ain.start_processing(target_df_chr, data_to_process)
+        # print(lists_of_targets_list[0])
+        ##convert list of lists to df
+        df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
+        df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
+        df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
 
-        os.chdir(processes_dir)
+        ##adjust columns for each df
+        # df_CFD = ac.order_cols(df_CFD)
+        # df_MMBUL = ac.order_cols(df_MMBUL)
+        # df_CRISTA = ac.order_cols(df_CRISTA)
+
+        # os.chdir(processes_dir)
         # indel_analysis_run = "./analisi_indels_NNN.py"
-        indel_analysis_run = f"./analisi_indels_NNN.py {os.path.join(output_folder,'.empty.txt')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {os.path.join(output_folder,output_folder_name)} {os.path.join(dictionaries_folder,'log_indels_'+vcf_data)} {pam_file} {mm} {os.path.join(ref_folder,chr.replace('fake','')+'.fa')} {guide_file} {bDNA} {bRNA}"
-        code = subprocess.run(indel_analysis_run, shell=True, capture_output=True)
+        # indel_analysis_run = f"./analisi_indels_NNN.py {os.path.join(output_folder,'.empty.txt')} {os.path.join(output_folder,chr+'_process_before_simple_analysis.txt')} {os.path.join(output_folder,output_folder_name)} {os.path.join(dictionaries_folder,'log_indels_'+vcf_data)} {pam_file} {mm} {os.path.join(ref_folder,chr.replace('fake','')+'.fa')} {guide_file} {bDNA} {bRNA}"
+        # code = subprocess.run(indel_analysis_run, shell=True, capture_output=True)
 
-        write_to_verbose(code.stdout.decode("utf-8"))
-        if code.returncode != 0:
-            write_to_error("indel analysis failed")
-            write_to_error(code.stderr.decode("utf-8"))
-            sys.exit(1)
+        # write_to_verbose(code.stdout.decode("utf-8"))
+        # if code.returncode != 0:
+        #     write_to_error("indel analysis failed")
+        #     write_to_error(code.stderr.decode("utf-8"))
+        #     sys.exit(1)
 
-    write_to_verbose(f"Post process indel ended correctly")
-    os.chdir(current_working_directory)
-
+    write_to_verbose(f"Post process INDELs END")
     write_to_log(f"Post Process Indels\tEnd\t" + str(datetime.datetime.now()))
-
-    return 0
 
 
 def fix_columns(output_folder_name):
