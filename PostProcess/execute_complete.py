@@ -660,7 +660,14 @@ search(
 )  ##search on reference genome
 
 target_file = f"{ref_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.txt"
-post_process(target_file, "", ref_only=True)
+post_process(
+    target_file,
+    vcf_data="",
+    bestCFD_df=bestCFD_df,
+    bestCRISTA_df=bestCRISTA_df,
+    bestMMBUL_df=bestMMBUL_df,
+    ref_only=True,
+)  ##post process for reference genome
 
 ##start process for vcf data if any
 for vcf_data in vcf_list_checked:
