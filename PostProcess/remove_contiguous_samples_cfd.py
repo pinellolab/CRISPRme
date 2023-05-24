@@ -9,10 +9,23 @@ import time
 import shutil
 
 
-def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
+def get_best_targets(
+    cluster,
+    best_list,
+    discard_list,
+    tau,
+    chrom,
+    pos,
+    total,
+    true_guide,
+    snp_info,
+    cfd,
+    sort_order,
+):
     # avoid crush when cluster is empty in the first call
     if not cluster:
         return
+
     list_ref = list()
     dict_var = dict()
     for ele in cluster:
@@ -96,7 +109,7 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
             # count the residual targets in the list
             final_list_best_var[0][cfd - 1] = str(len(final_list_best_var) - 1)
             # append the best target to best_file
-            fileOut.write("\t".join(final_list_best_var[0]))
+            best_list.append(final_list_best_var[0])
             # pop the best target from the list
             bestTarget = final_list_best_var.pop(0)
         elif validity_check_ref and validity_check_var:  # ref and var targets found
@@ -104,29 +117,29 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
                 final_list_best_ref[0][cfd - 1] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
-                fileOut.write("\t".join(final_list_best_ref[0]))
+                best_list.append(final_list_best_ref[0])
                 bestTarget = final_list_best_ref.pop(0)
             else:
                 final_list_best_var[0][cfd - 1] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
-                fileOut.write("\t".join(final_list_best_var[0]))
+                best_list.append(final_list_best_var[0])
                 bestTarget = final_list_best_var.pop(0)
         else:  # only ref
             final_list_best_ref[0][cfd - 1] = str(len(final_list_best_ref) - 1)
-            fileOut.write("\t".join(final_list_best_ref[0]))
+            best_list.append(final_list_best_ref[0])
             bestTarget = final_list_best_ref.pop(0)
         # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
             final_list_best_ref[count][cfd - 1] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
-            fileOut_disc.write(("\t".join(ele)))
+            discard_list.append(elem)
         for count, elem in enumerate(final_list_best_var):
             final_list_best_var[count][cfd - 1] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
-            fileOut_disc.write(("\t".join(ele)))
+            discard_list.append(elem)
     else:
         # sort for total (mm+bul) in target
         if validity_check_ref:
@@ -143,7 +156,7 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
             # count the residual targets in the list
             final_list_best_var[0][cfd - 1] = str(len(final_list_best_var) - 1)
             # append the best target to best_file
-            fileOut.write("\t".join(final_list_best_var[0]))
+            best_list.write(final_list_best_var[0])
             # pop the best target from the list
             bestTarget = final_list_best_var.pop(0)
         elif validity_check_ref and validity_check_var:  # ref and var targets found
@@ -151,71 +164,117 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
                 final_list_best_ref[0][cfd - 1] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
-                fileOut.write("\t".join(final_list_best_ref[0]))
+                best_list.append(final_list_best_ref[0])
                 bestTarget = final_list_best_ref.pop(0)
             else:
                 final_list_best_var[0][cfd - 1] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
-                fileOut.write("\t".join(final_list_best_var[0]))
+                best_list.append(final_list_best_var[0])
                 bestTarget = final_list_best_var.pop(0)
         else:  # only ref
             final_list_best_ref[0][cfd - 1] = str(len(final_list_best_ref) - 1)
-            fileOut.write("\t".join(final_list_best_ref[0]))
+            best_list.append(final_list_best_ref[0])
             bestTarget = final_list_best_ref.pop(0)
         # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
             final_list_best_ref[count][cfd - 1] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
-            fileOut_disc.write(("\t".join(elem)))
+            best_list.append(elem)
         for count, elem in enumerate(final_list_best_var):
             final_list_best_var[count][cfd - 1] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
-            fileOut_disc.write(("\t".join(elem)))
+            best_list.append(elem)
+
+    return best_list, discard_list
 
 
-tau = int(sys.argv[3])  # range in bp to merge targets
-chrom = int(sys.argv[4]) - 1  # chromoso
-pos = int(sys.argv[5]) - 1  # position of target
-total = int(sys.argv[6]) - 1  # mm+bul value
-true_guide = int(sys.argv[7]) - 1  # real guide used in the search
-snp_info = int(sys.argv[8]) - 1  # snp_info (ref_alt_allele)
-cfd = int(sys.argv[9]) - 1  # CFD score
-sort_order = str(sys.argv[10])
-# -1 is to get the correct "python enumeration" from the bash script
+def merge_results(
+    target_list,
+):
+    best_list_final = list()
+    discard_list_final = list()
+    tmp_best_list = list()
+    tmp_discard_list = list()
 
-start = time.time()
-with open(sys.argv[1], "r") as fileIn:
-    header = fileIn.readline()
-    with open(sys.argv[2], "w") as fileOut:
-        with open(sys.argv[2] + ".discarded_samples", "w") as fileOut_disc:
-            fileOut.write(header)
-            fileOut_disc.write(header)
-            prev_pos = -(tau + 1)
-            best_row = ""
-            prev_guide = ""
-            prev_chr = ""
-            prev_snp = ""
-            cluster = []
-            for line in fileIn:
-                splitted = line.split("\t")
-                if (
-                    prev_guide != splitted[true_guide]
-                    or prev_chr != splitted[chrom]
-                    or int(splitted[pos]) - prev_pos > tau
-                ):
-                    get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info)
-                    cluster = [splitted]
-                else:
-                    cluster.append(splitted)
-                prev_guide = splitted[true_guide]
-                prev_pos = int(splitted[pos])
-                prev_chr = splitted[chrom]
-                prev_snp = splitted[snp_info]
+    # -1 is to get the correct "python enumeration" from the bash script
+    tau = int(sys.argv[3])  # range in bp to merge targets
+    chrom = int(sys.argv[4]) - 1  # chromosome
+    pos = int(sys.argv[5]) - 1  # position of target
+    total = int(sys.argv[6]) - 1  # mm+bul value
+    true_guide = int(sys.argv[7]) - 1  # real guide used in the search
+    snp_info = int(sys.argv[8]) - 1  # snp_info (ref_alt_allele)
+    cfd = int(sys.argv[9]) - 1  # score
+    sort_order = str(sys.argv[10])
 
-            get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info)
+    prev_pos = -(tau + 1)
+    best_row = ""
+    prev_guide = ""
+    prev_chr = ""
+    prev_snp = ""
+    cluster = list()
+
+    for line in target_list:
+        splitted = line
+        if (
+            prev_guide != splitted[true_guide]
+            or prev_chr != splitted[chrom]
+            or int(splitted[pos]) - prev_pos > tau
+        ):
+            tmp_best_list, tmp_discard_list = get_best_targets(
+                cluster,
+                list(),
+                list(),
+                tau,
+                chrom,
+                pos,
+                total,
+                true_guide,
+                snp_info,
+                cfd,
+                sort_order,
+            )  # type: ignore
+
+            cluster = [splitted]
+        else:
+            cluster.append(splitted)
+        prev_guide = splitted[true_guide]
+        prev_pos = int(splitted[pos])
+        prev_chr = splitted[chrom]
+        prev_snp = splitted[snp_info]
+        best_list_final.extend(tmp_best_list)
+        discard_list_final.extend(tmp_discard_list)
+
+    tmp_best_list, tmp_discard_list = get_best_targets(
+        cluster,
+        list(),
+        list(),
+        tau,
+        chrom,
+        pos,
+        total,
+        true_guide,
+        snp_info,
+        cfd,
+        sort_order,
+    )  # type: ignore
+
+    best_list_final.extend(tmp_best_list)
+    discard_list_final.extend(tmp_discard_list)
+
+    return best_list_final, discard_list_final
+
+
+# start = time.time()
+# with open(sys.argv[1], "r") as fileIn:
+#     header = fileIn.readline()
+#     with open(sys.argv[2], "w") as fileOut:
+#         with open(sys.argv[2] + ".discarded_samples", "w") as fileOut_disc:
+#             fileOut.write(header)
+#             fileOut_disc.write(header)
+
 
 # shutil.move(sys.argv[2], sys.argv[1])## uncomment to overwrite the input file
-print("Merging done in: " + str(time.time() - start))
+# print("Merging done in: " + str(time.time() - start))

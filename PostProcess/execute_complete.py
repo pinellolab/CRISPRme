@@ -10,6 +10,7 @@ import new_simple_analysis as nsa
 import adjust_cols as ac
 import analisi_indels_NNN as ain
 import remove_bad_indel_targets as rindel
+import remove_contiguous_samples_cfd as merge
 
 # set -e # capture any failure
 
@@ -744,6 +745,10 @@ for vcf_data in vcf_list_checked:
         ref_only=False,
     )
 
+best_list, discard_list = merge.merge_results(bestCFD_df.values.tolist())
+bestCFD_df = pd.DataFrame(best_list, columns=bestCFD_df.columns.tolist())
+# merge.merge_results(bestCRISTA_df.values.tolist())
+# merge.merge_results(bestMMBUL_df.values.tolist())
 bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
 
 ##fix columns in best files
