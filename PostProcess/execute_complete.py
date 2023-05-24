@@ -416,14 +416,14 @@ def post_process(
 
     # adjust cols to final df
     bestCFD_df = ac.order_cols(bestCFD_df)
-    bestCFD_df = bestCFD_df.sort_values(by=["Chromosome", "Position"])
+    # bestCFD_df = bestCFD_df.sort_values(by=["Chromosome", "Position"])
     # bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w") ##TO TEST UNCOMMENT
 
     bestCRISTA_df = ac.order_cols(bestCRISTA_df)
-    bestCRISTA_df = bestCRISTA_df.sort_values(by=["Chromosome", "Position"])
+    # bestCRISTA_df = bestCRISTA_df.sort_values(by=["Chromosome", "Position"])
 
     bestMMBUL_df = ac.order_cols(bestMMBUL_df)
-    bestMMBUL_df = bestMMBUL_df.sort_values(by=["Chromosome", "Position"])
+    # bestMMBUL_df = bestMMBUL_df.sort_values(by=["Chromosome", "Position"])
 
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Post Process END")
@@ -447,7 +447,6 @@ def post_process_indels(
     bestMMBUL_df_indel = pd.DataFrame()
 
     for chr in fake_chr_list:
-        lists_of_targets_list = [[], [], []]
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
         target_df_chr["Var_uniq"] = "n"
@@ -485,6 +484,7 @@ def post_process_indels(
         bestMMBUL_df_indel = pd.concat([bestMMBUL_df_indel, df_MMBUL], axis=0)
 
     # adjust cols to final df
+    write_to_verbose(f"bestCFD_df_indel header is: {bestCFD_df_indel.columns.tolist()}")
     bestCFD_df_indel = ac.order_cols(bestCFD_df_indel)
     header_new = bestCFD_df_indel.columns.tolist()
     bestCFD_df_indel = pd.DataFrame(
