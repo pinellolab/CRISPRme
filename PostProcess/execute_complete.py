@@ -203,6 +203,8 @@ def generate_index(genome_folder, process_indels=False):
 
 def generate_dict(vcf_data):
     vcf_name = vcf_data
+    global fake_chr_list
+
     write_to_log(
         f"Add-variants for VCF {vcf_name}\tStart\t" + str(datetime.datetime.now())
     )
@@ -212,13 +214,12 @@ def generate_dict(vcf_data):
         write_to_log(
             f"Add-variants for VCF {vcf_name}\tEnd\t" + str(datetime.datetime.now())
         )
-        global fake_chr_list
         fake_chr_list = os.listdir(
             os.path.join(dictionaries_folder, f"dictionaries_{vcf_name}")
         )
         fake_chr_list = [x.replace("my_dict_", "") for x in fake_chr_list]
         fake_chr_list = [x.replace(".json", "") for x in fake_chr_list]
-        
+
         print(fake_chr_list)
         return 0
 
@@ -235,7 +236,6 @@ def generate_dict(vcf_data):
         sys.exit(1)
     ##generate fake chr list for INDELS analysis
     tmp_list = os.listdir(os.path.join(vcfs_folder, vcf_data))
-    global fake_chr_list
     for f in tmp_list:
         if ".vcf.gz" in f:
             split = f.split(".")
