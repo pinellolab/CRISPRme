@@ -375,6 +375,7 @@ def post_process(
     write_to_log(f"Post Process\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    chr_df_dict = dict()
     global bestCFD_df
     global bestCRISTA_df
     global bestMMBUL_df
@@ -408,11 +409,20 @@ def post_process(
         ##convert list of lists to df
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
-        df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
+        df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)  # type: ignore
+        chr_df_dict[chr + "_CFD"] = df_CFD
+        chr_df_dict[chr + "_MMBUL"] = df_MMBUL
+        chr_df_dict[chr + "_CRISTA"] = df_CRISTA
         ##contatenate df to complete df for each category of scoring
-        bestCFD_df = pd.concat([bestCFD_df, df_CFD], axis=0)
-        bestCRISTA_df = pd.concat([bestCRISTA_df, df_CRISTA], axis=0)
-        bestMMBUL_df = pd.concat([bestMMBUL_df, df_MMBUL], axis=0)
+        # bestCFD_df = pd.concat([bestCFD_df, df_CFD], axis=0)
+        # bestCRISTA_df = pd.concat([bestCRISTA_df, df_CRISTA], axis=0)
+        # bestMMBUL_df = pd.concat([bestMMBUL_df, df_MMBUL], axis=0)
+
+    bestCFD_df = pd.concat([chr_df_dict[key + "_CFD"] for key in chr_list], axis=0)
+    bestCRISTA_df = pd.concat(
+        [chr_df_dict[key + "_CRISTA"] for key in chr_list], axis=0
+    )
+    bestMMBUL_df = pd.concat([chr_df_dict[key + "_MMBUL"] for key in chr_list], axis=0)
 
     # adjust cols to final df
     bestCFD_df = ac.order_cols(bestCFD_df)
@@ -439,12 +449,13 @@ def post_process_indels(
     write_to_log(f"Post Process Indels\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    chr_df_dict = dict()
     global bestCFD_df
     global bestCRISTA_df
     global bestMMBUL_df
-    bestCFD_df_indel = pd.DataFrame()
-    bestCRISTA_df_indel = pd.DataFrame()
-    bestMMBUL_df_indel = pd.DataFrame()
+    bestCFD_df_indel = pd.DataFrame(columns=header)
+    bestCRISTA_df_indel = pd.DataFrame(columns=header)
+    bestMMBUL_df_indel = pd.DataFrame(columns=header)
 
     for chr in fake_chr_list:
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
@@ -476,17 +487,29 @@ def post_process_indels(
         # print(lists_of_targets_list[0])
         ##convert list of lists to df
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
-        write_to_verbose(f"df_CFD header is: {df_CFD.columns.tolist()}")
-
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
         df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
+        chr_df_dict[chr + "_CFD"] = df_CFD
+        chr_df_dict[chr + "_MMBUL"] = df_MMBUL
+        chr_df_dict[chr + "_CRISTA"] = df_CRISTA
+
         ##contatenate df to complete df for each category of scoring
-        bestCFD_df_indel = pd.concat([bestCFD_df_indel, df_CFD], axis=0)
-        bestCRISTA_df_indel = pd.concat([bestCRISTA_df_indel, df_CRISTA], axis=0)
-        bestMMBUL_df_indel = pd.concat([bestMMBUL_df_indel, df_MMBUL], axis=0)
+        # bestCFD_df_indel = pd.concat([bestCFD_df_indel, df_CFD], axis=0)
+        # bestCRISTA_df_indel = pd.concat([bestCRISTA_df_indel, df_CRISTA], axis=0)
+        # bestMMBUL_df_indel = pd.concat([bestMMBUL_df_indel, df_MMBUL], axis=0)
+
+    bestCFD_df_indel = pd.concat(
+        [chr_df_dict[key + "_CFD"] for key in fake_chr_list], axis=0
+    )
+    bestCRISTA_df_indel = pd.concat(
+        [chr_df_dict[key + "_CRISTA"] for key in fake_chr_list], axis=0
+    )
+    bestMMBUL_df_indel = pd.concat(
+        [chr_df_dict[key + "_MMBUL"] for key in fake_chr_list], axis=0
+    )
 
     # adjust cols to final df
-    write_to_verbose(f"bestCFD_df_indel header is: {bestCFD_df_indel.columns.tolist()}")
+    # write_to_verbose(f"bestCFD_df_indel header is: {bestCFD_df_indel.columns.tolist()}")
     bestCFD_df_indel = ac.order_cols(bestCFD_df_indel)
     header_new = bestCFD_df_indel.columns.tolist()
     bestCFD_df_indel = pd.DataFrame(
