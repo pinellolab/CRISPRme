@@ -773,7 +773,6 @@ def start_processing(target_list: list, data_dict: dict) -> list:
                 # save CFD targets
                 # cfd_best.append("\t".join(target) + "\t" + str(0) + "\n")
                 target.append(str(0))
-                print(target)
                 cfd_best.append(target)
                 # save mm-bul targets
                 # mmblg_best.append("\t".join(target) + "\t" + str(0) + "\n")

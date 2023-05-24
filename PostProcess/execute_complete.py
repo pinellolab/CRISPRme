@@ -152,21 +152,21 @@ def pre_process():
     guide_name = os.path.basename(guide_file).replace("/", "")
 
     ##prepare output files
-    bestCFD = open(
-        os.path.join(output_folder, output_folder_name + ".bestCFD.txt"), "w"
-    )
-    bestCRISTA = open(
-        os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt"), "w"
-    )
-    bestMMBUL = open(
-        os.path.join(output_folder, output_folder_name + ".bestmmblg.txt"), "w"
-    )
-    bestCFD.write("\t".join(header) + "\n")
-    bestCRISTA.write("\t".join(header) + "\n")
-    bestMMBUL.write("\t".join(header) + "\n")
-    bestCFD.close()
-    bestCRISTA.close()
-    bestMMBUL.close()
+    # bestCFD = open(
+    #     os.path.join(output_folder, output_folder_name + ".bestCFD.txt"), "w"
+    # )
+    # bestCRISTA = open(
+    #     os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt"), "w"
+    # )
+    # bestMMBUL = open(
+    #     os.path.join(output_folder, output_folder_name + ".bestmmblg.txt"), "w"
+    # )
+    # bestCFD.write("\t".join(header) + "\n")
+    # bestCRISTA.write("\t".join(header) + "\n")
+    # bestMMBUL.write("\t".join(header) + "\n")
+    # bestCFD.close()
+    # bestCRISTA.close()
+    # bestMMBUL.close()
 
     return 0
 
@@ -409,7 +409,7 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         )
         ##return list of lists with targets scored by CFD,MMBUL,CRISTA
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
-        print(lists_of_targets_list[0])
+        # print(lists_of_targets_list[0])
         ##convert list of lists to df
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
@@ -421,17 +421,20 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         df_CRISTA = ac.order_cols(df_CRISTA)
 
         ## write to bestFILES to check
-        file = open(bestCFD_file, "a")
-        file.write("".join(lists_of_targets_list[0]))
-        file.close()
+        df_CFD.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+        df_MMBUL.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
+        df_CRISTA.to_csv(bestCRISTA_file, sep="\t", index=False, mode="w")
+        # file = open(bestCFD_file, "a")
+        # file.write("".join(lists_of_targets_list[0]))
+        # file.close()
 
-        file = open(bestMMBUL_file, "a")
-        file.write("".join(lists_of_targets_list[1]))
-        file.close()
+        # file = open(bestMMBUL_file, "a")
+        # file.write("".join(lists_of_targets_list[1]))
+        # file.close()
 
-        file = open(bestCRISTA_file, "a")
-        file.write("".join(lists_of_targets_list[2]))
-        file.close()
+        # file = open(bestCRISTA_file, "a")
+        # file.write("".join(lists_of_targets_list[2]))
+        # file.close()
 
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Post Process END")
