@@ -489,6 +489,7 @@ def post_process_indels(
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
         df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
+        print(df_CFD)
         chr_df_dict[chr + "_CFD"] = df_CFD
         chr_df_dict[chr + "_MMBUL"] = df_MMBUL
         chr_df_dict[chr + "_CRISTA"] = df_CRISTA
