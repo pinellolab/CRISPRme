@@ -661,7 +661,7 @@ def init(
                 break
             elif "/" in mydict[entry]:
                 break
-        print("Haplotype processing", haplotype_check)
+        print("Haplotype processing", haplotype_check, "for", current_chr)
     except:
         print("No dict found for", current_chr)
 
