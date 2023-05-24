@@ -375,6 +375,9 @@ def post_process(
     write_to_log(f"Post Process\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    global bestCFD_df
+    global bestCRISTA_df
+    global bestMMBUL_df
 
     for chr in chr_list:
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
@@ -436,6 +439,9 @@ def post_process_indels(
     write_to_log(f"Post Process Indels\tStart\t" + str(datetime.datetime.now()))
 
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    global bestCFD_df
+    global bestCRISTA_df
+    global bestMMBUL_df
     bestCFD_df_indel = pd.DataFrame()
     bestCRISTA_df_indel = pd.DataFrame()
     bestMMBUL_df_indel = pd.DataFrame()
