@@ -152,7 +152,6 @@ def pre_process():
     guide_name = os.path.basename(guide_file).replace("/", "")
 
     ##prepare output files
-
     bestCFD = open(
         os.path.join(output_folder, output_folder_name + ".bestCFD.txt"), "w"
     )
@@ -412,14 +411,14 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
 
         ##convert list of lists to df
-        # df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
-        # df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
-        # df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
+        df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
+        df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
+        df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
 
         # ##adjust columns for each df
-        # df_CFD = ac.order_cols(df_CFD)
-        # df_MMBUL = ac.order_cols(df_MMBUL)
-        # df_CRISTA = ac.order_cols(df_CRISTA)
+        df_CFD = ac.order_cols(df_CFD)
+        df_MMBUL = ac.order_cols(df_MMBUL)
+        df_CRISTA = ac.order_cols(df_CRISTA)
 
         ## write to bestFILES to check
         file = open(bestCFD_file, "a")

@@ -765,19 +765,22 @@ def start_processing(target_list: list, data_dict: dict) -> list:
 
     for count, cluster in enumerate(clusters_with_scores):
         for target in cluster:
-            target = [str(x) for x in target]  ##convert each element to string
+            # target = [str(x) for x in target]  ##convert each element to string
             if count == 0:  # CFD target
                 # remove count of tmp_mms
                 target.pop(-2)
                 # save CFD targets
-                cfd_best.append("\t".join(target) + "\t" + str(0) + "\n")
+                # cfd_best.append("\t".join(target) + "\t" + str(0) + "\n")
+                cfd_best.append(target.append(str(0)))
                 # save mm-bul targets
-                mmblg_best.append("\t".join(target) + "\t" + str(0) + "\n")
+                # mmblg_best.append("\t".join(target) + "\t" + str(0) + "\n")
+                mmblg_best.append(target.append(str(0)))
             if count == 1:  # CRISTA target
                 # remove count of tmp_mms
                 target.pop(-2)
                 # save CRISTA targets
-                crista_best.append("\t".join(target) + "\t" + str(0) + "\n")
+                # crista_best.append("\t".join(target) + "\t" + str(0) + "\n")
+                crista_best.append(target.append(str(0)))
 
     return [cfd_best, mmblg_best, crista_best]
 
