@@ -220,7 +220,7 @@ def generate_dict(vcf_data):
         fake_chr_list = [x.replace("my_dict_", "") for x in fake_chr_list]
         fake_chr_list = [x.replace(".json", "") for x in fake_chr_list]
 
-        print(fake_chr_list)
+        # print(fake_chr_list)
         return 0
 
     write_to_verbose(f"name of genome is: {ref_name}")
@@ -426,11 +426,17 @@ def post_process(
         # bestCRISTA_df = pd.concat([bestCRISTA_df, df_CRISTA], axis=0)
         # bestMMBUL_df = pd.concat([bestMMBUL_df, df_MMBUL], axis=0)
 
-    bestCFD_df = pd.concat([chr_df_dict[key + "_CFD"] for key in chr_list], axis=0)
-    bestCRISTA_df = pd.concat(
-        [chr_df_dict[key + "_CRISTA"] for key in chr_list], axis=0
-    )
-    bestMMBUL_df = pd.concat([chr_df_dict[key + "_MMBUL"] for key in chr_list], axis=0)
+    to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
+    to_concat.append(bestCFD_df)
+    bestCFD_df = pd.concat(to_concat, axis=0)
+
+    to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
+    to_concat.append(bestCRISTA_df)
+    bestCRISTA_df = pd.concat(to_concat, axis=0)
+
+    to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
+    to_concat.append(bestMMBUL_df)
+    bestMMBUL_df = pd.concat(to_concat, axis=0)
 
     # adjust cols to final df
     bestCFD_df = ac.order_cols(bestCFD_df)
