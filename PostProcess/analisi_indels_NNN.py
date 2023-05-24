@@ -799,7 +799,7 @@ def start_processing(target_list: list, data_dict: dict) -> list:
     for line in target_list:
         # print("line in INDEL analysis", line)
         # line = line.strip().split("\t")
-        print(line)
+        # print(line)
         # guide_no_bulge = line[1].replace("-", "")
         # copy line to avoid problem with memory managament and intrisic pointers
         final_result = line.copy()

@@ -212,6 +212,14 @@ def generate_dict(vcf_data):
         write_to_log(
             f"Add-variants for VCF {vcf_name}\tEnd\t" + str(datetime.datetime.now())
         )
+        global fake_chr_list
+        fake_chr_list = os.listdir(
+            os.path.join(dictionaries_folder, f"dictionaries_{vcf_name}")
+        )
+        fake_chr_list = [x.replace("my_dict_", "") for x in fake_chr_list]
+        fake_chr_list = [x.replace(".json", "") for x in fake_chr_list]
+        
+        print(fake_chr_list)
         return 0
 
     write_to_verbose(f"name of genome is: {ref_name}")
@@ -457,6 +465,7 @@ def post_process_indels(
     bestCRISTA_df_indel = pd.DataFrame(columns=header)
     bestMMBUL_df_indel = pd.DataFrame(columns=header)
 
+    # print(fake_chr_list)
     for chr in fake_chr_list:
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
