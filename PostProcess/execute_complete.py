@@ -429,6 +429,16 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
     bestCFD_df = bestCFD_df.sort_values(by=["Chromosome", "Position"])
     bestCFD_df = bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
 
+    bestCRISTA_df = ac.order_cols(bestCRISTA_df)
+    bestCRISTA_df = bestCRISTA_df.sort_values(by=["Chromosome", "Position"])
+    bestCRISTA_df = bestCRISTA_df.to_csv(
+        bestCRISTA_file, sep="\t", index=False, mode="w"
+    )
+
+    bestMMBUL_df = ac.order_cols(bestMMBUL_df)
+    bestMMBUL_df = bestMMBUL_df.sort_values(by=["Chromosome", "Position"])
+    bestMMBUL_df = bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
+
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Post Process END")
 
