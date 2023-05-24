@@ -409,7 +409,6 @@ def post_process(target_file: str, vcf_data: str, ref_only: bool = False) -> Non
         )
         ##return list of lists with targets scored by CFD,MMBUL,CRISTA
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
-        print(lists_of_targets_list[0])
 
         ##convert list of lists to df
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)

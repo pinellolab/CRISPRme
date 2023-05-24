@@ -765,6 +765,7 @@ def start_processing(target_list: list, data_dict: dict) -> list:
 
     for count, cluster in enumerate(clusters_with_scores):
         for target in cluster:
+            print(target)
             # target = [str(x) for x in target]  ##convert each element to string
             if count == 0:  # CFD target
                 # remove count of tmp_mms
