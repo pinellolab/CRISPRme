@@ -191,23 +191,18 @@ def get_best_targets(
     return best_list, discard_list
 
 
-def merge_results(
-    target_list,
-):
+def merge_results(target_list, tau, sort_order):
     best_list_final = list()
     discard_list_final = list()
     tmp_best_list = list()
     tmp_discard_list = list()
 
-    # -1 is to get the correct "python enumeration" from the bash script
-    tau = int(sys.argv[3])  # range in bp to merge targets
-    chrom = int(sys.argv[4]) - 1  # chromosome
-    pos = int(sys.argv[5]) - 1  # position of target
-    total = int(sys.argv[6]) - 1  # mm+bul value
-    true_guide = int(sys.argv[7]) - 1  # real guide used in the search
-    snp_info = int(sys.argv[8]) - 1  # snp_info (ref_alt_allele)
-    cfd = int(sys.argv[9]) - 1  # score
-    sort_order = str(sys.argv[10])
+    chrom = 4  # chromosome pos in target
+    pos = 6  # position of target
+    total = 10  # mm+bul value
+    true_guide = 15  # real guide used in the search
+    snp_info = 18  # snp_info (ref_alt_allele)
+    cfd = 20  # score mode
 
     prev_pos = -(tau + 1)
     best_row = ""

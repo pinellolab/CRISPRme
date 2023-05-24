@@ -745,7 +745,9 @@ for vcf_data in vcf_list_checked:
         ref_only=False,
     )
 
-best_list, discard_list = merge.merge_results(bestCFD_df.values.tolist())
+best_list, discard_list = merge.merge_results(
+    bestCFD_df.values.tolist(), tau=merge_t, sort_order="score"
+)
 bestCFD_df = pd.DataFrame(best_list, columns=bestCFD_df.columns.tolist())
 # merge.merge_results(bestCRISTA_df.values.tolist())
 # merge.merge_results(bestMMBUL_df.values.tolist())
