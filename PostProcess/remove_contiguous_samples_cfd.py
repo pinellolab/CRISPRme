@@ -81,7 +81,7 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
             target[header["rsID"]] = ",".join(set_rsid)
             target[header["AF"]] = ",".join(set_af)
             target[header["Samples"]] = ",".join(set_samples)
-            if var_only
+            if var_only:
                 target[header["Var_uniq"]] = "y"
             final_list_best_var.append(target)
 
