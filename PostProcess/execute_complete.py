@@ -227,7 +227,6 @@ def generate_dict(vcf_data):
         fake_chr_list = [x.replace("my_dict_", "") for x in fake_chr_list]
         fake_chr_list = [x.replace(".json", "") for x in fake_chr_list]
 
-        # print(fake_chr_list)
         return 0
 
     write_to_verbose(f"name of genome is: {ref_name}")
