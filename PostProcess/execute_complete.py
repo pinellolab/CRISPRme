@@ -553,7 +553,7 @@ def fix_columns():
 
 
 def merge_results():
-    write_to_verbose(f"merging results in best files")
+    write_to_verbose(f"Starting merge results")
     write_to_log(f"Merge Results\tStart\t" + str(datetime.datetime.now()))
 
     global bestCFD_df
@@ -609,7 +609,7 @@ def merge_results():
     bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
     altMMBUL_df.to_csv(altMMBUL_file, sep="\t", index=False, mode="w")
 
-    write_to_verbose(f"Merging results in best files completed")
+    write_to_verbose(f"Merge results END")
     write_to_log(f"Merge Results\tEnd\t" + str(datetime.datetime.now()))
 
 

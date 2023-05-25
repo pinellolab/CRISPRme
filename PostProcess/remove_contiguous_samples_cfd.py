@@ -29,6 +29,10 @@ def get_best_targets(
     best_list = list()
     discard_list = list()
 
+    for target in cluster:
+        print(target)
+    print("processato cluster con elementi: " + str(len(cluster)))
+
     for ele in cluster:
         if ele[snp_info] == "n":
             list_ref.append(ele)
