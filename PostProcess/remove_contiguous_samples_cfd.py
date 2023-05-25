@@ -297,6 +297,10 @@ def merge_results(target_list: list, tau: int, sort_order: str, header: dict) ->
                 header,
             )  # type: ignore
 
+            ##extend final lists with list returned by get_best_targets
+            best_list_final.extend(tmp_best_list)
+            discard_list_final.extend(tmp_discard_list)
+
             cluster = [splitted]
         else:
             cluster.append(splitted)
@@ -304,9 +308,6 @@ def merge_results(target_list: list, tau: int, sort_order: str, header: dict) ->
         prev_pos = int(splitted[pos])
         prev_chr = splitted[chrom]
         prev_snp = splitted[snp_info]
-        ##extend final lists with list returned by get_best_targets
-        best_list_final.extend(tmp_best_list)
-        discard_list_final.extend(tmp_discard_list)
 
     tmp_best_list, tmp_discard_list = get_best_targets(
         cluster,
