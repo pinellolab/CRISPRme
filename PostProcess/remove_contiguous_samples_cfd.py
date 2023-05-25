@@ -201,6 +201,7 @@ def get_best_targets(
 
     print("Best target: ", best_list)
     print("Discarded targets: ", discard_list)
+    print("______________________________________")
 
     return best_list, discard_list
 
