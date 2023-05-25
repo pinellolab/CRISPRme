@@ -59,9 +59,15 @@ output_folder_name = os.path.basename(output_folder).replace("/", "")
 bestCFD_file = os.path.join(output_folder, output_folder_name + ".bestCFD.txt")
 bestCRISTA_file = os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt")
 bestMMBUL_file = os.path.join(output_folder, output_folder_name + ".bestmmblg.txt")
+altCFD_file = os.path.join(output_folder, output_folder_name + ".altCFD.txt")
+altCRISTA_file = os.path.join(output_folder, output_folder_name + ".altCRISTA.txt")
+altMMBUL_file = os.path.join(output_folder, output_folder_name + ".altMMBLG.txt")
 bestCFD_df = pd.DataFrame()
 bestCRISTA_df = pd.DataFrame()
 bestMMBUL_df = pd.DataFrame()
+altCFD_df = pd.DataFrame()
+altCRISTA_df = pd.DataFrame()
+altMMBUL_df = pd.DataFrame()
 header = [
     "#Bulge_type",
     "crRNA",
@@ -414,7 +420,7 @@ def post_process(
         )
         ##return list of lists with targets scored by CFD,MMBUL,CRISTA
         lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
-        # print(lists_of_targets_list[0])
+
         ##convert list of lists to df
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
@@ -422,10 +428,6 @@ def post_process(
         chr_df_dict[chr + "_CFD"] = df_CFD
         chr_df_dict[chr + "_MMBUL"] = df_MMBUL
         chr_df_dict[chr + "_CRISTA"] = df_CRISTA
-        ##contatenate df to complete df for each category of scoring
-        # bestCFD_df = pd.concat([bestCFD_df, df_CFD], axis=0)
-        # bestCRISTA_df = pd.concat([bestCRISTA_df, df_CRISTA], axis=0)
-        # bestMMBUL_df = pd.concat([bestMMBUL_df, df_MMBUL], axis=0)
 
     to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
     to_concat.append(bestCFD_df)
@@ -438,17 +440,6 @@ def post_process(
     to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
     to_concat.append(bestMMBUL_df)
     bestMMBUL_df = pd.concat(to_concat, axis=0)
-
-    # adjust cols to final df
-    bestCFD_df = ac.order_cols(bestCFD_df)
-    # bestCFD_df = bestCFD_df.sort_values(by=["Chromosome", "Position"])
-    # bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w") ##TO TEST UNCOMMENT
-
-    bestCRISTA_df = ac.order_cols(bestCRISTA_df)
-    # bestCRISTA_df = bestCRISTA_df.sort_values(by=["Chromosome", "Position"])
-
-    bestMMBUL_df = ac.order_cols(bestMMBUL_df)
-    # bestMMBUL_df = bestMMBUL_df.sort_values(by=["Chromosome", "Position"])
 
     write_to_log(f"Post Process\tEnd\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Post Process END")
@@ -463,16 +454,17 @@ def post_process_indels(
     write_to_verbose(f"target_file is: {target_file}")
     write_to_log(f"Post Process Indels\tStart\t" + str(datetime.datetime.now()))
 
-    target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
-    chr_df_dict = dict()
     global bestCFD_df
     global bestCRISTA_df
     global bestMMBUL_df
-    bestCFD_df_indel = pd.DataFrame(columns=header)
-    bestCRISTA_df_indel = pd.DataFrame(columns=header)
-    bestMMBUL_df_indel = pd.DataFrame(columns=header)
 
-    # print(fake_chr_list)
+    ##tmp varaibles
+    target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
+    chr_df_dict = dict()
+    bestCFD_df_indel = pd.DataFrame()
+    bestCRISTA_df_indel = pd.DataFrame()
+    bestMMBUL_df_indel = pd.DataFrame()
+
     for chr in fake_chr_list:
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         target_df_chr["PAM_gen"] = "n"
@@ -500,21 +492,16 @@ def post_process_indels(
         )
         ##return list of lists with targets scored by CFD,MMBUL,CRISTA
         lists_of_targets_list = ain.start_processing(target_df_chr, data_to_process)
-        # print(lists_of_targets_list[0])
         ##convert list of lists to df
         df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
         df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
         df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)
-        # print(df_CFD)
+        ##add to dict
         chr_df_dict[chr + "_CFD"] = df_CFD
         chr_df_dict[chr + "_MMBUL"] = df_MMBUL
         chr_df_dict[chr + "_CRISTA"] = df_CRISTA
 
-        ##contatenate df to complete df for each category of scoring
-        # bestCFD_df_indel = pd.concat([bestCFD_df_indel, df_CFD], axis=0)
-        # bestCRISTA_df_indel = pd.concat([bestCRISTA_df_indel, df_CRISTA], axis=0)
-        # bestMMBUL_df_indel = pd.concat([bestMMBUL_df_indel, df_MMBUL], axis=0)
-
+    ##concat all chr dfs to one indels df
     bestCFD_df_indel = pd.concat(
         [chr_df_dict[key + "_CFD"] for key in fake_chr_list], axis=0
     )
@@ -525,27 +512,22 @@ def post_process_indels(
         [chr_df_dict[key + "_MMBUL"] for key in fake_chr_list], axis=0
     )
 
-    # adjust cols to final df
-    # write_to_verbose(f"bestCFD_df_indel header is: {bestCFD_df_indel.columns.tolist()}")
-    bestCFD_df_indel = ac.order_cols(bestCFD_df_indel)
-    header_new = bestCFD_df_indel.columns.tolist()
+    # append indels to best df
     bestCFD_df_indel = pd.DataFrame(
-        rindel.remove_bad_indels(bestCFD_df_indel.values.tolist()), columns=header_new
+        rindel.remove_bad_indels(bestCFD_df_indel.values.tolist()),
+        columns=bestCFD_df_indel.columns.tolist(),
     )
     bestCFD_df = pd.concat([bestCFD_df, bestCFD_df_indel], axis=0)
 
-    bestCRISTA_df_indel = ac.order_cols(bestCRISTA_df_indel)
-    header_new = bestCRISTA_df_indel.columns.tolist()
     bestCRISTA_df_indel = pd.DataFrame(
         rindel.remove_bad_indels(bestCRISTA_df_indel.values.tolist()),
-        columns=header_new,
+        columns=bestCRISTA_df_indel.columns.tolist(),
     )
     bestCRISTA_df = pd.concat([bestCRISTA_df, bestCRISTA_df_indel], axis=0)
 
-    bestMMBUL_df_indel = ac.order_cols(bestMMBUL_df_indel)
-    header_new = bestMMBUL_df_indel.columns.tolist()
     bestMMBUL_df_indel = pd.DataFrame(
-        rindel.remove_bad_indels(bestMMBUL_df_indel.values.tolist()), columns=header_new
+        rindel.remove_bad_indels(bestMMBUL_df_indel.values.tolist()),
+        columns=bestMMBUL_df_indel.columns.tolist(),
     )
     bestMMBUL_df = pd.concat([bestMMBUL_df, bestMMBUL_df_indel], axis=0)
 
@@ -553,154 +535,82 @@ def post_process_indels(
     write_to_log(f"Post Process Indels\tEnd\t" + str(datetime.datetime.now()))
 
 
-def fix_columns(output_folder_name):
+def fix_columns():
+    write_to_log(f"Fix Columns\tStart\t" + str(datetime.datetime.now()))
     write_to_verbose(f"Starting fix columns in best files")
 
-    os.chdir(processes_dir)
-    adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestCFD.txt')}"
-    code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("adjust bestCFD failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    global bestCFD_df
+    global bestCRISTA_df
+    global bestMMBUL_df
 
-    adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestCRISTA.txt')}"
-    code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("adjust bestCRISTA failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    # adjust cols to final df
+    bestCFD_df = ac.order_cols(bestCFD_df)
+    bestCRISTA_df = ac.order_cols(bestCRISTA_df)
+    bestMMBUL_df = ac.order_cols(bestMMBUL_df)
 
-    adjust_col_run = f"./adjust_cols.py {os.path.join(output_folder,output_folder_name+'.bestmmblg.txt')}"
-    code = subprocess.run(adjust_col_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("adjust bestMMBUL failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
-
-    os.chdir(current_working_directory)
-    return 0
+    write_to_log(f"Fix Columns\tEnd\t" + str(datetime.datetime.now()))
+    write_to_verbose(f"Fix columns END")
 
 
-def remove_bad_indels(output_folder_name):
-    write_to_verbose(f"Starting removing bad indels in best files")
+def merge_results():
+    write_to_verbose(f"merging results in best files")
+    write_to_log(f"Merge Results\tStart\t" + str(datetime.datetime.now()))
 
-    os.chdir(processes_dir)
-    remove_bad_indels_run = f"./remove_bad_indel_targets.py {os.path.join(output_folder,output_folder_name+'.bestCFD.txt')}"
-    code = subprocess.run(remove_bad_indels_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("bad indels removing bestCFD failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    global bestCFD_df
+    global bestCRISTA_df
+    global bestMMBUL_df
+    global altCFD_df
+    global altCRISTA_df
+    global altMMBUL_df
 
-    remove_bad_indels_run = f"./remove_bad_indel_targets.py {os.path.join(output_folder,output_folder_name+'.bestCRISTA.txt')}"
-    code = subprocess.run(remove_bad_indels_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("bad indels removing bestCRISTA failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    ##tmp variables
+    best_list = list()
+    discard_list = list()
 
-    remove_bad_indels_run = f"./remove_bad_indel_targets.py {os.path.join(output_folder,output_folder_name+'.bestmmblg.txt')}"
-    code = subprocess.run(remove_bad_indels_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("bad indels removing bestMMBUL failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
-
-    os.chdir(current_working_directory)
-    write_to_verbose(f"Removing bad indels in best files ended correctly")
-    return 0
-
-
-def merge_results(output_folder_name):
-    ##positional arguments to start merge results
-    chrom = 5  # column for chromosome
-    position = 7  # column for cluster_position
-    total = 11  # column for total (mm+bul)
-    true_guide = 16  # column for true guide (original guide without bulges)
-    snp_info = 19  # column for snp info
-    cfd = 21  # column for cfd score
-
-    # sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
-    # tail -n +2 $final_res.bestCRISTA.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestCRISTA.txt
-    # #sort using guide_seq,chr,cluster_pos,total(mm+bul)
-    # head -1 $final_res.bestmmblg.txt >$final_res.tmp
-    # tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
-
-    write_to_verbose(f"Start merging results in best files")
-    os.chdir(processes_dir)
-    to_merge_df = pd.read_csv(
-        os.path.join(output_folder, output_folder_name + ".bestCFD.txt"), sep="\t"
-    )
-    to_merge_df.sort_values(
-        ["Real_Guide", "Chromosome", "Cluster_Position"],
+    ##CFD PROCESSING
+    bestCFD_df.sort_values(
+        by=["Real_Guide", "Chromosome", "Cluster_Position"],
         ascending=[True, True, True],
         inplace=True,
     )
-    to_merge_df.to_csv(
-        os.path.join(output_folder, output_folder_name + ".bestCFD_sorted.txt"),
-        sep="\t",
-        index=False,
+    best_list, discard_list = merge.merge_results(
+        bestCFD_df.values.tolist(), tau=int(merge_t), sort_order="score"
     )
-    merge_resuts_run = f"./remove_contiguous_samples_cfd.py {os.path.join(output_folder,output_folder_name+'.bestCFD_sorted.txt')} {os.path.join(output_folder,output_folder_name+'.bestCFD.trimmed.txt')} {merge_t} {chrom} {position} {total} {true_guide} {snp_info} {cfd} 'score'"
-    code = subprocess.run(merge_resuts_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("merge bestCFD failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    bestCFD_df = pd.DataFrame(best_list, columns=bestCFD_df.columns.tolist())
+    altCFD_df = pd.DataFrame(discard_list, columns=bestCFD_df.columns.tolist())
+    bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    altCFD_df.to_csv(altCFD_file, sep="\t", index=False, mode="w")
 
-    to_merge_df = pd.read_csv(
-        os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt"), sep="\t"
-    )
-    to_merge_df.sort_values(
-        ["Real_Guide", "Chromosome", "Cluster_Position"],
+    ##CRISTA PROCESSING
+    bestCRISTA_df.sort_values(
+        by=["Real_Guide", "Chromosome", "Cluster_Position"],
         ascending=[True, True, True],
         inplace=True,
     )
-    to_merge_df.to_csv(
-        os.path.join(output_folder, output_folder_name + ".bestCRISTA_sorted.txt"),
-        sep="\t",
-        index=False,
+    best_list, discard_list = merge.merge_results(
+        bestCRISTA_df.values.tolist(), tau=int(merge_t), sort_order="score"
     )
-    merge_resuts_run = f"./remove_contiguous_samples_cfd.py {os.path.join(output_folder,output_folder_name+'.bestCRISTA_sorted.txt')} {os.path.join(output_folder,output_folder_name+'.bestCRISTA.trimmed.txt')} {merge_t} {chrom} {position} {total} {true_guide} {snp_info} {cfd} 'score'"
-    code = subprocess.run(merge_resuts_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("merge bestCFD failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    bestCRISTA_df = pd.DataFrame(best_list, columns=bestCRISTA_df.columns.tolist())
+    altCRISTA_df = pd.DataFrame(discard_list, columns=bestCRISTA_df.columns.tolist())
+    bestCRISTA_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    altCRISTA_df.to_csv(altCRISTA_file, sep="\t", index=False, mode="w")
 
-    to_merge_df = pd.read_csv(
-        os.path.join(output_folder, output_folder_name + ".bestmmblg.txt"), sep="\t"
-    )
-    to_merge_df.sort_values(
-        ["Real_Guide", "Chromosome", "Cluster_Position"],
+    ##MMBUL PROCESSING
+    bestMMBUL_df.sort_values(
+        by=["Real_Guide", "Chromosome", "Cluster_Position"],
         ascending=[True, True, True],
         inplace=True,
     )
-    to_merge_df.to_csv(
-        os.path.join(output_folder, output_folder_name + ".bestmmblg_sorted.txt"),
-        sep="\t",
-        index=False,
+    best_list, discard_list = merge.merge_results(
+        bestMMBUL_df.values.tolist(), tau=int(merge_t), sort_order="score"
     )
-    merge_resuts_run = f"./remove_contiguous_samples_cfd.py {os.path.join(output_folder,output_folder_name+'.bestmmblg_sorted.txt')} {os.path.join(output_folder,output_folder_name+'.bestmmblg.trimmed.txt')} {merge_t} {chrom} {position} {total} {true_guide} {snp_info} {cfd} 'total'"
-    code = subprocess.run(merge_resuts_run, shell=True, capture_output=True)
-    write_to_verbose(code.stdout.decode("utf-8"))
-    if code.returncode != 0:
-        write_to_error("merge bestCFD failed")
-        write_to_error(code.stderr.decode("utf-8"))
-        sys.exit(1)
+    bestMMBUL_df = pd.DataFrame(best_list, columns=bestMMBUL_df.columns.tolist())
+    altMMBUL_df = pd.DataFrame(discard_list, columns=bestMMBUL_df.columns.tolist())
+    bestMMBUL_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    altMMBUL_df.to_csv(altMMBUL_file, sep="\t", index=False, mode="w")
 
-    write_to_verbose(f"merging results in best files completed")
-    os.chdir(current_working_directory)
-    return 0
+    write_to_verbose(f"Merging results in best files completed")
+    write_to_log(f"Merge Results\tEnd\t" + str(datetime.datetime.now()))
 
 
 ##START PROCESS FROM SCRATCH AND CHECK IF ANY STEP CAN BE SKIPPED
@@ -745,15 +655,5 @@ for vcf_data in vcf_list_checked:
         ref_only=False,
     )
 
-best_list, discard_list = merge.merge_results(
-    bestCFD_df.values.tolist(), tau=int(merge_t), sort_order="score"
-)
-bestCFD_df = pd.DataFrame(best_list, columns=bestCFD_df.columns.tolist())
-# merge.merge_results(bestCRISTA_df.values.tolist())
-# merge.merge_results(bestMMBUL_df.values.tolist())
-bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
-
-##fix columns in best files
-# fix_columns(output_folder_name)
-# remove_bad_indels(output_folder_name)
-# merge_results(output_folder_name)
+fix_columns()
+merge_results()
