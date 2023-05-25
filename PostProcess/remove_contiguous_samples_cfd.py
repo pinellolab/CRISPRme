@@ -14,7 +14,8 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
     if not cluster:
         return list(), list()
 
-    list_ref = list()
+    final_list_best_ref = list()
+    final_list_best_var = list()
     dict_var = dict()
     best_list = list()
     discard_list = list()
@@ -25,14 +26,14 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
 
     for ele in cluster:
         if ele[header["SNP"]] == "n":
-            list_ref.append(ele)
+            final_list_best_ref.append(ele)
         else:
             # merge samples of identical targets (coming from different VCF datasets)
             if (ele[header["Position"]], ele[header["SNP"]]) not in dict_var.keys():
                 dict_var[(ele[header["Position"]], ele[header["SNP"]])] = list()
                 dict_var[(ele[header["Position"]], ele[header["SNP"]])].append(ele)
             else:
-                dict_var[(ele[header["Position"]], ele[header["SNP"]])].extend(ele)
+                dict_var[(ele[header["Position"]], ele[header["SNP"]])].append(ele)
                 # dict_var[(ele[header["Position"]], ele[header["SNP"]])][
                 #     header["Samples"]
                 # ] = dict_var[(ele[header["Position"]], ele[header["SNP"]])][
@@ -57,40 +58,49 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
             # else:
             #     dict_var[(ele[pos], ele[snp_info])] = [ele]
 
-    final_list_best_ref = list()
     var_only = False
-    for target in list_ref:
-        final_list_best_ref.append(target)
     if not final_list_best_ref:
         var_only = True
 
-    final_list_best_var = list()
     # for each snp_info in dict, extract the targets
     for key in dict_var.keys():
         list_var = dict_var[key]
-        print("list_var: " + (list_var))
+        # print(list_var)
         # copy the targets in the variant list, adding unique if no ref target is found
+        set_snp_info = set()
+        set_rsid = set()
+        set_af = set()
+        set_samples = set()
         for target in list_var:
-            if var_only:
-                target[12] = "y"
+            set_snp_info.add(target[header["SNP"]])
+            set_rsid.add(target[header["rsID"]])
+            set_af.add(target[header["AF"]])
+            set_samples.add(target[header["Samples"]])
+        for target in list_var:
+            target[header["SNP"]] = ",".join(set_snp_info)
+            target[header["rsID"]] = ",".join(set_rsid)
+            target[header["AF"]] = ",".join(set_af)
+            target[header["Samples"]] = ",".join(set_samples)
+            if var_only
+                target[header["Var_uniq"]] = "y"
             final_list_best_var.append(target)
 
-    temp_final_list_best_var = list()
+    # temp_final_list_best_var = list()
+    # # for target in final_list_best_var:
     # for target in final_list_best_var:
-    for target in final_list_best_var:
-        # remove duplicates into snp info col
-        target[header["SNP"]] = ",".join(set(target[header["SNP"]].split(",")))
-        # remove duplicate into rsID col
-        target[header["rsID"]] = ",".join(set(target[header["rsID"]].split(",")))
-        # remove duplicate into AF col
-        target[header["AF"]] = ",".join(set(target[header["AF"]].split(",")))
-        # remove duplicate into samples col
-        target[header["Samples"]] = ",".join(set(target[header["Samples"]].split(",")))
-        # append to temp list
-        temp_final_list_best_var.append(target)
+    #     # remove duplicates into snp info col
+    #     target[header["SNP"]] = ",".join(set(target[header["SNP"]].split(",")))
+    #     # remove duplicate into rsID col
+    #     target[header["rsID"]] = ",".join(set(target[header["rsID"]].split(",")))
+    #     # remove duplicate into AF col
+    #     target[header["AF"]] = ",".join(set(target[header["AF"]].split(",")))
+    #     # remove duplicate into samples col
+    #     target[header["Samples"]] = ",".join(set(target[header["Samples"]].split(",")))
+    #     # append to temp list
+    #     temp_final_list_best_var.append(target)
 
-    # final list with polished targets (no duplicates in snp data)
-    final_list_best_var = temp_final_list_best_var
+    # # final list with polished targets (no duplicates in snp data)
+    # final_list_best_var = temp_final_list_best_var
 
     # check if lists are empty
     validity_check_ref = False
@@ -102,6 +112,9 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
 
     print("final_list_best_ref: " + str(len(final_list_best_ref)))
     print("final_list_best_var: " + str(len(final_list_best_var)))
+
+    print(final_list_best_ref)
+    print(final_list_best_var)
 
     print("validity_check_ref: " + str(validity_check_ref))
     print("validity_check_var: " + str(validity_check_var))
