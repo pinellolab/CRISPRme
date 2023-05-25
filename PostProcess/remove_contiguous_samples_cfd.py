@@ -199,6 +199,9 @@ def get_best_targets(
             )
             discard_list.append(elem)
 
+    print("Best target: ", best_list)
+    print("Discarded targets: ", discard_list)
+
     return best_list, discard_list
 
 
