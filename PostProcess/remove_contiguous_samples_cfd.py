@@ -9,17 +9,7 @@ import time
 import shutil
 
 
-def get_best_targets(
-    cluster,
-    tau,
-    chrom,
-    pos,
-    total,
-    true_guide,
-    snp_info,
-    cfd,
-    sort_order,
-) -> tuple:
+def get_best_targets(cluster, sort_order, header) -> tuple:
     # avoid crush when cluster is empty in the first call
     if not cluster:
         return list(), list()
@@ -34,28 +24,29 @@ def get_best_targets(
     print("processato cluster con elementi: " + str(len(cluster)))
 
     for ele in cluster:
-        if ele[snp_info] == "n":
+        if ele[header["SNP"]] == "n":
             list_ref.append(ele)
         else:
             # merge samples of identical targets (coming from different VCF datasets)
-            if (ele[pos], ele[snp_info]) in dict_var.keys():
-                dict_var[(ele[pos], ele[snp_info])][0][true_guide - 2] = (
-                    dict_var[(ele[pos], ele[snp_info])][0][true_guide - 2]
-                    + ","
-                    + ele[true_guide - 2]
-                )  # true_guide - 2 points to samples column
-                dict_var[(ele[pos], ele[snp_info])][0][snp_info - 2] = (
-                    dict_var[(ele[pos], ele[snp_info])][0][snp_info - 2]
-                    + ","
-                    + ele[snp_info - 2]
-                )  # snp_info - 2 points to rsID column
-                dict_var[(ele[pos], ele[snp_info])][0][snp_info - 1] = (
-                    dict_var[(ele[pos], ele[snp_info])][0][snp_info - 1]
-                    + ","
-                    + ele[snp_info - 1]
-                )  # ttuesnp_info_guide - 2 points to AF column
-            else:
-                dict_var[(ele[pos], ele[snp_info])] = [ele]
+            dict_var[(ele[header["Position"]], ele[header["SNP"]])].extend(ele)
+            # if (ele[pos], ele[snp_info]) in dict_var.keys():
+            #     dict_var[(ele[pos], ele[snp_info])][0][true_guide - 2] = (
+            #         dict_var[(ele[pos], ele[snp_info])][0][true_guide - 2]
+            #         + ","
+            #         + ele[true_guide - 2]
+            #     )  # true_guide - 2 points to samples column
+            #     dict_var[(ele[pos], ele[snp_info])][0][snp_info - 2] = (
+            #         dict_var[(ele[pos], ele[snp_info])][0][snp_info - 2]
+            #         + ","
+            #         + ele[snp_info - 2]
+            #     )  # snp_info - 2 points to rsID column
+            #     dict_var[(ele[pos], ele[snp_info])][0][snp_info - 1] = (
+            #         dict_var[(ele[pos], ele[snp_info])][0][snp_info - 1]
+            #         + ","
+            #         + ele[snp_info - 1]
+            #     )  # ttuesnp_info_guide - 2 points to AF column
+            # else:
+            #     dict_var[(ele[pos], ele[snp_info])] = [ele]
 
     final_list_best_ref = list()
     var_only = False
@@ -68,6 +59,7 @@ def get_best_targets(
     # for each snp_info in dict, extract the targets
     for key in dict_var.keys():
         list_var = dict_var[key]
+        print("list_var: " + (list_var))
         # copy the targets in the variant list, adding unique if no ref target is found
         for target in list_var:
             if var_only:
@@ -206,11 +198,35 @@ def get_best_targets(
     return best_list, discard_list
 
 
-def merge_results(target_list: list, tau: int, sort_order: str) -> tuple:
+def merge_results(target_list: list, tau: int, sort_order: str, header: dict) -> tuple:
     best_list_final = list()
     discard_list_final = list()
     tmp_best_list = list()
     tmp_discard_list = list()
+
+    ##HEADER DA USARE PER IDENTIFICARE LE COLONNE
+    # #Bulge_type
+    # crRNA
+    # DNA
+    # Reference
+    # Chromosome
+    # Position
+    # Cluster_Position
+    # Direction
+    # Mismatches
+    # Bulge_Size
+    # Total
+    # PAM_gen
+    # Var_uniq
+    # Samples
+    # Annotation_Type
+    # Real_Guide
+    # rsID
+    # AF
+    # SNP
+    # #Seq_in_cluster
+    # CFD
+    # CFD_ref
 
     chrom = 4  # chromosome position in target
     pos = 6  # position of target
@@ -229,20 +245,14 @@ def merge_results(target_list: list, tau: int, sort_order: str) -> tuple:
     for line in target_list:
         splitted = line
         if (
-            prev_guide != splitted[true_guide]
-            or prev_chr != splitted[chrom]
-            or int(splitted[pos]) - prev_pos > tau
+            prev_guide != splitted[header["Real_Guide"]]
+            or prev_chr != splitted[header["Chromosome"]]
+            or int(splitted[header["Cluster_Position"]]) - prev_pos > tau
         ):
             tmp_best_list, tmp_discard_list = get_best_targets(
                 cluster,
-                tau,
-                chrom,
-                pos,
-                total,
-                true_guide,
-                snp_info,
-                cfd,
                 sort_order,
+                header,
             )  # type: ignore
 
             cluster = [splitted]
@@ -258,14 +268,8 @@ def merge_results(target_list: list, tau: int, sort_order: str) -> tuple:
 
     tmp_best_list, tmp_discard_list = get_best_targets(
         cluster,
-        tau,
-        chrom,
-        pos,
-        total,
-        true_guide,
-        snp_info,
-        cfd,
         sort_order,
+        header,
     )  # type: ignore
 
     ##extend final lists with list returned by get_best_targets

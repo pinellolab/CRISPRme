@@ -566,6 +566,9 @@ def merge_results():
     ##tmp variables
     best_list = list()
     discard_list = list()
+    header_dict = dict()
+    for count, key in enumerate(bestCFD_df.columns.tolist()):
+        header_dict[key] = count
 
     ##CFD PROCESSING
     bestCFD_df.sort_values(
@@ -574,7 +577,10 @@ def merge_results():
         inplace=True,
     )
     best_list, discard_list = merge.merge_results(
-        bestCFD_df.values.tolist(), tau=int(merge_t), sort_order="score"
+        bestCFD_df.values.tolist(),
+        tau=int(merge_t),
+        sort_order="score",
+        header=header_dict,
     )
     bestCFD_df = pd.DataFrame(best_list, columns=bestCFD_df.columns.tolist())
     altCFD_df = pd.DataFrame(discard_list, columns=bestCFD_df.columns.tolist())
@@ -588,7 +594,10 @@ def merge_results():
         inplace=True,
     )
     best_list, discard_list = merge.merge_results(
-        bestCRISTA_df.values.tolist(), tau=int(merge_t), sort_order="score"
+        bestCRISTA_df.values.tolist(),
+        tau=int(merge_t),
+        sort_order="score",
+        header=header_dict,
     )
     bestCRISTA_df = pd.DataFrame(best_list, columns=bestCRISTA_df.columns.tolist())
     altCRISTA_df = pd.DataFrame(discard_list, columns=bestCRISTA_df.columns.tolist())
@@ -602,7 +611,10 @@ def merge_results():
         inplace=True,
     )
     best_list, discard_list = merge.merge_results(
-        bestMMBUL_df.values.tolist(), tau=int(merge_t), sort_order="score"
+        bestMMBUL_df.values.tolist(),
+        tau=int(merge_t),
+        sort_order="score",
+        header=header_dict,
     )
     bestMMBUL_df = pd.DataFrame(best_list, columns=bestMMBUL_df.columns.tolist())
     altMMBUL_df = pd.DataFrame(discard_list, columns=bestMMBUL_df.columns.tolist())
