@@ -70,13 +70,13 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
     # for target in final_list_best_var:
     for target in final_list_best_var:
         # remove duplicates into snp info col
-        target[snp_info] = ",".join(set(target[snp_info].split(",")))
+        target[header["SNP"]] = ",".join(set(target[header["SNP"]].split(",")))
         # remove duplicate into rsID col
-        target[snp_info - 2] = ",".join(set(target[snp_info - 2].split(",")))
+        target[header["rsID"]] = ",".join(set(target[header["rsID"]].split(",")))
         # remove duplicate into AF col
-        target[snp_info - 1] = ",".join(set(target[snp_info - 1].split(",")))
+        target[header["AF"]] = ",".join(set(target[header["AF"]].split(",")))
         # remove duplicate into samples col
-        target[true_guide - 2] = ",".join(set(target[true_guide - 2].split(",")))
+        target[header["Samples"]] = ",".join(set(target[header["Samples"]].split(",")))
         # append to temp list
         temp_final_list_best_var.append(target)
 
@@ -102,44 +102,52 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
         # sort per score (CFD or CRISTA)
         if validity_check_ref:
             final_list_best_ref = sorted(
-                final_list_best_ref, key=lambda x: (-float(x[cfd]), int(x[total]))
+                final_list_best_ref,
+                key=lambda x: (-float(x[header["CFD"]]), int(x[header["Total"]])),
             )
         if validity_check_var:
             final_list_best_var = sorted(
-                final_list_best_var, key=lambda x: (-float(x[cfd]), int(x[total]))
+                final_list_best_var,
+                key=lambda x: (-float(x[header["CFD"]]), int(x[header["Total"]])),
             )
         if var_only:  # no ref found
             # count the residual targets in the list
-            final_list_best_var[0][cfd - 1] = str(len(final_list_best_var) - 1)
+            final_list_best_var[0][header["#Seq_in_cluster"]] = str(
+                len(final_list_best_var) - 1
+            )
             # append the best target to best_file
             best_list.append(final_list_best_var[0])
             # pop the best target from the list
             bestTarget = final_list_best_var.pop(0)
         elif validity_check_ref and validity_check_var:  # ref and var targets found
-            if float(final_list_best_ref[0][cfd]) >= float(final_list_best_var[0][cfd]):
-                final_list_best_ref[0][cfd - 1] = str(
+            if float(final_list_best_ref[0][header["CFD"]]) >= float(
+                final_list_best_var[0][header["CFD"]]
+            ):
+                final_list_best_ref[0][header["#Seq_in_cluster"]] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
                 best_list.append(final_list_best_ref[0])
                 bestTarget = final_list_best_ref.pop(0)
             else:
-                final_list_best_var[0][cfd - 1] = str(
+                final_list_best_var[0][header["#Seq_in_cluster"]] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
                 best_list.append(final_list_best_var[0])
                 bestTarget = final_list_best_var.pop(0)
         else:  # only ref
-            final_list_best_ref[0][cfd - 1] = str(len(final_list_best_ref) - 1)
+            final_list_best_ref[0][header["#Seq_in_cluster"]] = str(
+                len(final_list_best_ref) - 1
+            )
             best_list.append(final_list_best_ref[0])
             bestTarget = final_list_best_ref.pop(0)
         # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
-            final_list_best_ref[count][cfd - 1] = str(
+            final_list_best_ref[count][header["#Seq_in_cluster"]] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
             discard_list.append(elem)
         for count, elem in enumerate(final_list_best_var):
-            final_list_best_var[count][cfd - 1] = str(
+            final_list_best_var[count][header["#Seq_in_cluster"]] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
             discard_list.append(elem)
@@ -148,45 +156,57 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
         if validity_check_ref:
             final_list_best_ref = sorted(
                 final_list_best_ref,
-                key=lambda x: (int(x[total - 2]), int(x[total - 1])),
+                key=lambda x: (
+                    int(x[header["Mismatches"]]),
+                    int(x[header["Bulge_Size"]]),
+                ),
             )
         if validity_check_var:
             final_list_best_var = sorted(
                 final_list_best_var,
-                key=lambda x: (int(x[total - 2]), int(x[total - 1])),
+                key=lambda x: (
+                    int(x[header["Mismatches"]]),
+                    int(x[header["Bulge_Size"]]),
+                ),
             )
         if var_only:  # no ref found
             # count the residual targets in the list
-            final_list_best_var[0][cfd - 1] = str(len(final_list_best_var) - 1)
+            final_list_best_var[0][header["#Seq_in_cluster"]] = str(
+                len(final_list_best_var) - 1
+            )
             # append the best target to best_file
             best_list.append(final_list_best_var[0])
             # pop the best target from the list
             bestTarget = final_list_best_var.pop(0)
         elif validity_check_ref and validity_check_var:  # ref and var targets found
-            if int(final_list_best_ref[0][total]) <= int(final_list_best_var[0][total]):
-                final_list_best_ref[0][cfd - 1] = str(
+            if int(final_list_best_ref[0][header["Total"]]) <= int(
+                final_list_best_var[0][header["Total"]]
+            ):
+                final_list_best_ref[0][header["#Seq_in_cluster"]] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
                 best_list.append(final_list_best_ref[0])
                 bestTarget = final_list_best_ref.pop(0)
             else:
-                final_list_best_var[0][cfd - 1] = str(
+                final_list_best_var[0][header["#Seq_in_cluster"]] = str(
                     len(final_list_best_ref) + len(final_list_best_var) - 1
                 )
                 best_list.append(final_list_best_var[0])
                 bestTarget = final_list_best_var.pop(0)
         else:  # only ref
-            final_list_best_ref[0][cfd - 1] = str(len(final_list_best_ref) - 1)
+            final_list_best_ref[0][header["#Seq_in_cluster"]] = str(
+                len(final_list_best_ref) - 1
+            )
             best_list.append(final_list_best_ref[0])
             bestTarget = final_list_best_ref.pop(0)
         # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
-            final_list_best_ref[count][cfd - 1] = str(
+            final_list_best_ref[count][header["#Seq_in_cluster"]] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
             discard_list.append(elem)
         for count, elem in enumerate(final_list_best_var):
-            final_list_best_var[count][cfd - 1] = str(
+            final_list_best_var[count][header["#Seq_in_cluster"]] = str(
                 len(final_list_best_ref) + len(final_list_best_var) - 1
             )
             discard_list.append(elem)
