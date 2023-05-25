@@ -28,7 +28,16 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
             list_ref.append(ele)
         else:
             # merge samples of identical targets (coming from different VCF datasets)
-            dict_var[(ele[header["Position"]], ele[header["SNP"]])].extend(ele)
+            if (ele[header["Position"]], ele[header["SNP"]]) not in dict_var.keys():
+                dict_var[(ele[header["Position"]], ele[header["SNP"]])] = list()
+                dict_var[(ele[header["Position"]], ele[header["SNP"]])].append(ele)
+            else:
+                dict_var[(ele[header["Position"]], ele[header["SNP"]])].extend(ele)
+                # dict_var[(ele[header["Position"]], ele[header["SNP"]])][
+                #     header["Samples"]
+                # ] = dict_var[(ele[header["Position"]], ele[header["SNP"]])][
+                #     header["Samples"]
+                # ] + "," + ele[header["Samples"]]
             # if (ele[pos], ele[snp_info]) in dict_var.keys():
             #     dict_var[(ele[pos], ele[snp_info])][0][true_guide - 2] = (
             #         dict_var[(ele[pos], ele[snp_info])][0][true_guide - 2]
