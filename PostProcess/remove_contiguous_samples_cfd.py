@@ -11,8 +11,6 @@ import shutil
 
 def get_best_targets(
     cluster,
-    best_list,
-    discard_list,
     tau,
     chrom,
     pos,
@@ -28,6 +26,9 @@ def get_best_targets(
 
     list_ref = list()
     dict_var = dict()
+    best_list = list()
+    discard_list = list()
+
     for ele in cluster:
         if ele[snp_info] == "n":
             list_ref.append(ele)
@@ -156,7 +157,7 @@ def get_best_targets(
             # count the residual targets in the list
             final_list_best_var[0][cfd - 1] = str(len(final_list_best_var) - 1)
             # append the best target to best_file
-            best_list.write(final_list_best_var[0])
+            best_list.append(final_list_best_var[0])
             # pop the best target from the list
             bestTarget = final_list_best_var.pop(0)
         elif validity_check_ref and validity_check_var:  # ref and var targets found
@@ -191,7 +192,7 @@ def get_best_targets(
     return best_list, discard_list
 
 
-def merge_results(target_list: list, tau: int, sort_order: str) -> list:
+def merge_results(target_list: list, tau: int, sort_order: str) -> tuple:
     best_list_final = list()
     discard_list_final = list()
     tmp_best_list = list()
@@ -221,8 +222,6 @@ def merge_results(target_list: list, tau: int, sort_order: str) -> list:
         ):
             tmp_best_list, tmp_discard_list = get_best_targets(
                 cluster,
-                list(),
-                list(),
                 tau,
                 chrom,
                 pos,
@@ -240,13 +239,12 @@ def merge_results(target_list: list, tau: int, sort_order: str) -> list:
         prev_pos = int(splitted[pos])
         prev_chr = splitted[chrom]
         prev_snp = splitted[snp_info]
+        ##extend final lists with list returned by get_best_targets
         best_list_final.extend(tmp_best_list)
         discard_list_final.extend(tmp_discard_list)
 
     tmp_best_list, tmp_discard_list = get_best_targets(
         cluster,
-        list(),
-        list(),
         tau,
         chrom,
         pos,
@@ -257,10 +255,11 @@ def merge_results(target_list: list, tau: int, sort_order: str) -> list:
         sort_order,
     )  # type: ignore
 
+    ##extend final lists with list returned by get_best_targets
     best_list_final.extend(tmp_best_list)
     discard_list_final.extend(tmp_discard_list)
 
-    return [best_list_final, discard_list_final]
+    return best_list_final, discard_list_final
 
 
 # start = time.time()
