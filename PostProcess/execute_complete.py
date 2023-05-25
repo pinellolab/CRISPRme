@@ -50,6 +50,8 @@ fake_chr_list = list()
 vcf_list_checked = list()
 vcf_process = ""
 log_file = open(os.path.join(output_folder, "log.txt"), "w")
+log_verbose = open(os.path.join(output_folder, "log_verbose.txt"), "w")
+log_error = open(os.path.join(output_folder, "log_error.txt"), "w")
 pam_seq = ""
 pam_name = ""
 guide_name = ""
@@ -102,12 +104,14 @@ def write_to_log(message):
 
 def write_to_verbose(message):
     ##write to log verbose file with print autotermination
-    print(message)
+    # print(message)
+    log_verbose.write(message + "\n")
 
 
 def write_to_error(message):
     ##write to log error file with print autotermination
-    print(message, file=sys.stderr)
+    # print(message, file=sys.stderr)
+    log_error.write(message + "\n")
 
 
 def pre_process():
