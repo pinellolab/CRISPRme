@@ -58,7 +58,7 @@ ref_name = os.path.basename(ref_folder).replace("/", "")
 output_folder_name = os.path.basename(output_folder).replace("/", "")
 bestCFD_file = os.path.join(output_folder, output_folder_name + ".bestCFD.txt")
 bestCRISTA_file = os.path.join(output_folder, output_folder_name + ".bestCRISTA.txt")
-bestMMBUL_file = os.path.join(output_folder, output_folder_name + ".bestmmblg.txt")
+bestMMBUL_file = os.path.join(output_folder, output_folder_name + ".bestMMBLG.txt")
 altCFD_file = os.path.join(output_folder, output_folder_name + ".altCFD.txt")
 altCRISTA_file = os.path.join(output_folder, output_folder_name + ".altCRISTA.txt")
 altMMBUL_file = os.path.join(output_folder, output_folder_name + ".altMMBLG.txt")
@@ -592,7 +592,7 @@ def merge_results():
     )
     bestCRISTA_df = pd.DataFrame(best_list, columns=bestCRISTA_df.columns.tolist())
     altCRISTA_df = pd.DataFrame(discard_list, columns=bestCRISTA_df.columns.tolist())
-    bestCRISTA_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    bestCRISTA_df.to_csv(bestCRISTA_file, sep="\t", index=False, mode="w")
     altCRISTA_df.to_csv(altCRISTA_file, sep="\t", index=False, mode="w")
 
     ##MMBUL PROCESSING
@@ -606,7 +606,7 @@ def merge_results():
     )
     bestMMBUL_df = pd.DataFrame(best_list, columns=bestMMBUL_df.columns.tolist())
     altMMBUL_df = pd.DataFrame(discard_list, columns=bestMMBUL_df.columns.tolist())
-    bestMMBUL_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
     altMMBUL_df.to_csv(altMMBUL_file, sep="\t", index=False, mode="w")
 
     write_to_verbose(f"Merging results in best files completed")
