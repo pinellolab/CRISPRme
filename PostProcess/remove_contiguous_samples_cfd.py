@@ -99,6 +99,12 @@ def get_best_targets(
     if final_list_best_var:
         validity_check_var = True
 
+    print("final_list_best_ref: " + str(len(final_list_best_ref)))
+    print("final_list_best_var: " + str(len(final_list_best_var)))
+
+    print("validity_check_ref: " + str(validity_check_ref))
+    print("validity_check_var: " + str(validity_check_var))
+
     # extract best target for each criteria
     if sort_order == "score":
         # sort per score (CFD or CRISTA)
