@@ -214,7 +214,6 @@ def merge_results(target_list: list, tau: int, sort_order: str) -> tuple:
 
     for line in target_list:
         splitted = line
-        print(splitted)
         if (
             prev_guide != splitted[true_guide]
             or prev_chr != splitted[chrom]
