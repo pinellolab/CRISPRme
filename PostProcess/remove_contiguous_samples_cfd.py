@@ -191,7 +191,7 @@ def get_best_targets(
     return best_list, discard_list
 
 
-def merge_results(target_list: list, tau: int, sort_order: str):
+def merge_results(target_list: list, tau: int, sort_order: str) -> list:
     best_list_final = list()
     discard_list_final = list()
     tmp_best_list = list()
@@ -213,6 +213,7 @@ def merge_results(target_list: list, tau: int, sort_order: str):
 
     for line in target_list:
         splitted = line
+        print(splitted)
         if (
             prev_guide != splitted[true_guide]
             or prev_chr != splitted[chrom]
@@ -259,7 +260,7 @@ def merge_results(target_list: list, tau: int, sort_order: str):
     best_list_final.extend(tmp_best_list)
     discard_list_final.extend(tmp_discard_list)
 
-    return best_list_final, discard_list_final
+    return [best_list_final, discard_list_final]
 
 
 # start = time.time()
