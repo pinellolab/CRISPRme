@@ -165,12 +165,12 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
         # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
             final_list_best_ref[count][header["#Seq_in_cluster"]] = str(
-                len(final_list_best_ref) + len(final_list_best_var) - 1
+                len(final_list_best_ref) + len(final_list_best_var)
             )
             discard_list.append(elem)
         for count, elem in enumerate(final_list_best_var):
             final_list_best_var[count][header["#Seq_in_cluster"]] = str(
-                len(final_list_best_ref) + len(final_list_best_var) - 1
+                len(final_list_best_ref) + len(final_list_best_var)
             )
             discard_list.append(elem)
     else:
@@ -224,12 +224,12 @@ def get_best_targets(cluster, sort_order, header) -> tuple:
         # write all the remaining targets in the alt file
         for count, elem in enumerate(final_list_best_ref):
             final_list_best_ref[count][header["#Seq_in_cluster"]] = str(
-                len(final_list_best_ref) + len(final_list_best_var) - 1
+                len(final_list_best_ref) + len(final_list_best_var)
             )
             discard_list.append(elem)
         for count, elem in enumerate(final_list_best_var):
             final_list_best_var[count][header["#Seq_in_cluster"]] = str(
-                len(final_list_best_ref) + len(final_list_best_var) - 1
+                len(final_list_best_ref) + len(final_list_best_var)
             )
             discard_list.append(elem)
 
