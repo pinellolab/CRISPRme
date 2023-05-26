@@ -11,6 +11,8 @@ import adjust_cols as ac
 import analisi_indels_NNN as ain
 import remove_bad_indel_targets as rindel
 import remove_contiguous_samples_cfd as merge
+import threading
+
 
 # set -e # capture any failure
 
@@ -50,8 +52,8 @@ fake_chr_list = list()
 vcf_list_checked = list()
 vcf_process = ""
 log_file = open(os.path.join(output_folder, "log.txt"), "w")
-log_verbose = open(os.path.join(output_folder, "log_verbose.txt"), "w")
-log_error = open(os.path.join(output_folder, "log_error.txt"), "w")
+log_verbose = os.path.join(output_folder, "log_verbose.txt")
+log_error = os.path.join(output_folder, "log_error.txt")
 pam_seq = ""
 pam_name = ""
 guide_name = ""
@@ -64,6 +66,7 @@ bestMMBUL_file = os.path.join(output_folder, output_folder_name + ".bestMMBLG.tx
 altCFD_file = os.path.join(output_folder, output_folder_name + ".altCFD.txt")
 altCRISTA_file = os.path.join(output_folder, output_folder_name + ".altCRISTA.txt")
 altMMBUL_file = os.path.join(output_folder, output_folder_name + ".altMMBLG.txt")
+chr_df_dict = dict()
 bestCFD_df = pd.DataFrame()
 bestCRISTA_df = pd.DataFrame()
 bestMMBUL_df = pd.DataFrame()
@@ -104,14 +107,12 @@ def write_to_log(message):
 
 def write_to_verbose(message):
     ##write to log verbose file with print autotermination
-    # print(message)
-    log_verbose.write(message + "\n")
+    print(message, file=sys.stdout)
 
 
 def write_to_error(message):
     ##write to log error file with print autotermination
-    # print(message, file=sys.stderr)
-    log_error.write(message + "\n")
+    print(message, file=sys.stderr)
 
 
 def pre_process():
@@ -372,6 +373,42 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, do_ref=False)
     return 0
 
 
+def variant_analisys(target_df, chr: str):
+    global chr_df_dict
+    target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
+    target_df_chr["PAM_gen"] = "n"
+    target_df_chr["Var_uniq"] = "n"
+    target_df_chr["Samples"] = "n"
+    target_df_chr["Annotation_type"] = "n"
+    target_df_chr["Real_Guide"] = target_df_chr["crRNA"].str.replace("-", "")
+    target_df_chr["rsID"] = "n"
+    target_df_chr["AF"] = "n"
+    target_df_chr["SNP_position"] = "n"
+
+    ## convert df to list to be processed
+    target_df_chr = target_df_chr.values.tolist()
+    data_to_process = nsa.init(
+        fasta_file=os.path.join(ref_folder, chr + ".fa"),
+        pam_file=pam_file,
+        dictionary_file=os.path.join(
+            dictionaries_folder,
+            "dictionaries_" + vcf_data,
+            "my_dict_" + chr + ".json",
+        ),
+        allowed_mms=int(mm),
+    )
+    ##return list of lists with targets scored by CFD,MMBUL,CRISTA
+    lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
+
+    ##convert list of lists to df
+    df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
+    df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
+    df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)  # type: ignore
+    chr_df_dict[chr + "_CFD"] = df_CFD
+    chr_df_dict[chr + "_MMBUL"] = df_MMBUL
+    chr_df_dict[chr + "_CRISTA"] = df_CRISTA
+
+
 def post_process(
     target_file: str,
     vcf_data: str,
@@ -392,45 +429,62 @@ def post_process(
     write_to_verbose(f"target_file is: {target_file}")
     write_to_log(f"Post Process\tStart\t" + str(datetime.datetime.now()))
 
+    ##scope variables
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
-    chr_df_dict = dict()
+    main_thread = threading.main_thread()
+    ##global variables
     global bestCFD_df
     global bestCRISTA_df
     global bestMMBUL_df
+    global chr_df_dict
 
     for chr in chr_list:
-        target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
-        target_df_chr["PAM_gen"] = "n"
-        target_df_chr["Var_uniq"] = "n"
-        target_df_chr["Samples"] = "n"
-        target_df_chr["Annotation_type"] = "n"
-        target_df_chr["Real_Guide"] = target_df_chr["crRNA"].str.replace("-", "")
-        target_df_chr["rsID"] = "n"
-        target_df_chr["AF"] = "n"
-        target_df_chr["SNP_position"] = "n"
-
-        ## convert df to list to be processed
-        target_df_chr = target_df_chr.values.tolist()
-        data_to_process = nsa.init(
-            fasta_file=os.path.join(ref_folder, chr + ".fa"),
-            pam_file=pam_file,
-            dictionary_file=os.path.join(
-                dictionaries_folder,
-                "dictionaries_" + vcf_data,
-                "my_dict_" + chr + ".json",
+        t = threading.Thread(
+            target=variant_analisys,
+            args=(
+                target_df,
+                chr,
             ),
-            allowed_mms=int(mm),
         )
-        ##return list of lists with targets scored by CFD,MMBUL,CRISTA
-        lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
+        t.start()
+        # target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
+        # target_df_chr["PAM_gen"] = "n"
+        # target_df_chr["Var_uniq"] = "n"
+        # target_df_chr["Samples"] = "n"
+        # target_df_chr["Annotation_type"] = "n"
+        # target_df_chr["Real_Guide"] = target_df_chr["crRNA"].str.replace("-", "")
+        # target_df_chr["rsID"] = "n"
+        # target_df_chr["AF"] = "n"
+        # target_df_chr["SNP_position"] = "n"
 
-        ##convert list of lists to df
-        df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
-        df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
-        df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)  # type: ignore
-        chr_df_dict[chr + "_CFD"] = df_CFD
-        chr_df_dict[chr + "_MMBUL"] = df_MMBUL
-        chr_df_dict[chr + "_CRISTA"] = df_CRISTA
+        # ## convert df to list to be processed
+        # target_df_chr = target_df_chr.values.tolist()
+        # data_to_process = nsa.init(
+        #     fasta_file=os.path.join(ref_folder, chr + ".fa"),
+        #     pam_file=pam_file,
+        #     dictionary_file=os.path.join(
+        #         dictionaries_folder,
+        #         "dictionaries_" + vcf_data,
+        #         "my_dict_" + chr + ".json",
+        #     ),
+        #     allowed_mms=int(mm),
+        # )
+        # ##return list of lists with targets scored by CFD,MMBUL,CRISTA
+        # lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
+
+        # ##convert list of lists to df
+        # df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
+        # df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
+        # df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)  # type: ignore
+        # chr_df_dict[chr + "_CFD"] = df_CFD
+        # chr_df_dict[chr + "_MMBUL"] = df_MMBUL
+        # chr_df_dict[chr + "_CRISTA"] = df_CRISTA
+
+    for t in threading.enumerate():
+        if t is main_thread:
+            continue
+        # logging.debug('joining %s', t.getName())
+        t.join()
 
     to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
     to_concat.append(bestCFD_df)

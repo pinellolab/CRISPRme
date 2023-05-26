@@ -774,9 +774,8 @@ def complete_search():
         f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt"
     )
     # start search with set parameters
-    log_verbose = os.path.join(outputfolder, "log_verbose.txt")
-    log_error = os.path.join(outputfolder, "log_error.txt")
-    # log_error = open(f"{outputfolder}/log_error.txt", "w")
+    log_verbose = open(os.path.join(outputfolder, "log_verbose.txt"),"w")
+    log_error = open(os.path.join(outputfolder, "log_error.txt"),"w")
     crisprme_run = (
         f"{os.path.join(script_path, 'execute_complete.py')} "
         f"{genomedir} {vcfdir} {os.path.join(outputfolder, 'guides.txt')} "
@@ -784,13 +783,12 @@ def complete_search():
         f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
         f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set}"
     )
-    # code = subprocess.call(
-    #     crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
-    # )
-    code = subprocess.call(crisprme_run, shell=True)
+    code = subprocess.call(
+        crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
+    )
     if code != 0:
-        # log_verbose.close()
-        # log_error.close()
+        log_verbose.close()
+        log_error.close()
         raise OSError(
             f"\nCRISPRme run failed! See {os.path.join(outputfolder, 'log_error.txt')} for details\n"
         )
