@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 #
+from concurrent.futures import ThreadPoolExecutor
 import sys
 import datetime
 import os
@@ -431,19 +432,23 @@ def post_process(
 
     ##scope variables
     target_df = pd.read_csv(os.path.join(output_folder, target_file), sep="\t")
-    main_thread = threading.main_thread()
+    executor = ThreadPoolExecutor(max_workers=int(ncpus))
+    # main_thread = threading.main_thread()
     ##global variables
     global bestCFD_df
     global bestCRISTA_df
     global bestMMBUL_df
     global chr_df_dict
 
+    # with ThreadPoolExecutor(max_workers=1) as executor:
+    # future = executor.submit(pow, 323, 1235)
     for chr in chr_list:
-        t = threading.Thread(
-            target=variant_analisys,
-            args=(target_df, chr, vcf_data),
-        )
-        t.start()
+        # t = threading.Thread(
+        #     target=variant_analisys,
+        #     args=(target_df, chr, vcf_data),
+        # )
+        # t.start()
+        executor.submit(variant_analisys, target_df, chr, vcf_data)
         # target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
         # target_df_chr["PAM_gen"] = "n"
         # target_df_chr["Var_uniq"] = "n"
@@ -477,11 +482,11 @@ def post_process(
         # chr_df_dict[chr + "_MMBUL"] = df_MMBUL
         # chr_df_dict[chr + "_CRISTA"] = df_CRISTA
 
-    for t in threading.enumerate():
-        if t is main_thread:
-            continue
-        # logging.debug('joining %s', t.getName())
-        t.join()
+    # for t in threading.enumerate():
+    #     if t is main_thread:
+    #         continue
+    #     # logging.debug('joining %s', t.getName())
+    #     t.join()
 
     to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
     to_concat.append(bestCFD_df)
