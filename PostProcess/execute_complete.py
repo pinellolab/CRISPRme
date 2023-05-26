@@ -373,7 +373,7 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, do_ref=False)
     return 0
 
 
-def variant_analisys(target_df, chr: str):
+def variant_analisys(target_df: pd.DataFrame, chr: str, vcf_data: str):
     global chr_df_dict
     target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
     target_df_chr["PAM_gen"] = "n"
@@ -441,10 +441,7 @@ def post_process(
     for chr in chr_list:
         t = threading.Thread(
             target=variant_analisys,
-            args=(
-                target_df,
-                chr,
-            ),
+            args=(target_df, chr, vcf_data),
         )
         t.start()
         # target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
