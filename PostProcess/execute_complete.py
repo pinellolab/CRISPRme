@@ -488,6 +488,9 @@ def post_process(
     #     # logging.debug('joining %s', t.getName())
     #     t.join()
 
+    ##wait for all threads to finish
+    executor.shutdown(wait=True)
+
     to_concat = [chr_df_dict[key + "_CFD"] for key in chr_list]
     to_concat.append(bestCFD_df)
     bestCFD_df = pd.concat(to_concat, axis=0)
