@@ -138,9 +138,9 @@ def calc_cfd(guide_seq, sg, pam, mm_scores, pam_scores, do_scores):
                 Exception
             ) as e:  # If '-' is in first position, i do not have the score for that position
                 pass
-    print(sg)
-    print(guide_seq)
-    print(pam)
+    # print(sg)
+    # print(guide_seq)
+    # print(pam)
     if "N" in pam:
         score *= 1
     else:
@@ -852,7 +852,7 @@ def start_processing(target_list: list, data_dict: dict) -> list:
         final_result.append(33)
         # position of tmp_mms (removed later after processing)
         final_result.append(0)
-        print("final_result", final_result)
+        # print("final_result", final_result)
         cluster_to_save.append(final_result)
 
     clusters_with_scores = calculate_scores(cluster_to_save, data_dict)

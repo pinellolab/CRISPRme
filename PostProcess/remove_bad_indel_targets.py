@@ -21,6 +21,7 @@ def remove_bad_indels(target_list: list) -> list:
 
     checked_list = list()
     for line in target_list:
+        print(line)
         splitted = line
         if splitted[18] != "n":
             indel_info = splitted[18].split("_")
