@@ -341,6 +341,7 @@ def rev_comp(a):
 def preprocess_CFD_score(target, data_dict):
     # preprocess target then calculate CFD score
     if data_dict["do_scores"]:
+        print(target)
         if target[0] == "DNA":
             cfd_score = calc_cfd(
                 target[1][int(target[data_dict["bulge_pos"]]) :],
@@ -799,7 +800,7 @@ def start_processing(target_list: list, data_dict: dict) -> list:
     cluster_to_save = list()
 
     for line in target_list:
-        print("line in INDEL analysis", line)
+        # print("line in INDEL analysis", line)
         # print("line in INDEL analysis", line)
         # line = line.strip().split("\t")
         # print(line)
