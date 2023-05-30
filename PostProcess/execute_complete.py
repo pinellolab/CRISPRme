@@ -232,6 +232,7 @@ def generate_dict(vcf_data):
         )
         fake_chr_list = [x.replace("my_dict_", "") for x in fake_chr_list]
         fake_chr_list = [x.replace(".json", "") for x in fake_chr_list]
+        fake_chr_list = ["fake" + x for x in fake_chr_list]
 
         return 0
 
@@ -440,7 +441,7 @@ def post_process(
     global bestMMBUL_df
     global chr_df_dict
 
-    write_to_verbose("chr list is: " + "\n".join(chr_list))
+    # write_to_verbose("chr list is: " + "\n".join(chr_list))
 
     for chr in chr_list:
         executor.submit(variant_analysis, target_df, chr, vcf_data)
@@ -484,7 +485,7 @@ def post_process_indels(
     bestCRISTA_df_indel = pd.DataFrame()
     bestMMBUL_df_indel = pd.DataFrame()
 
-    write_to_verbose("fake chr list is: " + "\n".join(fake_chr_list))
+    # write_to_verbose("fake chr list is: \n" + "\n".join(fake_chr_list))
 
     for chr in fake_chr_list:
         target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
