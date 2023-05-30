@@ -341,7 +341,7 @@ def rev_comp(a):
 def preprocess_CFD_score(target, data_dict):
     # preprocess target then calculate CFD score
     if data_dict["do_scores"]:
-        print(target)
+        # print(target)
         if target[0] == "DNA":
             cfd_score = calc_cfd(
                 target[1][int(target[data_dict["bulge_pos"]]) :],
