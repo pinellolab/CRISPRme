@@ -799,6 +799,7 @@ def start_processing(target_list: list, data_dict: dict) -> list:
     cluster_to_save = list()
 
     for line in target_list:
+        print("line in INDEL analysis", line)
         # print("line in INDEL analysis", line)
         # line = line.strip().split("\t")
         # print(line)
