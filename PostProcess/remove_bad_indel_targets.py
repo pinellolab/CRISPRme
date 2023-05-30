@@ -21,13 +21,12 @@ def remove_bad_indels(target_list: list) -> list:
 
     checked_list = list()
     for line in target_list:
-        print(line)
         splitted = line
-        if splitted[18] != "n":
-            indel_info = splitted[18].split("_")
+        if splitted[17] != "n":
+            indel_info = splitted[17].split("_")
             start_indel = int(indel_info[1])
             if len(indel_info[2]) == len(indel_info[3]):
-                continue  ##to avoid indels with same length as target
+                continue  ##no need to fix indels that have same ref-var length
             if len(indel_info[2]) < len(indel_info[3]):
                 range_indel = range(start_indel, start_indel + len(indel_info[3]))
             else:
