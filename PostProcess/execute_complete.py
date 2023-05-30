@@ -575,6 +575,7 @@ def fix_columns():
 
 
 def write_final_df():
+    write_to_verbose(f"Starting write final df")
     ##write final results
     bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
     altCFD_df.to_csv(altCFD_file, sep="\t", index=False, mode="w")
@@ -583,6 +584,7 @@ def write_final_df():
     bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
     altMMBUL_df.to_csv(altMMBUL_file, sep="\t", index=False, mode="w")
 
+    write_to_verbose(f"Write final df END")
     return 0
 
 
