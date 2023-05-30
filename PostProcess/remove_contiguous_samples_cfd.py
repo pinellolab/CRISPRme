@@ -184,6 +184,12 @@ def merge_results(target_list: list, tau: int, sort_order: str, header: dict) ->
     discard_list_final = list()
     tmp_best_list = list()
     tmp_discard_list = list()
+    prev_pos = -(tau + 1)
+    # best_row = str()
+    prev_guide = str()
+    prev_chr = str()
+    # prev_snp = str()
+    cluster = list()
 
     ##HEADER DA USARE PER IDENTIFICARE LE COLONNE
     # #Bulge_type
@@ -209,19 +215,12 @@ def merge_results(target_list: list, tau: int, sort_order: str, header: dict) ->
     # CFD
     # CFD_ref
 
-    chrom = 4  # chromosome position in target
-    pos = 6  # position of target
-    total = 10  # mm+bul value position
-    true_guide = 15  # real guide used in the search
-    snp_info = 18  # snp_info position(ref_alt_allele)
-    cfd = 20  # score position
-
-    prev_pos = -(tau + 1)
-    best_row = ""
-    prev_guide = ""
-    prev_chr = ""
-    prev_snp = ""
-    cluster = list()
+    # chrom = 4  # chromosome position in target
+    # pos = 6  # position of target
+    # total = 10  # mm+bul value position
+    # true_guide = 15  # real guide used in the search
+    # snp_info = 18  # snp_info position(ref_alt_allele)
+    # cfd = 20  # score position
 
     for line in target_list:
         splitted = line
@@ -243,10 +242,10 @@ def merge_results(target_list: list, tau: int, sort_order: str, header: dict) ->
             cluster = [splitted]
         else:
             cluster.append(splitted)
-        prev_guide = splitted[true_guide]
-        prev_pos = int(splitted[pos])
-        prev_chr = splitted[chrom]
-        prev_snp = splitted[snp_info]
+        prev_guide = splitted[header["Real_Guide"]]
+        prev_pos = int(splitted[header["Cluster_Position"]])
+        prev_chr = splitted[header["Chromosome"]]
+        # prev_snp = splitted[header["SNP"]]
 
     tmp_best_list, tmp_discard_list = get_best_targets(
         cluster,
@@ -259,16 +258,3 @@ def merge_results(target_list: list, tau: int, sort_order: str, header: dict) ->
     discard_list_final.extend(tmp_discard_list)
 
     return best_list_final, discard_list_final
-
-
-# start = time.time()
-# with open(sys.argv[1], "r") as fileIn:
-#     header = fileIn.readline()
-#     with open(sys.argv[2], "w") as fileOut:
-#         with open(sys.argv[2] + ".discarded_samples", "w") as fileOut_disc:
-#             fileOut.write(header)
-#             fileOut_disc.write(header)
-
-
-# shutil.move(sys.argv[2], sys.argv[1])## uncomment to overwrite the input file
-# print("Merging done in: " + str(time.time() - start))

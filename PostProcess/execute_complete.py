@@ -574,6 +574,18 @@ def fix_columns():
     write_to_verbose(f"Fix columns END")
 
 
+def write_final_df():
+    ##write final results
+    bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    altCFD_df.to_csv(altCFD_file, sep="\t", index=False, mode="w")
+    bestCRISTA_df.to_csv(bestCRISTA_file, sep="\t", index=False, mode="w")
+    altCRISTA_df.to_csv(altCRISTA_file, sep="\t", index=False, mode="w")
+    bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
+    altMMBUL_df.to_csv(altMMBUL_file, sep="\t", index=False, mode="w")
+
+    return 0
+
+
 def merge_results():
     write_to_verbose(f"Starting merge results")
     write_to_log(f"Merge Results\tStart\t" + str(datetime.datetime.now()))
@@ -606,8 +618,8 @@ def merge_results():
     )
     bestCFD_df = pd.DataFrame(best_list, columns=bestCFD_df.columns.tolist())
     altCFD_df = pd.DataFrame(discard_list, columns=bestCFD_df.columns.tolist())
-    bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
-    altCFD_df.to_csv(altCFD_file, sep="\t", index=False, mode="w")
+    # bestCFD_df.to_csv(bestCFD_file, sep="\t", index=False, mode="w")
+    # altCFD_df.to_csv(altCFD_file, sep="\t", index=False, mode="w")
 
     ##CRISTA PROCESSING
     bestCRISTA_df.sort_values(
@@ -623,8 +635,8 @@ def merge_results():
     )
     bestCRISTA_df = pd.DataFrame(best_list, columns=bestCRISTA_df.columns.tolist())
     altCRISTA_df = pd.DataFrame(discard_list, columns=bestCRISTA_df.columns.tolist())
-    bestCRISTA_df.to_csv(bestCRISTA_file, sep="\t", index=False, mode="w")
-    altCRISTA_df.to_csv(altCRISTA_file, sep="\t", index=False, mode="w")
+    # bestCRISTA_df.to_csv(bestCRISTA_file, sep="\t", index=False, mode="w")
+    # altCRISTA_df.to_csv(altCRISTA_file, sep="\t", index=False, mode="w")
 
     ##MMBUL PROCESSING
     bestMMBUL_df.sort_values(
@@ -640,8 +652,8 @@ def merge_results():
     )
     bestMMBUL_df = pd.DataFrame(best_list, columns=bestMMBUL_df.columns.tolist())
     altMMBUL_df = pd.DataFrame(discard_list, columns=bestMMBUL_df.columns.tolist())
-    bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
-    altMMBUL_df.to_csv(altMMBUL_file, sep="\t", index=False, mode="w")
+    # bestMMBUL_df.to_csv(bestMMBUL_file, sep="\t", index=False, mode="w")
+    # altMMBUL_df.to_csv(altMMBUL_file, sep="\t", index=False, mode="w")
 
     write_to_verbose(f"Merge results END")
     write_to_log(f"Merge Results\tEnd\t" + str(datetime.datetime.now()))
@@ -691,3 +703,4 @@ for vcf_data in vcf_list_checked:
 
 fix_columns()
 merge_results()
+write_final_df()  ##use only to test (print final dfs to file)
