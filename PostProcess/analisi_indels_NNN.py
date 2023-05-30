@@ -138,7 +138,9 @@ def calc_cfd(guide_seq, sg, pam, mm_scores, pam_scores, do_scores):
                 Exception
             ) as e:  # If '-' is in first position, i do not have the score for that position
                 pass
-    # print(pam)
+    print(sg)
+    print(guide_seq)
+    print(pam)
     if "N" in pam:
         score *= 1
     else:
