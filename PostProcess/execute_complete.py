@@ -501,9 +501,7 @@ def post_process_indels(
         ## convert df to list to be processed
         target_df_chr = target_df_chr.values.tolist()
         data_to_process = ain.init(
-            fasta_path=os.path.join(
-                ref_folder + "+" + vcf_data + "_INDELS", chr + ".fa"
-            ),
+            fasta_path=os.path.join(ref_folder, chr.replace("fake", "") + ".fa"),
             indel_dict_path=os.path.join(
                 dictionaries_folder,
                 "log_indels_" + vcf_data,
