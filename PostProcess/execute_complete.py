@@ -374,7 +374,7 @@ def search(ref_name, vcf_data, pam_seq, bMax, ncpus, mm, pam_name, do_ref=False)
     return 0
 
 
-def variant_analisys(target_df: pd.DataFrame, chr: str, vcf_data: str):
+def variant_analysis(target_df: pd.DataFrame, chr: str, vcf_data: str):
     global chr_df_dict
     target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
     target_df_chr["PAM_gen"] = "n"
@@ -440,53 +440,8 @@ def post_process(
     global bestMMBUL_df
     global chr_df_dict
 
-    # with ThreadPoolExecutor(max_workers=1) as executor:
-    # future = executor.submit(pow, 323, 1235)
     for chr in chr_list:
-        # t = threading.Thread(
-        #     target=variant_analisys,
-        #     args=(target_df, chr, vcf_data),
-        # )
-        # t.start()
-        executor.submit(variant_analisys, target_df, chr, vcf_data)
-        # target_df_chr = target_df.loc[target_df["Chromosome"] == chr]
-        # target_df_chr["PAM_gen"] = "n"
-        # target_df_chr["Var_uniq"] = "n"
-        # target_df_chr["Samples"] = "n"
-        # target_df_chr["Annotation_type"] = "n"
-        # target_df_chr["Real_Guide"] = target_df_chr["crRNA"].str.replace("-", "")
-        # target_df_chr["rsID"] = "n"
-        # target_df_chr["AF"] = "n"
-        # target_df_chr["SNP_position"] = "n"
-
-        # ## convert df to list to be processed
-        # target_df_chr = target_df_chr.values.tolist()
-        # data_to_process = nsa.init(
-        #     fasta_file=os.path.join(ref_folder, chr + ".fa"),
-        #     pam_file=pam_file,
-        #     dictionary_file=os.path.join(
-        #         dictionaries_folder,
-        #         "dictionaries_" + vcf_data,
-        #         "my_dict_" + chr + ".json",
-        #     ),
-        #     allowed_mms=int(mm),
-        # )
-        # ##return list of lists with targets scored by CFD,MMBUL,CRISTA
-        # lists_of_targets_list = nsa.start_processing(target_df_chr, data_to_process)
-
-        # ##convert list of lists to df
-        # df_CFD = pd.DataFrame(lists_of_targets_list[0], columns=header)
-        # df_MMBUL = pd.DataFrame(lists_of_targets_list[1], columns=header)
-        # df_CRISTA = pd.DataFrame(lists_of_targets_list[2], columns=header)  # type: ignore
-        # chr_df_dict[chr + "_CFD"] = df_CFD
-        # chr_df_dict[chr + "_MMBUL"] = df_MMBUL
-        # chr_df_dict[chr + "_CRISTA"] = df_CRISTA
-
-    # for t in threading.enumerate():
-    #     if t is main_thread:
-    #         continue
-    #     # logging.debug('joining %s', t.getName())
-    #     t.join()
+        executor.submit(variant_analysis, target_df, chr, vcf_data)
 
     ##wait for all threads to finish
     executor.shutdown(wait=True)
@@ -541,7 +496,9 @@ def post_process_indels(
         ## convert df to list to be processed
         target_df_chr = target_df_chr.values.tolist()
         data_to_process = ain.init(
-            fasta_path=os.path.join(ref_folder, chr + ".fa"),
+            fasta_path=os.path.join(
+                ref_folder + "_" + vcf_data + "_INDELS", chr + ".fa"
+            ),
             indel_dict_path=os.path.join(
                 dictionaries_folder,
                 "log_indels_" + vcf_data,
