@@ -852,6 +852,7 @@ def start_processing(target_list: list, data_dict: dict) -> list:
         final_result.append(33)
         # position of tmp_mms (removed later after processing)
         final_result.append(0)
+        print("final_result", final_result)
         cluster_to_save.append(final_result)
 
     clusters_with_scores = calculate_scores(cluster_to_save, data_dict)
