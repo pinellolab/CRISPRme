@@ -18,7 +18,8 @@ RUN apt update
 RUN apt upgrade -y
 
 #Install crisprme package
-RUN conda install python=3.8 -y
+RUN conda update -n base -c defaults conda
 RUN conda update --all -y
+RUN conda install python=3.8 -y
 RUN conda install crisprme -y
 RUN conda update crisprme -y
