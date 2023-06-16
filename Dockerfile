@@ -21,5 +21,6 @@ RUN apt upgrade -y
 RUN conda update -n base -c defaults conda
 RUN conda update --all -y
 RUN conda install python=3.8 -y
+RUN conda install crispritz -y
 RUN conda install crisprme=2.1.1 -y
 
