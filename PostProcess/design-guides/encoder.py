@@ -1,45 +1,94 @@
 """
 """
 
-from bitset import Bitset, SIZE
+from .bitset import Bitset, SIZE
+from .utils import IUPAC
 
 from typing import List
 
 import numpy as np
 
-IUPAC = ["A", "C", "G", "T", "R", "Y", "S", "W", "M", "B", "D", "H", "V", "N"]
-
 
 def encoder(nt: str, position: int) -> Bitset:  # type: ignore
+    """
+    Encodes a nucleotide into a Bitset based on the IUPAC encoding scheme.
+
+    Args:
+        nt (str): The nucleotide to encode.
+        position (int): The position of the nucleotide.
+
+    Raises:
+        TypeError: If nt is not a string.
+        ValueError: If nt is not a valid IUPAC character.
+
+    Returns:
+        Bitset: The encoded Bitset.
+
+    Example:
+        ```python
+        encoded = encoder("A", 0)
+        print(encoded)  # Output: '0001'
+        ```
+    """
+    if not isinstance(nt, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(nt).__name__}")
     if nt not in IUPAC:
         raise ValueError(
             f"The nucleotide {nt} (position {position}) is not a IUPAC character"
         )
     bitset = Bitset(SIZE)  # 4 - bits encoder
-    if nt == IUPAC[0]:  # A
+    if nt == IUPAC[0]:  # A - 0001
         bitset.set(0)
-    elif nt == IUPAC[1]:  # C
+    elif nt == IUPAC[1]:  # C - 0010
         bitset.set(1)
-    elif nt == IUPAC[2]:  # G
+    elif nt == IUPAC[2]:  # G - 0100
         bitset.set(2)
-    elif nt == IUPAC[3]:  # T
+    elif nt == IUPAC[3]:  # T - 1000
         bitset.set(3)
-    elif nt == IUPAC[4]:  # R
-        bitset.set(0), bitset.set(2)
-    elif nt == IUPAC[5]:  # Y
-        bitset.set(1), bitset.set(3)
-    elif nt == IUPAC[6]:  # S
-        bitset.set(1), bitset.set(2)
-    elif nt == IUPAC[7]:  # W
-        bitset.set(0), bitset.set(3)
-    elif nt == IUPAC[8]:
-        bitset.set(2), bitset.set(3)
-    elif nt == IUPAC[9]:
-        bitset.set(0), bitset.set(1)
-    elif nt == IUPAC[10]:
-        bitset.set(0), bitset.set(3)
+    elif nt == IUPAC[4]:  # R - 0101
+        bitset.set_bits("0101")
+    elif nt == IUPAC[5]:  # Y - 1010
+        bitset.set_bits("1010")
+    elif nt == IUPAC[6]:  # S - 0110
+        bitset.set_bits("0110")
+    elif nt == IUPAC[7]:  # W  - 1001
+        bitset.set_bits("1001")
+    elif nt == IUPAC[8]:  # K - 1100
+        bitset.set_bits("1100")
+    elif nt == IUPAC[9]:  # M - 0011
+        bitset.set_bits("0011")
+    elif nt == IUPAC[10]:  # B - 1110
+        bitset.set_bits("1110")
+    elif nt == IUPAC[11]:  # D - 1101
+        bitset.set_bits("1101")
+    elif nt == IUPAC[12]:  # H - 1011
+        bitset.set_bits("1011")
+    elif nt == IUPAC[13]:  # V - 0111
+        bitset.set_bits("0111")
+    else:  # N - 0000
+        assert str(bitset) == "0000"
     return bitset
 
 
-def encode(sequence: str) -> List[Bitset]:
-    pass
+def encode_pam(pam: str) -> List[Bitset]:  # type: ignore
+    """
+    Encodes a PAM sequence into a list of Bitsets using the IUPAC encoding scheme.
+
+    Args:
+        pam (str): The PAM sequence to encode.
+
+    Raises:
+        TypeError: If pam is not a string.
+
+    Returns:
+        List[Bitset]: The list of encoded Bitsets.
+
+    Example:
+        ```python
+        encoded_pam = encode_pam("NGG")
+        print(encoded_pam)  # Output: [Bitset('0000'), Bitset('0100'), Bitset('0100')]
+        ```
+    """
+    if not isinstance(pam, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(pam).__name__}")
+    return [encoder(nt, i) for i, nt in enumerate(pam)]
