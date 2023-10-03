@@ -3,7 +3,16 @@ import argparse
 
 
 def read_pam(pam_file:str)->list:
+    """_summary_
+
+    Args:
+        pam_file (str): _description_
+
+    Returns:
+        list: _description_
+    """    
     file=open(pam_file,'r')
+    
     pam=file.readline().strip().split(" ")
     pam_seq=pam[0]
     pam_len=pam[1]
@@ -11,14 +20,24 @@ def read_pam(pam_file:str)->list:
         pam_in_start=False
     else:
         pam_in_start=True
-    
+    guide_len=len(pam_seq)-abs(int(pam_len))
     file.close()
     
-    return [pam_seq,abs(int(pam_len)),pam_in_start]
+    return [pam_seq,abs(int(pam_len)),guide_len,pam_in_start]
 
 def read_sequence(genome_file:str)->str:
+    """_summary_
+
+    Args:
+        genome_file (str): _description_
+
+    Returns:
+        str: _description_
+    """    
     file=open(genome_file,'r')
+    
     genome=file.readlines()
+    genome=[x.strip().upper() for x in genome]
     genome="".join(genome[1:])
     
     file.close()
@@ -26,6 +45,14 @@ def read_sequence(genome_file:str)->str:
     return genome
 
 def read_coordinate(coordinate_file:str)->list:
+    """_summary_
+
+    Args:
+        coordinate_file (str): _description_
+
+    Returns:
+        list: _description_
+    """    
     file=open(coordinate_file,'r')
     coordinate_list=file.readlines()
     final_list=list()
@@ -35,26 +62,3 @@ def read_coordinate(coordinate_file:str)->list:
     file.close()
     
     return final_list
-
-
-
-
-parser = argparse.ArgumentParser(description='Given input fasta file, chromosome coordinates file (BED format) and PAM sequence, find all possible sgRNA guides in the fasta file (SUPPORTS IUPAC NOTATIONS)')
-parser.add_argument('--fasta', type=str, help='fasta file',dest='genome_file')
-parser.add_argument('--pam', type=str, help='PAM file',dest='pam_file')
-parser.add_argument('--coordinate', type=str, help='bed file',dest='coordinate_file')
-
-
-args=parser.parse_args()
-print(args.genome_file)
-print(args.pam_file)
-print(args.coordinate_file)
-
-ll=read_coordinate(args.coordinate_file)
-print(ll)
-
-ll=read_pam(args.pam_file)
-print(ll)
-
-ll=read_sequence(args.genome_file)
-print(ll)
