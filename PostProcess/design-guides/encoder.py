@@ -92,3 +92,28 @@ def encode_pam(pam: str) -> List[Bitset]:  # type: ignore
     if not isinstance(pam, str):
         raise TypeError(f"Expected {str.__name__}, got {type(pam).__name__}")
     return [encoder(nt, i) for i, nt in enumerate(pam)]
+
+
+def encode_genome(genome: str) -> List[Bitset]:  # type: ignore
+    """
+    Encodes a given genome into a list of bitsets.
+
+    Args:
+        genome (str): The genome to encode.
+
+    Returns:
+        List[Bitset]: A list of bitsets representing the encoded genome.
+
+    Raises:
+        TypeError: Raised when the input genome is not a string.
+
+    Example:
+        ```python
+        genome = 'ATCG'
+        encoded_genome = encode_genome(genome)
+        print(encoded_genome)  # Output: [Bitset('0001'), Bitset('1000'), Bitset('0010'), Bitset('0100')]
+        ```
+    """
+    if not isinstance(genome, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(genome).__name__}")
+    return [encoder(nt, i) for i, nt in enumerate(genome)]
