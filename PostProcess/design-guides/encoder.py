@@ -1,8 +1,8 @@
 """
 """
 
-from .bitset import Bitset, SIZE
-from .utils import IUPAC
+from bitset import Bitset, SIZE
+from utils import IUPAC
 
 from typing import List
 
@@ -65,8 +65,10 @@ def encoder(nt: str, position: int) -> Bitset:  # type: ignore
         bitset.set_bits("1011")
     elif nt == IUPAC[13]:  # V - 0111
         bitset.set_bits("0111")
-    else:  # N - 0000
-        assert str(bitset) == "0000"
+    elif nt == IUPAC[14]:  # N - 1111
+        bitset.set_bits("1111")
+    # else:  # not a valid IUPAC character
+    #     assert str(bitset) == "0000"
     return bitset
 
 

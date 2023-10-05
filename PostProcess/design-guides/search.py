@@ -1,9 +1,9 @@
 """
 """
 
-from .bitset import Bitset
-from .utils import reverse_complement
-from .encoder import encode_pam, encode_genome
+from bitset import Bitset
+from utils import reverse_complement
+from encoder import encode_pam, encode_genome
 
 from typing import List, Tuple
 
@@ -68,12 +68,15 @@ def match_pam(
         ```
     """
     mm_fwd, mm_rev = 0, 0
+    # print('biset forward pam',pam[0])
+    # print('biset reverse pam',pam[1])
+    # print('bitset genome',genome)
     for i in range(pam_length):
         if not (genome[i] & pam[0][i]).to_bool():  # forward
             mm_fwd += 1
         if not (genome[i] & pam[1][i]).to_bool():  # reverse
             mm_rev += 1
-    return (mm_fwd < mm_max, mm_rev < mm_max)
+    return (mm_fwd <= mm_max, mm_rev <= mm_max)
 
 
 def match_genome(
@@ -113,7 +116,7 @@ def match_genome(
     positions_pam = ([], [])
     for i in range(len(genome) - pam_length + 1):
         matching_pam = match_pam(genome[i : (i + pam_length)], pam, pam_length, mm_max)
-        if pam_in_start:  # pam at 3'
+        if pam_in_start:  # pam at 5' (designed to match the forward strand at 5' end of the sequence)
             if matching_pam[0] and i < (
                 len(genome) - guide_pam_len + 1
             ):  # match on forward strand
@@ -122,7 +125,7 @@ def match_genome(
                 pamidx = (i + pam_length - 1) - (guide_pam_len - 1)
                 if pamidx >= 0:
                     positions_pam[1].append(pamidx)
-        else:  # pam at 5'
+        else:  # pam at 3' (designed to match the forward strand at 3' end of the sequence)
             if matching_pam[0]:  # match on forward strand
                 pamidx = (i + pam_length - 1) - (guide_pam_len - 1)
                 if pamidx >= 0:

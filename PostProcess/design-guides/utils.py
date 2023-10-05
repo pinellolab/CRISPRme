@@ -63,4 +63,4 @@ def reverse_complement(sequence: str) -> str:
         print(reverse_complement)  # Output: 'CGAT'
         ```
     """
-    return "".join([complement(nt) for nt in sequence])
+    return "".join([complement(nt) for nt in sequence[::-1]])

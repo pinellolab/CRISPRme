@@ -19,3 +19,6 @@ PostProcess/dnaShape.pkl
 PostProcess/design-guides/chr10.fa
 PostProcess/design-guides/crisprme_test.tar.gz
 PostProcess/design-guides/coordinates.bed
+PostProcess/design-guides/output.py
+PostProcess/design-guides/test.fa
+PostProcess/design-guides/guides_out.summary.tsv

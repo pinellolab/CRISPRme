@@ -1,7 +1,3 @@
-import argparse
-
-
-
 def read_pam(pam_file:str)->list:
     """_summary_
 
@@ -20,12 +16,18 @@ def read_pam(pam_file:str)->list:
         pam_in_start=False
     else:
         pam_in_start=True
+    
     guide_len=len(pam_seq)-abs(int(pam_len))
+    
+    if pam_in_start:
+        pam_seq=pam_seq[:abs(int(pam_len))]
+    else:
+        pam_seq=pam_seq[-abs(int(pam_len)):]
     file.close()
     
     return [pam_seq,abs(int(pam_len)),guide_len,pam_in_start]
 
-def read_sequence(genome_file:str)->str:
+def read_sequence(genome_file:str)->list:
     """_summary_
 
     Args:
@@ -38,11 +40,12 @@ def read_sequence(genome_file:str)->str:
     
     genome=file.readlines()
     genome=[x.strip().upper() for x in genome]
+    chr_name=genome[0].replace(">","").lower()
     genome="".join(genome[1:])
     
     file.close()
     
-    return genome
+    return [genome,chr_name]
 
 def read_coordinate(coordinate_file:str)->list:
     """_summary_
@@ -53,12 +56,13 @@ def read_coordinate(coordinate_file:str)->list:
     Returns:
         list: _description_
     """    
+    
     file=open(coordinate_file,'r')
     coordinate_list=file.readlines()
-    final_list=list()
+    coordinates_list=list()
     for coord in coordinate_list:
         coord=coord.strip().split(" ")
-        final_list.append([coord[0],int(coord[1]),int(coord[2])])      
+        coordinates_list.append([coord[0],int(coord[1]),int(coord[2])])      
     file.close()
     
-    return final_list
+    return coordinates_list
