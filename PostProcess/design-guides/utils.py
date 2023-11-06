@@ -1,6 +1,8 @@
 """
 """
 
+from typing import List
+
 # constant variables
 IUPAC = ["A", "C", "G", "T", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N"]
 RC = {
@@ -17,6 +19,23 @@ RC = {
     "B": "V",
     "V": "B",
     "N": "N",
+}
+IUPACTABLE = {
+    "A": "A",
+    "C": "C",
+    "G": "G",
+    "T": "T",
+    "R": "AG",
+    "Y": "CT",
+    "M": "AC",
+    "K": "GT",
+    "S": "CG",
+    "W": "AT",
+    "H": "ACT",
+    "B": "CGT",
+    "V": "ACG",
+    "D": "AGT",
+    "N": "ACGT",
 }
 
 

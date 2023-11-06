@@ -1,4 +1,11 @@
 """
+This file contains the implementation of the `Bitset` class, which represents a fixed-size bit set.
+
+The `Bitset` class provides methods for initializing a Bitset instance, performing bitwise operations, setting and resetting bits, converting the Bitset to a boolean value, and testing the value of individual bits.
+
+The file also includes a set of helper functions for manipulating and encoding bit strings.
+
+Please refer to the code for more details on each class and function.
 """
 
 SIZE = 4

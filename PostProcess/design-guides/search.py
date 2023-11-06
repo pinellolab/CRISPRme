@@ -116,7 +116,9 @@ def match_genome(
     positions_pam = ([], [])
     for i in range(len(genome) - pam_length + 1):
         matching_pam = match_pam(genome[i : (i + pam_length)], pam, pam_length, mm_max)
-        if pam_in_start:  # pam at 5' (designed to match the forward strand at 5' end of the sequence)
+        if (
+            pam_in_start
+        ):  # pam at 5' (designed to match the forward strand at 5' end of the sequence)
             if matching_pam[0] and i < (
                 len(genome) - guide_pam_len + 1
             ):  # match on forward strand
