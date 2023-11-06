@@ -1,4 +1,15 @@
 """
+This file contains functions for designing guides for CRISPR/Cas9 genome editing.
+
+The file includes the following functions:
+
+- `read_pam(pamfile: str) -> PAM`: Reads the PAM (Protospacer Adjacent Motif) sequence from a file and returns a `PAM` object.
+- `read_genome(genome: str) -> pysam.FastaFile`: Reads the genome sequence from a file and returns a `pysam.FastaFile` object.
+- `read_coordinates(bedfile: str) -> List[Tuple[str, int, int]]`: Reads genomic coordinates from a BED file and returns a list of tuples.
+- `design_guides(pamfile: str, genome: str, bedfile: str, mm_max: int, outname: str) -> None`: Designs guides for CRISPR/Cas9 genome editing based on the PAM sequence, genome sequence, BED file, maximum number of mismatches, and output file name.
+- `extract_guides_from_genome(positions: Tuple, genome: str, guide_len: int, pam_len: int, pam_in_start: bool) -> list`: Extracts guides from the genome based on the given positions, guide length, PAM length, and PAM position.
+
+Please refer to the code for more details on each function.
 """
 
 from utils import reverse_complement
@@ -13,14 +24,65 @@ import pysam
 
 
 def read_pam(pamfile: str) -> PAM:
+    """
+    Reads the PAM (Protospacer Adjacent Motif) sequence from a file and returns a PAM object.
+
+    Args:
+        pamfile (str): The path to the PAM file.
+
+    Returns:
+        PAM: A PAM object representing the PAM sequence.
+
+    Example:
+        ```python
+        pamfile = "path/to/pam.txt"
+        pam = read_pam(pamfile)
+        ```
+    """
+
     return PAM(pamfile)
 
 
 def read_genome(genome: str) -> pysam.FastaFile:
+    """
+    Reads the genome sequence from a file and returns a `pysam.FastaFile` object.
+
+    Args:
+        genome (str): The path to the genome file.
+
+    Returns:
+        pysam.FastaFile: A `pysam.FastaFile` object representing the genome sequence.
+
+    Example:
+        ```python
+        genome_file = "path/to/genome.fasta"
+        genome = read_genome(genome_file)
+        ```
+    """
+
     return pysam.FastaFile(genome)  # load FastaFile object
 
 
 def read_coordinates(bedfile: str) -> List[Tuple[str, int, int]]:
+    """
+    Reads genomic coordinates from a BED file and returns a list of tuples.
+
+    Args:
+        bedfile (str): The path to the BED file.
+
+    Returns:
+        List[Tuple[str, int, int]]: A list of tuples representing the genomic coordinates.
+
+    Raises:
+        IOError: If the BED file parsing fails.
+
+    Example:
+        ```python
+        bedfile = "path/to/coordinates.bed"
+        coordinates = read_coordinates(bedfile)
+        ```
+    """
+
     try:
         with open(bedfile, mode="r") as infile:
             coordinates = [
@@ -33,20 +95,33 @@ def read_coordinates(bedfile: str) -> List[Tuple[str, int, int]]:
     return coordinates
 
 
-def extract_sequences(
-    genome: pysam.FastaFile, coords: List[Tuple[str, int, int]]
-) -> str:
-    try:
-        sequences = [genome.fetch(coord[0], coord[1], coord[2]) for coord in coords]
-    except ValueError as e:
-        raise ValueError("Sequence extraction failed!") from e
-    assert len(sequences) == len(coords)  # should match
-    return "N".join(sequences)  # N is sequence separator
-
-
 def design_guides(
     pamfile: str, genome: str, bedfile: str, mm_max: int, outname: str
 ) -> None:
+    """
+    Designs guides for CRISPR/Cas9 genome editing based on the given PAM sequence, genome sequence, BED file, maximum number of mismatches, and output file name.
+
+    Args:
+        pamfile (str): The path to the PAM file.
+        genome (str): The path to the genome file.
+        bedfile (str): The path to the BED file (optional).
+        mm_max (int): The maximum number of mismatches allowed.
+        outname (str): The name of the output file.
+
+    Returns:
+        None
+
+    Example:
+        ```python
+        pamfile = "path/to/pam.txt"
+        genome = "path/to/genome.fasta"
+        bedfile = "path/to/bedfile.bed"
+        mm_max = 2
+        outname = "output.txt"
+        design_guides(pamfile, genome, bedfile, mm_max, outname)
+        ```
+    """
+
     pam = read_pam(pamfile)  # read PAM
     pam_bits = encode_pam(pam.pam), encode_pam(reverse_complement(pam.pam))
     sequence = read_genome(genome)
@@ -75,78 +150,5 @@ def design_guides(
         )
         for seqname in sequence_bits
     }
-
-    # print(sequence["chr_test"][88:112].upper())
-    # print(sequence["chr_test"][95:119].upper())
-    # print(sequence["chr_test"][105:129].upper())
-    # print(sequence["chr_test"][127:151].upper())
-    # print(sequence["chr_test"][150:174].upper())
-
     # write report and guides file
     recover_guides(pam_positions, sequence, pam, outname)
-
-
-def extract_guides_from_genome(
-    positions: Tuple, genome: str, guide_len: int, pam_len: int, pam_in_start: bool
-) -> list:
-    """_summary_
-
-    Args:
-        positions (Tuple): _description_
-        genome (str): _description_
-        guide_len (int): _description_
-        pam_len (int): _description_
-        pam_in_start (bool): _description_
-
-    Returns:
-        list: _description_
-    """
-    guides_list = list()
-    ##pam at start == true
-    if pam_in_start:
-        for pos in positions[0]:
-            guide = genome[pos + pam_len : pos + pam_len + guide_len]  # type: ignore
-            if "N" in guide:
-                continue
-            guide = "N" * pam_len + guide
-            pam = genome[pos : pos + pam_len]
-            if "N" in pam:
-                continue
-            guides_list.append([guide, pam, "forward"])
-
-        for pos in positions[1]:
-            guide = genome[pos : pos + guide_len]
-            if "N" in guide:
-                continue
-            guide = reverse_complement(guide)
-            guide = "N" * pam_len + guide
-            pam = genome[pos + guide_len : pos + pam_len + guide_len]
-            if "N" in pam:
-                continue
-            guides_list.append([guide, pam, "reverse"])
-
-        return guides_list
-    else:
-        ##pam at start == false
-        for pos in positions[0]:
-            guide = genome[pos : pos + guide_len]
-            if "N" in guide:
-                continue
-            guide = guide + "N" * pam_len
-            pam = genome[pos + guide_len : pos + pam_len + guide_len]
-            if "N" in pam:
-                continue
-            guides_list.append([guide, pam, "forward"])
-
-        for pos in positions[1]:
-            guide = genome[pos + pam_len : pos + pam_len + guide_len]
-            if "N" in guide:
-                continue
-            guide = reverse_complement(guide)
-            guide = guide + "N" * pam_len
-            pam = genome[pos : pos + pam_len]
-            if "N" in pam:
-                continue
-            guides_list.append([guide, pam, "reverse"])
-
-    return guides_list

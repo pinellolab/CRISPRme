@@ -1,5 +1,16 @@
 """
+This file contains functions for searching and matching PAM (Protospacer Adjacent Motif) sequences in a genome.
+
+Functions:
+- `extract_pam(guide: str, pam_length: int, guide_pam_len: int, pam_in_start: bool) -> str`: Extracts the PAM sequence from a given guide sequence.
+- `match_pam(genome: List[Bitset], pam: Tuple[List[Bitset], List[Bitset]], pam_length: int, mm_max: int) -> Tuple[bool, bool]`: Matches the PAM sequence against a given genome.
+- `match_genome(genome: List[Bitset], pam: Tuple[List[Bitset], List[Bitset]], pam_length: int, guide_pam_len: int, mm_max: int, pam_in_start: bool) -> Tuple[List[int], List[int]]`: Matches the PAM sequence against a given genome and returns the positions of the matches.
+- `search_pam(guide: str, genome: str, pam_length: int, guide_pam_len: int, mm: int, pam_in_start: bool) -> None`: Searches for a PAM sequence in a given genome.
+
+Classes:
+None
 """
+
 
 from bitset import Bitset
 from utils import reverse_complement

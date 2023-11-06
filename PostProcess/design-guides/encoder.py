@@ -1,5 +1,15 @@
 """
+This file contains functions for encoding nucleotides and genomes using the IUPAC encoding scheme.
+
+The file includes the following functions:
+
+- `encoder(nt: str, position: int) -> Bitset`: Encodes a nucleotide into a Bitset based on the IUPAC encoding scheme.
+- `encode_pam(pam: str) -> List[Bitset]`: Encodes a PAM sequence into a list of Bitsets using the IUPAC encoding scheme.
+- `encode_genome(genome: str) -> List[Bitset]`: Encodes a given genome into a list of Bitsets.
+
+Please refer to the code for more details on each function.
 """
+
 
 from bitset import Bitset, SIZE
 from utils import IUPAC

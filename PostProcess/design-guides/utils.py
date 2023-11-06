@@ -1,5 +1,29 @@
 """
+This file contains utility functions for DNA sequence manipulation.
+
+Functions:
+- `complement(nt: str) -> str`: Returns the complement of a given nucleotide.
+- `reverse_complement(sequence: str) -> str`: Returns the reverse complement of a given DNA sequence.
+
+Constants:
+- `IUPAC`: A list of IUPAC characters representing nucleotides and their degenerate bases.
+- `RC`: A dictionary mapping nucleotides to their complement.
+- `IUPACTABLE`: A dictionary mapping IUPAC characters to their corresponding nucleotides.
+
+Note: The `complement` function raises a `KeyError` if a forbidden IUPAC character is encountered.
+
+Example:
+    ```python
+    nt = 'A'
+    complement = complement(nt)
+    print(complement)  # Output: 'T'
+
+    sequence = 'ATCG'
+    reverse_complement = reverse_complement(sequence)
+    print(reverse_complement)  # Output: 'CGAT'
+    ```
 """
+
 
 from typing import List
 
