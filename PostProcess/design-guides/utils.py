@@ -24,9 +24,6 @@ Example:
     ```
 """
 
-
-from typing import List
-
 # constant variables
 IUPAC = ["A", "C", "G", "T", "R", "Y", "S", "W", "K", "M", "B", "D", "H", "V", "N"]
 RC = {

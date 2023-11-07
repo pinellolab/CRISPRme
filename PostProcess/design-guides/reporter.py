@@ -150,90 +150,228 @@ def pad_guide(guide: str, pam_length: int, pam_at_beginning: bool):
     return guide + "N" * pam_length
 
 
-# TODO: improve
-def extract_guide_pam(
-    seqname: str,
-    positions: Tuple[List[int], List[int]],
-    genome: pysam.FastaFile,
-    pam: PAM,
-) -> List[List[str]]:
-    report = []
-    seqname, pos = process_seqname(
-        seqname
-    )  # recover seqname and relative start position
-    for p in positions[0]:  # forward
-        p += pos
-        start = p + len(pam) if pam.pam_at_beginning else p
+def fetch_sequence(sequence: pysam.FastaFile, chrom: str, start: int, end: int) -> str:
+    """
+    Fetches a DNA sequence from a given genomic region.
+
+    Args:
+        sequence (pysam.FastaFile): The sequence file.
+        chrom (str): The chromosome or sequence name.
+        start (int): The start position of the genomic region.
+        end (int): The end position of the genomic region.
+
+    Returns:
+        str: The fetched DNA sequence in uppercase.
+
+    Example:
+        ```python
+        sequence = pysam.FastaFile("genome.fasta")
+        chrom = "chr1"
+        start = 100
+        end = 200
+        fetched_sequence = fetch_sequence(sequence, chrom, start, end)
+        print(fetched_sequence)  # Output: 'ATCG...'
+        ```
+    """
+
+    return sequence.fetch(chrom, start, end).upper()
+
+
+def fecth_guides(
+    sequence: pysam.FastaFile, chrom: str, start: int, end: int, reverse: bool
+) -> List[str]:
+    """
+    Fetches DNA sequences from a given genomic region and returns a list of guide sequences.
+    If the guides contain IUPAC characters, the sequence is expanded in all its variants.
+
+    Args:
+        sequence (pysam.FastaFile): The sequence file.
+        chrom (str): The chromosome or sequence name.
+        start (int): The start position of the genomic region.
+        end (int): The end position of the genomic region.
+        reverse (bool): Flag indicating if the fetched sequences lies on the negative strand.
+
+    Returns:
+        List[str]: A list of fetched guide sequences.
+
+    Example:
+        ```python
+        sequence = pysam.FastaFile("genome.fasta")
+        chrom = "chr1"
+        start = 100
+        end = 200
+        reverse = True
+        fetched_guides = fetch_guides(sequence, chrom, start, end, reverse)
+        print(fetched_guides)  # Output: ['CGAT...', 'ATCG...', ...]
+        ```
+    """
+
+    # recover guide allowing IUPAC symbols in the sequence
+    guide_iupac = fetch_sequence(sequence, chrom, start, end)
+    if reverse:
+        guide_iupac = reverse_complement(guide_iupac)
+    if is_valid_sequence(guide_iupac):  # no N in the guide
+        return explode_iupac_sequence(guide_iupac)  # explode IUPAC sequences
+    return []
+
+
+def fetch_pams(
+    sequence: pysam.FastaFile, chrom: str, pos: int, pam: PAM, reverse: bool
+) -> str:
+    """
+    Fetches the PAM (Protospacer Adjacent Motif) sequence from a given genomic region.
+
+    Args:
+        sequence (pysam.FastaFile): The sequence file.
+        chrom (str): The chromosome or sequence name.
+        pos (int): The position of the PAM sequence.
+        pam (PAM): The PAM object.
+        reverse (bool): Flag indicating if the fetched sequence lies on the negative strand.
+
+    Returns:
+        str: The fetched PAM sequence.
+
+    Example:
+        ```python
+        sequence = pysam.FastaFile("genome.fasta")
+        chrom = "chr1"
+        pos = 100
+        pam = PAM("path/to/pam.txt")
+        reverse = True
+        fetched_pam = fetch_pams(sequence, chrom, pos, pam, reverse)
+        print(fetched_pam)  # Output: 'CGAT...'
+        ```
+    """
+
+    if reverse:  # reverse strand -> different start and end selection
+        start = pos + pam.guide_length if pam.pam_at_beginning else pos
         end = (
-            p + len(pam) + pam.guide_length
+            pos + len(pam) + pam.guide_length
             if pam.pam_at_beginning
-            else p + pam.guide_length
+            else pos + len(pam)
         )
-        guide_iupac = genome.fetch(seqname, start, end).upper()  # allow IUPAC chars
-        if is_valid_sequence(guide_iupac):
-            guides = explode_iupac_sequence(guide_iupac.upper())  # replace IUPAC chars
-            start = p if pam.pam_at_beginning else p + pam.guide_length
+    else:  # forward strand
+        start = pos if pam.pam_at_beginning else pos + pam.guide_length
+        end = (
+            pos + len(pam)
+            if pam.pam_at_beginning
+            else pos + len(pam) + pam.guide_length
+        )
+    pamsequence = fetch_sequence(sequence, chrom, start, end)
+    return pamsequence if is_valid_sequence(pamsequence) else ""
+
+
+def extract_guide_pam(
+    positions: List[int],
+    sequence: pysam.FastaFile,
+    pam: PAM,
+    seqname: str,
+    relpos: int,
+    reverse: bool,
+) -> List[str]:
+    """
+    Extracts guide sequences and their corresponding PAM sequences from a given genomic region.
+
+    Args:
+        positions (List[int]): The positions of the PAM sequences.
+        sequence (pysam.FastaFile): The sequence file.
+        pam (PAM): The PAM object.
+        seqname (str): The name of the sequence.
+        relpos (int): The relative position of the genomic region.
+        reverse (bool): Flag indicating if the extracted sequences lies on the negative strand.
+
+    Returns:
+        List[str]: A list of extracted guide sequences and their corresponding PAM sequences.
+
+    Example:
+        ```python
+        positions = [100, 200, 300]
+        sequence = pysam.FastaFile("genome.fasta")
+        pam = PAM("path/to/pam.txt")
+        seqname = "chr1"
+        relpos = 50
+        reverse = True
+        extracted_sequences = extract_guide_pam(positions, sequence, pam, seqname, relpos, reverse)
+        print(extracted_sequences)  # Output: ['CGAT...']
+        ```
+    """
+
+    report = []
+    for p in positions:
+        p += relpos
+        if reverse:  # reverse strand -> different start and end selection
+            start = p if pam.pam_at_beginning else p + len(pam)
             end = (
                 p + pam.guide_length
                 if pam.pam_at_beginning
                 else p + len(pam) + pam.guide_length
             )
-            pam_seq = genome.fetch(seqname, start, end)
-            if is_valid_sequence(pam_seq):
-                report.extend(
-                    list(
-                        map(
-                            str,
-                            [
-                                pad_guide(guide, len(pam), pam.pam_at_beginning),
-                                pam_seq,
-                                pam.guide_length,
-                                len(pam),
-                                seqname,
-                                p,
-                                "+",
-                            ],
-                        )
-                    )
-                    for guide in guides
-                )
-    for p in positions[1]:  # reverse
-        p += pos
-        start = p if pam.pam_at_beginning else p + len(pam)
-        end = (
-            p + pam.guide_length
-            if pam.pam_at_beginning
-            else p + len(pam) + pam.guide_length
-        )
-        print(p, start, end)
-        guide_iupac = reverse_complement(genome.fetch(seqname, start, end).upper())
-        if is_valid_sequence(guide_iupac):
-            guides = explode_iupac_sequence(guide_iupac)  # replace IUPAC chars
-            start = p + pam.guide_length if pam.pam_at_beginning else p
+        else:  # forward strand
+            start = p + len(pam) if pam.pam_at_beginning else p
             end = (
                 p + len(pam) + pam.guide_length
                 if pam.pam_at_beginning
-                else p + len(pam)
+                else p + pam.guide_length
             )
-            pam_seq = genome.fetch(seqname, start, end)
-            if is_valid_sequence(pam_seq):
+        guides = fecth_guides(sequence, seqname, start, end, reverse)  # recover guides
+        if guides:  # found potential guides
+            pamsequence = fetch_pams(sequence, seqname, p, pam, reverse)
+            if pamsequence:
+                strand = "-" if reverse else "+"
                 report.extend(
                     list(
                         map(
                             str,
                             [
                                 pad_guide(guide, len(pam), pam.pam_at_beginning),
-                                pam_seq,
+                                pamsequence,
                                 pam.guide_length,
                                 len(pam),
                                 seqname,
                                 p,
-                                "-",
+                                strand,
                             ],
                         )
                     )
                     for guide in guides
                 )
+    return report
+
+
+def recover_report_data(
+    seqname: str,
+    positions: Tuple[List[int], List[int]],
+    genome: pysam.FastaFile,
+    pam: PAM,
+) -> List[str]:
+    """
+    Recovers report data for a given sequence and PAM positions.
+
+    Args:
+        seqname (str): The name of the sequence.
+        positions (Tuple[List[int], List[int]]): The positions of the PAM sequences on the forward and reverse strands.
+        genome (pysam.FastaFile): The genome file.
+        pam (PAM): The PAM object.
+
+    Returns:
+        List[str]: A list of report data, where each element represents a guide sequence and its corresponding PAM sequence.
+
+    Example:
+        ```python
+        seqname = "chr1"
+        positions = ([100, 200], [300, 400])
+        genome = pysam.FastaFile("genome.fasta")
+        pam = PAM("path/to/pam.txt")
+        report_data = recover_report_data(seqname, positions, genome, pam)
+        print(report_data)  # Output: ['CGAT...', 'ATCG...', ...]
+        ```
+    """
+
+    seqname, pos = process_seqname(seqname)  # recover seqname and relative start
+    # recover report data (forward strand data)
+    report = extract_guide_pam(positions[0], genome, pam, seqname, pos, False)
+    # recover report data (reverse strand data)
+    report.extend(extract_guide_pam(positions[1], genome, pam, seqname, pos, True))
     return report
 
 
@@ -314,5 +452,5 @@ def recover_guides(
 
     report = []
     for seqname in pam_positions:
-        report += extract_guide_pam(seqname, pam_positions[seqname], genome, pam)
+        report += recover_report_data(seqname, pam_positions[seqname], genome, pam)
     write_report(report, outname)
