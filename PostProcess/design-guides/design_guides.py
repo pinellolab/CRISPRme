@@ -1,18 +1,20 @@
 """
-This file contains functions for designing guides for CRISPR/Cas9 genome editing.
+This file contains the main functionality for designing CRISPR/Cas9 guides based on given input files.
 
-The file includes the following functions:
+Functions:
+- `parse_commandline() -> argparse.Namespace`: Parses the command line arguments for the design_guides script.
+- `check_input_args(args: argparse.Namespace) -> None`: Checks the validity of the input arguments.
+- `design_guides(pamfile: str, genome: str, bedfile: str, mm_max: int, outname: str) -> None`: Designs guides for CRISPR/Cas9 genome editing.
+- `main() -> None`: The main entry point for the design_guides script.
 
-- `read_pam(pamfile: str) -> PAM`: Reads the PAM (Protospacer Adjacent Motif) sequence from a file and returns a `PAM` object.
-- `read_genome(genome: str) -> pysam.FastaFile`: Reads the genome sequence from a file and returns a `pysam.FastaFile` object.
-- `read_coordinates(bedfile: str) -> List[Tuple[str, int, int]]`: Reads genomic coordinates from a BED file and returns a list of tuples.
-- `design_guides(pamfile: str, genome: str, bedfile: str, mm_max: int, outname: str) -> None`: Designs guides for CRISPR/Cas9 genome editing based on the PAM sequence, genome sequence, BED file, maximum number of mismatches, and output file name.
-- `extract_guides_from_genome(positions: Tuple, genome: str, guide_len: int, pam_len: int, pam_in_start: bool) -> list`: Extracts guides from the genome based on the given positions, guide length, PAM length, and PAM position.
-
-Please refer to the code for more details on each function.
+Example:
+    ```python
+    main()
+    ```
 """
 
-from utils import reverse_complement
+
+from utils import reverse_complement, read_pam, read_genome, read_coordinates
 from encoder import encode_pam, encode_genome
 from search import match_genome
 from pam import PAM
@@ -20,79 +22,116 @@ from reporter import recover_guides
 
 from typing import Tuple, List
 
+import argparse
 import pysam
+import time
+import sys
+import os
 
 
-def read_pam(pamfile: str) -> PAM:
+def parse_commandline() -> argparse.Namespace:
     """
-    Reads the PAM (Protospacer Adjacent Motif) sequence from a file and returns a PAM object.
-
-    Args:
-        pamfile (str): The path to the PAM file.
+    Parses the command line arguments for the design_guides script.
 
     Returns:
-        PAM: A PAM object representing the PAM sequence.
+        argparse.Namespace: An object containing the parsed command line arguments.
 
     Example:
         ```python
-        pamfile = "path/to/pam.txt"
-        pam = read_pam(pamfile)
+        args = parse_commandline()
+        print(args.fasta)  # Output: 'input.fasta'
+        print(args.pam)  # Output: 'pam.txt'
+        print(args.coordinates)  # Output: 'coordinates.bed'
+        print(args.mm)  # Output: 1
+        print(args.output_prefix)  # Output: 'guides_out'
         ```
     """
 
-    return PAM(pamfile)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
+        description="Given input fasta file, chromosome coordinates file (BED "
+        "format [optional]) and PAM sequence, find all possible sgRNA guides in "
+        "the fasta file (SUPPORTS IUPAC NOTATIONS)",
+    )
+    parser.add_argument(
+        "--fasta",
+        type=str,
+        required=True,
+        metavar="FASTA-FILE",
+        help="FASTA file contaning either a single chromosome or a target "
+        "sequence extracted from genome",
+    )
+    parser.add_argument(
+        "--pam",
+        type=str,
+        required=True,
+        metavar="PAM-FILE",
+        help="PAM file (CRISPRitz/CRISPRme format)",
+    )
+    parser.add_argument(
+        "--coordinates",
+        type=str,
+        required=False,
+        default="",
+        metavar="BED-FILE",
+        help="Coordinate file in BED format (Please Note: only one chromosome "
+        "allowed at a time)",
+    )
+    parser.add_argument(
+        "--mm",
+        type=int,
+        required=False,
+        default=0,
+        metavar="MM-NUM",
+        help="Maximum allowed mismatches in the PAM sequence",
+    )
+    parser.add_argument(
+        "--output-prefix",
+        type=str,
+        required=False,
+        default="guides_out",
+        dest="output_prefix",
+        help="Output file prefix: the generated files include the guides and a "
+        "detailed report",
+    )
+    return parser.parse_args()
 
 
-def read_genome(genome: str) -> pysam.FastaFile:
+def check_input_args(args: argparse.Namespace) -> None:
     """
-    Reads the genome sequence from a file and returns a `pysam.FastaFile` object.
+    Checks the validity of the input arguments.
 
     Args:
-        genome (str): The path to the genome file.
+        args (argparse.Namespace): An object containing the parsed command line arguments.
 
     Returns:
-        pysam.FastaFile: A `pysam.FastaFile` object representing the genome sequence.
-
-    Example:
-        ```python
-        genome_file = "path/to/genome.fasta"
-        genome = read_genome(genome_file)
-        ```
-    """
-
-    return pysam.FastaFile(genome)  # load FastaFile object
-
-
-def read_coordinates(bedfile: str) -> List[Tuple[str, int, int]]:
-    """
-    Reads genomic coordinates from a BED file and returns a list of tuples.
-
-    Args:
-        bedfile (str): The path to the BED file.
-
-    Returns:
-        List[Tuple[str, int, int]]: A list of tuples representing the genomic coordinates.
+        None
 
     Raises:
-        IOError: If the BED file parsing fails.
+        FileNotFoundError: If any of the input files specified in the arguments are not found.
+        ValueError: If any of the input files specified in the arguments are empty or if the number of mismatches is negative.
 
     Example:
         ```python
-        bedfile = "path/to/coordinates.bed"
-        coordinates = read_coordinates(bedfile)
+        args = parse_commandline()
+        check_input_args(args)
         ```
     """
 
-    try:
-        with open(bedfile, mode="r") as infile:
-            coordinates = [
-                (fields[0], int(fields[1]), int(fields[2]))
-                for line in infile
-                for fields in [line.strip().split()]
-            ]
-    except IOError as e:
-        raise IOError("BED file parsing failed!") from e
-    return coordinates
+    if not os.path.isfile(args.fasta):
+        raise FileNotFoundError(f"{args.fasta} not found!")
+    if os.stat(args.fasta).st_size == 0:
+        raise ValueError(f"{args.fasta} is empty!")
+    if not os.path.isfile(args.pam):
+        raise FileNotFoundError(f"{args.pam} not found!")
+    if os.stat(args.pam).st_size == 0:
+        raise ValueError(f"{args.pam} is empty!")
+    if not os.path.isfile(args.coordinates):
+        raise FileNotFoundError(f"{args.coordinates} not found!")
+    if os.stat(args.coordinates).st_size == 0:
+        raise ValueError(f"{args.coordinates} is empty")
+    if args.mm < 0:
+        raise ValueError(f"Forbidden number of mismatches ({args.mm})!")
 
 
 def design_guides(
@@ -152,3 +191,30 @@ def design_guides(
     }
     # write report and guides file
     recover_guides(pam_positions, sequence, pam, outname)
+
+
+def main():
+    """
+    The main entry point for the design_guides script.
+
+    Returns:
+        None
+
+    Example:
+        ```python
+        main()
+        ```
+    """
+
+    start = time.time()
+    args = parse_commandline()  # parse command line args
+    check_input_args(args)  # check input args consistency
+    # run guide design
+    sys.stderr.write(f"Searching guides in {args.fasta}...\n")
+    design_guides(args.pam, args.fasta, args.coordinates, args.mm, args.output_prefix)
+    sys.stderr.write(f"Elapsed time {(time.time() - start):.2f}s\n")
+
+
+# entry point
+if __name__ == "__main__":
+    main()
