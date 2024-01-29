@@ -226,7 +226,7 @@ def recover_alt_targets(
     return alternative_targets
 
 
-def remove_duplicate_data(target: List[str], idx: int) -> List[str]:
+def remove_duplicate_data(target: List[str], idx: int) -> str:
     """
     Removes duplicate data from a target list.
 
@@ -235,15 +235,14 @@ def remove_duplicate_data(target: List[str], idx: int) -> List[str]:
         idx (int): The index of the target element to remove duplicates from.
 
     Returns:
-        List[str]: The target list with duplicates removed.
+        str: The target element with duplicates removed.
 
     Examples:
         >>> remove_duplicate_data(['target1', 'A,A,A,A,A,A,A,A,A'], 1)
-        ['target1', 'A']
+        'A'
     """
 
-    target[idx] = ",".join(set(target[idx].split(",")))
-    return target
+    return ",".join(set(target[idx].split(",")))
 
 
 def remove_duplicate_alt_targets(
@@ -267,7 +266,7 @@ def remove_duplicate_alt_targets(
     targets_alt_polished = []  # remove duplicate data from ALT target
     for target in targets_alt:
         for idx in redundant_idxs:
-            target = remove_duplicate_data(target, idx)
+            target[idx] = remove_duplicate_data(target, idx)
         targets_alt_polished.append(target)
     assert len(targets_alt_polished) == len(targets_alt)
     return targets_alt_polished
@@ -315,7 +314,7 @@ def sorting_score(
 
 def sorting_fewest(criteria: List[str], mm_bul_count_idx: int) -> Callable:
     """
-    Creates a sorting key function based on the input criteria. The sorting 
+    Creates a sorting key function based on the input criteria. The sorting
     criteria include mismatches, bulges, and mismatches+bulges
 
     Args:
@@ -400,7 +399,8 @@ def report_best_targets(
 
     # count remaining targets
     targets[0][score_idx - 1] = str(len(targets) - 1)
-    outfile.write("\t".join(targets[0]))  # write best target to merge file
+    reportline = "\t".join(targets[0])  # write best target to merge file
+    outfile.write(f"{reportline}\n")
     best = targets.pop(0)  # pop best target from list
     return targets
 
@@ -435,13 +435,15 @@ def report_best_targets_ref_alt(
         targets_ref[0][score_idx - 1] = str(
             len(targets_ref) + len(targets_alt) - 1
         )  # recover remaining targets
-        outfile.write("\t".join(targets_ref[0]))
+        reportline = "\t".join(targets_ref[0])
+        outfile.write(f"{reportline}\n")
         best = targets_ref.pop(0)  # remove best target
     else:
         targets_alt[0][score_idx - 1] = str(
             len(targets_ref) + len(targets_alt) - 1
         )  # recover remaining targets
-        outfile.write("\t".join(targets_alt[0]))
+        reportline = "\t".join(targets_alt[0])
+        outfile.write(f"{reportline}\n")
         best = targets_alt.pop(0)  # remove best target
     return targets_ref, targets_alt
 
@@ -470,10 +472,12 @@ def report_remaining_targets(
 
     for i, target in enumerate(targets_ref):
         targets_ref[i][score_idx - 1] = str(len(targets_ref) + len(targets_alt) - 1)
-        outfile.write("\t".join(target))
+        reportline = "\t".join(target)
+        outfile.write(f"{reportline}\n")
     for i, target in enumerate(targets_alt):
         targets_alt[i][score_idx - 1] = str(len(targets_ref) + len(targets_alt) - 1)
-        outfile.write("\t".join(target))
+        reportline = "\t".join(target)
+        outfile.write(f"{reportline}\n")
 
 
 def recover_best_targets(
@@ -518,7 +522,7 @@ def recover_best_targets(
     noref = not targets_ref  # only ALT targets
     targets_alt = remove_duplicate_alt_targets(
         recover_alt_targets(targets_alt_dict, noref),
-        [snp_info_idx, snp_info_idx - 2, snp_info_idx - 1, guide_idx],
+        [snp_info_idx, snp_info_idx - 2, snp_info_idx - 1, guide_idx - 2],
     )  # recover ALT targets
     # sort by CFD or CRISTA score (no impact when using non Cas9 proteins)
     if criterion == "score":
@@ -605,7 +609,7 @@ def merge_targets() -> None:
                         cluster.append(target_data)
                     prev_guide, prev_pos, prev_chrom = (
                         target_data[input_args[6]],
-                        int(target_data[input_args[5]]),
+                        int(target_data[input_args[4]]),
                         target_data[input_args[3]],
                     )
                 recover_best_targets(

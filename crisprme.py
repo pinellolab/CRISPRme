@@ -282,6 +282,12 @@ def complete_search():
             "\t--merge, used to specify the window (# of nucleotides) within which to merge candidate off-targets, using the off-target with the highest score as the pivot [default 3]"
         )
         print(
+            "\t--sorting-criteria-scoring, specify target sorting criteria using a comma-separated list: 'mm' for mismatches, 'bulges' for bulges, or 'mm+bulges' for both (scoring has highest priority) [default 'mm+bulges']"
+        )
+        print(
+            "\t--sorting-criteria, specify target sorting criteria using a comma-separated list: 'mm' for mismatches, 'bulges' for bulges, or 'mm+bulges' for both [default 'mm+bulges,mm']"
+        )
+        print(
             "\t--output, used to specify the output name for the results (these results will be saved into Results/<name>)"
         )
         print(
@@ -615,6 +621,59 @@ def complete_search():
             print("Please specify a positive number for --merge")
             exit(1)
 
+    # check sorting criteria while merging targets on score
+    if "--sorting-criteria-scoring" not in input_args:
+        sorting_criteria_scoring = "mm+bulges"
+    else:
+        try:
+            sorting_criteria_scoring = input_args[
+                input_args.index("--sorting-criteria-scoring") + 1
+            ]
+        except IndexError as e:
+            sys.stderr.write(
+                "Please input some parameter for flag --sorting-criteria-scoring\n"
+            )
+            exit(1)
+        if len(sorting_criteria_scoring.split(",")) > len(
+            set(sorting_criteria_scoring.split(","))
+        ):
+            sys.stderr.write("Repeated sorting criteria\n")
+            exit(1)
+        if len(sorting_criteria_scoring.split(",")) > 3:
+            sys.stderr.write("Forbidden or repeated sorting criteria\n")
+            exit(1)
+        if any(
+            c not in ["mm+bulges", "mm", "bulges"]
+            for c in sorting_criteria_scoring.split(",")
+        ):
+            sys.stderr.write("Forbidden sorting criteria selected\n")
+            exit(1)
+
+    # check sorting criteria while  merging targets (fewest mm+bulges)
+    if "--sorting-criteria" not in input_args:
+        sorting_criteria = "mm+bulges,mm"
+    else:
+        try:
+            sorting_criteria = input_args[input_args.index("--sorting-criteria") + 1]
+        except IndexError as e:
+            sys.stderr.write(
+                "Please input some parameter for flag --sorting-criteria\n"
+            )
+            exit(1)
+        if len(sorting_criteria.split(",")) > len(set(sorting_criteria.split(","))):
+            sys.stderr.write("Repeated sorting criteria\n")
+            exit(1)
+        if len(sorting_criteria.split(",")) > 3:
+            sys.stderr.write("Forbidden or repeated sorting criteria\n")
+            exit(1)
+        if any(
+            c not in ["mm+bulges", "mm", "bulges"] for c in sorting_criteria.split(",")
+        ):
+            sys.stderr.write("Forbidden sorting criteria selected\n")
+            exit(1)
+
+    print(sorting_criteria)
+
     # check input output directory
     if "--output" not in input_args:
         print("--output must be contained in the input")
@@ -776,7 +835,8 @@ def complete_search():
                 f"{genomedir} {vcfdir} {os.path.join(outputfolder, 'guides.txt')} "
                 f"{pamfile} {annotationfile} {samplefile} {bMax} {mm} {bDNA} {bRNA} "
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
-                f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set}"
+                f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
+                f"{sorting_criteria_scoring} {sorting_criteria}"
             )
             code = subprocess.call(
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
