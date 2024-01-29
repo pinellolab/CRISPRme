@@ -1,5 +1,24 @@
 """
+This script parses the input arguments and removes contiguous samples from a file based on specified criteria.
+
+The script expects the following input arguments:
+- infname (str): The input file name.
+- outfname (str): The output file name.
+- rangebp (int): The maximum range in base pairs for samples to be considered contiguous.
+- chrom_idx (int): The index of the chromosome column in the input file.
+- position_idx (int): The index of the position column in the input file.
+- mm_bul_count_idx (int): The index of the mismatch and bulge count column in the input file.
+- guide_idx (int): The index of the guide column in the input file.
+- snp_info_idx (int): The index of the SNP info column in the input file.
+- score_idx (int): The index of the score column in the input file.
+- sort_criterion (str): The sorting criterion for the output file.
+
+The script reads the input file, parses the specified columns, and removes contiguous samples based on the given range. The resulting data is written to the output file.
+
+Examples:
+    $ python remove_contiguous_samples_cfd.py input.txt output.txt 10 2 3 4 5 6 7 8 score
 """
+
 
 from typing import List, Any, Tuple, Dict, Callable
 from io import TextIOWrapper
@@ -27,7 +46,7 @@ def parse_input_args(args: List[str]) -> List[Any]:
     ValueError: If the input argument types are invalid.
 
     Examples:
-    >>> parse_input_args(['input.txt', 'output.txt', '10', '2', '3', '4', '5', '6', '7', '8', 'sort'])
+    >>> parse_input_args(['input.txt', 'output.txt', '10', '2', '3', '4', '5', '6', '7', '8', 'score'])
     ['input.txt', 'output.txt', 10, 1, 2, 3, 4, 5, 6, 'sort', 'mm+bulges,mm']
     """
 
@@ -79,6 +98,23 @@ def parse_input_args(args: List[str]) -> List[Any]:
 
 
 def read_raw_targets(targets_file: str) -> Tuple[str, List[List[str]]]:
+    """
+    Reads and parses a targets file.
+
+    Args:
+        targets_file (str): The path to the targets file.
+
+    Returns:
+        Tuple[str, List[List[str]]]: A tuple containing the header of the targets file and the parsed data.
+
+    Raises:
+        OSError: If parsing the targets file fails.
+
+    Examples:
+        >>> read_raw_targets('targets.txt')
+        ('Header line', [['data1', 'data2'], ['data3', 'data4']])
+    """
+
     try:
         with open(targets_file, mode="r") as infile:
             header = infile.readline()  # recover targets file header
@@ -97,6 +133,22 @@ def open_targets_cluster(
     prev_pos: int,
     rangebp: int,
 ) -> bool:
+    """
+    Determines whether to open a new targets cluster based on the given conditions.
+
+    Args:
+        guide (str): The current guide.
+        prev_guide (str): The previous guide.
+        chrom (str): The current chromosome.
+        prev_chrom (str): The previous chromosome.
+        pos (int): The current position.
+        prev_pos (int): The previous position.
+        rangebp (int): The maximum range in base pairs for samples to be considered contiguous.
+
+    Returns:
+        bool: True if a new targets cluster should be opened, False otherwise.
+    """
+
     # if the condition is satisfied open a new tragets cluster
     return guide != prev_guide or chrom != prev_chrom or pos - prev_pos > rangebp
 
@@ -104,6 +156,26 @@ def open_targets_cluster(
 def merge_targets_by_snp(
     cluster: List[List[str]], snp_info_idx: int, pos_idx: int, guide_idx: int
 ) -> Tuple[List[List[str]], Dict[Tuple[str, str], List[List[str]]]]:
+    """
+    Merges targets in a cluster based on SNP information.
+
+    Args:
+        cluster (List[List[str]]): The cluster of targets to be merged.
+        snp_info_idx (int): The index of the SNP info column in the target data.
+        pos_idx (int): The index of the position column in the target data.
+        guide_idx (int): The index of the guide column in the target data.
+
+    Returns:
+        Tuple[List[List[str]], Dict[Tuple[str, str], List[List[str]]]]: A tuple containing the merged reference targets and a dictionary of merged variant targets.
+
+    Raises:
+        ValueError: If the cluster is empty.
+
+    Examples:
+        >>> merge_targets_by_snp([['target1', 'n', 'pos1'], ['target2', 'A', 'pos2'], ['target3', 'A', 'pos1']], 1, 2, 3)
+        ([['target1', 'n', 'pos1']], {('pos2', 'A'): [['target2', 'A', 'pos2']], ('pos1', 'A'): [['target3', 'A', 'pos1']]}])
+    """
+
     if not cluster:
         raise ValueError("Empty cluster, nothing to merge")
     reference_targets = []  # REF targets list
@@ -131,6 +203,21 @@ def merge_targets_by_snp(
 def recover_alt_targets(
     variants: Dict[Tuple[str, str], List[List[str]]], noref: bool
 ) -> List[List[str]]:
+    """
+    Recovers alternative targets from a dictionary of variants.
+
+    Args:
+        variants (Dict[Tuple[str, str], List[List[str]]]): A dictionary containing merged variant targets.
+        noref (bool): Flag indicating whether to mark non-reference targets.
+
+    Returns:
+        List[List[str]]: A list of recovered alternative targets.
+
+    Examples:
+        >>> recover_alt_targets({('pos2', 'A'): [['target2', 'A', 'pos2']], ('pos1', 'A'): [['target3', 'A', 'pos1']]}, True)
+        [['target2', 'A', 'pos2'], ['target3', 'A', 'pos1']]
+    """
+
     alternative_targets = []
     for value in variants.values():
         for target in value:
@@ -140,13 +227,43 @@ def recover_alt_targets(
 
 
 def remove_duplicate_data(target: List[str], idx: int) -> List[str]:
+    """
+    Removes duplicate data from a target list.
+
+    Args:
+        target (List[str]): The target list.
+        idx (int): The index of the target element to remove duplicates from.
+
+    Returns:
+        List[str]: The target list with duplicates removed.
+
+    Examples:
+        >>> remove_duplicate_data(['target1', 'A,A,A,A,A,A,A,A,A'], 1)
+        ['target1', 'A']
+    """
+
     target[idx] = ",".join(set(target[idx].split(",")))
     return target
 
 
 def remove_duplicate_alt_targets(
     targets_alt: List[List[str]], redundant_idxs: List[int]
-):
+) -> List[List[str]]:
+    """
+    Removes duplicate data from alternative targets.
+
+    Args:
+        targets_alt (List[List[str]]): The list of alternative targets.
+        redundant_idxs (List[int]): The list of indices indicating the elements to remove duplicates from.
+
+    Returns:
+        List[List[str]]: The list of alternative targets with duplicates removed.
+
+    Examples:
+        >>> remove_duplicate_alt_targets([['target1', 'A,A,A,A,A,A,A,A,A'], ['target2', 'C,C,C,C,C,C,C,C,C']], [1])
+        [['target1', 'A'], ['target2', 'C']]
+    """
+
     targets_alt_polished = []  # remove duplicate data from ALT target
     for target in targets_alt:
         for idx in redundant_idxs:
@@ -159,6 +276,23 @@ def remove_duplicate_alt_targets(
 def sorting_score(
     criteria: List[str], score_idx: int, mm_bul_count_idx: int
 ) -> Callable:
+    """
+    Creates a sorting key function based on the given criteria. Score has highest
+    priority and is always included in the sorting function
+
+    Args:
+        criteria (List[str]): The sorting criteria.
+        score_idx (int): The index of the score column in the data.
+        mm_bul_count_idx (int): The index of the mismatch and bulge count column in the data.
+
+    Returns:
+        Callable: A sorting key function that can be used with the `sorted` function.
+
+    Examples:
+        >>> sorting_score(['mm+bulges', 'mm'], 8, 5)
+        <function sorting_score.<locals>.<lambda> at 0x7f1234567890>
+    """
+
     if len(criteria) == 1:  # one criterion
         return lambda x: (
             -float(x[score_idx]),
@@ -180,6 +314,22 @@ def sorting_score(
 
 
 def sorting_fewest(criteria: List[str], mm_bul_count_idx: int) -> Callable:
+    """
+    Creates a sorting key function based on the input criteria. The sorting 
+    criteria include mismatches, bulges, and mismatches+bulges
+
+    Args:
+        criteria (List[str]): The sorting criteria.
+        mm_bul_count_idx (int): The index of the mismatch and bulge count column in the data.
+
+    Returns:
+        Callable: A sorting key function that can be used with the `sorted` function.
+
+    Examples:
+        >>> sorting_fewest(['mm+bulges', 'mm'], 5)
+        <function sorting_fewest.<locals>.<lambda> at 0x7f1234567890>
+    """
+
     if len(criteria) == 1:  # one criterion
         return lambda x: (int(x[mm_bul_count_idx - SORTING_CRITERIA[criteria[0]]]))
     elif len(criteria) == 2:
@@ -198,6 +348,27 @@ def sorting_fewest(criteria: List[str], mm_bul_count_idx: int) -> Callable:
 def define_sorting_criteria(
     sorting_criteria: str, score: bool, score_idx: int, mm_bul_count_idx: int
 ) -> Callable:
+    """
+    Defines the sorting criteria based on the given parameters.
+
+    Args:
+        sorting_criteria (str): The sorting criteria as a comma-separated string.
+        score (bool): Flag indicating whether to prioritize sorting by score.
+        score_idx (int): The index of the score column in the data.
+        mm_bul_count_idx (int): The index of the mismatch and bulge count column in the data.
+
+    Returns:
+        Callable: A sorting key function based on the defined criteria.
+
+    Raises:
+        ValueError: If the number of sorting criteria exceeds 3.
+        ValueError: If unknown sorting criteria are provided.
+
+    Examples:
+        >>> define_sorting_criteria('mm+bulges,mm', True, 8, 5)
+        <function sorting_score.<locals>.<lambda> at 0x7f1234567890>
+    """
+
     criteria = sorting_criteria.split(",")
     if len(criteria) > 3:
         raise ValueError("Mismatching sorting criteria selected")
@@ -211,6 +382,22 @@ def define_sorting_criteria(
 def report_best_targets(
     targets: List[List[str]], score_idx: int, outfile: TextIOWrapper
 ) -> List[List[str]]:
+    """
+    Reports the best targets and writes them to an output file.
+
+    Args:
+        targets (List[List[str]]): The list of targets.
+        score_idx (int): The index of the score column in the data.
+        outfile (TextIOWrapper): The output file to write the best target.
+
+    Returns:
+        List[List[str]]: The remaining targets after removing the best target.
+
+    Examples:
+        >>> report_best_targets([['target1', 'A', 'score1'], ['target2', 'C', 'score2']], 2, outfile)
+        [['target2', 'C', 'score2']]
+    """
+
     # count remaining targets
     targets[0][score_idx - 1] = str(len(targets) - 1)
     outfile.write("\t".join(targets[0]))  # write best target to merge file
@@ -225,6 +412,24 @@ def report_best_targets_ref_alt(
     score_idx: int,
     outfile: TextIOWrapper,
 ) -> Tuple[List[List[str]], List[List[str]]]:
+    """
+    Reports the best targets (reference and alternative) and writes them to an output file.
+
+    Args:
+        targets_ref (List[List[str]]): The list of reference targets.
+        targets_alt (List[List[str]]): The list of alternative targets.
+        cmp_idx (int): The index of the column used for comparison (score or mm+bulges).
+        score_idx (int): The index of the score column in the data.
+        outfile (TextIOWrapper): The output file to write the best target.
+
+    Returns:
+        Tuple[List[List[str]], List[List[str]]]: A tuple containing the remaining reference targets and the remaining alternative targets.
+
+    Examples:
+        >>> report_best_targets_ref_alt([['target1', 'A', 'score1']], [['target2', 'C', 'score2']], 2, 3, outfile)
+        ([], [['target2', 'C', 'score2']])
+    """
+
     # compare values (score or mm+bulges) to determine the best target
     if float(targets_ref[0][cmp_idx]) >= float(targets_alt[0][cmp_idx]):
         targets_ref[0][score_idx - 1] = str(
@@ -247,6 +452,22 @@ def report_remaining_targets(
     score_idx: int,
     outfile: TextIOWrapper,
 ) -> None:
+    """
+    Reports the discarded targets (reference and alternative) and writes them to an output file.
+
+    Args:
+        targets_ref (List[List[str]]): The list of remaining reference targets.
+        targets_alt (List[List[str]]): The list of remaining alternative targets.
+        score_idx (int): The index of the score column in the data.
+        outfile (TextIOWrapper): The output file to write the remaining targets.
+
+    Returns:
+        None
+
+    Examples:
+        >>> report_remaining_targets([['target1', 'A', 'score1']], [['target2', 'C', 'score2']], 3, outfile)
+    """
+
     for i, target in enumerate(targets_ref):
         targets_ref[i][score_idx - 1] = str(len(targets_ref) + len(targets_alt) - 1)
         outfile.write("\t".join(target))
@@ -266,7 +487,29 @@ def recover_best_targets(
     sorting_criteria: str,
     outfile: TextIOWrapper,
     outfile_discarded: TextIOWrapper,
-):
+) -> None:
+    """
+    Recovers the best targets from a cluster and writes them to an output file.
+
+    Args:
+        cluster (List[List[str]]): The cluster of targets.
+        snp_info_idx (int): The index of the SNP info column in the target data.
+        pos_idx (int): The index of the position column in the target data.
+        guide_idx (int): The index of the guide column in the target data.
+        score_idx (int): The index of the score column in the target data.
+        mm_bul_count_idx (int): The index of the mismatch and bulge count column in the target data.
+        criterion (str): The criterion for selecting the best targets (score or fewest).
+        sorting_criteria (str): The sorting criteria for the targets.
+        outfile (TextIOWrapper): The output file to write the best targets.
+        outfile_discarded (TextIOWrapper): The output file to write the discarded targets.
+
+    Returns:
+        None
+
+    Examples:
+        >>> recover_best_targets(cluster, 2, 3, 4, 5, 6, 'score', 'mm+bulges,mm', outfile, outfile_discarded)
+    """
+
     if not cluster:
         return  # avoids potential crash at first iteration when opened new cluster
     targets_ref, targets_alt_dict = merge_targets_by_snp(
@@ -305,7 +548,20 @@ def recover_best_targets(
     report_remaining_targets(targets_ref, targets_alt, score_idx, outfile_discarded)
 
 
-def merge_targets():
+def merge_targets() -> None:
+    """
+    Merges targets based on specified criteria and writes the merged targets to output files.
+
+    Returns:
+        None
+
+    Raises:
+        OSError: If the targets merge fails.
+
+    Examples:
+        >>> merge_targets()
+    """
+
     start = time()  # merging start time
     input_args = parse_input_args(sys.argv[1:])
     # recover raw targets file header and data
