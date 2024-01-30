@@ -26,7 +26,7 @@ from time import time
 
 import sys
 
-INPUT_ARG_COUNT = 10  # expected input args
+INPUT_ARG_COUNT = 12  # expected input args
 FLAG_ALT_ONLY = 12  # target column for ALT target
 SORTING_CRITERIA = {"mm+bulges": 0, "mm": 2, "bulges": 1}
 
@@ -46,8 +46,8 @@ def parse_input_args(args: List[str]) -> List[Any]:
     ValueError: If the input argument types are invalid.
 
     Examples:
-    >>> parse_input_args(['input.txt', 'output.txt', '10', '2', '3', '4', '5', '6', '7', '8', 'score'])
-    ['input.txt', 'output.txt', 10, 1, 2, 3, 4, 5, 6, 'sort', 'mm+bulges,mm']
+    >>> parse_input_args(['input.txt', 'output.txt', '10', '2', '3', '4', '5', '6', '7', '8', 'score', 'mm', 'mm+bulges,mm'])
+    ['input.txt', 'output.txt', 10, 1, 2, 3, 4, 5, 6, 'sort', 'mm', 'mm+bulges,mm']
     """
 
     if not args:
@@ -67,6 +67,8 @@ def parse_input_args(args: List[str]) -> List[Any]:
             snp_info_idx,
             score_idx,
             sort_criterion,
+            sorting_criteria_scoring,
+            sorting_criteria,
         ) = (
             args[0],
             args[1],
@@ -78,8 +80,9 @@ def parse_input_args(args: List[str]) -> List[Any]:
             int(args[7]) - 1,
             int(args[8]) - 1,
             args[9],
+            args[10],
+            args[11],
         )
-        sorting_criteria = "mm+bulges,mm"
     except (ValueError, TypeError) as e:
         raise ValueError("Invalid input argument types") from e
     return [
@@ -93,6 +96,7 @@ def parse_input_args(args: List[str]) -> List[Any]:
         snp_info_idx,
         score_idx,
         sort_criterion,
+        sorting_criteria_scoring,
         sorting_criteria,
     ]
 
@@ -369,6 +373,11 @@ def define_sorting_criteria(
     """
 
     criteria = sorting_criteria.split(",")
+    if score:
+        print("score")
+    else:
+        print("fewest")
+    print(criteria)
     if len(criteria) > 3:
         raise ValueError("Mismatching sorting criteria selected")
     if any(c not in SORTING_CRITERIA for c in criteria):
@@ -408,7 +417,8 @@ def report_best_targets(
 def report_best_targets_ref_alt(
     targets_ref: List[List[str]],
     targets_alt: List[List[str]],
-    cmp_idx: int,
+    score: bool,
+    mm_bul_count_idx: int,
     score_idx: int,
     outfile: TextIOWrapper,
 ) -> Tuple[List[List[str]], List[List[str]]]:
@@ -418,20 +428,35 @@ def report_best_targets_ref_alt(
     Args:
         targets_ref (List[List[str]]): The list of reference targets.
         targets_alt (List[List[str]]): The list of alternative targets.
-        cmp_idx (int): The index of the column used for comparison (score or mm+bulges).
-        score_idx (int): The index of the score column in the data.
-        outfile (TextIOWrapper): The output file to write the best target.
+        score (bool): Flag indicating whether to prioritize sorting by score.
+        mm_bul_count_idx (int): The index of the mismatch and bulge count column in the target data.
+        score_idx (int): The index of the score column in the target data.
+        outfile (TextIOWrapper): The output file to write the best targets.
 
     Returns:
         Tuple[List[List[str]], List[List[str]]]: A tuple containing the remaining reference targets and the remaining alternative targets.
 
     Examples:
-        >>> report_best_targets_ref_alt([['target1', 'A', 'score1']], [['target2', 'C', 'score2']], 2, 3, outfile)
-        ([], [['target2', 'C', 'score2']])
+        >>> report_best_targets_ref_alt([['target1', 'A', 'score1']], [['target2', 'C', 'score2']], True, 6, 5, outfile)
     """
 
     # compare values (score or mm+bulges) to determine the best target
-    if float(targets_ref[0][cmp_idx]) >= float(targets_alt[0][cmp_idx]):
+    if score:  # compare scores
+        if float(targets_ref[0][score_idx]) >= float(targets_alt[0][score_idx]):
+            targets_ref[0][score_idx - 1] = str(
+                len(targets_ref) + len(targets_alt) - 1
+            )  # recover remaining targets
+            reportline = "\t".join(targets_ref[0])
+            outfile.write(f"{reportline}\n")
+            best = targets_ref.pop(0)  # remove best target
+        else:
+            targets_alt[0][score_idx - 1] = str(
+                len(targets_ref) + len(targets_alt) - 1
+            )  # recover remaining targets
+            reportline = "\t".join(targets_alt[0])
+            outfile.write(f"{reportline}\n")
+            best = targets_alt.pop(0)  # remove best target
+    elif int(targets_ref[0][mm_bul_count_idx]) <= int(targets_alt[0][mm_bul_count_idx]):
         targets_ref[0][score_idx - 1] = str(
             len(targets_ref) + len(targets_alt) - 1
         )  # recover remaining targets
@@ -488,6 +513,7 @@ def recover_best_targets(
     score_idx: int,
     mm_bul_count_idx: int,
     criterion: str,
+    sorting_criteria_scoring: str,
     sorting_criteria: str,
     outfile: TextIOWrapper,
     outfile_discarded: TextIOWrapper,
@@ -503,6 +529,7 @@ def recover_best_targets(
         score_idx (int): The index of the score column in the target data.
         mm_bul_count_idx (int): The index of the mismatch and bulge count column in the target data.
         criterion (str): The criterion for selecting the best targets (score or fewest).
+        sorting_criteria_scoring (str): The sorting criteria for the targets (scoring has highest priority).
         sorting_criteria (str): The sorting criteria for the targets.
         outfile (TextIOWrapper): The output file to write the best targets.
         outfile_discarded (TextIOWrapper): The output file to write the discarded targets.
@@ -528,7 +555,7 @@ def recover_best_targets(
     if criterion == "score":
         # recover sorting criteria order (score has priority)
         criteria = define_sorting_criteria(
-            sorting_criteria, True, score_idx, mm_bul_count_idx
+            sorting_criteria_scoring, True, score_idx, mm_bul_count_idx
         )
     else:  # sort on mm and bulges only (fewest)
         # recover sorting criteria order (no score)
@@ -543,9 +570,9 @@ def recover_best_targets(
     if noref:  # only alt targets
         targets_alt = report_best_targets(targets_alt, score_idx, outfile)
     elif targets_ref and targets_alt:  # both ref and alt targets
-        cmp_idx = score_idx if criterion == "score" else mm_bul_count_idx
+        score = criterion == "score"
         targets_ref, targets_alt = report_best_targets_ref_alt(
-            targets_ref, targets_alt, cmp_idx, score_idx, outfile
+            targets_ref, targets_alt, score, mm_bul_count_idx, score_idx, outfile
         )
     else:  # only ref targets
         targets_ref = report_best_targets(targets_ref, score_idx, outfile)
@@ -601,6 +628,7 @@ def merge_targets() -> None:
                             input_args[5],
                             input_args[9],
                             input_args[10],
+                            input_args[11],
                             outfile,
                             outfile_discarded,
                         )
@@ -621,6 +649,7 @@ def merge_targets() -> None:
                     input_args[5],
                     input_args[9],
                     input_args[10],
+                    input_args[11],
                     outfile,
                     outfile_discarded,
                 )
