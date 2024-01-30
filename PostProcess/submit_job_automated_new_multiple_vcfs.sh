@@ -36,6 +36,10 @@ base_check_start=${18}
 base_check_end=${19}
 base_check_set=${20}
 
+# sorting criteria while merging best targets
+sorting_criteria_scoring=${21}
+sorting_criteria=${22}
+
 log="$output_folder/log.txt"
 touch $log
 #echo -e 'Job\tStart\t'$(date) > $log
@@ -543,7 +547,7 @@ sampleID=$output_folder/.sampleID.txt
 
 # echo -e 'Merging targets' >  $output
 
-# #create result file for each scoring method
+#create result file for each scoring method
 # echo "header" >$final_res.bestCFD.txt
 # echo "header" >$final_res.bestmmblg.txt
 # echo "header" >$final_res.bestCRISTA.txt
@@ -552,7 +556,7 @@ sampleID=$output_folder/.sampleID.txt
 sed -i '1i #Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref' "$final_res.bestCFD.txt"
 sed -i '1i #Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref' "$final_res.bestmmblg.txt"
 sed -i '1i #Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref' "$final_res.bestCRISTA.txt"
-# #header into final_res alt
+#header into final_res alt
 echo "header" >$final_res_alt.bestCFD.txt
 echo "header" >$final_res_alt.bestmmblg.txt
 echo "header" >$final_res_alt.bestCRISTA.txt
@@ -576,11 +580,11 @@ tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11
 #MERGE BEST FILES TARGETS TO REMOVE CONTIGOUS
 #TODO CHECK MERGE
 #SCORE CFD
-./merge_close_targets_cfd.sh $final_res.bestCFD.txt $final_res.bestCFD.txt.trimmed $merge_t 'score' &
+./merge_close_targets_cfd.sh $final_res.bestCFD.txt $final_res.bestCFD.txt.trimmed $merge_t 'score' $sorting_criteria_scoring $sorting_criteria &
 #TOTAL (MM+BUL)
-./merge_close_targets_cfd.sh $final_res.bestmmblg.txt $final_res.bestmmblg.txt.trimmed $merge_t 'total' &
+./merge_close_targets_cfd.sh $final_res.bestmmblg.txt $final_res.bestmmblg.txt.trimmed $merge_t 'total' $sorting_criteria_scoring $sorting_criteria &
 #SCORE CRISTA
-./merge_close_targets_cfd.sh $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.trimmed $merge_t 'score' &
+./merge_close_targets_cfd.sh $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.trimmed $merge_t 'score' $sorting_criteria_scoring $sorting_criteria &
 wait
 #CHANGE NAME TO BEST AND ALT FILES
 mv $final_res.bestCFD.txt.trimmed $final_res.bestCFD.txt
@@ -684,34 +688,34 @@ mv $final_res_alt.bestmmblg.txt.risk $final_res_alt.bestmmblg.txt
 mv $final_res_alt.bestCRISTA.txt.risk $final_res_alt.bestCRISTA.txt
 
 #remove N's and dots from rsID from BEST FILES
-./remove_n_and_dots.py $final_res.bestCFD.txt &
+python remove_n_and_dots.py $final_res.bestCFD.txt &
 wait || {
 	echo "CRISPRme ERROR: CFD reports cleaning failed - reference (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
-./remove_n_and_dots.py $final_res.bestmmblg.txt &
+python remove_n_and_dots.py $final_res.bestmmblg.txt &
 wait || {
 	echo "CRISPRme ERROR: CRISTA reports cleaning failed - reference (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
-./remove_n_and_dots.py $final_res.bestCRISTA.txt &
+python remove_n_and_dots.py $final_res.bestCRISTA.txt &
 wait || {
 	echo "CRISPRme ERROR: mismatch+bulges reports cleaning failed - reference (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 wait
 #remove N's and dots from rsID from ALT FILES
-./remove_n_and_dots.py $final_res_alt.bestCFD.txt &
+python remove_n_and_dots.py $final_res_alt.bestCFD.txt &
 wait || {
 	echo "CRISPRme ERROR: CFD reports cleaning failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
-./remove_n_and_dots.py $final_res_alt.bestmmblg.txt &
+python remove_n_and_dots.py $final_res_alt.bestmmblg.txt &
 wait || {
 	echo "CRISPRme ERROR: CRISTA reports cleaning failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
-./remove_n_and_dots.py $final_res_alt.bestCRISTA.txt &
+python remove_n_and_dots.py $final_res_alt.bestCRISTA.txt &
 wait || {
 	echo "CRISPRme ERROR: mismatch+bulges reports cleaning failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1

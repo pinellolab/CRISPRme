@@ -672,8 +672,6 @@ def complete_search():
             sys.stderr.write("Forbidden sorting criteria selected\n")
             exit(1)
 
-    print(sorting_criteria)
-
     # check input output directory
     if "--output" not in input_args:
         print("--output must be contained in the input")

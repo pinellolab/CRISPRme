@@ -5,7 +5,9 @@ set -e  # capture any failure
 fileIn=$1
 fileOut=$2
 thresh=$3 #threshold to use in order to merge near targets
-sort_criteria=$4
+sort_pivot=$4  # pivot column to use while sorting targets before merge
+sorting_criteria_scoring=$5  # other sorting criteria (score has highest priority)
+sorting_criteria=$6  # other sorting criteria
 
 ##########ADJUST THESE PARAMETERS BASED ON INPUT FILE##########
 #columns start from 1
@@ -24,9 +26,9 @@ ENDTIME=$(date +%s)
 echo "Sorting done in $(($ENDTIME - $STARTTIME)) seconds"
 # echo -e $header | cat - $fileIn.sorted.tmp > $fileIn.sorted
 # rm $fileIn.sorted.tmp
-echo "Merging targets"
+echo "Merging contiguous targets"
 # python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
-python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_criteria || {
+python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria || {
     echo "CRISPRme ERROR: contigous SNP removal failed (script: ${0} line $((LINENO-1)))" >&2
 	exit 1
 }
