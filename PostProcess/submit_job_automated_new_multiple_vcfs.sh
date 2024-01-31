@@ -683,6 +683,11 @@ mv $final_res_alt.bestCFD.txt.risk $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.risk $final_res_alt.bestmmblg.txt
 mv $final_res_alt.bestCRISTA.txt.risk $final_res_alt.bestCRISTA.txt
 
+##copy res file to check them
+cp $final_res.bestCFD.txt $final_res.bestCFD.txt.tmp
+cp $final_res.bestmmblg.txt $final_res.bestmmblg.txt.tmp
+cp $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.tmp
+
 #remove N's and dots from rsID from BEST FILES
 ./remove_n_and_dots.py $final_res.bestCFD.txt &
 wait || {
