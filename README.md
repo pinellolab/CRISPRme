@@ -72,7 +72,7 @@ mamba install crisprme==<latest_version>
 ```
 For example:
 ```
-mamba install crisprme==2.1.1
+mamba install crisprme==2.1.2
 ```
 You can find the latest release indicated at the top of our [README](https://github.com/pinellolab/CRISPRme#crisprme).
 
@@ -233,7 +233,7 @@ The following sections will describe the main functionalities of CRISPRme, listi
   ```
 - via Docker:
   ```
-  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --sorting-criteria mm+bulges,mm --output sg1617/ --thread 4
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam ./PAMs/20bp-NGG-SpCas9.txt --annotation ./Annotations/encode+gencode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation ./Annotations/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
   ```
 
 #### Targets-integration function
