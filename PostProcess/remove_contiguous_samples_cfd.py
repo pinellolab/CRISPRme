@@ -373,11 +373,11 @@ def define_sorting_criteria(
     """
 
     criteria = sorting_criteria.split(",")
-    if score:
-        print("score")
-    else:
-        print("fewest")
-    print(criteria)
+    # if score:
+    #     print("score")
+    # else:
+    #     print("fewest")
+    # print(criteria)
     if len(criteria) > 3:
         raise ValueError("Mismatching sorting criteria selected")
     if any(c not in SORTING_CRITERIA for c in criteria):
