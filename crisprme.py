@@ -1164,7 +1164,7 @@ def complete_test_crisprme():
             --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
             --thread 4 \
             --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
-            --pam PAMs/test_pam.txt --guide test_guide.txt \
+            --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
             --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
             --output test_output \
             --debug"
@@ -1176,7 +1176,7 @@ def complete_test_crisprme():
             --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
             --thread 4 \
             --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
-            --pam PAMs/test_pam.txt --guide test_guide.txt \
+            --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
             --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
             --output test_output"
         )
