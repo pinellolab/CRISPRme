@@ -1140,8 +1140,8 @@ def complete_test_crisprme():
     utils.check_directories("./")
 
     # create all necessary files to test the complete search with small chromosome
-    with open("PAMs/20bp-NGG-SpCas9-test.txt", "w") as pam_file:
-        pam_file.write("NNNNNNNNNNNNNNNNNNNNNGG 3\n")
+    with open("PAMs/test_pam.txt", "w") as pam_file:
+        pam_file.write("NGG 3\n")
     with open("test_guide.txt", "w") as test_guide:
         test_guide.write("CTAACAGTTGCTTTTATCACNNN\n")
     with open("test_vcf_list.txt", "w") as test_vcf_list:
@@ -1159,7 +1159,7 @@ def complete_test_crisprme():
     # run complete search
     if debug:
         os.system(
-            "./crisprme.py complete-search \
+            "crisprme.py complete-search \
             --genome Genomes/test/ \
             --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
             --thread 4 \
