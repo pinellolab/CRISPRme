@@ -113,7 +113,7 @@ def download_samplesID() -> None:
 
 def download_annotation() -> None:
     os.system(
-        "wget -q -c wget https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/gencode.protein_coding.tar.gz"
+        "wget -q -c https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/gencode.protein_coding.tar.gz"
     )
     os.system("mv gencode.protein_coding.tar.gz Annotations/")
     os.system("tar -xzf Annotations/gencode.protein_coding.tar.gz")
