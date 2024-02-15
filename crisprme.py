@@ -6,6 +6,7 @@ import subprocess
 import itertools
 from Bio.Seq import Seq
 import re
+import utils
 
 # for getting lst of chr to know file extension and if enriched
 from os.path import isfile, isdir, join
@@ -1132,6 +1133,18 @@ def crisprme_version():
         sys.stderr.write("Wrong number of arguments for crisprme.py version\n")
         sys.exit(1)
     sys.stdout.write(f"v{__version__}\n")
+
+
+def complete_test_crisprme():
+    with open("PAMs/pam_test.txt", "w") as pam_file:
+        pam_file.write("NGG 3")
+    with open("test_guide.txt", "w") as test_guide:
+        test_guide.write("CTAACAGTTGCTTTTATCACNNN")
+    with open("test_vcf_list.txt", "w") as test_vcf_list:
+        test_vcf_list.write("hg38_1000G/")
+    utils.download_genome("chr22")
+    utils.download_vcf("chr22","1000G")
+    utils.download_samplesID()
 
 
 # HELP FUNCTION
