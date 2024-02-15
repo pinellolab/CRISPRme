@@ -1151,6 +1151,7 @@ def complete_test_crisprme():
     utils.download_genome("chr22", "test")
     utils.download_vcf("chr22", "1000G")
     utils.download_samplesID()
+    utils.download_annotation()
 
     debug = False
     if "--debug" in input_args:
