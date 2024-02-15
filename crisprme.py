@@ -1147,7 +1147,7 @@ def complete_test_crisprme():
     with open("test_vcf_list.txt", "w") as test_vcf_list:
         test_vcf_list.write("hg38_1000G/\n")
     with open("test_samplesID_list.txt", "w") as test_output:
-        test_output.write("samplesIDs/hg38_1000G.samplesID.txt\n")
+        test_output.write("hg38_1000G.samplesID.txt\n")
     utils.download_genome("chr22", "test")
     utils.download_vcf("chr22", "1000G")
     utils.download_samplesID()
@@ -1166,6 +1166,8 @@ def complete_test_crisprme():
             --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
             --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
             --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
+            --annotation Annotations/encode+gencode.hg38.bed \
+            --gene_annotation Annotations/gencode.protein_coding.bed \
             --output test_output \
             --debug"
         )
@@ -1178,6 +1180,8 @@ def complete_test_crisprme():
             --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
             --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
             --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
+            --annotation Annotations/encode+gencode.hg38.bed \
+            --gene_annotation Annotations/gencode.protein_coding.bed \
             --output test_output"
         )
 

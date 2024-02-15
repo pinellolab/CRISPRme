@@ -109,3 +109,16 @@ def download_samplesID() -> None:
     os.system("mv hg38_1000G.samplesID.txt samplesIDs/")
     os.system("mv hg38_HGDP.samplesID.txt samplesIDs/")
     os.system("mv hg38_gnomAD.samplesID.txt samplesIDs/")
+
+
+def download_annotation() -> None:
+    os.system(
+        "wget -q -c wget https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/gencode.protein_coding.tar.gz"
+    )
+    os.system("mv gencode.protein_coding.tar.gz Annotations/")
+    os.system("tar -xzf Annotations/gencode.protein_coding.tar.gz")
+    os.system(
+        "wget -q -c https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/encode+gencode.hg38.tar.gz"
+    )
+    os.system("mv encode+gencode.hg38.tar.gz Annotations/")
+    os.system("tar -xzf Annotations/encode+gencode.hg38.tar.gz")
