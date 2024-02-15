@@ -115,10 +115,10 @@ def download_annotation() -> None:
     os.system(
         "wget -c https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/gencode.protein_coding.tar.gz"
     )
-    os.system("mv gencode.protein_coding.tar.gz Annotations/")
-    os.system("tar -xzf Annotations/gencode.protein_coding.tar.gz")
+    os.system("tar -xzf gencode.protein_coding.tar.gz")
+    os.system("mv gencode.protein_coding.bed Annotations/")
     os.system(
         "wget -c https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/encode+gencode.hg38.tar.gz"
     )
-    os.system("mv encode+gencode.hg38.tar.gz Annotations/")
-    os.system("tar -xzf Annotations/encode+gencode.hg38.tar.gz")
+    os.system("tar -xzf encode+gencode.hg38.tar.gz")
+    os.system("mv encode+gencode.hg38.bed Annotations/")
