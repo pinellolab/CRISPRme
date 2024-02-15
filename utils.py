@@ -40,24 +40,26 @@ def check_directories(basedir: str) -> None:
             os.makedirs(os.path.join(basedir, d))
 
 
-def download_genome(chr: str) -> None:
+def download_genome(chr: str, directory: str) -> None:
     if not isinstance(chr, str):
         raise TypeError(f"Expected {str.__name__}, got {type(chr).__name__}")
+    if not isinstance(directory, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(directory).__name__}")
     if chr == "all":
         os.system(
             "wget -q -c https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz"
         )
         os.system("mv hg38.chromFa.tar.gz Genomes/")
         os.system("tar -xzf Genomes/hg38.chromFa.tar.gz")
-        os.system("mv Genomes/chroms mv Genomes/hg38")
+        os.system(f"mv Genomes/chroms mv Genomes/{directory}")
     else:
         os.system(
             f"wget -q -c https://hgdownload2.soe.ucsc.edu/goldenPath/hg38/chromosomes/{chr}.fa.gz"
         )
         os.system(f"mv {chr}.fa.gz Genomes/")
         os.system(f"gunzip Genomes/{chr}.fa.gz")
-        os.makedirs(f"Genomes/hg38", exist_ok=True)
-        os.system(f"mv Genomes/{chr}.fa Genomes/hg38/{chr}.fa")
+        os.makedirs(f"Genomes/{directory}", exist_ok=True)
+        os.system(f"mv Genomes/{chr}.fa Genomes/{directory}/{chr}.fa")
 
 
 def download_vcf(chr: str, origin: str) -> None:
@@ -96,6 +98,14 @@ def download_vcf(chr: str, origin: str) -> None:
 
 def download_samplesID() -> None:
     os.system(
-        "wget -q -c ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/working/20160622_sample_info/20131219_sample_info.xlsx"
+        "wget -q -c https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_1000G.samplesID.txt"
     )
-    os.system("mv 20131219_sample_info.xlsx samplesIDs/")
+    os.system(
+        "wget -q -c https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_HGDP.samplesID.txt"
+    )
+    os.system(
+        "wget -q -c https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_gnomAD.samplesID.txt"
+    )
+    os.system("mv hg38_1000G.samplesID.txt samplesIDs/")
+    os.system("mv hg38_HGDP.samplesID.txt samplesIDs/")
+    os.system("mv hg38_gnomAD.samplesID.txt samplesIDs/")

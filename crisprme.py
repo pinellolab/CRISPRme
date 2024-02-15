@@ -1136,15 +1136,50 @@ def crisprme_version():
 
 
 def complete_test_crisprme():
-    with open("PAMs/pam_test.txt", "w") as pam_file:
-        pam_file.write("NGG 3")
+    # check existence of directories
+    utils.check_directories("./")
+    
+    # create all necessary files to test the complete search with small chromosome
+    with open("PAMs/test_pam.txt", "w") as pam_file:
+        pam_file.write("NGG 3\n")
     with open("test_guide.txt", "w") as test_guide:
-        test_guide.write("CTAACAGTTGCTTTTATCACNNN")
+        test_guide.write("CTAACAGTTGCTTTTATCACNNN\n")
     with open("test_vcf_list.txt", "w") as test_vcf_list:
-        test_vcf_list.write("hg38_1000G/")
-    utils.download_genome("chr22")
-    utils.download_vcf("chr22","1000G")
+        test_vcf_list.write("hg38_1000G/\n")
+    with open("test_samplesID_list.txt", "w") as test_output:
+        test_output.write("samplesIDs/hg38_1000G.samplesID.txt\n")
+    utils.download_genome("chr22", "test")
+    utils.download_vcf("chr22", "1000G")
     utils.download_samplesID()
+
+    debug = False
+    if "--debug" in input_args:
+        debug = True
+
+    # run complete search
+    if debug:
+        os.system(
+            "crisprme.py complete-search \
+            --genome Genomes/test/ \
+            --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
+            --thread 4 \
+            --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
+            --pam PAMs/test_pam.txt --guide test_guide.txt \
+            --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
+            --output test_output \
+            --debug"
+        )
+    else:
+        os.system(
+            "crisprme.py complete-search \
+            --genome Genomes/test/ \
+            --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
+            --thread 4 \
+            --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
+            --pam PAMs/test_pam.txt --guide test_guide.txt \
+            --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
+            --output test_output"
+        )
 
 
 # HELP FUNCTION
@@ -1181,6 +1216,8 @@ elif sys.argv[1] == "generate-personal-card":
     personal_card()
 elif sys.argv[1] == "--version":
     crisprme_version()
+elif sys.argv[1] == "complete-test":
+    complete_test_crisprme()
 else:
     sys.stderr.write('ERROR! "' + sys.argv[1] + '" is not an allowed!\n\n')
     callHelp()  # print help when wrong input command
