@@ -1138,7 +1138,7 @@ def crisprme_version():
 def complete_test_crisprme():
     # check existence of directories
     utils.check_directories("./")
-    
+
     # create all necessary files to test the complete search with small chromosome
     with open("PAMs/test_pam.txt", "w") as pam_file:
         pam_file.write("NGG 3\n")
@@ -1188,6 +1188,7 @@ def callHelp():
         "help:\n",
         "\nALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND CHROMOSOME SEPARATED, ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED AND CHROMOSOME SEPARATED\n",
         "\ncrisprme.py complete-search FUNCTION SEARCHING THE WHOLE GENOME (REFERENCE AND VARIANT IF REQUESTED) AND PERFORM CFD ANALYSIS AND TARGET SELECTION",
+        "\ncrisprme.py complete_test_crisprme FUNCTION TO TEST THE COMPLETE PIPELINE OF CRISPRme with a small input",
         "\ncrisprme.py targets-integration FUNCTION THAT INTEGRATES IN-SILICO TARGETS WITH EMPIRICAL DATA GENERATING A USABLE PANEL",
         "\ncrisprme.py gnomAD-converter FUNCTION THAT CONVERTS ALL gnomADv3.1 vcf.bgz FILES INTO COMPATIBLE VCFs",
         "\ncrisprme.py generate-personal-card FUNCTION TO GENERATE PERSONAL CARD FOR A SPECIFIC SAMPLE EXTRACTING ALL THE PRIVATE TARGETS",
