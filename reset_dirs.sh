@@ -15,5 +15,6 @@ if [[ $answer == "Yes" ]]; then
     rm -rf Annotations/
     rm -rf PAMs/
     rm -rf samplesIDs/
+    rm -rf genome_library/
 
 fi
