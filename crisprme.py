@@ -1164,7 +1164,7 @@ def complete_test_crisprme():
             --genome Genomes/test/ \
             --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
             --thread 4 \
-            --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
+            --bMax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 \
             --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
             --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
             --annotation Annotations/encode+gencode.hg38.bed \
@@ -1178,7 +1178,7 @@ def complete_test_crisprme():
             --genome Genomes/test/ \
             --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
             --thread 4 \
-            --bMax 1 --mm 2 --bDNA 1 --bRNA 1 --merge 3 \
+            --bMax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 \
             --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
             --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
             --annotation Annotations/encode+gencode.hg38.bed \
