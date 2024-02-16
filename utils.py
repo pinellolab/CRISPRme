@@ -47,14 +47,14 @@ def download_genome(chr: str, directory: str) -> None:
         raise TypeError(f"Expected {str.__name__}, got {type(directory).__name__}")
     if chr == "all":
         os.system(
-            "wget -c https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz"
+            "curl -C https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz -o hg38.chromFa.tar.gz"
         )
         os.system("mv hg38.chromFa.tar.gz Genomes/")
         os.system("tar -xzf Genomes/hg38.chromFa.tar.gz")
         os.system(f"mv Genomes/chroms mv Genomes/{directory}")
     else:
         os.system(
-            f"wget -c https://hgdownload2.soe.ucsc.edu/goldenPath/hg38/chromosomes/{chr}.fa.gz"
+            f"curl -C https://hgdownload2.soe.ucsc.edu/goldenPath/hg38/chromosomes/{chr}.fa.gz -o {chr}.fa.gz"
         )
         os.system(f"mv {chr}.fa.gz Genomes/")
         os.system(f"gunzip Genomes/{chr}.fa.gz")
@@ -65,11 +65,13 @@ def download_genome(chr: str, directory: str) -> None:
 def download_vcf(chr: str, origin: str) -> None:
     if not isinstance(chr, str):
         raise TypeError(f"Expected {str.__name__}, got {type(chr).__name__}")
+    if not isinstance(origin, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(origin).__name__}")
     if chr == "all" and origin == "1000G":
         os.makedirs(f"VCFs/hg38_1000G", exist_ok=True)
         for i in range(1, 23):
             os.system(
-                f"wget -c ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
+                f"curl -C ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz -o ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
             )
             os.system(
                 f"mv ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz VCFs/hg38_1000G/"
@@ -77,34 +79,35 @@ def download_vcf(chr: str, origin: str) -> None:
     elif chr != "all" and origin == "1000G":
         os.makedirs(f"VCFs/hg38_1000G", exist_ok=True)
         os.system(
-            f"wget -c ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.{chr}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
+            f"curl -C ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.{chr}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz -o ALL.{chr}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
         )
         os.system(
             f"mv ALL.{chr}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz VCFs/hg38_1000G/"
         )
     elif chr == "all" and origin == "HGDP":
         os.makedirs(f"VCFs/hg38_HGDP", exist_ok=True)
-        os.system(
-            f"wget -c ftp://ngs.sanger.ac.uk:21/production/hgdp/hgdp_wgs.20190516/hgdp_wgs.20190516.full.{chr}.vcf.gz"
-        )
-        os.system(f"mv hgdp_wgs.20190516.full.{chr}.vcf.gz VCFs/hg38_HGDP/")
+        for i in range(1, 23):
+            os.system(
+                f"curl -C ftp://ngs.sanger.ac.uk:21/production/hgdp/hgdp_wgs.20190516/hgdp_wgs.20190516.full.chr{i}.vcf.gz -o hgdp_wgs.20190516.full.chr{i}.vcf.gz"
+            )
+            os.system(f"mv hgdp_wgs.20190516.full.chr{i}.vcf.gz VCFs/hg38_HGDP/")
     elif chr != "all" and origin == "HGDP":
         os.makedirs(f"VCFs/hg38_HGDP", exist_ok=True)
         os.system(
-            f"wget -c ftp://ngs.sanger.ac.uk:21/production/hgdp/hgdp_wgs.20190516/hgdp_wgs.20190516.full.{chr}.vcf.gz"
+            f"curl -C ftp://ngs.sanger.ac.uk:21/production/hgdp/hgdp_wgs.20190516/hgdp_wgs.20190516.full.{chr}.vcf.gz -o hgdp_wgs.20190516.full.{chr}.vcf.gz"
         )
         os.system(f"mv hgdp_wgs.20190516.full.{chr}.vcf.gz VCFs/hg38_HGDP/")
 
 
 def download_samplesID() -> None:
     os.system(
-        "wget -c https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_1000G.samplesID.txt"
+        "curl -C https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_1000G.samplesID.txt -o hg38_1000G.samplesID.txt"
     )
     os.system(
-        "wget -c https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_HGDP.samplesID.txt"
+        "curl -C https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_HGDP.samplesID.txt -o hg38_HGDP.samplesID.txt"
     )
     os.system(
-        "wget -c https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_gnomAD.samplesID.txt"
+        "curl -C https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data/hg38_gnomAD.samplesID.txt -o hg38_gnomAD.samplesID.txt"
     )
     os.system("mv hg38_1000G.samplesID.txt samplesIDs/")
     os.system("mv hg38_HGDP.samplesID.txt samplesIDs/")
@@ -113,12 +116,12 @@ def download_samplesID() -> None:
 
 def download_annotation() -> None:
     os.system(
-        "wget -c https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/gencode.protein_coding.tar.gz"
+        "curl -C https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/gencode.protein_coding.tar.gz -o gencode.protein_coding.tar.gz"
     )
     os.system("tar -xzf gencode.protein_coding.tar.gz")
     os.system("mv gencode.protein_coding.bed Annotations/")
     os.system(
-        "wget -c https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/encode+gencode.hg38.tar.gz"
+        "curl -C https://github.com/pinellolab/CRISPRme/raw/test-function/download_data/encode+gencode.hg38.tar.gz -o encode+gencode.hg38.tar.gz"
     )
     os.system("tar -xzf encode+gencode.hg38.tar.gz")
     os.system("mv encode+gencode.hg38.bed Annotations/")
