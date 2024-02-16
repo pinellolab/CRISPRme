@@ -6,6 +6,7 @@ import subprocess
 import itertools
 from Bio.Seq import Seq
 import re
+import utils
 
 # for getting lst of chr to know file extension and if enriched
 from os.path import isfile, isdir, join
@@ -1134,12 +1135,65 @@ def crisprme_version():
     sys.stdout.write(f"v{__version__}\n")
 
 
+def complete_test_crisprme():
+    # check existence of directories
+    utils.check_directories("./")
+
+    # create all necessary files to test the complete search with small chromosome
+    with open("PAMs/20bp-NGG-SpCas9.txt", "w") as pam_file:
+        pam_file.write("NNNNNNNNNNNNNNNNNNNNNGG 3\n")
+    with open("test_guide.txt", "w") as test_guide:
+        test_guide.write("CTAACAGTTGCTTTTATCACNNN\n")
+    with open("test_vcf_list.txt", "w") as test_vcf_list:
+        test_vcf_list.write("hg38_1000G/\n")
+    with open("test_samplesID_list.txt", "w") as test_output:
+        test_output.write("hg38_1000G.samplesID.txt\n")
+    utils.download_genome("chr22", "test")
+    utils.download_vcf("chr22", "1000G")
+    utils.download_samplesID()
+    utils.download_annotation()
+
+    debug = False
+    if "--debug" in input_args:
+        debug = True
+
+    # run complete search
+    if debug:
+        os.system(
+            "crisprme.py complete-search \
+            --genome Genomes/test/ \
+            --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
+            --thread 4 \
+            --bMax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 \
+            --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
+            --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
+            --annotation Annotations/encode+gencode.hg38.bed \
+            --gene_annotation Annotations/gencode.protein_coding.bed \
+            --output test_output \
+            --debug"
+        )
+    else:
+        os.system(
+            "crisprme.py complete-search \
+            --genome Genomes/test/ \
+            --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm \
+            --thread 4 \
+            --bMax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 \
+            --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
+            --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
+            --annotation Annotations/encode+gencode.hg38.bed \
+            --gene_annotation Annotations/gencode.protein_coding.bed \
+            --output test_output"
+        )
+
+
 # HELP FUNCTION
 def callHelp():
     print(
         "help:\n",
         "\nALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND CHROMOSOME SEPARATED, ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED AND CHROMOSOME SEPARATED\n",
         "\ncrisprme.py complete-search FUNCTION SEARCHING THE WHOLE GENOME (REFERENCE AND VARIANT IF REQUESTED) AND PERFORM CFD ANALYSIS AND TARGET SELECTION",
+        "\ncrisprme.py complete-test FUNCTION TO TEST THE COMPLETE PIPELINE OF CRISPRme with a small input",
         "\ncrisprme.py targets-integration FUNCTION THAT INTEGRATES IN-SILICO TARGETS WITH EMPIRICAL DATA GENERATING A USABLE PANEL",
         "\ncrisprme.py gnomAD-converter FUNCTION THAT CONVERTS ALL gnomADv3.1 vcf.bgz FILES INTO COMPATIBLE VCFs",
         "\ncrisprme.py generate-personal-card FUNCTION TO GENERATE PERSONAL CARD FOR A SPECIFIC SAMPLE EXTRACTING ALL THE PRIVATE TARGETS",
@@ -1168,6 +1222,8 @@ elif sys.argv[1] == "generate-personal-card":
     personal_card()
 elif sys.argv[1] == "--version":
     crisprme_version()
+elif sys.argv[1] == "complete-test":
+    complete_test_crisprme()
 else:
     sys.stderr.write('ERROR! "' + sys.argv[1] + '" is not an allowed!\n\n')
     callHelp()  # print help when wrong input command

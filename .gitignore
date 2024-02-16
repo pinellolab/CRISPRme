@@ -13,6 +13,5 @@ samplesIDs/*
 guides/
 *.csv
 *.pkl
-*.txt
 *.zip
 PostProcess/dnaShape.pkl
