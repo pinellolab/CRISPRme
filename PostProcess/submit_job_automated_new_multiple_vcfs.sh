@@ -745,7 +745,7 @@ echo -e "Cleaning directory"
 rm -f *.CFDGraph.txt
 rm -f indels.CFDGraph.txt
 rm -r "crispritz_prof"
-rm -r "crispritz_targets" #remove targets in online version to avoid memory saturation
+# rm -r "crispritz_targets" #remove targets in online version to avoid memory saturation
 #change name to best and alt files
 mv $final_res "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
 mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
