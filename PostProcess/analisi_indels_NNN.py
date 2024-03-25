@@ -921,7 +921,7 @@ global_start = time.time()
 cluster_to_save = list()
 
 for line in inResult:
-    print("line in INDEL analysis", line)
+    # print("line in INDEL analysis", line)
 
     line = line.strip().split("\t")
     # print(line)
