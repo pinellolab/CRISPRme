@@ -33,7 +33,7 @@ cp $2.sort.txt $3.unique_targets.txt
 
 mv $3.semi_common_targets.sort.txt $3.semi_common_targets.txt
 #Remove tmp files, NOTE maybe keep first two and change name to $1 and $2 ?
-# rm $1.sort.txt $2.sort.txt $3.ref.chr_pos.txt
+rm $1.sort.txt $2.sort.txt $3.ref.chr_pos.txt
 
 # # OLD semi common targets extraction
 # LC_ALL=C awk '{print $4"\t"$5}' $1 > ref.chr_pos.txt
