@@ -10,7 +10,8 @@ dir=$(dirname $1)
 #common targets extraction
 LC_ALL=C sort -u -T "$dir" $1 >$1.sort.txt
 LC_ALL=C sort -u -T "$dir" $2 >$2.sort.txt
-LC_ALL=C comm -12 $1.sort.txt $2.sort.txt >$3.common_targets.txt
+cp $2.sort.txt $3.common_targets.txt
+# LC_ALL=C comm -12 $1.sort.txt $2.sort.txt >$3.common_targets.txt
 
 #Semi common targets extraction
 LC_ALL=C awk '{print $4"\t"$5"\t"$6}' $1.sort.txt >$3.ref.chr_pos.txt
