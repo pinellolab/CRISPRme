@@ -19,12 +19,13 @@ LC_ALL=C grep -F -f $3.ref.chr_pos.txt $2.sort.txt >$3.semi_common_targets.txt #
 
 #Aggiungo i target del ref: ora semicommon contiene: target con iupac e targets senza iupac corrispondenti;
 # target senza iupac del var e corrispondenti target senza iupac del ref
-LC_ALL=C grep -F -f $3.ref.chr_pos.txt $1.sort.txt >>$3.semi_common_targets.txt
-
-LC_ALL=C sort -u -T "$dir" $3.semi_common_targets.txt >$3.semi_common_targets.sort.txt
+# LC_ALL=C grep -F -f $3.ref.chr_pos.txt $1.sort.txt >>$3.semi_common_targets.txt
+# LC_ALL=C sort -u -T "$dir" $3.semi_common_targets.txt >$3.semi_common_targets.sort.txt
+cp $3.semi_common_targets.txt $3.semi_common_targets.sort.txt
 
 #unique variant targets extraction
-LC_ALL=C comm -13 $3.semi_common_targets.sort.txt $2.sort.txt >$3.unique_targets.txt
+# LC_ALL=C comm -13 $3.semi_common_targets.sort.txt $2.sort.txt >$3.unique_targets.txt
+cp $2.sort.txt $3.unique_targets.txt
 
 mv $3.semi_common_targets.sort.txt $3.semi_common_targets.txt
 #Remove tmp files, NOTE maybe keep first two and change name to $1 and $2 ?
