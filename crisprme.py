@@ -12,7 +12,7 @@ import utils
 from os.path import isfile, isdir, join
 from os import listdir
 
-version = "2.1.2"  #  CRISPRme version; TODO: update when required
+version = "2.1.3"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
