@@ -18,7 +18,7 @@ CRISPRME_DIRS = [
     "PAMs",
     "samplesIDs",
 ]
-CHROMS = [f"chr{i}" for i in list(range(1, 23)) + ["X", "Y"]]
+CHROMS = [f"chr{i}" for i in list(range(1, 23)) + ["X"]]
 
 
 def check_crisprme_directory_tree(basedir: str) -> None:
