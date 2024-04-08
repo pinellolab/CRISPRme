@@ -1,16 +1,13 @@
 #!/usr/bin/env python
 
-import sys
-import os
+from Bio.Seq import Seq
+
 import subprocess
 import itertools
-from Bio.Seq import Seq
+import sys
+import os
 import re
-import utils
 
-# for getting lst of chr to know file extension and if enriched
-from os.path import isfile, isdir, join
-from os import listdir
 
 version = "2.1.3"  #  CRISPRme version; TODO: update when required
 __version__ = version
@@ -91,8 +88,10 @@ def extractSequence(name, input_range, genome_selected):
 
     list_chr = [
         f
-        for f in listdir(current_working_directory + "Genomes/" + genome_selected)
-        if isfile(join(current_working_directory + "Genomes/" + genome_selected, f))
+        for f in os.listdir(current_working_directory + "Genomes/" + genome_selected)
+        if os.path.isfile(
+            os.path.join(current_working_directory + "Genomes/" + genome_selected, f)
+        )
         and not f.endswith(".fai")
     ]
     add_ext = ".fa"
@@ -867,7 +866,7 @@ def target_integration():
         )
         print(
             "\t--empirical_data, used to specify the file that contains empirical data provided by the user to assess in-silico targets"
-        ),
+        )
         print("\t--output, used to specify the output folder for the results")
         exit(0)
 
@@ -1136,52 +1135,40 @@ def crisprme_version():
 
 
 def complete_test_crisprme():
-    # check existence of directories
-    utils.check_directories("./")
-
-    # create all necessary files to test the complete search with small chromosome
-    with open("PAMs/20bp-NGG-SpCas9.txt", "w") as pam_file:
-        pam_file.write("NNNNNNNNNNNNNNNNNNNNNGG 3\n")
-    with open("test_guide.txt", "w") as test_guide:
-        test_guide.write("CTAACAGTTGCTTTTATCACNNN\n")
-    with open("test_vcf_list.txt", "w") as test_vcf_list:
-        test_vcf_list.write("hg38_1000G/\n")
-    with open("test_samplesID_list.txt", "w") as test_output:
-        test_output.write("hg38_1000G.samplesID.txt\n")
-    utils.download_genome("chr22", "test")
-    utils.download_vcf("chr22", "1000G")
-    utils.download_samplesID()
-    utils.download_annotation()
-
-    debug = False
-    if "--debug" in input_args:
-        debug = True
-
-    # run complete search
-    if debug:
-        os.system(
-            "crisprme.py complete-search \
-            --genome Genomes/test/ \
-            --thread 4 \
-            --bMax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 \
-            --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
-            --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
-            --annotation Annotations/encode+gencode.hg38.bed \
-            --gene_annotation Annotations/gencode.protein_coding.bed \
-            --output test_output \
-            --debug"
+    if "--help" in input_args:
+        sys.stderr.write(
+            "Execute comprehensive testing for complete-search functionality "
+            "provided by CRISPRme\n"
+            "Options:\n"
+            "--chrom, test the complete-search functionality on the specified "
+            "chromosome (e.g., chr22). By default, the test is conducted on all "
+            "chromosomes\n"
+            "--vcf_dataset, VCFs dataset to be used during CRISPRme testing. "
+            "Available options include 1000 Genomes (1000G) and Human Genome "
+            "Diversity Project (HGDP). The default dataset is 1000 Genomes.\n"
+            "--debug, debug mode\n"
         )
-    else:
-        os.system(
-            "crisprme.py complete-search \
-            --genome Genomes/test/ \
-            --thread 4 \
-            --bMax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 \
-            --pam PAMs/20bp-NGG-SpCas9.txt --guide test_guide.txt \
-            --vcf test_vcf_list.txt --samplesID test_samplesID_list.txt \
-            --annotation Annotations/encode+gencode.hg38.bed \
-            --gene_annotation Annotations/gencode.protein_coding.bed \
-            --output test_output"
+    if "--chrom" in input_args:
+        try:
+            chrom = input_args[input_args.index("--chrom") + 1]
+        except IndexError:
+            sys.stderr.write("Please input some parameter for flag --chrom\n")
+            sys.exit(1)
+    if "--vcf" in input_args:
+        try:
+            vcf = input_args[input_args.index("--vcf") + 1]
+        except IndexError:
+            sys.stderr.write("Please input some parameter for flag --vcf\n")
+            sys.exit(1)
+    debug = "--debug" in input_args
+    # begin crisprme test
+    script_test = os.path.join(
+        script_path.replace("PostProcess", "src"), "crisprme_test.py"
+    )
+    code = subprocess.call(f"python {script_test} {chrom} {vcf} {debug}", shell=True)
+    if code != 0:
+        raise OSError(
+            "\nCRISPRme test failed! See Results/crisprme-test-out/log_error.txt for details\n"
         )
 
 
@@ -1206,22 +1193,18 @@ if len(sys.argv) < 2:
     callHelp()
 elif sys.argv[1] == "complete-search":
     complete_search()
-elif sys.argv[1] == "gnomAD-converter":
-    gnomAD_converter()
-# elif sys.argv[1] == 'search-only':
-#     search_only()
-# elif sys.argv[1] == 'post-analysis-only':
-#     post_analysis_only()
-elif sys.argv[1] == "targets-integration":
-    target_integration()
-elif sys.argv[1] == "web-interface":
-    web_interface()
-elif sys.argv[1] == "generate-personal-card":
-    personal_card()
-elif sys.argv[1] == "--version":
-    crisprme_version()
 elif sys.argv[1] == "complete-test":
     complete_test_crisprme()
+elif sys.argv[1] == "targets-integration":
+    target_integration()
+elif sys.argv[1] == "gnomAD-converter":
+    gnomAD_converter()
+elif sys.argv[1] == "generate-personal-card":
+    personal_card()
+elif sys.argv[1] == "web-interface":
+    web_interface()
+elif sys.argv[1] == "--version":
+    crisprme_version()
 else:
     sys.stderr.write('ERROR! "' + sys.argv[1] + '" is not an allowed!\n\n')
     callHelp()  # print help when wrong input command
