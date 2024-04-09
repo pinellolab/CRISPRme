@@ -344,6 +344,21 @@ def write_samplesids_list(dataset: str) -> str:
 
 
 def run_crisprme_test(chrom: str, dataset: str, debug: bool) -> None:
+    """
+    Run CRISPRme test on specified chromosome and dataset.
+
+    Args:
+        chrom (str): The chromosome to run the test on.
+        dataset (str): The dataset to use for the test.
+        debug (bool): Flag to enable debug mode.
+
+    Returns:
+        None
+
+    Raises:
+        None
+    """
+
     check_crisprme_directory_tree(os.getcwd())  # check crisprme directory tree
     download_genome_data(chrom, CRISPRME_DIRS[0])  # download genome data
     download_vcf_data(chrom, CRISPRME_DIRS[3], dataset)  # download vcf data
@@ -365,5 +380,11 @@ def run_crisprme_test(chrom: str, dataset: str, debug: bool) -> None:
     subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
 
 
+def main():
+    chrom, dataset, debug = sys.argv[1:]  # read commandline args
+    debug = debug == "True"
+    run_crisprme_test(chrom, dataset, debug)  # run crisprme test
+
+
 if __name__ == "__main__":
-    run_crisprme_test("chr22", "1000G", True)
+    main()

@@ -1148,24 +1148,34 @@ def complete_test_crisprme():
             "Diversity Project (HGDP). The default dataset is 1000 Genomes.\n"
             "--debug, debug mode\n"
         )
-    if "--chrom" in input_args:
+    chrom = "all"
+    if "--chrom" in input_args:  # individual chrom to test
         try:
             chrom = input_args[input_args.index("--chrom") + 1]
+            if chrom.startswith("--"):
+                sys.stderr.write("Please input some parameter for flag --chrom\n")
+                sys.exit(1)
         except IndexError:
             sys.stderr.write("Please input some parameter for flag --chrom\n")
             sys.exit(1)
-    if "--vcf" in input_args:
+    vcf_dataset = "1000G"
+    if "--vcf_dataset" in input_args:  # specified variant dataset
         try:
-            vcf = input_args[input_args.index("--vcf") + 1]
+            vcf_dataset = input_args[input_args.index("--vcf_dataset") + 1]
+            if vcf_dataset.startswith("--"):
+                sys.stderr.write("Please input some parameter for flag --vcf_dataset\n")
+                sys.exit(1)
         except IndexError:
-            sys.stderr.write("Please input some parameter for flag --vcf\n")
+            sys.stderr.write("Please input some parameter for flag --vcf_dataset\n")
             sys.exit(1)
-    debug = "--debug" in input_args
+    debug = "--debug" in input_args  # run local or via conda/Docker
     # begin crisprme test
     script_test = os.path.join(
         script_path.replace("PostProcess", "src"), "crisprme_test.py"
+    )  # the script is located within src -- TODO: start migration to src
+    code = subprocess.call(
+        f"python {script_test} {chrom} {vcf_dataset} {debug}", shell=True
     )
-    code = subprocess.call(f"python {script_test} {chrom} {vcf} {debug}", shell=True)
     if code != 0:
         raise OSError(
             "\nCRISPRme test failed! See Results/crisprme-test-out/log_error.txt for details\n"
