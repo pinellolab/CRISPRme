@@ -100,32 +100,7 @@ header = [
 ]
 
 
-##USER FUNCTIONS
-def write_to_log(message):
-    ##write to log file with termination
-    log_file.write(message + "\n")
 
-
-def write_to_verbose(message):
-    """write to log_verbose file with print autotermination
-    REMEMBER TO CHANGE VERBOSE TO FILE AND NOT IN STDOUT
-
-    Args:
-        message (_type_): _description_
-    """
-    ##write to log verbose file with print autotermination
-    print(message, file=sys.stdout)
-
-
-def write_to_error(message):
-    """Write to log_error file with print autotermination
-    REMEMBER TO CHANGE VERBOSE TO FILE AND NOT IN stderr
-
-    Args:
-        message (_type_): _description_
-    """
-    ##write to log error file with print autotermination
-    print(message, file=sys.stderr)
 
 
 def pre_process():
