@@ -139,6 +139,10 @@ def format_variant_record(variant: pysam.VariantRecord, genotypes: str) -> str:
         str: Formatted variant record as a tab-separated string.
     """
 
+    try:
+        af = ",".join(list(map(str, variant.info["AF"])))
+    except KeyError:  # catch potential AF missing in variant INFO field
+        af = ",".join(["0.0" for _ in variant.alts])  # type: ignore
     variant_format = [
         variant.chrom,
         variant.pos,
@@ -147,10 +151,7 @@ def format_variant_record(variant: pysam.VariantRecord, genotypes: str) -> str:
         ",".join(variant.alts),  # handle multiallelic sites # type: ignore
         variant.qual,
         ";".join(variant.filter.keys()),  # type: ignore
-        "AF="
-        + ",".join(
-            list(map(str, variant.info["AF"]))
-        ),  # keep allele frequencies # type: ignore
+        f"AF={af}",  # keep allele frequencies
         "GT",  # add genotype to format
         genotypes,
     ]
