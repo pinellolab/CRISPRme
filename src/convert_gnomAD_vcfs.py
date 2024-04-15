@@ -3,6 +3,7 @@
 
 from utils import remove  # type: ignore
 
+from functools import partial
 from typing import List, Tuple
 from glob import glob
 from io import TextIOWrapper
@@ -68,7 +69,9 @@ def tabix_index(vcf_fname: str) -> str:
     tbi_index = f"{vcf_fname}.tbi"
     if not os.path.isfile(tbi_index) and os.stat(tbi_index).st_size <= 0:
         raise FileExistsError(f"Indexing {vcf_fname} failed")
-    sys.stderr.write(f"Indexing {vcf_fname} completed in {(time.time() - start):.2f}s")
+    sys.stderr.write(
+        f"Indexing {vcf_fname} completed in {(time.time() - start):.2f}s\n"
+    )
     return tbi_index
 
 
@@ -305,10 +308,13 @@ def convert_gnomad_vcfs():
     threads = multiprocessing.cpu_count() if threads == 0 else threads
     try:
         pool = multiprocessing.Pool(processes=threads)
-        for gnomad_vcf in gnomad_vcfs:
-            pool.apply_async(
-                run_conversion_pipeline, args=(gnomad_vcf, samples, keep, multiallelic)
-            )
+        partial_run_conversion_pipeline = partial(
+            run_conversion_pipeline,
+            samples=samples,
+            keep=keep,
+            multiallelic=multiallelic,
+        )
+        pool.map(partial_run_conversion_pipeline, gnomad_vcfs)
         pool.close()
         pool.join()
     except OSError as e:
