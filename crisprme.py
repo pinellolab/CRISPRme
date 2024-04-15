@@ -9,7 +9,7 @@ import os
 import re
 
 
-version = "2.1.3"  #  CRISPRme version; TODO: update when required
+version = "2.1.4"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -972,83 +972,123 @@ def target_integration():
     )
 
 
-def gnomAD_converter():
-    if "--help" in input_args:
-        print(
-            "This is the VCF gnomAD converter provided to convert all gnomADv3.1 VCFs into CRISPRme supported VCFs"
-        )
-        print("These are the flags that must be used in order to run this function:")
-        print(
-            "\t--gnomAD_VCFdir, used to specify the directory containing gnomADv3.1 original VCFs"
-        )
-        print(
-            "\t--samplesID, used to specify the pre-generated samplesID file necessary to introduce samples into gnomAD variant"
-        )
-        print(
-            "\t--thread, used to specify the number of core used to process VCFs in parallel (DEFAULT is ALL available minus 2) [OPTIONAL]"
-        )
-        exit(0)
+def print_help_gnomad_converter():
+    """
+    Prints the help information for the gnomAD converter functionality, providing
+    details on the conversion process from gnomAD VCFs to VCFs compatible with
+    CRISPRme. It outlines the options available for specifying directories,
+    sample IDs, variant filtering, multiallelic site handling, and thread usage
+    during the conversion process.
 
-    if "--gnomAD_VCFdir" not in input_args:
-        print("--gnomAD_VCFdir not in input, MANDATORY TO CONVERT DATA")
-        # vcf_dir = script_path+'vuota/'
-        exit(1)
-    else:
-        try:
-            vcf_dir = os.path.abspath(
-                input_args[input_args.index("--gnomAD_VCFdir") + 1]
-            )
-        except IndexError:
-            print("Please input some parameter for flag --gnomAD_VCFdir")
-            exit(1)
-        if not os.path.isdir(vcf_dir):
-            print("The folder specified for --gnomAD_VCFdir does not exist")
-            exit(1)
+    Raises:
+        SystemExit: If the help information is displayed to guide users on using
+        the gnomAD converter functionality.
+    """
 
-    if "--thread" not in input_args:
-        # print("--thread must be contained in the input")
-        # exit(1)
-        thread = len(os.sched_getaffinity(0)) - 2
-    else:
-        try:
-            thread = input_args[input_args.index("--thread") + 1]
-        except IndexError:
-            print("Please input some parameter for flag --thread")
-            exit(1)
-        try:
-            thread = int(thread)
-        except:
-            print("Please input a number for flag thread")
-            exit(1)
-        if thread <= 0 or thread > len(os.sched_getaffinity(0)) - 2:
-            print("thread is set to default (ALL available minus 2)")
-            thread = len(os.sched_getaffinity(0)) - 2
-            # exit(1)
-
-    if "--samplesID" not in input_args:
-        print("--samplesID not in input, MANDATORY TO CONVERT DATA")
-        exit(1)
-    elif "--samplesID" in input_args:
-        try:
-            samplefile = os.path.abspath(
-                input_args[input_args.index("--samplesID") + 1]
-            )
-        except IndexError:
-            print("Please input some parameter for flag --samplesID")
-            exit(1)
-        if not os.path.isfile(samplefile):
-            print("The file specified for --samplesID does not exist")
-            exit(1)
-
-    os.system(
-        script_path
-        + "./convert_gnomAD.py "
-        + vcf_dir
-        + " "
-        + samplefile
-        + " "
-        + str(thread)
+    # functionality description
+    sys.stderr.write(
+        "The gnomAD converter functionality simplifies the conversion process "
+        "of gnomAD VCFs (versions 3.1 and 4.0) into VCFs supported by CRISPRme. "
+        "It ensures a seamless transition while maintaining compatibility with "
+        "CRISPRme's requirements, focusing on the structure and content of "
+        "precomputed sample IDs file \n\n"
     )
+    # options
+    sys.stderr.write(
+        "Options:\n"
+        "\t--gnomAD_VCFdir, specifies the directory containing gnomAD VCFs. "
+        "Files must have the BGZ extension\n"
+        "\t--samplesID, specifies the precomputed sample IDs file necessary "
+        "for incorporating population-specific information into the output "
+        "VCFs\n"
+        "\t--keep, optional flag to retain all variants, regardless of their "
+        "filter flag. By default, variants with a filter flag different from "
+        "PASS are discarded\n"
+        "\t--multiallelic, optional flag to merge variants mapped to the "
+        "same position, creating multiallelic sites in the output VCFs. By "
+        "default, each site remains biallelic\n"
+        "\t--thread, used to set the number of thread used in the conversion "
+        "process [default 8]\n"
+    )
+    sys.exit(1)
+
+
+def gnomAD_converter():
+    """
+    Runs the gnomAD converter functionality based on specified arguments, converting
+    gnomAD VCF files into formats compatible with CRISPRme.
+
+    Raises:
+        ValueError: If mandatory arguments are missing or have incorrect values.
+        FileExistsError: If the specified gnomAD VCF directory cannot be located.
+        FileNotFoundError: If the specified sample IDs file cannot be found.
+        subprocess.SubprocessError: If an error occurs during the gnomAD VCF
+            conversion process.
+    """
+
+    args = input_args[2:]  # reover gnomAD converter args
+    if "--help" in args or not args:  # print help
+        print_help_gnomad_converter()
+        sys.exit(1)
+    if "--gnomAD_VCFdir" not in args:
+        raise ValueError(
+            "--gnomAD_VCFdir is a mandatory argument required for the conversion "
+            "process. Please specify the directory containing gnomAD VCFs using "
+            "this option\n"
+        )
+    if "--samplesID" not in args:
+        raise ValueError(
+            "--samplesID is a mandatory argument required for the conversion "
+            "process. Please specify the sample IDs file this option\n"
+        )
+    # read gnomAD directory arg
+    try:
+        gnomad_dir = args[args.index("--gnomAD_VCFdir") + 1]
+        if gnomad_dir.startswith("--"):
+            raise ValueError("Please input some parameter for flag --gnomAD_VCFdir\n")
+        gnomad_dir = os.path.abspath(gnomad_dir)  # first sanity check passed
+        if not os.path.isdir(gnomad_dir):
+            raise FileExistsError(f"Unable to locate {gnomad_dir}")
+    except IndexError as e:
+        raise ValueError(
+            "Please input some parameter for flag --gnomAD_VCFdir\n"
+        ) from e
+    # read samples ids arg
+    try:
+        samples_ids = args[args.index("--samplesID") + 1]
+        if samples_ids.startswith("--"):
+            raise ValueError("Please input some parameter for flag --samplesID")
+        samples_ids = os.path.abspath(samples_ids)  # first sanity check passed
+        if not os.path.isfile(samples_ids):
+            raise FileNotFoundError(f"Unable to locate {samples_ids}")
+    except IndexError as e:
+        raise ValueError("Please input some parameter for flag --samplesID") from e
+    # read keep arg
+    keep = "--keep" in args  # keep all variants regardless of filter label
+    # read multiallelic arg
+    multiallelic = "--multiallelic" in args  # merge variants in multiallelic sites
+    # read threads arg
+    threads = 8
+    if "--threads" in args:
+        try:
+            threads = int(args[args.index("--threads") + 1])
+            if threads <= 0:
+                raise ValueError(f"Forbidden number of threads ({threads})")
+        except IndexError as e:
+            raise ValueError("Missing or forbidden threads value") from e
+    # run gnom AD converter
+    gnomad_converter_script = os.path.join(
+        script_path.replace("PostProcess", "src"), "convert_gnomAD_vcfs.py"
+    )
+    cmd = (
+        f"python {gnomad_converter_script} {gnomad_dir} {samples_ids} {keep} "
+        f"{multiallelic} {threads}"
+    )
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise subprocess.SubprocessError(
+            f"An error occurred while converting gnomAD VCFs in {gnomad_dir}"
+        )
 
 
 def personal_card():
@@ -1134,20 +1174,47 @@ def crisprme_version():
     sys.stdout.write(f"v{__version__}\n")
 
 
+def print_help_complete_test():
+    """
+    Prints the help information for executing comprehensive testing of the
+    complete-search functionality provided by CRISPRme.
+
+    Raises:
+        SystemExit: If the help information is displayed to guide users on
+            executing comprehensive testing.
+    """
+
+    # write intro message to stdout
+    sys.stderr.write(
+        "Execute comprehensive testing for complete-search functionality "
+        "provided by CRISPRme\n"
+    )
+    # list functionality options
+    sys.stderr.write(
+        "Options:\n"
+        "\t--chrom, test the complete-search functionality on the specified "
+        "chromosome (e.g., chr22). By default, the test is conducted on all "
+        "chromosomes\n"
+        "\t--vcf_dataset, VCFs dataset to be used during CRISPRme testing. "
+        "Available options include 1000 Genomes (1000G) and Human Genome "
+        "Diversity Project (HGDP). The default dataset is 1000 Genomes.\n"
+        "\t--debug, debug mode\n"
+    )
+    sys.exit(1)
+
+
 def complete_test_crisprme():
+    """
+    Executes comprehensive testing for the complete-search functionality provided
+    by CRISPRme based on specified arguments.
+
+    Raises:
+        OSError: If the CRISPRme test fails, indicating an issue with the testing
+            process.
+    """
+
     if "--help" in input_args:
-        sys.stderr.write(
-            "Execute comprehensive testing for complete-search functionality "
-            "provided by CRISPRme\n"
-            "Options:\n"
-            "--chrom, test the complete-search functionality on the specified "
-            "chromosome (e.g., chr22). By default, the test is conducted on all "
-            "chromosomes\n"
-            "--vcf_dataset, VCFs dataset to be used during CRISPRme testing. "
-            "Available options include 1000 Genomes (1000G) and Human Genome "
-            "Diversity Project (HGDP). The default dataset is 1000 Genomes.\n"
-            "--debug, debug mode\n"
-        )
+        print_help_complete_test()
     chrom = "all"
     if "--chrom" in input_args:  # individual chrom to test
         try:
