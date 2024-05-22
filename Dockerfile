@@ -6,7 +6,7 @@ FROM mambaorg/micromamba
 
 # Set the variables for version control during installation
 ARG crispritz_version=2.6.6
-ARG crisprme_version=2.1.2
+ARG crisprme_version=2.1.4
 
 # set the shell to bash
 ENV SHELL bash
