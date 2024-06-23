@@ -1221,8 +1221,9 @@ def complete_test_crisprme():
             process.
     """
 
-    if "--help" in input_args:
+    if "--help" in input_args or len(input_args)<3:
         print_help_complete_test()
+        sys.exit(1)
     chrom = "all"
     if "--chrom" in input_args:  # individual chrom to test
         try:
