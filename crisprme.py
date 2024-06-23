@@ -745,9 +745,11 @@ def complete_search():
     # write crisprme version to file
     with open(outputfolder + "/.command_line.txt", "w") as p:
         p.write("input_command\t" + " ".join(sys.argv[:]))
+        p.write("\n")
         p.close()
     with open(outputfolder + "/.version.txt", "w") as p:
-        p.write("crisprme_version\t" + __version__ + "\n")
+        p.write("crisprme_version\t" + __version__)
+        p.write("\n")
         p.close()
     # write parameters to file
     with open(outputfolder + "/Params.txt", "w") as p:
