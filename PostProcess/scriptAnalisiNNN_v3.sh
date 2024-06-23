@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e  # trace all commands failures
+set -e # trace all commands failures
 
 # Script per l'analisi dei targets della ricerca REF e ENR con PAM NNN
 # Il file dei targets della ricerca sul genoma reference si chiama $REFtargets  -> INPUT $1
@@ -42,7 +42,7 @@ echo $jobid
 # 1) Rimozione duplicati, estrazione semicommon e unique e creazione file total
 #echo 'Creazione file .total.txt'
 ./extraction.sh $REFtargets $ENRtargets $jobid || {
-	echo "CRISPRme ERROR: targets extraction failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: targets extraction failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 } # OUTPUT    $jobid.common_targets.txt -> Non usato
 #           $jobid.semi_common_targets.txt
@@ -63,7 +63,7 @@ rm $jobid.semi_common_targets.minmaxdisr.txt
 #echo 'Creazione cluster del file .total.txt'
 # 3) Clustering
 ./cluster.dict.py $jobid.total.txt 'no' 'True' 'True' "$guide_file" 'total' 'orderChr' || {
-	echo "CRISPRme ERROR: targets clustering failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: targets clustering failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 } # OUTPUT     $jobid.total.cluster.txt
 rm $jobid.total.txt
@@ -95,7 +95,7 @@ rm $jobid.total.txt
 
 # ./simpleAnalysis_v3.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" $mismatch "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA
 ./new_simple_analysis.py "$referencegenome" "$dictionaries" "$jobid.total.cluster.txt" "${pam_file}" "$jobid" "$mismatch" || {
-	echo "CRISPRme ERROR: annotation analysis failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: annotation analysis failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 # cp $jobid.bestCFD.txt $jobid.bestCFD.txt.check_analysis
@@ -130,15 +130,15 @@ echo 'Sorting and adjusting results'
 
 #adjustin columns to have the correct order and remove uncessary ones
 ./adjust_cols.py $jobid.bestCFD.txt || {
-	echo "CRISPRme ERROR: CFD report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CFD report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./adjust_cols.py $jobid.bestmmblg.txt || {
-	echo "CRISPRme ERROR: mismatch+bulges report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: mismatch+bulges report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 ./adjust_cols.py $jobid.bestCRISTA.txt || {
-	echo "CRISPRme ERROR: CRISTA report cleaning failed (script: ${0} line $((LINENO-1)))" >&2
+	echo "CRISPRme ERROR: CRISTA report cleaning failed (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
 # ./adjust_cols.py $jobid.altmmblg.txt
