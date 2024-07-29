@@ -9,7 +9,7 @@ import os
 import re
 
 
-version = "2.1.4"  #  CRISPRme version; TODO: update when required
+version = "2.1.5"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -1223,7 +1223,7 @@ def complete_test_crisprme():
             process.
     """
 
-    if "--help" in input_args or len(input_args)<3:
+    if "--help" in input_args or len(input_args) < 3:
         print_help_complete_test()
         sys.exit(1)
     chrom = "all"
