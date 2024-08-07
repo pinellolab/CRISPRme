@@ -28,7 +28,7 @@ echo "Sorting done in $(($ENDTIME - $STARTTIME)) seconds"
 # rm $fileIn.sorted.tmp
 echo "Merging contiguous targets"
 # python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
-python remove_contiguous_samples.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria
+python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria
 # python remove_contiguous_samples_cfd_new.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria || {
 #     echo "CRISPRme ERROR: contigous SNP removal failed (script: ${0} line $((LINENO-1)))" >&2
 # 	exit 1
