@@ -9,7 +9,7 @@ import os
 import re
 
 
-version = "2.1.4"  #  CRISPRme version; TODO: update when required
+version = "2.1.5"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -742,6 +742,16 @@ def complete_search():
         genome_idx = pam_char + "_" + str(bMax) + "_" + genome_ref
         ref_comparison = False
     # os.chdir(script_path)
+    # write crisprme version to file
+    with open(outputfolder + "/.command_line.txt", "w") as p:
+        p.write("input_command\t" + " ".join(sys.argv[:]))
+        p.write("\n")
+        p.close()
+    with open(outputfolder + "/.version.txt", "w") as p:
+        p.write("crisprme_version\t" + __version__)
+        p.write("\n")
+        p.close()
+    # write parameters to file
     with open(outputfolder + "/Params.txt", "w") as p:
         p.write("Genome_selected\t" + genome_ref.replace(" ", "_") + "\n")
         p.write("Genome_ref\t" + genome_ref + "\n")
@@ -1213,8 +1223,9 @@ def complete_test_crisprme():
             process.
     """
 
-    if "--help" in input_args:
+    if "--help" in input_args or len(input_args) < 3:
         print_help_complete_test()
+        sys.exit(1)
     chrom = "all"
     if "--chrom" in input_args:  # individual chrom to test
         try:
