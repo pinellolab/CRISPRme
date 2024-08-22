@@ -6,7 +6,6 @@ from typing import Optional
 import subprocess
 import tarfile
 import gzip
-import sys
 import os
 
 CRISPRME_DIRS = [
@@ -51,13 +50,15 @@ def check_crisprme_directory_tree(basedir: str) -> None:
             os.makedirs(os.path.join(basedir, d))
 
 
-def download(url: str, dest: str) -> str:
+def download(url: str, dest: str, fname: Optional[str] = None) -> str:
     """
     Download a file from the specified URL to the destination directory.
 
     Args:
         url (str): The URL of the file to download.
         dest (str): The destination directory to save the downloaded file.
+        fname (Optional[str]): Optional filename assigned to the extracted
+            archive.
 
     Returns:
         str: The file path of the downloaded file.
@@ -72,7 +73,11 @@ def download(url: str, dest: str) -> str:
 
     if not isinstance(url, str):
         raise TypeError(f"Expected {str.__name__}, got {type(url).__name__}")
-    fname = os.path.join(dest, os.path.basename(url))
+    fname = (
+        os.path.join(dest, os.path.basename(url))
+        if fname is None
+        else os.path.join(dest, fname)
+    )
     code = subprocess.call(f"wget {url} -O {fname}", shell=True)  # download using wget
     if code != 0:
         raise subprocess.SubprocessError(f"Download from {url} failed")

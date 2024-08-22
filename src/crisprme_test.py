@@ -28,9 +28,11 @@ VCFHGDPURL = (
     "hgdp_wgs.20190516.full.{}.vcf.gz"
 )
 SAMPLESIDURL = (
-    "https://raw.githubusercontent.com/pinellolab/CRISPRme/test-function/download_data"
+    "https://raw.githubusercontent.com/pinellolab/CRISPRme/main/download_data"
 )
-ANNOTATIONURL = "https://github.com/pinellolab/CRISPRme/raw/test-function/download_data"
+ANNOTATIONURL = (
+    "https://raw.githubusercontent.com/pinellolab/CRISPRme/main/download_data"
+)
 
 
 def ensure_hg38_directory(dest: str) -> str:
@@ -221,14 +223,18 @@ def download_annotation_data() -> Tuple[str, str]:
     annotation_dir = ensure_annotation_directory(os.getcwd())
     # download gencode annotation
     gencodetar = download(
-        f"{ANNOTATIONURL}/gencode.protein_coding.tar.gz", annotation_dir
+        f"{ANNOTATIONURL}/gencode.protein_coding.bed.tar.gz", annotation_dir
     )
     gencode = os.path.join(
         untar(gencodetar, annotation_dir), "gencode.protein_coding.bed"
     )
     # download encode annotation
-    encodetar = download(f"{ANNOTATIONURL}/encode+gencode.hg38.tar.gz", annotation_dir)
-    encode = os.path.join(untar(encodetar, annotation_dir), "encode+gencode.hg38.bed")
+    encodetar = download(
+        f"{ANNOTATIONURL}/dhs+encode+gencode.hg38.bed.tar.gz", annotation_dir
+    )
+    encode = os.path.join(
+        untar(encodetar, annotation_dir), "dhs+encode+gencode.hg38.bed"
+    )
     return gencode, encode
 
 
@@ -363,9 +369,8 @@ def run_crisprme_test(chrom: str, dataset: str, debug: bool) -> None:
     download_genome_data(chrom, CRISPRME_DIRS[0])  # download genome data
     download_vcf_data(chrom, CRISPRME_DIRS[3], dataset)  # download vcf data
     download_samples_ids_data(dataset)  # download vcf dataset samples ids
-    gencode, encode = (
-        download_annotation_data()
-    )  # download gencode and encode annotation data
+    # download gencode and encode annotation data
+    gencode, encode = download_annotation_data()
     pam = write_ngg_pamfile()  # write test NGG PAM file
     guide = write_sg1617_guidefile()  # write test sg1617 guide
     vcf = write_vcf_list(dataset)  # write test vcf list
@@ -382,7 +387,7 @@ def run_crisprme_test(chrom: str, dataset: str, debug: bool) -> None:
 
 def main():
     chrom, dataset, debug = sys.argv[1:]  # read commandline args
-    debug = debug == "True"
+    debug = debug == "True"  # debug mode
     run_crisprme_test(chrom, dataset, debug)  # run crisprme test
 
 
