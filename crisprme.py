@@ -1011,6 +1011,8 @@ def print_help_gnomad_converter():
         "\t--samplesID, specifies the precomputed sample IDs file necessary "
         "for incorporating population-specific information into the output "
         "VCFs\n"
+        "\t--joint, optional flag to specify the input GnomAD VCF contain joint "
+        "allele frequencies\n"
         "\t--keep, optional flag to retain all variants, regardless of their "
         "filter flag. By default, variants with a filter flag different from "
         "PASS are discarded\n"
@@ -1073,6 +1075,20 @@ def gnomAD_converter():
             raise FileNotFoundError(f"Unable to locate {samples_ids}")
     except IndexError as e:
         raise ValueError("Please input some parameter for flag --samplesID") from e
+    # read joint gnomad vcf files
+    joint = "--joint" in args
+    # gnomad_version = "4.1"  # default to v4.1
+    # if "--gnomad_version" in args:
+    #     try:
+    #         gnomad_version = args[args.index("--gnomad_version") + 1]
+    #         if gnomad_version.startswith("--"):
+    #             raise ValueError(
+    #                 "Please input some parameter for flag --gnomad_version"
+    #             )
+    #     except IndexError as e:
+    #         raise ValueError(
+    #             "Please input some parameter for flag --gnomad_version"
+    #         ) from e
     # read keep arg
     keep = "--keep" in args  # keep all variants regardless of filter label
     # read multiallelic arg
@@ -1091,8 +1107,8 @@ def gnomAD_converter():
         script_path.replace("PostProcess", "src"), "convert_gnomAD_vcfs.py"
     )
     cmd = (
-        f"python {gnomad_converter_script} {gnomad_dir} {samples_ids} {keep} "
-        f"{multiallelic} {threads}"
+        f"python {gnomad_converter_script} {gnomad_dir} {samples_ids} {joint} "
+        f"{keep} {multiallelic} {threads}"
     )
     code = subprocess.call(cmd, shell=True)
     if code != 0:
