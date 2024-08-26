@@ -5,156 +5,124 @@
 ![Conda](https://img.shields.io/conda/dn/bioconda/crisprme)
 ![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
 
-CRISPRme is a tool for comprehensive off-target assessment available as a web application [online](http://crisprme.di.univr.it/), offline, and command line. It integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize CRISPR-Cas off-target sites at scale. The method considers both single-nucleotide variants (SNVs) and indels, accounts for bona fide haplotypes, accepts spacer:protospacer mismatches and bulges, and is suitable for population and personal genome analyses. CRISPRme takes care of all steps in the process including data download, executing the complete search, and presents an exhaustive report with tables and figures within interactive web-based GUI.
-
-The software has the following main functionalities:
-
-- ```complete-search``` performs a search from scratch with the given inputs (including gRNA, reference genome, and genetic variants).
-- ```targets-integration``` integrates the search results with GENCODE data to identify genes close to the candidate off-targets and collect the top ranking candidates in term of CFD score, CRISTA score, or number of mismatches/bulges.
-- ```web-interface``` starts a local instance of the web interface accessible from any browser.
+CRISPRme is a comprehensive tool designed for thorough off-target assessment in CRISPR-Cas systems. Available as a web application ([http://crisprme.di.univr.it/](http://crisprme.di.univr.it/)), offline tool, and command-line interface, it integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize potential off-target sites at scale. CRISPRme accounts for single-nucleotide variants (SNVs) and indels, considers *bona fide* haplotypes, and allows for spacer:protospacer mismatches and bulges, making it well-suited for both population-wide and personal genome analyses. CRISPRme automates the entire workflow, from data download to executing the search, and delivers detailed reports complete with tables and figures through an interactive web-based interface.
 
 ## Installation
+The following section provides instructions for installing CRISPRme. Depending on your operating system, you can install CRISPRme using one of the following methods:
+- [`Conda`/`Mamba` (for Linux users)](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#install-crisprme-via-condamamba)
+- [`Docker` (compatible with all operating systems, including macOS and Windows)](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#installation-via-docker)
 
-CRISPRme can be installed both via **Conda** (only Linux users) and **Docker** (all operating systems, including OSX and Windows).
+### Install CRISPRme via `Conda`/`Mamba` (for Linux users)
+This section is divided into three subsections:
+- [Installing `Conda` or `Mamba`](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#installing-conda-or-mamba-distributions): This subsection provides the steps required to install ```Conda``` or ```Mamba```. If these tools are not yet installed on your machine, start here.
 
-### Installation via Conda
+- [Installing CRISPRme](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#create-crisprmes-conda-environment): This subsection explains how to install CRISPRme using ```Conda``` or ```Mamba```. If you already have ```Conda``` or ```Mamba``` installed, you can skip to the next section.
 
-If conda is not already available on your machine, the next section will describe how to obtain a fresh ```conda``` distribution. If ```conda``` is already available on your machine you can skip the next section and go to **Create CRISPRme conda environment** section.
+- [Updating CRISPRme](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#updating-crisprmes-conda-installation): This final subsection details how to update older CRISPRme distributions installed via ```Conda``` or ```Mamba``` to the latest version.
 
-#### Obtaining a fresh conda distribution
-If conda is not already available in your environment you can get a fresh ```miniconda``` distribution. To obtain a fresh ```miniconda``` distribution, open a new terminal window and type:
-```
-curl https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64
-bash Miniconda3-latest-Linux-x86_64.sh
-```
-Press ENTER when requested and answer ```yes``` when required. Conda will set all the directories in your ```HOME``` path for an easy use.
+#### Installing Conda or Mamba distributions
+Before installing CRISPRme, you need to have either ```Conda``` or ```Mamba``` installed on your machine. Following the recommendations of the Bioconda community, we strongly recommend using ```Mamba``` over ```Conda```. ```Mamba``` is a faster drop-in replacement to ```Conda```, featuring a more efficient dependency-solving library and optimized components written in C++.
 
-Close the current terminal window and reopen it to allow the system to start ```conda```. If you see in the new window something similar to
-```
-(base) user@nameofPC:~$
-```
-```conda``` was correctly installed and it is ready to run.
+To install Conda, follow the official installation guide [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
-The next step, will be a one-time set up of ```conda``` channels. To set up the channels type on your terminal:
-```
-conda config --add channels defaults
-conda config --add channels bioconda
-conda config --add channels conda-forge
-```
+To install Mamba, follow the official installation guide [here](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html).
 
-#### Create CRISPRme conda environment
-To create the ```conda``` environment for CRISPRme, it is suggested to use ```mamba```. ```mamba``` is a drop-in replacement for conda that uses a faster dependency solving library and parts reimplemented in C++ for speed. To install ```mamba```, in your terminal window type:
+Once ```Mamba``` is installed, set up Bioconda with the following one-time configuration commands:
 ```
-conda install mamba -n base -c conda-forge
+mamba config --add channels bioconda
+mamba config --add channels defaults
+mamba config --add channels conda-forge
+mamba config --set channel_priority strict
 ```
 
-Once installed ```mamba```, you are ready to build the CRISPRme environmet. To build the environment, type:
+If using ```Conda``` just replace ```mamba``` with ```conda``` in the above commands.
+
+#### Create CRISPRme's conda environment
+We reccomend using ```Mamba``` to create CRISPRme's ```conda``` environment. If you prefer to use ```Conda```, simply replace ```mamba``` with ```conda``` in all the following commands.
+
+To build CRISPRme's environment, open a terminal window and type:
 ```
-mamba create -n crisprme python=3.8 crisprme -y
+mamba create -n crisprme python=3.9 crisprme -y  # install crisprme and deps
 ```
+This command installs CRISPRme and all the required dependencies within a dedicated `conda` environment.
 
 To activate the environmment, type:
 ```
-conda activate crisprme
+mamba activate crisprme  # enable crisprme environment
 ```
 
-To test the installation, type in your terminal window:
+To quickly test CRISPRme's installation, type in your terminal:
 ```
+crisprme.py --version  # 2.1.5
 crisprme.py
 ```
 
-If you see all CRISPRme's functionalities listed, you succesfully installed CRISPRme on your machine, and it is ready to be used on your machine.
+The first command should display the installed CRISPRme's version. If the second command lists CRISPRme's functionalities, the installation was successful, and CRISPRme is ready to use.
 
-#### Updating CRISPRme conda installation
-If you want to update an older CRISPRme installation to the latest version, we suggest updating as:
+#### Updating CRISPRme's conda installation
+To update an existing CRISPRme's installation via `Conda` or `Mamba`, use the following command:
 ```
 mamba install crisprme==<latest_version>
 ```
-For example:
+For example, to update to version `2.1.5`:
 ```
-mamba install crisprme==2.1.2
+mamba install crisprme==2.1.5
 ```
-You can find the latest release indicated at the top of our [README](https://github.com/pinellolab/CRISPRme#crisprme).
+You can find the latest release version at the top of our [README](https://github.com/pinellolab/CRISPRme#crisprme).
 
-## Installation via Docker
-For OSX and Windows users is suggested to run CRISPRme via [Docker](https://www.docker.com/get-started). Follow the following links to install Docker on [OSX](https://docs.docker.com/docker-for-mac/install/) or [Windows](https://docs.docker.com/docker-for-windows/install/), and follow the on-screen instructions.
+### Install CRISPRme via Docker (compatible with all operating systems, including macOS and Windows)
+This section is divided into two subsections:
+- [Installing `Docker`](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#install-docker): This subsection provides details on how to install `Docker` on your machine.
 
-If you plan to use CRISPRme via Docker on a Linux-based OS read and follow the instructions listed in the next section, skip it otherwise.
+- [Building CRISPRme's `Docker`](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#build-and-pull-crisprme-docker-image) image: This subsection guides you through building and pulling CRISPRme's Docker image
 
-### Install Docker on Linux machines
-Open a new terminal window and type:
-```
-sudo apt-get update
-```
+#### Install Docker 
+MacOS and Windows users are encouraged to install [Docker](https://www.docker.com/get-started) to use CRISPRme. Linux users may also consider using Docker to run CRISPRme. 
 
-To allow packages installation/update type over ```HTTPS``` channels:
-```
-sudo apt-get install \
-apt-transport-https \
-ca-certificates \
-curl \
-gnupg-agent \
-software-properties-common
-```
+Docker provides different distributions depending on your operating system. Follow the official Docker installation guide for your OS:
+- [MacOS](https://docs.docker.com/docker-for-mac/install/) 
 
-To add the docker key type:
-```
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-```
+- [Windows](https://docs.docker.com/docker-for-windows/install/)
 
-To set the right Docker version for your system, type:
-```
-sudo add-apt-repository \
-"deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-$(lsb_release -cs) \
-Stable"
-```
+- [Linux](https://docs.docker.com/engine/install/ubuntu/)
 
-To make sure everythign is set to install Docker, refresh the repositories index again by typing:
-```
-sudo apt-get update
-```
-
-To install Docker, type:
-```
-sudo apt-get install docker-ce docker-ce-cli containerd.io
-```
-
-To test your Docker installation, type
+**The following steps apply only for Linux users**<br>
+To test your Docker installation, open a terminal window and type:
 ```
 sudo docker run hello-world
 ```
 
-If the following message is printed, Docker is correctly running on your machine:
+If Docker is correctly installed, you should see a message like this:
 ![fig1](./docs/readme/hello-world-docker.png)
 
-To complete Docker's set up a few more steps are required. First, we need to create a Docker group. To do it, type:
+To complete Docker set up on Linux, follow these additional steps: 
+1) Create a Docker group by typing:
 ```
 sudo groupadd docker
 ```
 
-To add your current user to the Docker group, type:
+2) Add the current user to the Docker group:
 ```
 sudo usermod -aG docker $USER
 ```
+Repeat this command for any other user you want to add to the Docker group (**Note:** on most system you must have `sudo` privileges to do this).
 
-Repeat the above command for all the user you plan to add to the Docker group (**NB** on most system you must be a ```sudo``` user to be able to do so).
+3) Restart your machine or log out and back in to apply the changes.
 
-To make all changes effective, you will need to restart the machine or the environment.
-
-To test if the Docker group has been correctly configured, open a new terminal window and type:
+To verify that the Docker group configured correctly, open a new terminal window and run:
 ```
 docker run hello-world
 ```
 
-If the above "hello from Docker!" message is printed, Docker has been suceesfully installed and propoerly set on your machine.
+If you see the "hello from Docker!" message, Docker has been suceesfully installed and properly configured on your machine.
 
-### Install CRISPRme docker image
-Once obtained docker, open a new terminal window and type:
+#### Build and Pull CRISPRme docker image
+Once Docker is installed, open a new terminal window and run the following command:
 ```
 docker pull pinellolab/crisprme
 ```
-This command will download and install CRISPRme Docker image on your machine.
+
+This command will download and build the CRISPRme Docker image on your machine.
 
 ## Test CRISPRme
 To test your CRISPRme installation, open a new terminal window and type:
@@ -312,10 +280,10 @@ The following sections will describe the main functionalities of CRISPRme, listi
 ## Citation
 If you use CRISPRme in your research, please cite our paper [(shareable link to full text)](https://rdcu.be/c1GYQ):
 
-Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, ... Giugno R, Bauer DE, Pinello L. (2022). Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nature Genetics, 1-10. [https://doi.org/10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y)
+Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, Bombieri N, Maitland SA, Ciuculescu MF, Katta V, Tsai SQ, Armant M, Wolfe SA, Giugno R, Bauer DE, Pinello L. Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nat Genet. 2023 Jan;55(1):34-43. doi: [10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y). Epub 2022 Dec 15. PMID: 36522432; PMCID: PMC10272994.
 
 ## License
-AGPL-3.0 (academic research only).
 
-For-profit institutions must purchase a license before using CRISPRme.
-Contact lpinello@mgh.harvard.edu for further details.
+CRISPRme is licensed under AGPL-3.0, allowing use for academic research only.
+
+For-profit institutions must purchase a license before using CRISPRme. For more information, please contact lpinello@mgh.harvard.edu.
