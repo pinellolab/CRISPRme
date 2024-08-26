@@ -9,16 +9,16 @@ CRISPRme is a comprehensive tool designed for thorough off-target assessment in 
 
 ## Installation
 The following section provides instructions for installing CRISPRme. Depending on your operating system, you can install CRISPRme using one of the following methods:
-- [`Conda`/`Mamba` (for Linux users)](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#install-crisprme-via-condamamba)
-- [`Docker` (compatible with all operating systems, including macOS and Windows)](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#installation-via-docker)
+- [`Conda`/`Mamba` (for Linux users)](#install-crisprme-via-condamamba-for-linux-users)
+- [`Docker` (compatible with all operating systems, including macOS and Windows)](#install-crisprme-via-docker-compatible-with-all-operating-systems-including-macos-and-windows)
 
 ### Install CRISPRme via `Conda`/`Mamba` (for Linux users)
 This section is divided into three subsections:
-- [Installing `Conda` or `Mamba`](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#installing-conda-or-mamba-distributions): This subsection provides the steps required to install ```Conda``` or ```Mamba```. If these tools are not yet installed on your machine, start here.
+- [Installing `Conda` or `Mamba`](#installing-conda-or-mamba-distributions): This subsection provides the steps required to install ```Conda``` or ```Mamba```. If these tools are not yet installed on your machine, start here.
 
-- [Installing CRISPRme](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#create-crisprmes-conda-environment): This subsection explains how to install CRISPRme using ```Conda``` or ```Mamba```. If you already have ```Conda``` or ```Mamba``` installed, you can skip to the next section.
+- [Installing CRISPRme](#create-crisprmes-conda-environment): This subsection explains how to install CRISPRme using ```Conda``` or ```Mamba```. If you already have ```Conda``` or ```Mamba``` installed, you can skip to the next section.
 
-- [Updating CRISPRme](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#updating-crisprmes-conda-installation): This final subsection details how to update older CRISPRme distributions installed via ```Conda``` or ```Mamba``` to the latest version.
+- [Updating CRISPRme](#updating-crisprmes-conda-installation): This final subsection details how to update older CRISPRme distributions installed via ```Conda``` or ```Mamba``` to the latest version.
 
 #### Installing Conda or Mamba distributions
 Before installing CRISPRme, you need to have either ```Conda``` or ```Mamba``` installed on your machine. Following the recommendations of the Bioconda community, we strongly recommend using ```Mamba``` over ```Conda```. ```Mamba``` is a faster drop-in replacement to ```Conda```, featuring a more efficient dependency-solving library and optimized components written in C++.
@@ -68,13 +68,13 @@ For example, to update to version `2.1.5`:
 ```
 mamba install crisprme==2.1.5
 ```
-You can find the latest release version at the top of our [README](https://github.com/pinellolab/CRISPRme#crisprme).
+You can find the latest release version at the top of our [README](#crisprme).
 
 ### Install CRISPRme via Docker (compatible with all operating systems, including macOS and Windows)
 This section is divided into two subsections:
-- [Installing `Docker`](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#install-docker): This subsection provides details on how to install `Docker` on your machine.
+- [Installing `Docker`](#install-docker): This subsection provides details on how to install `Docker` on your machine.
 
-- [Building CRISPRme's `Docker`](https://github.com/pinellolab/CRISPRme/edit/gnomad-4.1-converter/README.md#build-and-pull-crisprme-docker-image) image: This subsection guides you through building and pulling CRISPRme's Docker image
+- [Building CRISPRme's `Docker`](#build-and-pull-crisprme-docker-image) image: This subsection guides you through building and pulling CRISPRme's Docker image
 
 #### Install Docker 
 MacOS and Windows users are encouraged to install [Docker](https://www.docker.com/get-started) to use CRISPRme. Linux users may also consider using Docker to run CRISPRme. 
