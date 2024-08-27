@@ -8,26 +8,29 @@
 CRISPRme is a comprehensive tool designed for thorough off-target assessment in CRISPR-Cas systems. Available as a web application ([http://crisprme.di.univr.it/](http://crisprme.di.univr.it/)), offline tool, and command-line interface, it integrates human genetic variant datasets with orthogonal genomic annotations to predict and prioritize potential off-target sites at scale. CRISPRme accounts for single-nucleotide variants (SNVs) and indels, considers *bona fide* haplotypes, and allows for spacer:protospacer mismatches and bulges, making it well-suited for both population-wide and personal genome analyses. CRISPRme automates the entire workflow, from data download to executing the search, and delivers detailed reports complete with tables and figures through an interactive web-based interface.
 
 ## Installation
+
 The following section provides instructions for installing CRISPRme. Depending on your operating system, you can install CRISPRme using one of the following methods:
 - [`Conda`/`Mamba` (for Linux users)](#install-crisprme-via-condamamba-for-linux-users)
 - [`Docker` (compatible with all operating systems, including macOS and Windows)](#install-crisprme-via-docker-compatible-with-all-operating-systems-including-macos-and-windows)
 
 ### Install CRISPRme via `Conda`/`Mamba` (for Linux users)
+
 This section is divided into three subsections:
-- [Installing `Conda` or `Mamba`](#installing-conda-or-mamba-distributions): This subsection provides the steps required to install ```Conda``` or ```Mamba```. If these tools are not yet installed on your machine, start here.
+- [Installing `Conda` or `Mamba`](#installing-conda-or-mamba-distributions): This subsection provides the steps required to install `Conda` or `Mamba`. If these tools are not yet installed on your machine, start here.
 
-- [Installing CRISPRme](#create-crisprmes-conda-environment): This subsection explains how to install CRISPRme using ```Conda``` or ```Mamba```. If you already have ```Conda``` or ```Mamba``` installed, you can skip to the next section.
+- [Installing CRISPRme](#create-crisprmes-conda-environment): This subsection explains how to install CRISPRme using `Conda` or `Mamba`. If you already have `Conda` or `Mamba` installed, you can skip to the next section.
 
-- [Updating CRISPRme](#updating-crisprmes-conda-installation): This final subsection details how to update older CRISPRme distributions installed via ```Conda``` or ```Mamba``` to the latest version.
+- [Updating CRISPRme](#updating-crisprmes-conda-installation): This final subsection details how to update older CRISPRme distributions installed via `Conda` or `Mamba` to the latest version.
 
 #### Installing Conda or Mamba distributions
-Before installing CRISPRme, you need to have either ```Conda``` or ```Mamba``` installed on your machine. Following the recommendations of the Bioconda community, we strongly recommend using ```Mamba``` over ```Conda```. ```Mamba``` is a faster drop-in replacement to ```Conda```, featuring a more efficient dependency-solving library and optimized components written in C++.
+
+Before installing CRISPRme, you need to have either `Conda` or `Mamba` installed on your machine. Following the recommendations of the Bioconda community, we strongly recommend using `Mamba` over `Conda`. `Mamba` is a faster drop-in replacement to `Conda`, featuring a more efficient dependency-solving library and optimized components written in C++.
 
 To install Conda, follow the official installation guide [here](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html).
 
 To install Mamba, follow the official installation guide [here](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html).
 
-Once ```Mamba``` is installed, set up Bioconda with the following one-time configuration commands:
+Once `Mamba` is installed, set up Bioconda with the following one-time configuration commands:
 ```
 mamba config --add channels bioconda
 mamba config --add channels defaults
@@ -35,10 +38,11 @@ mamba config --add channels conda-forge
 mamba config --set channel_priority strict
 ```
 
-If using ```Conda``` just replace ```mamba``` with ```conda``` in the above commands.
+If using `Conda` just replace `mamba` with `conda` in the above commands.
 
 #### Create CRISPRme's conda environment
-We reccomend using ```Mamba``` to create CRISPRme's ```conda``` environment. If you prefer to use ```Conda```, simply replace ```mamba``` with ```conda``` in all the following commands.
+
+We reccomend using `Mamba` to create CRISPRme's `conda` environment. If you prefer to use `Conda`, simply replace `mamba` with `conda` in all the following commands.
 
 To build CRISPRme's environment, open a terminal window and type:
 ```
@@ -60,6 +64,7 @@ crisprme.py
 The first command should display the installed CRISPRme's version. If the second command lists CRISPRme's functionalities, the installation was successful, and CRISPRme is ready to use.
 
 #### Updating CRISPRme's conda installation
+
 To update an existing CRISPRme's installation via `Conda` or `Mamba`, use the following command:
 ```
 mamba install crisprme==<latest_version>
@@ -71,12 +76,14 @@ mamba install crisprme==2.1.5
 You can find the latest release version at the top of our [README](#crisprme).
 
 ### Install CRISPRme via Docker (compatible with all operating systems, including macOS and Windows)
+
 This section is divided into two subsections:
 - [Installing `Docker`](#install-docker): This subsection provides details on how to install `Docker` on your machine.
 
 - [Building CRISPRme's `Docker`](#build-and-pull-crisprme-docker-image) image: This subsection guides you through building and pulling CRISPRme's Docker image
 
 #### Install Docker 
+
 MacOS and Windows users are encouraged to install [Docker](https://www.docker.com/get-started) to use CRISPRme. Linux users may also consider using Docker to run CRISPRme. 
 
 Docker provides different distributions depending on your operating system. Follow the official Docker installation guide for your OS:
@@ -87,13 +94,35 @@ Docker provides different distributions depending on your operating system. Foll
 - [Linux](https://docs.docker.com/engine/install/ubuntu/)
 
 **The following steps apply only for Linux users**<br>
+
 To test your Docker installation, open a terminal window and type:
 ```
 sudo docker run hello-world
 ```
 
 If Docker is correctly installed, you should see a message like this:
-![fig1](./docs/readme/hello-world-docker.png)
+```
+Hello from Docker!
+This message shows that your installation appears to be working correctly.
+
+To generate this message, Docker took the following steps:
+ 1. The Docker client contacted the Docker daemon.
+ 2. The Docker daemon pulled the "hello-world" image from the Docker Hub.
+    (amd64)
+ 3. The Docker daemon created a new container from that image which runs the
+    executable that produces the output you are currently reading.
+ 4. The Docker daemon streamed that output to the Docker client, which sent it
+    to your terminal.
+
+To try something more ambitious, you can run an Ubuntu container with:
+ $ docker run -it ubuntu bash
+
+Share images, automate workflows, and more with a free Docker ID:
+ https://hub.docker.com/
+
+For more examples and ideas, visit:
+ https://docs.docker.com/get-started/
+```
 
 To complete Docker set up on Linux, follow these additional steps: 
 1) Create a Docker group by typing:
@@ -117,6 +146,7 @@ docker run hello-world
 If you see the "hello from Docker!" message, Docker has been suceesfully installed and properly configured on your machine.
 
 #### Build and Pull CRISPRme docker image
+
 Once Docker is installed, open a new terminal window and run the following command:
 ```
 docker pull pinellolab/crisprme
@@ -124,43 +154,46 @@ docker pull pinellolab/crisprme
 
 This command will download and build the CRISPRme Docker image on your machine.
 
-## Test CRISPRme
-To test your CRISPRme installation, open a new terminal window and type:
-```
-wget https://www.dropbox.com/s/urciozkana5md0z/crisprme_test.tar.gz?dl=1 -O crisprme_test.tar.gz
-tar -xvf crisprme_test.tar.gz
-```
-This will download a folder containing some test data, to run and test CRISPRme.
-
-Once downloaded, enter the folder by typing:
-```
-cd crisprme_test
-```
-
-If you installed CRISPRme via ```conda```, test your conda installation by typing:
-```
-bash crisprme_auto_test_conda.sh
-```
-
-Otherwise, if you installed CRISPRme via Docker, test your Docker installation by typing:
-```
-bash crisprme_auto_test_docker.sh
-```
-
-After starting, the tests will download the required test data, then CRISPRme will start its analysis.
-**NB** Depending on your hardware the test may take very different time to complete.
-
-Once downloaded and untared the folder, you will have a ready to use CRISPRme directory tree.
-**NB  DO NOT CHANGE ANY FOLDER NAME** to avoid losing data or forcing to recompute indexes and dictionaries. **YOU MUST USE THE DEFAULT FOLDERS TO STORE THE DATA** since the software have been designed to recognize only files and folders in its own folder tree (see **Usage** section).
-
-
 ## Usage
-CRISPRme is designed to work and recognize its specific directories tree structure. See the following image for a detailed explanantion of CRISPRme's folders structure
-![fig2](./docs/readme/directory_tree.png)
 
-<br>**CAVEAT.** Before running CRISPRme make sure that your system has **>= 64 GB of memory** available.
+CRISPRme offers a range of functionalities for efficient variant- and haplotype-aware CRISPR off-target searches, along with tools for further analysis of the results. Additionally, it provides a graphical interface that can be deployed locally to simplify usage.
 
-The following sections will describe the main functionalities of CRISPRme, listing their input data, and the expected output.
+### System requirements
+
+CRISPRme typically requires at least 32 GB of available memory (RAM) for most cases. However, for intensive searches involving complete genomes and large variant datasets, more memory may be necessary. In such cases, we recommend ensuring that the system running CRISPRme has **at least 64 GB of memory available**.
+
+### CRISPRme directory structure
+
+CRISPRme is designed to work within a specific directory tree structure in the current working directory. The tool requires five main directories to be properly organized for it to run correctly:
+
+- **Genomes**: This directory contains subdirectories, each holding the reference genome to be used. Reference genomes must be split by chromosome, with each chromosome sequence in a separate FASTA file.
+
+- **VCFs**: This directory contains subdirectories, each holding the VCF files, which should be compressed using `bgzip` (with a `.gz` extension). Similar to the Genomes directory, VCF files must be split by chromosome, with one VCF file per chromosome.
+
+- **sampleIDs**: This directory contains tab-separated files listing the samples for each VCF dataset.
+
+- **Annotation**: This directory contains annotation files in BED format.
+
+- **PAMs**: This directory contains text files specifying the PAM sequences.
+
+The image below provides a visual representation of the directory structure required by CRISPRme:
+![fig1](./docs/readme/crisprme_dirtree.png)
+
+### CRISPRme functionalities
+
+This section provides an overview of CRISPRme's core functionalities, including descriptions of each feature, the required input data and formats, and the resulting output data. Below is a list of CRISPRme's key functionalities:
+
+- **complete-search**: Conducts a comprehensive search across the entire genome (both reference and variant data, if requested), performs Cutting Frequency Determination (CFD) analysis, and selects targets.
+
+- **complete-test**: Tests the full CRISPRme pipeline using a small input dataset, allowing you to verify the tool's functionality before running larger analyses.
+
+- **targets-integration**: Integrates in-silico predicted targets with empirical data to generate a usable target panel.
+
+- **gnomAD-converter**: Converts gnomAD v3.1 vcf.bgz files into a format compatible with CRISPRme.
+
+- **generate-personal-card**: Generates a personalized card for a specific sample, extracting all private off-targets unique to that individual.
+
+- **web-interface**: Activates CRISPRme's web interface, allowing you to interact with the tool through a browser locally.
 
 #### Complete-search function
 ```complete-search``` performs a complete search from scratch returing all the results and post-analysis data.
@@ -277,10 +310,46 @@ The following sections will describe the main functionalities of CRISPRme, listi
   crisprme.py web-interface
   ```
 
+## Test
+
+To test CRISPRme installation, open a new terminal window and type:
+```
+wget https://www.dropbox.com/s/urciozkana5md0z/crisprme_test.tar.gz?dl=1 -O crisprme_test.tar.gz
+tar -xvf crisprme_test.tar.gz
+```
+This will download a folder containing some test data, to run and test CRISPRme.
+
+Once downloaded, enter the folder by typing:
+```
+cd crisprme_test
+```
+
+If you installed CRISPRme via ```conda```, test your conda installation by typing:
+```
+bash crisprme_auto_test_conda.sh
+```
+
+Otherwise, if you installed CRISPRme via Docker, test your Docker installation by typing:
+```
+bash crisprme_auto_test_docker.sh
+```
+
+After starting, the tests will download the required test data, then CRISPRme will start its analysis.
+**NB** Depending on your hardware the test may take very different time to complete.
+
+Once downloaded and untared the folder, you will have a ready to use CRISPRme directory tree.
+**NB  DO NOT CHANGE ANY FOLDER NAME** to avoid losing data or forcing to recompute indexes and dictionaries. **YOU MUST USE THE DEFAULT FOLDERS TO STORE THE DATA** since the software have been designed to recognize only files and folders in its own folder tree (see **Usage** section).
+
 ## Citation
-If you use CRISPRme in your research, please cite our paper [(shareable link to full text)](https://rdcu.be/c1GYQ):
+If you use CRISPRme in your research, please cite our [paper](https://rdcu.be/c1GYQ):
 
 Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, Bombieri N, Maitland SA, Ciuculescu MF, Katta V, Tsai SQ, Armant M, Wolfe SA, Giugno R, Bauer DE, Pinello L. Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nat Genet. 2023 Jan;55(1):34-43. doi: [10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y). Epub 2022 Dec 15. PMID: 36522432; PMCID: PMC10272994.
+
+## Contacts
+
+Luca Pinello: lpinello@mgh.harvard.edu
+Rosalba Giugno: rosalba.giugno@univr.it
+Daniel Bauer: bauer@bloodgroup.tch.harvard.edu
 
 ## License
 
