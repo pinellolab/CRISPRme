@@ -183,131 +183,281 @@ The image below provides a visual representation of the directory structure requ
 
 This section provides an overview of CRISPRme's core functionalities, including descriptions of each feature, the required input data and formats, and the resulting output data. Below is a list of CRISPRme's key functionalities:
 
-- **complete-search**: Conducts a comprehensive search across the entire genome (both reference and variant data, if requested), performs Cutting Frequency Determination (CFD) analysis, and selects targets.
+- [**complete-search**](#complete-search): Conducts a comprehensive search across the entire genome (both reference and variant data, if requested), performs Cutting Frequency Determination (CFD) analysis, and selects targets.
 
-- **complete-test**: Tests the full CRISPRme pipeline using a small input dataset, allowing you to verify the tool's functionality before running larger analyses.
+- [**complete-test**](#complete-test): Tests the full CRISPRme pipeline using a small input dataset, allowing you to verify the tool's functionality before running larger analyses.
 
-- **targets-integration**: Integrates in-silico predicted targets with empirical data to generate a usable target panel.
+- [**targets-integration**](#targets-integration): Integrates in-silico predicted targets with empirical data to generate a usable target panel.
 
-- **gnomAD-converter**: Converts gnomAD v3.1 vcf.bgz files into a format compatible with CRISPRme.
+- [**gnomAD-converter**](#gnomad-converter): Converts gnomAD v3.1 vcf.bgz files into a format compatible with CRISPRme.
 
-- **generate-personal-card**: Generates a personalized card for a specific sample, extracting all private off-targets unique to that individual.
+- [**generate-personal-card**](#generate-personal-card): Generates a personalized card for a specific sample, extracting all private off-targets unique to that individual.
 
-- **web-interface**: Activates CRISPRme's web interface, allowing you to interact with the tool through a browser locally.
+- [**web-interface**](): Activates CRISPRme's web interface, allowing you to interact with the tool through a browser locally.
 
-#### Complete-search function
-```complete-search``` performs a complete search from scratch returing all the results and post-analysis data.
+#### Complete-search
 
-**Input**:
-- Directory containing a reference genome (FASTA format). The reference genome must be separated into single chromosome files (e.g. chr1.fa, chr2.fa, etc.).
-- Text file storing path to the VCF directories [OPTIONAL]
-- Text file with a list of guides (1 to N)
-- Text file with a single PAM sequence
-- BED file with annotations, containing a list of genetic regions with a function associated
-- Text file containing a list of path to a samplesID file (1 to N) equal to the number of VCF dataset used [OPTIONAL]
-- Base editor window, used to specify the window to search for susceptibilty to certain base editor [OPTIONAL]
-- Base editor nucleotide(s), used to specify the base(s) to check for the choosen editor [OPTIONAL]
-- BED file extracted from Gencode data to find gene proximity of targets
-- Maximal number of allowed bulges of any kind to compute in the index genome
-- Threshold of mismatches allowed
-- Size of DNA bulges allowed
-- Size of RNA bulges allowed
-- Merge range, necessary to reduce the inflation of targets due to bulges, it's the window of bp necessary to merge one target into another maintaining the highest scoring one
-- Sorting criteria to use while merging targets based on CFD/CRISTA scores (scores have highest priority)
-- Sorting criteria to use while merging targets based on fewest mismatches+bulges
-- Output directory, in which all the data will be produced
-- Number of threads to use in computation
+The `complete-search` functionality executes a comprehensive variant- and haplotype-aware off-target analysis on the provided reference genome and variant datasets. This function processes all steps in CRISPRme's pipeline, including off-target identification, annotation, and reporting. It generates detailed reports on population- and sample-specific off-targets, as well as graphical summaries of the findings. This section describes the input parameters, output data, and provides a usage example.
 
-**Output**
-- bestMerge targets file, containing all the highest scoring targets, in terms of CFD and targets with the lowest combination of mismatches and bulges (with preference to lowest mismatches count), each genomic position is represent by one target
-- altMerge targets file, containing all the discarded targets from the bestMerge file, each genomic position can be represented by more than target
-- Parameters data file, containing all the parameters used in the search
+##### Input arguments
+
+Below the list and description of the input arguments required by `complete-search` function:
+
+- **--help**: Displays the help message and exits.
+
+- **--genome**: Specifies the directory containing the reference genome in FASTA format. The genome should be divided into individual chromosome files (e.g., `chr1.fa`, `chr2.fa`, etc.).
+
+- **--vcf**: ext file specifying the subdirectories containing the VCFs used to enrich the input reference genome. If not specified, CRISPRme searches off-targets only on the reference genome sequence. [OPTIONAL]
+
+- **--guide**: Text file containing a list of guide sequences (one per row) to search within the input data. This option is mutually exclusive with the `--sequence` argument.
+
+- **--sequence**: Text file listing guide sequences formatted as a FASTA file. This option cannot be used in conjunction with `--guide`.
+
+- **--pam**: Text file containing the PAM sequence to be used in the search.
+
+- **--be-window**: Specifies the base editor window, requiring start and stop coordinates (1-based, with respect to the target start), separated by a comma. This option is used to search for susceptibility to base editing. [OPTIONAL]
+
+- **--be-base**: Specifies the base editor nucleotide(s) to check for the chosen editor. [OPTIONAL]
+
+- **--annotation**: BED file containing annotation data, such as a list of genetic regions with associated functions (e.g., DNase hypersensitive sites, enhancers, etc.).
+
+- **--samplesID**: Text file containing a list of sample IDs (one per line) corresponding to the VCF datasets used. These files must be located within the sampleID directory. This option is mandatory if `--vcf` is specified. [OPTIONAL]
+
+- **--gene_annotation**: BED file containing gene data, such as Gencode annotations, used to compute gene proximity for the identified targets.
+
+- **--mm**: Maximum number of mismatches allowed during the target search.
+
+- **--bDNA**: Maximum bulge size allowed on DNA.
+
+- **--bRNA**: Maximum bulge size allowed on RNA.
+
+- **--merge**: Specifies the window size (in base pairs) used to merge candidate off-targets. When merging, the pivot targets are selected based on the highest score, particularly when CFD and CRISTA scores are computed, using the criteria defined by the `--sorting-criteria-scoring` argument. If CFD and CRISTA scores are not available, the merging follows the criteria specified in `--sorting-criteria`. The default window size for merging is set to 3 base pairs. [OPTIONAL]
+
+- **--sorting-criteria-scoring**: Defines the criteria for sorting and merging targets based on CFD/CRISTA scores, prioritizing the highest score. The criteria must be provided as a comma-separated list. Available options include `mm` (number of mismatches), `bulges` (bulge size), and `mm+bulges` (total number of mismatches and bulges). By default, `mm+bulges` is used as the sorting criterion. [OPTIONAL]
+
+- **--sorting-criteria**: Specifies the criteria for sorting and merging targets based on the fewest mismatches and bulges, particularly when CFD and CRISTA scores cannot be computed. The criteria should be provided as a comma-separated list. Available options include `mm` (number of mismatches), `bulges` (bulge size), and `mm+bulges` (total mismatches and bulges). By default, the tool uses `mm+bulges` as the primary criterion and `mm` as a secondary criterion, with `mm+bulges` serving as the main pivot for merging. [OPTIONAL]
+
+- **--output**: Name of the output directory, which will contain all the results of CRISPRme's analysis. This directory will be located within the `Results` directory.
+
+- **--thread**: Number of threads to use during the computation. By default, CRISPRme uses 4 threads. [OPTIONAL]
+
+- **debug**: Runs the tool in debug mode. [OPTIONAL]
+
+##### Output data
+
+- bestMerge targets file, containing the best targets kept after merge based on the selected criteria. Generally, targets are selcted in terms of CFD and targets with the lowest combination of mismatches and bulges, each genomic position is represent by one target
+
+- altMerge targets file, containing all the targets discarded from the bestMerge file and store all the alternative alignments at each candidate off-target site, each genomic position can be represented by more than one target
+
 - Count and distribution files, containing all the data count file useful in the web-tool representation to generate main tables and view
+
 - Integrated results and database, containing all the tabulated data with genes proximity analysis and database representation to rapid querying on the web-tool GUI
+
 - Directory with raw targets, containing the un-processed results from the search, useful to recover any possible target found during the search
+
 - Directory with images, containing all the images generated to be used with the web-tool
 
-**Example**
-- via ```conda```:
+##### Usage example
+
+Usage example of `complete-search` function:
+
+- Via `conda`/`mamba`:
   ```
-  crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/gencode_encode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation Gencode/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm --output sg1617/ --thread 4
-  ```
-- via Docker:
-  ```
-  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam ./PAMs/20bp-NGG-SpCas9.txt --annotation ./Annotations/encode+gencode.hg38.bed --samplesID list_samplesID.txt --be-window 4,8 --be-base A --gene_annotation ./Annotations/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617/ --thread 4
+  crisprme.py complete-search --genome Genomes/hg38/ --vcf vcf_list.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/dhs+gencode+encode.hg38.bed --samplesID samplesID_list.txt --be-window 4,8 --be-base A --gene_annotation Annotations/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm --output sg1617_NGG --thread 4
   ```
 
-#### Targets-integration function
-```targets-integration``` returns an ```integrated_result``` file with paired empirical targets from an ```integrated_results``` file.
-
-**Input**
-- Integrated results from a search, containing the processed targets
-- BED file containing empirical verified OT, like via GUIDE-seq, CIRCLE-seq and other sequencing protocols
-- Output directory, in which the integrated result file with empirical data will be created
-
-**Output**
-- Directory containing the integrated result with each target pair with an existing empirical target (if found)
-
-**Example**
-- via ```conda```:
+- Via `Docker`:
   ```
-  crisprme.py targets-integration --targets *integrated_results.tsv --empirical_data empirical_data.tsv --output dir/
-  ```
-- via Docker:
-  ```
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py targets-integration --targets *integrated_results.tsv --empirical_data empirical_data.tsv --output dir/
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf vcf_list.txt/ --guide sg1617.txt --pam ./PAMs/20bp-NGG-SpCas9.txt --annotation Annotations/dhs+encode+gencode.hg38.bed --samplesID samplesID_list.txt --be-window 4,8 --be-base A --gene_annotation Annotations/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm --output sg1617_NGG --thread 4
   ```
 
-#### gnomAD-converter function
-```gnomAD-converter``` converts a set of gnomADv3.1 VCFs into compatible VCFs.
+#### Complete-test
 
-**Input**
-- gnomAD_VCFdir, used to specify the directory containing gnomADv3.1 original VCFs
-- samplesID, used to specify the pre-generated samplesID file necessary to introduce samples into gnomAD variant
-- thread, the number of threads used in the process (default is ALL available minus 2)
+The `complete-test` feature offers a fully automated pipeline for testing CRISPRme's installation. It handles the creation of the CRISPRme directory structure and downloads the essential files required to run the tool. `Complete-test` provides several testing options, allowing the user to perform quick tests on a single chromosome or conduct comprehensive tests on the entire genome. Furthermore, the feature supports testing CRISPRme using either the 1000 Genomes Phase 3 dataset or the Human Genome Diversity Project (HGDP) dataset. The testing environment can be configured by the user via command line parameters.
 
-**Output**
-- original gnomAD directory with the full set of gnomAD VCFs converted to compatible format
+The necessary data for these tests can be accessed [here](https://github.com/pinellolab/CRISPRme/tree/gnomad-4.1-converter/test/data), except for the FASTA and VCF files, which are downloaded from the UCSC and 1000 Genomes/HGDP databases due to their large file sizes.
 
-**Example**
-- via ```conda```:
+##### Input arguments
+
+Below the list and description of the input arguments required by `complete-test` function:
+
+- **--help**: Displays the help message and exits.
+
+- **--chrom**: Specifies the chromosome for CRISPRme's test. The chromosome number must be prefixed with chr (e.g., chr22). By default, the test is conducted on the entire genome. [OPTIONAL]
+
+- **vcf_dataset**: Defines the variant dataset used for testing CRISPRme. The available options are `1000G` for the 1000 Genomes dataset and `HGDP` for the Human Genome Diversity Project dataset. The default dataset is 1000 Genomes. [OPTIONAL]
+
+- **--debug**: Runs the tool in debug mode. [OPTIONAL]
+
+##### Output data
+
+
+##### Usage example
+
+Usage example of `complete-test` function:
+
+- Via `conda`/`mamba`:
+```
+# test only on chr 22 and 1000 Genomes
+crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
+
+# test on the entire genome and HGDP 
+crisprme.py complete-test --vcf_dataset HGDP
+```
+
+- Via `Docker`:
+```
+# test only on chr 22 and 1000 Genomes
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
+
+# test on the entire genome and HGDP 
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-test --vcf_dataset HGDP
+```
+
+#### Targets-integration
+
+The `targets-integration` feature combines the targets identified by CRISPRme with empirically validated targets, such as those obtained through GUIDE-seq or CIRCLE-seq. The empirically validated targets should be provided in a `BED` file. After integrating the two datasets, this feature generates an `integrated_result` file within the specified output directory.
+
+##### Input arguments
+
+Below the list and description of the input arguments required by `targets-integration` function:
+
+- **--help**: Displays the help message and exits.
+
+- **--targets**: File containing the targets identified and processed from a CRISPRme search.
+
+- **--empirical_data**: `BED` file with empirically verified off-targets, such as those obtained from GUIDE-seq, CIRCLE-seq, or other sequencing protocols.
+
+- **--output**: NName of the output directory where the integrated targets file will be saved.
+
+- **--debug**: Runs the tool in debug mode. [OPTIONAL]
+
+##### Output data
+
+##### Usage example
+
+Usage example of `targets-integration` function:
+
+- Via `conda`/`mamba`:
   ```
-  crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
-  ```
-- via Docker:
-  ```
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_dir/ --samplesID samplesIDs/hg38_gnomAD.samplesID.txt -thread 4
+  crisprme.py targets-integration --targets results.integrated_results.tsv --empirical_data empirical_data.bed --output integrated_targets_dir
   ```
 
-#### Generate-personal-card function
-```generate-personal-card``` generates a personal card for a specified input sample.
+- Via `Docker`:
+  ```
+  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py targets-integration --targets results.integrated_results.tsv --empirical_data empirical_data.bed --output integrated_targets_dir
+  ```
 
-**Input**
-- result_dir, directory containing the result from which extract the targets to generate the card
-- guide_seq, sequence of the guide to use in order to exctract the targets
-- sample_id, ID of the sample to use in order to generate the card
+#### gnomAD-converter 
 
-**Output**
+The `gnomAD-converter` function provides a utility to convert gnomAD VCF files into a format suitable for use as input in CRISPRme searches. The converter currently supports gnomAD VCF files for the following versions:
+
+- v3.1
+
+- v4.0
+
+- v4.1 (including joint VCFs)
+
+For a successful conversion, the converter requires a sample ID file. Since individual samples are not provided in gnomAD VCFs, CRISPRme treats populations as single samples. This approach does not impact population-based statistics. However, if you require sample-specific statistics, we do not recommend using gnomAD, as the data are population-based rather than sample-based. Sample ID files for gnomAD [v3.1 and v4.0](https://github.com/pinellolab/CRISPRme/blob/gnomad-4.1-converter/test/data/hg38_gnomAD.samplesID.txt) and [v4.1](https://github.com/pinellolab/CRISPRme/blob/gnomad-4.1-converter/test/data/hg38_gnomAD.v4.1.samplesID.txt) are available on our GitHub page.
+
+##### Input arguments
+
+Below the list and description of the input arguments required by `targets-integration` function:
+
+- **--help**: Displays the help message and exits.
+
+- **--gnomAD_VCFdir**: Directory containing the gnomAD VCF files to process and convert into a format suitable for CRISPRme.
+
+- **--samplesID**: Text file containing the sample IDs used during the gnomAD VCF conversion. In this file, gnomAD populations are treated as individual samples to construct VCFs suitable for CRISPRme.
+
+- **--joint**: Flag specifying whether the gnomAD VCFs to convert are joint VCFs. By default the converter assumes the input VCFs are not joint VCFs [OPTIONAL]
+
+- **--keep**: Flag specifying whether to retain all variants, regardless of their value in the FILTER field of the VCF. By default, the converter discards variants without a PASS value in the FILTER field. [OPTIONAL]
+
+- **--multiallelic**: Flag indicating whether to merge variants mapped at the same position into a single line, creating multiallelic entries. By default, the converter keeps all variants biallelic and does not merge them. [OPTIONAL]
+
+- **--thread**: Specifies the number of threads to use during the computation. By default, CRISPRme uses 4 threads. [OPTIONAL]
+
+- **--debug**: Runs the tool in debug mode. [OPTIONAL]
+
+
+##### Output data
+
+##### Usage example
+
+Usage example of `targets-integration` function:
+
+- Via `conda`/`mamba`:
+  ```
+  # keep all variants and merge variants in multiallelic variants
+  crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_vcf_dir --samplesID hg38_gnomAD.samplesID.txt --keep --multiallelic -thread 4
+  ```
+
+- Via `Docker`:
+  ```
+  # keep all variants and merge variants in multiallelic variants
+  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_vcf_dir --samplesID hg38_gnomAD.samplesID.txt --keep --multiallelic -thread 4
+  ```
+
+#### Generate-personal-card
+
+The `generate-personal-card` functionality generates a sample-specific report. This report, called personal card, contains all targets found by CRISPRme on the sample-specific genomic sequence, accounting for its private variants. This functionality is useful when searching private potential off-target sequences for a certain input guide.
+
+##### Input arguments 
+
+Below the list and description of the input arguments required by `generate-personal-card` function:
+
+- **--help**: Displays the help message and exits.
+
+- **--result_dir**: Directory containing the CRISPRme search results. Targets are extracted from the targets reports available in the input directory.
+
+- **--guide_seq**: sequence of the guide of interest to use to extract the sample-specific targets from the input data
+
+- **--sample_id**: ID of the sample to use to generate the personal card
+
+- **--debug**: Runs the tool in debug mode.
+
+##### Output data
 - Set of plots generated with personal and private targets containing the variant CFD score and the reference CFD score
 - Filtered file with private targets of the sample directly extracted from integrated file
 
-**Example**
-- via ```conda```:
+##### Usage example
+
+Usage example of `generate-personal-card` function:
+
+- Via `conda`/`mamba`:
   ```
-  crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
+  crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2 --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
   ```
-- via Docker
+
+- Via `Docker`:
   ```
   docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
   ```
 
-#### Web-interface function (only via conda)
-```web-interface``` starts a local server to use CRISPRme's web interface.
+#### Web-interface
 
-**Example**
-- via ```conda```
+The `web-interface` deploys locally a graphical user interface similar to crisprme's website. This local server can be accessed using the major web-browser used (successfully tested on Chrome, Safari, and Firefox). The graphical interface provides an easy-to-use interface to run CRISPRme and explore the search results interactively. 
+
+Note that this functionality is currently available only for CRISPRme distributions installed via `conda`/`mamba`.
+
+##### Input arguments
+
+Below the list and description of the input arguments required by `web-interface` function:
+
+- **--debug**: Deploys the local server in debug mode.
+
+##### Output data
+
+This function does not produce output data.
+
+##### Usage example
+
+Usage example of `web-interface` function:
+
+- Via `conda`/`mamba`:
   ```
-  crisprme.py web-interface
+  crisprme.py web-interface  # starts local server
   ```
 
 ## Test
