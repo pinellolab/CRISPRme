@@ -193,7 +193,7 @@ This section provides an overview of CRISPRme's core functionalities, including 
 
 - [**generate-personal-card**](#generate-personal-card): Generates a personalized card for a specific sample, extracting all private off-targets unique to that individual.
 
-- [**web-interface**](): Activates CRISPRme's web interface, allowing you to interact with the tool through a browser locally.
+- [**web-interface**](#web-interface): Activates CRISPRme's web interface, allowing you to interact with the tool through a browser locally.
 
 #### Complete-search
 
@@ -245,17 +245,31 @@ Below the list and description of the input arguments required by `complete-sear
 
 ##### Output data
 
-- bestMerge targets file, containing the best targets kept after merge based on the selected criteria. Generally, targets are selcted in terms of CFD and targets with the lowest combination of mismatches and bulges, each genomic position is represent by one target
+The `complete-search` functionality generates various reports detailing the targets identified and prioritized by CRISPRme, along with statistical summaries of these targets categorized by sample or input guide. Additionally, CRISPRme provides graphical summaries of the search results and statistics in image format.
 
-- altMerge targets file, containing all the targets discarded from the bestMerge file and store all the alternative alignments at each candidate off-target site, each genomic position can be represented by more than one target
+Below is a description of the contents of each output file:
 
-- Count and distribution files, containing all the data count file useful in the web-tool representation to generate main tables and view
+-**`*.bestMerge.txt`**: This file contains the top targets selected based on the input criteria. Each row represents the best target for a specific genomic location, chosen according to the highest CFD score (if computed), highest CRISTA score (if computed), and the fewest combined mismatches and bulges.
 
-- Integrated results and database, containing all the tabulated data with genes proximity analysis and database representation to rapid querying on the web-tool GUI
+- **`*.altMerge.txt`**: This file includes all alternative alignments that were not selected for the `*.bestMerge.txt` file. It lists all additional targets identified by CRISPRme at each candidate off-target position. Each genomic position may have multiple reported targets in this file.
 
-- Directory with raw targets, containing the un-processed results from the search, useful to recover any possible target found during the search
+- **`*.integrated_results.tsv`**: This file details the best targets according to the input criteria, along with annotation data from the input files. It includes information on the gene proximity of each candidate off-target and its location within regulatory elements.
 
-- Directory with images, containing all the images generated to be used with the web-tool
+- **`*.all_results_with_alternative_alignments.tsv`**: This file lists all targets identified by CRISPRme, including alternative alignments at potential off-target sites. Each reported target is annotated with gene proximity and its location within functional genomic regulatory elements, based on the input annotation files.
+
+- **`*.summary_by_guide.<guide-sequence>_CFD.txt`**: This file summarizes the number of candidate off-targets identified by CRISPRme for each guide, using the CFD score as the primary sorting criterion. It provides counts of targets based on bulge type, mismatch number, and bulge size, as well as how many targets were found in the reference sequence, variant genome, and how many were a result of PAM creation due to a variant. These counts are derived from the targets listed in the `*.bestMerge.txt` file.
+
+- **`*.summary_by_guide.<guide-sequence>_CRISTA.txt`**: This file provides a summary similar to the `*_CFD.txt` file, but uses the CRISTA score as the primary sorting criterion. It details the number of candidate off-targets per guide, categorized by bulge type, mismatch number, bulge size, and the presence of targets in the reference sequence, variant genome, and those resulting from PAM creation due to a variant.
+
+- **`*.summary_by_guide.<guide-sequence>_fewest.txt`**: This file summarizes the number of candidate off-targets identified by CRISPRme for each guide, using the fewest combined mismatches and bulge size as the primary sorting criterion. It provides counts based on bulge type, mismatch number, and bulge size, and notes how many targets were found in the reference sequence, variant genome, and those due to PAM creation by a variant.
+
+- **`*.summary_by_samples.<guide-sequence>_CFD.txt`**: This file counts the candidate off-targets identified by CRISPRme that are private to each sample, using the CFD score as the primary sorting criterion. It also reports how many targets were found in the sample’s population and superpopulation, and how many involved PAM creation induced by a variant.
+
+- **`*.summary_by_samples.<guide-sequence>_CRISTA.txt`**: Similar to the `*_CFD.txt` file, this file counts private candidate off-targets for each sample, using the CRISTA score as the primary sorting criterion. It also provides details on targets found in the population, superpopulation, and those involving PAM creation due to a variant.
+
+- **`*.summary_by_samples.<guide-sequence>_fewest.txt`**: This file summarizes the candidate off-targets identified by CRISPRme that are private to each sample, sorted by the fewest combined mismatches and bulge size. It includes counts of targets found in the sample’s population and superpopulation, as well as those involving PAM creation due to a variant.
+
+- **`imgs` directory**: This directory contains images that illustrate the impact of genetic variants on the top 1000 targets, selected according to each of the previously mentioned criteria (CFD score, CRISTA score, and the combined number of mismatches and bulge size). The images depict changes in these metrics due to genetic variations. Additionally, the directory includes bar plots that show the distribution of targets across different populations, categorized by the combined number of mismatches and bulge size identified by CRISPRme.
 
 ##### Usage example
 
@@ -285,7 +299,7 @@ Below the list and description of the input arguments required by `complete-test
 
 - **--chrom**: Specifies the chromosome for CRISPRme's test. The chromosome number must be prefixed with chr (e.g., chr22). By default, the test is conducted on the entire genome. [OPTIONAL]
 
-- **vcf_dataset**: Defines the variant dataset used for testing CRISPRme. The available options are `1000G` for the 1000 Genomes dataset and `HGDP` for the Human Genome Diversity Project dataset. The default dataset is 1000 Genomes. [OPTIONAL]
+- **--vcf_dataset**: Defines the variant dataset used for testing CRISPRme. The available options are `1000G` for the 1000 Genomes dataset and `HGDP` for the Human Genome Diversity Project dataset. The default dataset is 1000 Genomes. [OPTIONAL]
 
 - **--debug**: Runs the tool in debug mode. [OPTIONAL]
 
@@ -379,7 +393,6 @@ Below the list and description of the input arguments required by `targets-integ
 - **--thread**: Specifies the number of threads to use during the computation. By default, CRISPRme uses 4 threads. [OPTIONAL]
 
 - **--debug**: Runs the tool in debug mode. [OPTIONAL]
-
 
 ##### Output data
 
@@ -497,8 +510,8 @@ Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, Bombieri N, Maitland 
 
 ## Contacts
 
-Luca Pinello: lpinello@mgh.harvard.edu
-Rosalba Giugno: rosalba.giugno@univr.it
+Luca Pinello: lpinello@mgh.harvard.edu<br>
+Rosalba Giugno: rosalba.giugno@univr.it<br>
 Daniel Bauer: bauer@bloodgroup.tch.harvard.edu
 
 ## License
