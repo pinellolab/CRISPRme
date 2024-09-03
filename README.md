@@ -249,7 +249,7 @@ The `complete-search` functionality generates various reports detailing the targ
 
 Below is a description of the contents of each output file:
 
--**`*.bestMerge.txt`**: This file contains the top targets selected based on the input criteria. Each row represents the best target for a specific genomic location, chosen according to the highest CFD score (if computed), highest CRISTA score (if computed), and the fewest combined mismatches and bulges.
+- **`*.bestMerge.txt`**: This file contains the top targets selected based on the input criteria. Each row represents the best target for a specific genomic location, chosen according to the highest CFD score (if computed), highest CRISTA score (if computed), and the fewest combined mismatches and bulges.
 
 - **`*.altMerge.txt`**: This file includes all alternative alignments that were not selected for the `*.bestMerge.txt` file. It lists all additional targets identified by CRISPRme at each candidate off-target position. Each genomic position may have multiple reported targets in this file.
 
@@ -475,33 +475,45 @@ Usage example of `web-interface` function:
 
 ## Test
 
-To test CRISPRme installation, open a new terminal window and type:
-```
-wget https://www.dropbox.com/s/urciozkana5md0z/crisprme_test.tar.gz?dl=1 -O crisprme_test.tar.gz
-tar -xvf crisprme_test.tar.gz
-```
-This will download a folder containing some test data, to run and test CRISPRme.
+To quickly verify the installation of CRISPRme, open a new terminal window and run the following command:
 
-Once downloaded, enter the folder by typing:
+- Via `Conda`/`Mamba`:
 ```
-cd crisprme_test
+crisprme.py --version  # v2.1.6
 ```
 
-If you installed CRISPRme via ```conda```, test your conda installation by typing:
+- Via `Docker`:
 ```
-bash crisprme_auto_test_conda.sh
-```
-
-Otherwise, if you installed CRISPRme via Docker, test your Docker installation by typing:
-```
-bash crisprme_auto_test_docker.sh
+docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py --version  # v2.1.6
 ```
 
-After starting, the tests will download the required test data, then CRISPRme will start its analysis.
-**NB** Depending on your hardware the test may take very different time to complete.
+If the command returns the correct software version, CRISPRme has been successfully installed and is ready for use.
 
-Once downloaded and untared the folder, you will have a ready to use CRISPRme directory tree.
-**NB  DO NOT CHANGE ANY FOLDER NAME** to avoid losing data or forcing to recompute indexes and dictionaries. **YOU MUST USE THE DEFAULT FOLDERS TO STORE THE DATA** since the software have been designed to recognize only files and folders in its own folder tree (see **Usage** section).
+For a more detailed test, testing the main CRISPRme's functionality (`complete-search`), CRISPRme provides a dedicated [functionality](#complete-test). The test functionality provides two main test options, one quicker the other more detailed. The quicker test mode, performs an off-target search on a single chromosome sequence enriched with variants from either 1000 Genomes or Human Genome Diversity Project datasets. The more detailed test, instead, test crisprme searching potential off-targets across the entire genome. The test on the full genome replicates the analysis presented in our [paper](#citation), using the sg1617 single uguide RNA, `NGG` PAM, and the gencode and encode annotations.
+
+To run the test on a single chromosome (chromosome 22) and using 1000 Genomes variants, open a new terminal window and run the following command:
+
+- Via `Conda`/`Mamba`
+```
+crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
+```
+
+- Via `Docker`:
+```
+docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py complete-test --chrom 22 --vcf_dataset 1000G
+```
+
+To run the test on the entire genome and using 1000 Genomes variants, open a new terminal window and run the following command:
+
+- Via `Conda`/`Mamba`
+```
+crisprme.py complete-test --vcf_dataset 1000G
+```
+
+- Via `Docker`:
+```
+docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py complete-test --vcf_dataset 1000G
+```
 
 ## Citation
 If you use CRISPRme in your research, please cite our [paper](https://rdcu.be/c1GYQ):
