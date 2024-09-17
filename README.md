@@ -317,6 +317,9 @@ crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
 
 # test on the entire genome and HGDP 
 crisprme.py complete-test --vcf_dataset HGDP
+
+# test on the entire genome and 1000G+HGDP
+crisprme.py complete-test --vcf_dataset 1000G+HGDP
 ```
 
 - Via `Docker`:
@@ -326,6 +329,10 @@ docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-
 
 # test on the entire genome and HGDP 
 docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-test --vcf_dataset HGDP
+
+# test on the entire genome and 1000G+HGDP
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme
+crisprme.py complete-test --vcf_dataset 1000G+HGDP
 ```
 
 #### Targets-integration
