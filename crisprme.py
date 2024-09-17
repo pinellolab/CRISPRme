@@ -1223,7 +1223,8 @@ def print_help_complete_test():
         "chromosomes\n"
         "\t--vcf_dataset, VCFs dataset to be used during CRISPRme testing. "
         "Available options include 1000 Genomes (1000G) and Human Genome "
-        "Diversity Project (HGDP). The default dataset is 1000 Genomes.\n"
+        "Diversity Project (HGDP). To use the combined dataset type '1000G+HGDP' "
+        "The default dataset is 1000 Genomes.\n"
         "\t--debug, debug mode\n"
     )
     sys.exit(1)

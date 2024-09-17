@@ -18,21 +18,19 @@ import sys
 import os
 
 HG38URL = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38"
-VCF1000GPURL = (
-    "ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/"
-    "release/20190312_biallelic_SNV_and_INDEL/"
+VCF1000GSERVER = "ftp.1000genomes.ebi.ac.uk"
+VCF1000GURL = (
+    "/vol1/ftp/data_collections/1000_genomes_project/release/"
+    "20190312_biallelic_SNV_and_INDEL/"
     "ALL.{}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
 )
-VCFHGDPURL = (
-    "ftp://ngs.sanger.ac.uk:21/production/hgdp/hgdp_wgs.20190516/"
-    "hgdp_wgs.20190516.full.{}.vcf.gz"
-)
-SAMPLESIDURL = (
-    "https://raw.githubusercontent.com/pinellolab/CRISPRme/main/download_data"
-)
-ANNOTATIONURL = (
-    "https://raw.githubusercontent.com/pinellolab/CRISPRme/main/download_data"
-)
+VCFHGDPSERVER = "ngs.sanger.ac.uk"
+VCFHGDPURL = "/production/hgdp/hgdp_wgs.20190516/hgdp_wgs.20190516.full.{}.vcf.gz"
+SAMPLESIDURL = "https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data"
+ANNOTATIONURL = "https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data"
+
+
+# TODO: before PR fix urls and script call
 
 
 def ensure_hg38_directory(dest: str) -> str:
@@ -75,14 +73,15 @@ def download_genome_data(chrom: str, dest: str) -> None:
         raise ValueError(f"Forbidden input chromosome ({chrom})")
     if not os.path.isdir(dest):  # check dest directory existence
         raise FileExistsError(f"Unable to locate {dest}")
+    sys.stderr.write(f"Downloading fasta file for chromosome(s) {chrom}\n")
     if chrom == "all":
-        chromstar = download(f"{HG38URL}/bigZips/hg38.chromFa.tar.gz", dest)
+        chromstar = download(dest, http_url=f"{HG38URL}/bigZips/hg38.chromFa.tar.gz")
         chromsdir = untar(chromstar, dest, "chroms")  # decompress archive
         # rename chroms dir to hg38
         chromsdir = rename(chromsdir, os.path.join(os.path.dirname(chromsdir), "hg38"))
         assert os.path.isdir(chromsdir)
     else:
-        chromgz = download(f"{HG38URL}/chromosomes/{chrom}.fa.gz", dest)
+        chromgz = download(dest, http_url=f"{HG38URL}/chromosomes/{chrom}.fa.gz")
         dest = ensure_hg38_directory(dest)  # create hg38 directory
         chromfa = gunzip(
             chromgz,
@@ -120,7 +119,7 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
         chrom (str): The chromosome identifier in UCSC format.
         dest (str): The destination directory to save the downloaded VCF data.
         dataset (str): The name or identifier of the variant dataset (e.g., "1000G",
-            "HGDP").
+            "HGDP", or "1000G+HGDP").
 
     Returns:
         None
@@ -136,14 +135,22 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
     if not os.path.isdir(dest):  # check dest directory existence
         raise FileExistsError(f"Unable to locate {dest}")
     # support for 1000 GP and HGDP datasets
-    if dataset not in ["1000G", "HGDP"]:
+    if dataset not in ["1000G", "HGDP", "1000G+HGDP"]:
         raise ValueError(f"Unknown variant dataset ({dataset})")
     # create VCF dataset directory within VCFs folder
-    vcf_dataset_dir = ensure_vcf_dataset_directory(dest, dataset)
-    vcf_url = VCF1000GPURL if dataset == "1000G" else VCFHGDPURL
-    chroms = CHROMS if chrom == "all" else [chrom]
-    for c in chroms:
-        download(vcf_url.format(c), vcf_dataset_dir)
+    sys.stderr.write(f"Downloading VCF data for chromsome(s) {chrom}\n")
+    for ds in dataset.split("+"):
+        vcf_dataset_dir = ensure_vcf_dataset_directory(dest, ds)
+        ftp_server = VCF1000GSERVER if ds == "1000G" else VCFHGDPSERVER
+        vcf_url = VCF1000GURL if ds == "1000G" else VCFHGDPURL
+        chroms = CHROMS if chrom == "all" else [chrom]
+        for c in chroms:  # request FTP connection
+            download(
+                vcf_dataset_dir,
+                ftp_conn=True,
+                ftp_server=ftp_server,
+                ftp_path=vcf_url.format(c),
+            )
 
 
 def ensure_samplesids_directory(dest: str) -> str:
@@ -180,15 +187,17 @@ def download_samples_ids_data(dataset: str) -> None:
         ValueError: If the variant dataset is unknown.
     """
 
-    if dataset not in ["1000G", "HGDP"]:
+    if dataset not in ["1000G", "HGDP", "1000G+HGDP"]:
         raise ValueError(f"Unknown variant dataset ({dataset})")
     # samples ids folder must be located within current directory
     # -- see check_crisprme_directory_tree() for details
+    sys.stderr.write(f"Downloading sample ids for dataset(s) {dataset}\n")
     samplesids_dir = ensure_samplesids_directory(os.getcwd())
-    samplesid_fname = (
-        "hg38_1000G.samplesID.txt" if dataset == "1000G" else "hg38_HGDP.samplesID.txt"
-    )
-    download(f"{SAMPLESIDURL}/{samplesid_fname}", samplesids_dir)
+    for ds in dataset.split("+"):
+        samplesid_fname = (
+            "hg38_1000G.samplesID.txt" if ds == "1000G" else "hg38_HGDP.samplesID.txt"
+        )
+        download(samplesids_dir, http_url=f"{SAMPLESIDURL}/{samplesid_fname}")
 
 
 def ensure_annotation_directory(dest: str) -> str:
@@ -220,17 +229,18 @@ def download_annotation_data() -> Tuple[str, str]:
             files.
     """
 
+    sys.stderr.write("Downloading ENCODE and GENCODE annotation data\n")
     annotation_dir = ensure_annotation_directory(os.getcwd())
     # download gencode annotation
     gencodetar = download(
-        f"{ANNOTATIONURL}/gencode.protein_coding.bed.tar.gz", annotation_dir
+        annotation_dir, http_url=f"{ANNOTATIONURL}/gencode.protein_coding.bed.tar.gz"
     )
     gencode = os.path.join(
         untar(gencodetar, annotation_dir), "gencode.protein_coding.bed"
     )
     # download encode annotation
     encodetar = download(
-        f"{ANNOTATIONURL}/dhs+encode+gencode.hg38.bed.tar.gz", annotation_dir
+        annotation_dir, http_url=f"{ANNOTATIONURL}/dhs+encode+gencode.hg38.bed.tar.gz"
     )
     encode = os.path.join(
         untar(encodetar, annotation_dir), "dhs+encode+gencode.hg38.bed"
@@ -266,6 +276,7 @@ def write_ngg_pamfile() -> str:
         str: The path to the created test PAM file.
     """
 
+    sys.stderr.write("Creating PAM file\n")
     pams_dir = ensure_pams_directory(
         os.getcwd()
     )  # PAMs directory must be in current working dir
@@ -286,6 +297,7 @@ def write_sg1617_guidefile() -> str:
         str: The path to the created test guide file.
     """
 
+    sys.stderr.write("Creating guide file\n")
     guidefile = "sg1617_test_guide.txt"
     try:
         with open(guidefile, mode="w") as outfile:
@@ -308,14 +320,15 @@ def write_vcf_list(dataset: str) -> str:
     """
 
     # support for 1000 GP and HGDP datasets
-    if dataset not in ["1000G", "HGDP"]:
+    if dataset not in ["1000G", "HGDP", "1000G+HGDP"]:
         raise ValueError(f"Unknown variant dataset ({dataset})")
     # select the test vcf list
-    vcflist = f"hg38_{dataset}"
+    sys.stderr.write(f"Creating VCF config file for dataset(s) {dataset}\n")
     vcflistfile = "vcf_list_test.txt"
     try:
         with open(vcflistfile, mode="w") as outfile:
-            outfile.write(f"{vcflist}\n")
+            for ds in dataset.split("+"):
+                outfile.write(f"hg38_{ds}\n")
     except IOError as e:
         raise IOError("An error occurred while writing the test VCF list") from e
     return vcflistfile
@@ -334,16 +347,20 @@ def write_samplesids_list(dataset: str) -> str:
     """
 
     # support for 1000 GP and HGDP datasets
-    if dataset not in ["1000G", "HGDP"]:
+    if dataset not in ["1000G", "HGDP", "1000G+HGDP"]:
         raise ValueError(f"Unknown variant dataset ({dataset})")
     # select the test vcf list
-    samplesidslist = (
-        "hg38_1000G.samplesID.txt" if dataset == "1000G" else "hg38_HGDP.samplesID.txt"
-    )
+    sys.stderr.write(f"Creating samples config file for dataset(s) {dataset}\n")
     samplesidslistfile = "samplesID_list_test.txt"
     try:
         with open(samplesidslistfile, mode="w") as outfile:
-            outfile.write(f"{samplesidslist}\n")
+            for ds in dataset.split("+"):
+                samplesidslist = (
+                    "hg38_1000G.samplesID.txt"
+                    if ds == "1000G"
+                    else "hg38_HGDP.samplesID.txt"
+                )
+                outfile.write(f"{samplesidslist}\n")
     except IOError as e:
         raise IOError("An error occurred while writing the test VCF list") from e
     return samplesidslistfile
@@ -377,7 +394,7 @@ def run_crisprme_test(chrom: str, dataset: str, debug: bool) -> None:
     samplesids = write_samplesids_list(dataset)  # write test samples ids list
     debug_arg = "--debug" if debug else ""
     crisprme_cmd = (
-        f"crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
+        f"python ./crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
         f"--thread 4 --bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
         f"--gene_annotation {gencode} --output crisprme-test-out {debug_arg}"
