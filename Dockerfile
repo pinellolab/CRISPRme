@@ -6,7 +6,7 @@ FROM mambaorg/micromamba
 
 # Set the variables for version control during installation
 ARG crispritz_version=2.6.6
-ARG crisprme_version=2.1.6
+ARG crisprme_version=2.1.5
 
 # set the shell to bash
 ENV SHELL bash
@@ -20,6 +20,11 @@ RUN apt update
 RUN apt upgrade -y
 
 # Install crispritz & crisprme packages
-RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.9 crispritz=$crispritz_version crisprme=$crisprme_version && micromamba clean --all --yes
+RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.9 crispritz=$crispritz_version crisprme=$crisprme_version requests moreutils && micromamba clean --all --yes
+USER mambauser
 # Start the base environment
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
+
+# This is the end of the development environemnt, switch to the production!
+FROM dev AS prod
+USER root

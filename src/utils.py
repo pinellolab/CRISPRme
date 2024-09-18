@@ -2,8 +2,7 @@
 """
 
 from requests.exceptions import ConnectionError, Timeout, RequestException
-from io import TextIOWrapper
-from typing import Optional, Union
+from typing import Optional, Union, IO, cast
 from ftplib import FTP
 
 import subprocess
@@ -62,6 +61,7 @@ def ftp_download(
     ftp_path: Union[str, None],
     dest: str,
     fname: Union[str, None],
+    overwrite: bool = True
 ) -> str:
     """
     Download a file from an FTP server and save it to a specified destination.
@@ -78,6 +78,8 @@ def ftp_download(
         dest (str): The destination directory where the file will be saved.
         fname (Optional[str]): The name of the file to save as. If not provided,
             the base name of the FTP path will be used.
+        overwrite (bool): If the destination file is already present,
+            decide to overwrite it. Defaults to True.
 
     Returns:
         str: The path to the downloaded file.
@@ -97,13 +99,14 @@ def ftp_download(
     if not isinstance(ftp_path, str):
         raise TypeError(f"Expected {str.__name__}, got {type(ftp_path).__name__}")
     fname = os.path.join(dest, fname or os.path.basename(ftp_path))
-    try:
-        with FTP(ftp_server) as ftp:  # initialize ftp server
-            ftp.login()  # open connection to server
-            with open(fname, mode="wb") as outfile:  # write binary data
-                ftp.retrbinary(f"RETR {ftp_path}", outfile.write)
-    except IOError as e:
-        raise OSError(f"An error occurred while saving {fname}") from e
+    if overwrite or not os.path.exists(fname):
+        try:
+            with FTP(ftp_server) as ftp:  # initialize ftp server
+                ftp.login()  # open connection to server
+                with open(fname, mode="wb") as outfile:  # write binary data
+                    ftp.retrbinary(f"RETR {ftp_path}", outfile.write)
+        except IOError as e:
+            raise OSError(f"An error occurred while saving {fname}") from e
     if not os.path.isfile(fname):
         raise FileNotFoundError(f"{fname} not created")
     return fname
@@ -114,7 +117,32 @@ def http_download(
     dest: str,
     fname: Union[str, None],
     resume: bool,
+    overwrite: bool = False
 ) -> str:
+    """
+    Download a file from a specified HTTP or HTTPS URL and save it to a destination.
+
+    This function retrieves a file from the provided HTTP URL and saves it to a specified
+    directory. It ensures that the URL is valid and that the file is successfully created
+    after the download.
+
+    Args:
+        http_url (Union[str, None]): The URL of the file to download. Must be provided.
+        dest (str): The destination directory where the file will be saved.
+        fname (Optional[str]): The name of the file to save as. If not provided,
+            the base name of the URL will be used.
+        resume (bool): Resume partial download.
+        overwrite (bool): If the destination file is already present,
+            decide to overwrite it. Defaults to False.
+
+    Returns:
+        str: The path to the downloaded file.
+
+    Raises:
+        ValueError: If the HTTP URL is not provided or is invalid.
+        TypeError: If the HTTP URL is not a string.
+        FileNotFoundError: If the file is not created after the download attempt.
+    """
 
     if http_url is None:
         raise ValueError("HTTP URL must be provided if HTTP connection is requested")
@@ -125,19 +153,31 @@ def http_download(
             "Invalid HTTP URL. It must start with 'http://' or 'https://'."
         )
     fname = os.path.join(dest, fname or os.path.basename(http_url))
-    headers = (
-        {"Range": f"bytes={os.path.getsize(fname)}-"}
-        if resume and os.path.exists(fname)
-        else {}
-    )
-    mode = "ab" if resume else "wb"
-    chunk_size = 1024 if resume else 8192
-    with requests.get(http_url, headers=headers, stream=True) as response:
-        response.raise_for_status()
-        with open(fname, mode=mode) as f:
-            for chunk in response.iter_content(chunk_size=chunk_size):
-                if chunk:
-                    f.write(chunk)
+    if not os.path.exists(fname) or resume or overwrite:
+        headers = (
+            {"Range": f"bytes={os.path.getsize(fname)}-"}
+            if resume and os.path.exists(fname) and not overwrite
+            else {}
+        )
+        mode = "ab" if resume else "wb"
+        chunk_size = 1024 if resume else 8192
+        should_download = True
+        with requests.head(http_url) as response_peek:
+            response_peek.raise_for_status()
+            try:
+                if os.stat(fname).st_size >= int(response_peek.headers['Content-Length']):
+                    should_download = False
+            except Exception:
+                # if something goes wrong, re-download the thing
+                pass
+
+        if should_download:
+            with requests.get(http_url, headers=headers, stream=True) as response:
+                response.raise_for_status()
+                with open(fname, mode=mode) as f:
+                    for chunk in response.iter_content(chunk_size=chunk_size):
+                        if chunk:
+                            f.write(chunk)
     if not os.path.isfile(fname):
         raise FileNotFoundError(f"{fname} not created")
     return fname
@@ -151,6 +191,7 @@ def download(
     ftp_path: Optional[str] = None,
     http_url: Optional[str] = None,
     resume: Optional[bool] = False,
+    overwrite: bool = False
 ) -> str:
     """
     Download a file from either an FTP server or an HTTP/HTTPS URL and save it to
@@ -169,6 +210,9 @@ def download(
         ftp_path (Optional[str]): The path on the FTP server to retrieve the file from,
             required if ftp_conn is True.
         http_url (Optional[str]): The URL of the file to download via HTTP/HTTPS.
+        resume (bool): Resume partial download.
+        overwrite (bool): If the destination file is already present,
+            decide to overwrite it. Defaults to False.
 
     Returns:
         str: The path to the downloaded file.
@@ -192,9 +236,9 @@ def download(
             "Both ftp and http connection cannot be requested at the same time"
         )
     if ftp_conn:  # ftp connection requested
-        return ftp_download(ftp_server, ftp_path, dest, fname)
+        return ftp_download(ftp_server, ftp_path, dest, fname, overwrite)
     else:  # http/https connection requested
-        return http_download(http_url, dest, fname, resume)
+        return http_download(http_url, dest, fname, resume, overwrite)
 
 
 def remove(fname: str) -> None:
@@ -238,7 +282,8 @@ def rename(orig: str, newname: str) -> str:
     return newname
 
 
-def untar(fname_tar_gz: str, dest: str, outdir: Optional[str] = "") -> str:
+def untar(fname_tar_gz: str, dest: str, outdir: Optional[str] = "",
+          delete_after_decompress: bool = True) -> str:
     """
     Decompress and extract the contents of a tar.gz file to the specified
     destination directory.
@@ -248,6 +293,7 @@ def untar(fname_tar_gz: str, dest: str, outdir: Optional[str] = "") -> str:
         dest (str): The destination directory to extract the contents to.
         outdir (Optional[str]): Optional subdirectory within the destination to
             extract the contents to.
+        delete_after_decompress (bool): Delete after decompress. Defaults to True.
 
     Returns:
         str: The path to the directory where the contents were extracted.
@@ -258,23 +304,25 @@ def untar(fname_tar_gz: str, dest: str, outdir: Optional[str] = "") -> str:
 
     try:
         with gzip.open(fname_tar_gz, mode="rb") as fin:
-            with tarfile.open(fileobj=fin, mode="r") as tar:
+            with tarfile.open(fileobj=cast(IO[bytes], fin), mode="r") as tar:
                 tar.extractall(dest)
     except IOError as e:
         raise IOError(f"An error occurred while decompressing {fname_tar_gz}") from e
     outdir = os.path.join(dest, outdir) if outdir else dest
     assert os.path.isdir(outdir)
-    remove(fname_tar_gz)  # delete compressed archive
+    if delete_after_decompress:
+        remove(fname_tar_gz)  # delete compressed archive
     return outdir
 
 
-def gunzip(fname_gz: str, fname_out: str) -> str:
+def gunzip(fname_gz: str, fname_out: str, delete_after_decompress: bool = True) -> str:
     """
     Decompress a gzip file to the specified output file.
 
     Args:
         fname_gz (str): The path to the gzip file to decompress.
         fname_out (str): The path to save the decompressed output.
+        delete_after_decompress (bool): Delete after decompress. Defaults to True.
 
     Returns:
         str: The path to the decompressed output file.
@@ -290,5 +338,6 @@ def gunzip(fname_gz: str, fname_out: str) -> str:
     except IOError as e:
         raise IOError(f"An error occurred while decompressing {fname_gz}") from e
     assert os.stat(fname_out).st_size > 0
-    remove(fname_gz)  # delete compressed archive
+    if delete_after_decompress:
+        remove(fname_gz)  # delete compressed archive
     return fname_out
