@@ -1273,7 +1273,7 @@ def complete_test_crisprme():
     )
     if code != 0:
         raise OSError(
-            "\nCRISPRme test failed! See Results/crisprme-test-out/log_error.txt for details\n"
+            "\nCRISPRme complete-test stopped! See Results/crisprme-test-out/log_error.txt for details\n"
         )
 
 

@@ -54,18 +54,22 @@ def ensure_hg38_directory(dest: str) -> str:
 
 def download_genome_data(chrom: str, dest: str) -> None:
     """
-    Download genome data for a specified chromosome to the destination directory.
+    Download genome data for a specified chromosome or all chromosomes.
+
+    This function retrieves FASTA files for the specified chromosome in UCSC format
+    and saves them to the designated destination directory. It handles both individual
+    chromosome downloads and bulk downloads for all chromosomes, ensuring that the
+    destination directory exists and is valid.
 
     Args:
-        chrom (str): The chromosome identifier in UCSC format.
-        dest (str): The destination directory to save the downloaded genome data.
-
-    Returns:
-        None
+        chrom (str): The chromosome to download, specified in UCSC format (e.g., "chr1").
+            Use "all" to download data for all chromosomes.
+        dest (str): The destination directory where the downloaded files will be saved.
 
     Raises:
-        ValueError: If the input chromosome is not valid.
+        ValueError: If the specified chromosome is not valid.
         FileExistsError: If the destination directory does not exist.
+        RuntimeError: If the genome data download fails.
     """
 
     # assume chromosomes given in UCSC format (chr1, chr2, etc.)
@@ -74,20 +78,29 @@ def download_genome_data(chrom: str, dest: str) -> None:
     if not os.path.isdir(dest):  # check dest directory existence
         raise FileExistsError(f"Unable to locate {dest}")
     sys.stderr.write(f"Downloading fasta file for chromosome(s) {chrom}\n")
-    if chrom == "all":
-        chromstar = download(dest, http_url=f"{HG38URL}/bigZips/hg38.chromFa.tar.gz")
-        chromsdir = untar(chromstar, dest, "chroms")  # decompress archive
-        # rename chroms dir to hg38
-        chromsdir = rename(chromsdir, os.path.join(os.path.dirname(chromsdir), "hg38"))
-        assert os.path.isdir(chromsdir)
-    else:
-        chromgz = download(dest, http_url=f"{HG38URL}/chromosomes/{chrom}.fa.gz")
-        dest = ensure_hg38_directory(dest)  # create hg38 directory
-        chromfa = gunzip(
-            chromgz,
-            os.path.join(dest, f"{os.path.splitext(os.path.basename(chromgz))[0]}"),
-        )  # decompress chrom FASTA
-        assert os.path.isfile(chromfa)
+    try:
+        if chrom == "all":
+            chromstar = download(
+                dest, http_url=f"{HG38URL}/bigZips/hg38.chromFa.tar.gz", resume=True
+            )
+            chromsdir = untar(chromstar, dest, "chroms")  # decompress archive
+            # rename chroms dir to hg38
+            chromsdir = rename(
+                chromsdir, os.path.join(os.path.dirname(chromsdir), "hg38")
+            )
+            assert os.path.isdir(chromsdir)
+        else:
+            chromgz = download(
+                dest, http_url=f"{HG38URL}/chromosomes/{chrom}.fa.gz", resume=True
+            )
+            dest = ensure_hg38_directory(dest)  # create hg38 directory
+            chromfa = gunzip(
+                chromgz,
+                os.path.join(dest, f"{os.path.splitext(os.path.basename(chromgz))[0]}"),
+            )  # decompress chrom FASTA
+            assert os.path.isfile(chromfa)
+    except RuntimeError as e:
+        raise RuntimeError("Genome data download failed!") from e
 
 
 def ensure_vcf_dataset_directory(dest: str, dataset: str) -> str:
@@ -112,21 +125,24 @@ def ensure_vcf_dataset_directory(dest: str, dataset: str) -> str:
 
 def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
     """
-    Download VCF data for a specific chromosome and variant dataset to the destination
-    directory.
+    Download VCF data for a specified chromosome or all chromosomes from a given dataset.
+
+    This function retrieves Variant Call Format (VCF) files for the specified chromosome
+    or all chromosomes in UCSC format from the selected dataset. It ensures that the
+    destination directory exists and that the dataset is valid before proceeding with the
+    download.
 
     Args:
-        chrom (str): The chromosome identifier in UCSC format.
-        dest (str): The destination directory to save the downloaded VCF data.
-        dataset (str): The name or identifier of the variant dataset (e.g., "1000G",
-            "HGDP", or "1000G+HGDP").
-
-    Returns:
-        None
+        chrom (str): The chromosome to download, specified in UCSC format (e.g., "chr1").
+            Use "all" to download data for all chromosomes.
+        dest (str): The destination directory where the downloaded VCF files will be saved.
+        dataset (str): The dataset to download from, which can be "1000G", "HGDP", or
+            "1000G+HGDP".
 
     Raises:
-        ValueError: If the input chromosome or variant dataset is invalid.
+        ValueError: If the specified chromosome or dataset is not valid.
         FileExistsError: If the destination directory does not exist.
+        RuntimeError: If the VCF dataset download fails.
     """
 
     # assume chromosomes given in UCSC format (chr1, chr2, etc.)
@@ -139,18 +155,21 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
         raise ValueError(f"Unknown variant dataset ({dataset})")
     # create VCF dataset directory within VCFs folder
     sys.stderr.write(f"Downloading VCF data for chromsome(s) {chrom}\n")
-    for ds in dataset.split("+"):
-        vcf_dataset_dir = ensure_vcf_dataset_directory(dest, ds)
-        ftp_server = VCF1000GSERVER if ds == "1000G" else VCFHGDPSERVER
-        vcf_url = VCF1000GURL if ds == "1000G" else VCFHGDPURL
-        chroms = CHROMS if chrom == "all" else [chrom]
-        for c in chroms:  # request FTP connection
-            download(
-                vcf_dataset_dir,
-                ftp_conn=True,
-                ftp_server=ftp_server,
-                ftp_path=vcf_url.format(c),
-            )
+    try:
+        for ds in dataset.split("+"):
+            vcf_dataset_dir = ensure_vcf_dataset_directory(dest, ds)
+            ftp_server = VCF1000GSERVER if ds == "1000G" else VCFHGDPSERVER
+            vcf_url = VCF1000GURL if ds == "1000G" else VCFHGDPURL
+            chroms = CHROMS if chrom == "all" else [chrom]
+            for c in chroms:  # request FTP connection
+                download(
+                    vcf_dataset_dir,
+                    ftp_conn=True,
+                    ftp_server=ftp_server,
+                    ftp_path=vcf_url.format(c),
+                )
+    except RuntimeError as e:
+        raise RuntimeError(f"VCF dataset {ds} download failed!") from e
 
 
 def ensure_samplesids_directory(dest: str) -> str:
@@ -174,17 +193,19 @@ def ensure_samplesids_directory(dest: str) -> str:
 
 def download_samples_ids_data(dataset: str) -> None:
     """
-    Download samples IDs data for a specific variant dataset.
+    Download sample IDs for the specified variant dataset.
+
+    This function retrieves sample ID files for the given dataset, which can include
+    "1000G", "HGDP", or both. It ensures that the dataset is valid before proceeding
+    with the download and saves the files in the appropriate directory.
 
     Args:
-        dataset (str): The name or identifier of the variant dataset (e.g.,
-            "1000G", "HGDP").
-
-    Returns:
-        None
+        dataset (str): The dataset for which to download sample IDs. Valid options are
+            "1000G", "HGDP", or "1000G+HGDP".
 
     Raises:
-        ValueError: If the variant dataset is unknown.
+        ValueError: If the specified dataset is not valid.
+        RuntimeError: If the download of sample IDs fails.
     """
 
     if dataset not in ["1000G", "HGDP", "1000G+HGDP"]:
@@ -192,12 +213,17 @@ def download_samples_ids_data(dataset: str) -> None:
     # samples ids folder must be located within current directory
     # -- see check_crisprme_directory_tree() for details
     sys.stderr.write(f"Downloading sample ids for dataset(s) {dataset}\n")
-    samplesids_dir = ensure_samplesids_directory(os.getcwd())
-    for ds in dataset.split("+"):
-        samplesid_fname = (
-            "hg38_1000G.samplesID.txt" if ds == "1000G" else "hg38_HGDP.samplesID.txt"
-        )
-        download(samplesids_dir, http_url=f"{SAMPLESIDURL}/{samplesid_fname}")
+    try:
+        samplesids_dir = ensure_samplesids_directory(os.getcwd())
+        for ds in dataset.split("+"):
+            samplesid_fname = (
+                "hg38_1000G.samplesID.txt"
+                if ds == "1000G"
+                else "hg38_HGDP.samplesID.txt"
+            )
+            download(samplesids_dir, http_url=f"{SAMPLESIDURL}/{samplesid_fname}")
+    except RuntimeError as e:
+        raise RuntimeError(f"Download samples ids for dataset {ds} failed!") from e
 
 
 def ensure_annotation_directory(dest: str) -> str:
@@ -221,30 +247,41 @@ def ensure_annotation_directory(dest: str) -> str:
 
 def download_annotation_data() -> Tuple[str, str]:
     """
-    Download gencode and encode annotation data to the 'annotation' directory
-    within the current working directory.
+    Download ENCODE and GENCODE annotation data files.
+
+    This function retrieves the annotation data for protein-coding genes from the
+    GENCODE and ENCODE projects and saves them in the appropriate directory. It
+    ensures that the necessary directories exist before downloading the data.
 
     Returns:
-        Tuple[str, str]: Paths to the downloaded gencode and encode annotation
-            files.
+        Tuple[str, str]: A tuple containing the file paths of the downloaded
+            GENCODE and ENCODE annotation data files.
+
+    Raises:
+        RuntimeError: If the download of annotation data fails.
     """
 
     sys.stderr.write("Downloading ENCODE and GENCODE annotation data\n")
-    annotation_dir = ensure_annotation_directory(os.getcwd())
-    # download gencode annotation
-    gencodetar = download(
-        annotation_dir, http_url=f"{ANNOTATIONURL}/gencode.protein_coding.bed.tar.gz"
-    )
-    gencode = os.path.join(
-        untar(gencodetar, annotation_dir), "gencode.protein_coding.bed"
-    )
-    # download encode annotation
-    encodetar = download(
-        annotation_dir, http_url=f"{ANNOTATIONURL}/dhs+encode+gencode.hg38.bed.tar.gz"
-    )
-    encode = os.path.join(
-        untar(encodetar, annotation_dir), "dhs+encode+gencode.hg38.bed"
-    )
+    try:
+        annotation_dir = ensure_annotation_directory(os.getcwd())
+        # download gencode annotation
+        gencodetar = download(
+            annotation_dir,
+            http_url=f"{ANNOTATIONURL}/gencode.protein_coding.bed.tar.gz",
+        )
+        gencode = os.path.join(
+            untar(gencodetar, annotation_dir), "gencode.protein_coding.bed"
+        )
+        # download encode annotation
+        encodetar = download(
+            annotation_dir,
+            http_url=f"{ANNOTATIONURL}/dhs+encode+gencode.hg38.bed.tar.gz",
+        )
+        encode = os.path.join(
+            untar(encodetar, annotation_dir), "dhs+encode+gencode.hg38.bed"
+        )
+    except RuntimeError as e:
+        raise RuntimeError("Annotation data download failed!") from e
     return gencode, encode
 
 
@@ -269,54 +306,84 @@ def ensure_pams_directory(dest: str) -> str:
 
 def write_ngg_pamfile() -> str:
     """
-    Write a test PAM file containing the NGG sequence to the 'PAMs' directory
-    within the current working directory.
+    Create a PAM (Protospacer Adjacent Motif) file for SpCas9.
+
+    This function generates a PAM file containing the sequence for the NGG motif,
+    which is essential for the SpCas9 gene-editing system. It ensures that the
+    necessary directory exists before writing the PAM sequence to a file.
 
     Returns:
-        str: The path to the created test PAM file.
+        str: The path to the created PAM file.
+
+    Raises:
+        IOError: If an error occurs while writing the PAM file.
+        RuntimeError: If the PAM file generation fails.
     """
 
     sys.stderr.write("Creating PAM file\n")
-    pams_dir = ensure_pams_directory(
-        os.getcwd()
-    )  # PAMs directory must be in current working dir
-    pamfile = os.path.join(pams_dir, "20bp-NGG-SpCas9.txt")
     try:
-        with open(pamfile, mode="w") as outfile:
-            outfile.write("NNNNNNNNNNNNNNNNNNNNNGG 3\n")  # 20 + 3 bp (NGG)
-    except IOError as e:
-        raise IOError("An error occurred while writing the test PAM file") from e
+        pams_dir = ensure_pams_directory(
+            os.getcwd()
+        )  # PAMs directory must be in current working dir
+        pamfile = os.path.join(pams_dir, "20bp-NGG-SpCas9.txt")
+        try:
+            with open(pamfile, mode="w") as outfile:
+                outfile.write("NNNNNNNNNNNNNNNNNNNNNGG 3\n")  # 20 + 3 bp (NGG)
+        except IOError as e:
+            raise IOError("An error occurred while writing the test PAM file") from e
+    except RuntimeError as e:
+        raise RuntimeError("PAM file generation failed!") from e
     return pamfile
 
 
 def write_sg1617_guidefile() -> str:
     """
-    Write a test guide file containing the sg1617 guide sequence.
+    Create a guide file for the sg1617 sequence.
+
+    This function generates a guide file containing the sg1617 sequence, which is
+    used in gene editing applications. It ensures that the file is created successfully
+    and handles any potential errors during the writing process.
 
     Returns:
-        str: The path to the created test guide file.
+        str: The path to the created guide file.
+
+    Raises:
+        IOError: If an error occurs while writing the guide file.
+        RuntimeError: If the guide file generation fails.
     """
 
     sys.stderr.write("Creating guide file\n")
-    guidefile = "sg1617_test_guide.txt"
     try:
-        with open(guidefile, mode="w") as outfile:
-            outfile.write("CTAACAGTTGCTTTTATCACNNN\n")  # sg1617 guide
-    except IOError as e:
-        raise IOError("An error occerred while writing the test guide file") from e
+        guidefile = "sg1617_test_guide.txt"
+        try:
+            with open(guidefile, mode="w") as outfile:
+                outfile.write("CTAACAGTTGCTTTTATCACNNN\n")  # sg1617 guide
+        except IOError as e:
+            raise IOError("An error occerred while writing the test guide file") from e
+    except RuntimeError as e:
+        raise RuntimeError("Guide file generation failed!") from e
     return guidefile
 
 
 def write_vcf_list(dataset: str) -> str:
     """
-    Write a test VCF list file for a specific variant dataset.
+    Create a VCF configuration file for the specified variant dataset.
+
+    This function generates a VCF list file based on the provided dataset, which can
+    include "1000G", "HGDP", or both. It ensures that the dataset is valid before
+    writing the corresponding entries to the file.
 
     Args:
-        dataset (str): The name or identifier of the variant dataset (e.g., "1000G",
-            "HGDP").
+        dataset (str): The variant dataset for which to create the VCF list.
+            Valid options are "1000G", "HGDP", or "1000G+HGDP".
 
     Returns:
-        str: The path to the created test VCF list file.
+        str: The path to the created VCF list file.
+
+    Raises:
+        ValueError: If the specified dataset is not valid.
+        IOError: If an error occurs while writing the VCF list file.
+        RuntimeError: If the VCF configuration file generation fails.
     """
 
     # support for 1000 GP and HGDP datasets
@@ -324,26 +391,38 @@ def write_vcf_list(dataset: str) -> str:
         raise ValueError(f"Unknown variant dataset ({dataset})")
     # select the test vcf list
     sys.stderr.write(f"Creating VCF config file for dataset(s) {dataset}\n")
-    vcflistfile = "vcf_list_test.txt"
     try:
-        with open(vcflistfile, mode="w") as outfile:
-            for ds in dataset.split("+"):
-                outfile.write(f"hg38_{ds}\n")
-    except IOError as e:
-        raise IOError("An error occurred while writing the test VCF list") from e
+        vcflistfile = "vcf_list_test.txt"
+        try:
+            with open(vcflistfile, mode="w") as outfile:
+                for ds in dataset.split("+"):
+                    outfile.write(f"hg38_{ds}\n")
+        except IOError as e:
+            raise IOError("An error occurred while writing the test VCF list") from e
+    except RuntimeError as e:
+        raise RuntimeError("VCF configuration file generation failed!") from e
     return vcflistfile
 
 
 def write_samplesids_list(dataset: str) -> str:
     """
-    Write a test samples ID list file for a specific variant dataset.
+    Create a samples ID configuration file for the specified variant dataset.
+
+    This function generates a list of sample ID files based on the provided dataset,
+    which can include "1000G", "HGDP", or both. It ensures that the dataset is valid
+    before writing the corresponding sample ID entries to the file.
 
     Args:
-        dataset (str): The name or identifier of the variant dataset (e.g., "1000G",
-            "HGDP").
+        dataset (str): The variant dataset for which to create the samples ID list.
+            Valid options are "1000G", "HGDP", or "1000G+HGDP".
 
     Returns:
-        str: The path to the created test samples ID list file.
+        str: The path to the created samples ID list file.
+
+    Raises:
+        ValueError: If the specified dataset is not valid.
+        IOError: If an error occurs while writing the samples ID list file.
+        RuntimeError: If the samples ID configuration file generation fails.
     """
 
     # support for 1000 GP and HGDP datasets
@@ -351,18 +430,21 @@ def write_samplesids_list(dataset: str) -> str:
         raise ValueError(f"Unknown variant dataset ({dataset})")
     # select the test vcf list
     sys.stderr.write(f"Creating samples config file for dataset(s) {dataset}\n")
-    samplesidslistfile = "samplesID_list_test.txt"
     try:
-        with open(samplesidslistfile, mode="w") as outfile:
-            for ds in dataset.split("+"):
-                samplesidslist = (
-                    "hg38_1000G.samplesID.txt"
-                    if ds == "1000G"
-                    else "hg38_HGDP.samplesID.txt"
-                )
-                outfile.write(f"{samplesidslist}\n")
-    except IOError as e:
-        raise IOError("An error occurred while writing the test VCF list") from e
+        samplesidslistfile = "samplesID_list_test.txt"
+        try:
+            with open(samplesidslistfile, mode="w") as outfile:
+                for ds in dataset.split("+"):
+                    samplesidslist = (
+                        "hg38_1000G.samplesID.txt"
+                        if ds == "1000G"
+                        else "hg38_HGDP.samplesID.txt"
+                    )
+                    outfile.write(f"{samplesidslist}\n")
+        except OSError as e:
+            raise IOError("An error occurred while writing the test VCF list") from e
+    except RuntimeError as e:
+        raise RuntimeError("Samples ids configuration file generation failed!") from e
     return samplesidslistfile
 
 
@@ -399,7 +481,11 @@ def run_crisprme_test(chrom: str, dataset: str, debug: bool) -> None:
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
         f"--gene_annotation {gencode} --output crisprme-test-out {debug_arg}"
     )
-    subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
+    code = subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
+    if code != 0:
+        raise subprocess.SubprocessError(
+            "Test search failed! See Results/crisprme-test-out/log_error.txt for details\n"
+        )
 
 
 def main():

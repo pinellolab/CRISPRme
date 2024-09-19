@@ -1,6 +1,7 @@
 """
 """
 
+from requests.exceptions import ConnectionError, Timeout, RequestException
 from io import TextIOWrapper
 from typing import Optional, Union
 from ftplib import FTP
@@ -9,6 +10,8 @@ import subprocess
 import requests
 import tarfile
 import gzip
+import time
+import sys
 import os
 
 CRISPRME_DIRS = [
@@ -21,6 +24,7 @@ CRISPRME_DIRS = [
     "samplesIDs",
 ]
 CHROMS = [f"chr{i}" for i in list(range(1, 23)) + ["X"]]
+ATTEMPTS = 5  # downaload attempts
 
 
 def check_crisprme_directory_tree(basedir: str) -> None:
@@ -57,7 +61,7 @@ def ftp_download(
     ftp_server: Union[str, None],
     ftp_path: Union[str, None],
     dest: str,
-    fname: Optional[str] = None,
+    fname: Union[str, None],
 ) -> str:
     """
     Download a file from an FTP server and save it to a specified destination.
@@ -106,29 +110,11 @@ def ftp_download(
 
 
 def http_download(
-    http_url: Union[str, None], dest: str, fname: Optional[str] = None
+    http_url: Union[str, None],
+    dest: str,
+    fname: Union[str, None],
+    resume: bool,
 ) -> str:
-    """
-    Download a file from a specified HTTP or HTTPS URL and save it to a destination.
-
-    This function retrieves a file from the provided HTTP URL and saves it to a specified
-    directory. It ensures that the URL is valid and that the file is successfully created
-    after the download.
-
-    Args:
-        http_url (Union[str, None]): The URL of the file to download. Must be provided.
-        dest (str): The destination directory where the file will be saved.
-        fname (Optional[str]): The name of the file to save as. If not provided,
-            the base name of the URL will be used.
-
-    Returns:
-        str: The path to the downloaded file.
-
-    Raises:
-        ValueError: If the HTTP URL is not provided or is invalid.
-        TypeError: If the HTTP URL is not a string.
-        FileNotFoundError: If the file is not created after the download attempt.
-    """
 
     if http_url is None:
         raise ValueError("HTTP URL must be provided if HTTP connection is requested")
@@ -139,13 +125,19 @@ def http_download(
             "Invalid HTTP URL. It must start with 'http://' or 'https://'."
         )
     fname = os.path.join(dest, fname or os.path.basename(http_url))
-    response = requests.get(http_url, stream=True)  # download data from http
-    response.raise_for_status()  # ensure the request was successful
-    with open(fname, mode="wb") as outfile:
-        # write downloaded data in fixed size chunks
-        for chunk in response.iter_content(chunk_size=8192):
-            if chunk:
-                outfile.write(chunk)
+    headers = (
+        {"Range": f"bytes={os.path.getsize(fname)}-"}
+        if resume and os.path.exists(fname)
+        else {}
+    )
+    mode = "ab" if resume else "wb"
+    chunk_size = 1024 if resume else 8192
+    with requests.get(http_url, headers=headers, stream=True) as response:
+        response.raise_for_status()
+        with open(fname, mode=mode) as f:
+            for chunk in response.iter_content(chunk_size=chunk_size):
+                if chunk:
+                    f.write(chunk)
     if not os.path.isfile(fname):
         raise FileNotFoundError(f"{fname} not created")
     return fname
@@ -158,6 +150,7 @@ def download(
     ftp_server: Optional[str] = None,
     ftp_path: Optional[str] = None,
     http_url: Optional[str] = None,
+    resume: Optional[bool] = False,
 ) -> str:
     """
     Download a file from either an FTP server or an HTTP/HTTPS URL and save it to
@@ -201,7 +194,7 @@ def download(
     if ftp_conn:  # ftp connection requested
         return ftp_download(ftp_server, ftp_path, dest, fname)
     else:  # http/https connection requested
-        return http_download(http_url, dest, fname)
+        return http_download(http_url, dest, fname, resume)
 
 
 def remove(fname: str) -> None:
