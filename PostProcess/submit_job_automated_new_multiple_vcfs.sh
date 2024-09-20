@@ -600,42 +600,22 @@ echo -e 'Annotating results\tStart\t'$(date) >>$log
 
 #ANNOTATE BEST TARGETS
 #TODO SISTEMARE ANNOTAZIONE (DIVISIONE INTERVAL TREE / PARALLEL SEARCH)
-./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
-wait || {
-	echo "CRISPRme ERROR: CFD annotation failed - reference (script: ${0} line $((LINENO - 1)))" >&2
+
+./annotate_final_results.py $annotation_file \
+	-p $final_res.bestCFD.txt $final_res.bestCFD.txt.annotated \
+	-p $final_res.bestmmblg.txt $final_res.bestmmblg.txt.annotated \
+	-p $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.annotated \
+	-p $final_res_alt.bestCFD.txt $final_res_alt.bestCFD.txt.annotated \
+	-p $final_res_alt.bestmmblg.txt $final_res_alt.bestmmblg.txt.annotated \
+	-p $final_res_alt.bestCRISTA.txt $final_res_alt.bestCRISTA.txt.annotated  || {
+	echo "CRISPRme ERROR: some annotation failed (could be CRISTA, CFD, mismatch+bulges) (primary or alternative)" \
+		 " - reference (script: ${0} line $((LINENO - 1)))" >&2
 	exit 1
 }
-./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
-wait || {
-	echo "CRISPRme ERROR: CRISTA annotation failed - reference (script: ${0} line $((LINENO - 1)))" >&2
-	exit 1
-}
-./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
-wait || {
-	echo "CRISPRme ERROR: mismatch+bulges annotation failed - reference(script: ${0} line $((LINENO - 1)))" >&2
-	exit 1
-}
-wait
+
 mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
 mv $final_res.bestCRISTA.txt.annotated $final_res.bestCRISTA.txt
-#ANNOTATE ALT TARGETS
-./annotate_final_results.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
-wait || {
-	echo "CRISPRme ERROR: CFD annotation failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
-	exit 1
-}
-./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
-wait || {
-	echo "CRISPRme ERROR: CRISTA annotation failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
-	exit 1
-}
-./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
-wait || {
-	echo "CRISPRme ERROR: mismatch+bulges annotation failed - alternative (script: ${0} line $((LINENO - 1)))" >&2
-	exit 1
-}
-wait
 mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
 mv $final_res_alt.bestCRISTA.txt.annotated $final_res_alt.bestCRISTA.txt
