@@ -841,15 +841,13 @@ def complete_search():
             # TODO
             # perform output redirection so timestamp can be appended
             # will be removed when we'll switch to proper module and logging
-            crisprme_run = ( '{ '
+            crisprme_run = (
                 f"{os.path.join(script_path, 'submit_job_automated_new_multiple_vcfs.sh')} "
                 f"{genomedir} {vcfdir} {os.path.join(outputfolder, 'guides.txt')} "
                 f"{pamfile} {annotationfile} {samplefile} {bMax} {mm} {bDNA} {bRNA} "
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
                 f"{sorting_criteria_scoring} {sorting_criteria}"
-                " 2>&1 1>&3 3>&- | ts '[%Y-%m-%d %H:%M:%.S]' ; } "
-                " 3>&1 1>&2 | ts '[%Y-%m-%d %H:%M:%.S]' "
             )
             code = subprocess.call(
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
