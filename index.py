@@ -5,16 +5,15 @@ GUI to submit not released or private data and perform the off-targets search.
 """
 
 from pages import (
-    main_page, 
-    navbar_creation, 
-    results_page, 
-    load_page, 
-    history_page, 
-    help_page, 
-    contacts_page
+    main_page,
+    navbar_creation,
+    results_page,
+    load_page,
+    history_page,
+    help_page,
+    contacts_page,
 )
 from app import app, URL, current_working_directory, cache
-from utils import check_directories
 
 from dash.dependencies import Input, Output, State
 from typing import Tuple
@@ -30,6 +29,15 @@ MODEFILE = ".mode_type.txt"  # running mode report file
 HOST = "0.0.0.0"  # server host
 PORTWEB = 80  # website port
 PORTLOCAL = 8080  # local server port
+CRISPRME_DIRS = [
+    "Genomes",
+    "Results",
+    "Dictionaries",
+    "VCFs",
+    "Annotations",
+    "PAMs",
+    "samplesIDs",
+]
 
 # initialize the webpage
 server = app.server  # start server
@@ -38,18 +46,43 @@ navbar = navbar_creation.navbar()  # create navigation bar on top of the webpage
 app.layout = html.Div(
     [
         navbar,
-        dcc.Location(id='url', refresh=False),
-        html.Div(id='page-content'),
-        html.P(id='signal', style={'visibility': 'hidden'})
+        dcc.Location(id="url", refresh=False),
+        html.Div(id="page-content"),
+        html.P(id="signal", style={"visibility": "hidden"}),
     ]
 )
+
+
+def check_directories(basedir: str) -> None:
+    """The function checks the consistency of CRISPRme's directory tree.
+    If a directory is not found in the tree, it will be created.
+
+    ...
+
+    Parameters
+    ----------
+    basedir : str
+        Base directory
+
+    Returns
+    -------
+    None
+    """
+
+    if not isinstance(basedir, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(basedir).__name__}")
+    if not os.path.exists(basedir):
+        raise FileNotFoundError(f"Unable to locate {basedir}")
+    for d in CRISPRME_DIRS:
+        if not os.path.exists(os.path.join(basedir, d)):
+            os.makedirs(os.path.join(basedir, d))
 
 
 # switch between the website pages
 @app.callback(
     [Output("page-content", "children"), Output("job-link", "children")],
     [Input("url", "href"), Input("url", "pathname"), Input("url", "search")],
-    [State("url", "hash")]
+    [State("url", "hash")],
 )
 def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
     """The function switches between the selected pages.
@@ -82,8 +115,8 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
         raise TypeError(f"Expected {str.__name__}, got {type(hash_guide).__name__}")
     if path == "/load":  # show loading page
         return (
-                load_page.load_page(), 
-                os.path.join("".join(href.split("/")[:-1]), "/load", search)
+            load_page.load_page(),
+            os.path.join("".join(href.split("/")[:-1]), "/load", search),
         )
     if path == "/result":  # display results page
         job_id = search.split("=")[-1]
@@ -92,17 +125,17 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
         elif "new" in hash_guide:  # TODO: change name to guide page
             return (
                 results_page.guidePagev3(job_id, hash_guide.split("#")[1]),
-                os.path.join(URL, "load", search)
+                os.path.join(URL, "load", search),
             )
         elif "-Sample-" in hash_guide:
             return (
                 results_page.sample_page(job_id, hash_guide.split("#")[1]),
-                os.path.join(URL, "load", search)
+                os.path.join(URL, "load", search),
             )
         elif "-Pos-" in hash_guide:
             return (
                 results_page.cluster_page(job_id, hash_guide.split("#")[1]),
-                os.path.join(URL, "load", search)
+                os.path.join(URL, "load", search),
             )
         return results_page.result_page(job_id), os.path.join(URL, "load", search)
 
@@ -118,14 +151,14 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
 
 
 def index():
-    """The function creates the index page, managing the whole CRISPRme web 
+    """The function creates the index page, managing the whole CRISPRme web
     interface. The webpage displays four main pages (accessible by the user):
-    - Home page 
+    - Home page
     - Manual page
     - Contacts page
     - History page (accessible only locally)
 
-    The webpage can be created locally, using the appropriate command line 
+    The webpage can be created locally, using the appropriate command line
     arguments.
 
     ...
@@ -141,7 +174,7 @@ def index():
 
     # check CRISPRme directory tree consistency
     check_directories(current_working_directory)
-    # check if debug mode is active 
+    # check if debug mode is active
     # TODO: replace using argparse in crisprme.py
     debug = False
     if "--debug" in sys.argv[1:]:
@@ -163,15 +196,27 @@ def index():
         handle.close()
     if website:
         app.run_server(
-            host=HOST, port=PORTWEB, debug=debug, dev_tools_ui=debug, dev_tools_props_check=debug
+            host=HOST,
+            port=PORTWEB,
+            debug=debug,
+            dev_tools_ui=debug,
+            dev_tools_props_check=debug,
         )
         cache.clear()  # clear cache once server is closed
     else:  # local web-interface running
         app.run_server(
-            host=HOST, port=PORTLOCAL, debug=debug, dev_tools_ui=debug, dev_tools_props_check=debug
+            host=HOST,
+            port=PORTLOCAL,
+            debug=debug,
+            dev_tools_ui=debug,
+            dev_tools_props_check=debug,
         )
         app.run_server(
-            host=HOST, port=PORTWEB, debug=debug, dev_tools_ui=debug, dev_tools_props_check=debug
+            host=HOST,
+            port=PORTWEB,
+            debug=debug,
+            dev_tools_ui=debug,
+            dev_tools_props_check=debug,
         )
         cache.clear()  # clear cache once server is closed
 
