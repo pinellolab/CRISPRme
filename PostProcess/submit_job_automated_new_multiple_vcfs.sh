@@ -156,11 +156,11 @@ while read vcf_f; do
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
 			# echo -e 'Add-variants\tStart\t'$(date) >&2
 			echo -e "Adding variants"
-			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true" || {
+			python ${starting_dir}/../src/enricher.py ${vcf_folder} ${ref_folder} "true" || {
 				echo "CRISPRme ERROR: genome enrichment failed (script: ${0} line $((LINENO - 1)))" >&2
 				exit 1
 			}
-			#if ! [ -d "${ref_name}+${vcf_name}" ]; then
+			# #if ! [ -d "${ref_name}+${vcf_name}" ]; then
 			#	mkdir "${ref_name}+${vcf_name}"
 			#fi
 			mv "$current_working_directory/Genomes/variants_genome/SNPs_genome/${ref_name}_enriched/" "./${ref_name}+${vcf_name}/"

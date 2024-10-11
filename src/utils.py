@@ -5,13 +5,18 @@ from requests.exceptions import ConnectionError, Timeout, RequestException
 from typing import Optional, Union, IO, cast
 from ftplib import FTP
 
+import contextlib
 import subprocess
 import requests
 import tarfile
+import shutil
 import gzip
 import time
 import sys
 import os
+
+
+# TODO: handle downloads exceptions
 
 CRISPRME_DIRS = [
     "Genomes",
@@ -23,7 +28,7 @@ CRISPRME_DIRS = [
     "samplesIDs",
 ]
 CHROMS = [f"chr{i}" for i in list(range(1, 23)) + ["X"]]
-ATTEMPTS = 5  # downaload attempts
+ATTEMPTS = 5  # download attempts
 
 
 def check_crisprme_directory_tree(basedir: str) -> None:
@@ -61,7 +66,7 @@ def ftp_download(
     ftp_path: Union[str, None],
     dest: str,
     fname: Union[str, None],
-    overwrite: bool = True
+    overwrite: bool = True,
 ) -> str:
     """
     Download a file from an FTP server and save it to a specified destination.
@@ -117,7 +122,7 @@ def http_download(
     dest: str,
     fname: Union[str, None],
     resume: bool,
-    overwrite: bool = False
+    overwrite: bool = False,
 ) -> str:
     """
     Download a file from a specified HTTP or HTTPS URL and save it to a destination.
@@ -159,19 +164,17 @@ def http_download(
             if resume and os.path.exists(fname) and not overwrite
             else {}
         )
-        mode = "ab" if resume else "wb"
-        chunk_size = 1024 if resume else 8192
-        should_download = True
+        download_data = True
         with requests.head(http_url) as response_peek:
             response_peek.raise_for_status()
-            try:
-                if os.stat(fname).st_size >= int(response_peek.headers['Content-Length']):
-                    should_download = False
-            except Exception:
-                # if something goes wrong, re-download the thing
-                pass
-
-        if should_download:
+            with contextlib.suppress(Exception):
+                if os.stat(fname).st_size >= int(
+                    response_peek.headers["Content-Length"]
+                ):
+                    download_data = False
+        if download_data:
+            mode = "ab" if resume else "wb"
+            chunk_size = 1024 if resume else 8192
             with requests.get(http_url, headers=headers, stream=True) as response:
                 response.raise_for_status()
                 with open(fname, mode=mode) as f:
@@ -191,7 +194,7 @@ def download(
     ftp_path: Optional[str] = None,
     http_url: Optional[str] = None,
     resume: Optional[bool] = False,
-    overwrite: bool = False
+    overwrite: bool = False,
 ) -> str:
     """
     Download a file from either an FTP server or an HTTP/HTTPS URL and save it to
@@ -238,7 +241,7 @@ def download(
     if ftp_conn:  # ftp connection requested
         return ftp_download(ftp_server, ftp_path, dest, fname, overwrite)
     else:  # http/https connection requested
-        return http_download(http_url, dest, fname, resume, overwrite)
+        return http_download(http_url, dest, fname, resume, overwrite)  # type: ignore
 
 
 def remove(fname: str) -> None:
@@ -282,8 +285,12 @@ def rename(orig: str, newname: str) -> str:
     return newname
 
 
-def untar(fname_tar_gz: str, dest: str, outdir: Optional[str] = "",
-          delete_after_decompress: bool = True) -> str:
+def untar(
+    fname_tar_gz: str,
+    dest: str,
+    outdir: Optional[str] = "",
+    delete_after_decompress: bool = True,
+) -> str:
     """
     Decompress and extract the contents of a tar.gz file to the specified
     destination directory.
@@ -341,3 +348,61 @@ def gunzip(fname_gz: str, fname_out: str, delete_after_decompress: bool = True) 
     if delete_after_decompress:
         remove(fname_gz)  # delete compressed archive
     return fname_out
+
+
+def create_directory(dirname: str) -> str:
+    """
+    Creates a directory if it does not already exist.
+    This function checks for the existence of the specified directory and creates
+    it if it is not found, handling any potential errors related to permissions
+    or file system issues.
+
+    Args:
+        dirname (str): The name of the directory to be created.
+
+    Returns:
+        str: The path of the created or existing directory.
+
+    Raises:
+        PermissionError: If there are insufficient permissions to create the directory.
+        OSError: If there is an error creating the directory.
+        Exception: For any other unexpected errors that occur during the directory
+            creation process.
+    """
+
+    try:
+        if not os.path.isdir(dirname):  # input directory not found -> create it
+            os.mkdir(dirname)
+        return dirname
+    except PermissionError as e:
+        raise PermissionError(f"Permission denied to create {dirname}") from e
+    except OSError as e:
+        raise OSError(f"Failed to create directory {dirname}") from e
+    except Exception as e:
+        raise Exception(f"An error occurred while creating {dirname}") from e
+
+
+def copy(src: str, dest: str) -> None:
+    """
+    Copies a file from the source path to the destination path.
+    This function handles potential errors related to file access and raises
+    appropriate exceptions if the copy operation fails.
+
+    Args:
+        src (str): The path to the source file to be copied.
+        dest (str): The path to the destination where the file will be copied.
+
+    Raises:
+        FileNotFoundError: If the source file does not exist.
+        PermissionError: If there are insufficient permissions to copy the file.
+        Exception: If any other error occurs during the copy operation.
+    """
+
+    try:  # copy source data in destination
+        shutil.copy(src, dest)
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Unable to find source data {src}") from e
+    except PermissionError as e:
+        raise PermissionError(f"Permission denied to copy {src} in {dest}") from e
+    except Exception as e:
+        raise Exception(f"An error occurred while copying {src} to {dest}") from e
