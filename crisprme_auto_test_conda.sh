@@ -11,7 +11,9 @@ mkdir -p $GENOMEDIR  # create Genomes folder
 cd $GENOMEDIR
 # download chromosomes FASTA files
 original_md5sum="a5aa5da14ccf3d259c4308f7b2c18cb0"  # see https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/md5sum.txt
-wget -c https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz
+while true; do  # retry download if caught timeout
+   wget -T 15 -c https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.chromFa.tar.gz && break
+done
 chromsfasta="hg38.chromFa.tar.gz"
 local_md5sum="$(md5sum $chromsfasta | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
@@ -35,7 +37,9 @@ cd $VCF1000G
 for i in $(seq 1 22; echo "X");
 do 
    original_md5sum="$(curl -sL ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz | md5sum | cut -d ' ' -f 1)"  # compute original md5sum
-   wget -c ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz
+   while true; do  # retry download if caught timeout
+      wget -T 15 -c ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz && break
+   done
    local_md5sum="$(md5sum ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz | cut -d ' ' -f 1)"
    if [ "$original_md5sum" != "$local_md5sum" ]; then  # check download consistency
       echo "ERROR: unexpected failure while downloading ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
@@ -51,7 +55,9 @@ cd $ANNOTATIONDIR
 echo "Downloading ENCODE+GENCODE annotation data..."
 original_md5sum="$(curl -sL https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=0 | md5sum | cut -d ' ' -f 1)"
 encodegencode="encode+gencode.hg38.bed.zip"
-wget -c -O $encodegencode https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=0
+while true; do  # retry download if caught timeout
+   wget -T 15 -c -O $encodegencode https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=0 && break
+done
 local_md5sum="$(md5sum $encodegencode | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
    echo "ERROR: unexpected failure while downloading ${encodegencode}"
@@ -62,7 +68,9 @@ unzip $encodegencode
 echo "Downloading GENCODE encoding sequences..."
 original_md5sum="$(curl -sL https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=0 | md5sum | cut -d ' ' -f 1)"
 gencode="gencode.protein_coding.bed.zip"
-wget -c -O $gencode https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=0
+while true; do  # retry download if caught timeout
+   wget -T 15 -c -O $gencode https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=0
+done
 local_md5sum="$(md5sum $gencode | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
    echo "ERROR: unexpected failure while downloading ${gencode}"
