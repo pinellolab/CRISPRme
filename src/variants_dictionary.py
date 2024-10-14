@@ -10,6 +10,8 @@ Key functionalities include:
 - Handling errors related to file operations and data formatting.
 """
 
+from utils import extend_list
+
 from typing import List, Tuple, Dict, Union
 
 import json
@@ -165,14 +167,14 @@ def retrieve_snpids(snpid: str, alleles_alt_num: int) -> List[str]:
 
     # recover snp id for each alternative allele
     snpids = snpid.split(",")  # include snps and indels
-    if len(snpids) == 1:  # single id?
-        if snpids[0] == ".":  # missing value in VCF -> .
-            return ["." for _ in range(alleles_alt_num)]
-        else:
-            raise ValueError(
-                f"Forbidden snp id format ({snpid}) to denote {alleles_alt_num} alternative alleles"
-            )
-    return snpids
+    if len(snpids) == 1 and not snpids[0]:
+        raise ValueError("Forbidden NULL snp id")
+    if len(snpids) == alleles_alt_num:
+        return snpids
+    # if number of alleles and the number of snpid mismatch, extend the snipd
+    # list to match the former -> required for efficient hash of snpids used
+    # during snp and indels dictionary construction
+    return extend_list(snpids, alleles_alt_num)
 
 
 def retrieve_samples(

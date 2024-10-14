@@ -2,7 +2,7 @@
 """
 
 from requests.exceptions import ConnectionError, Timeout, RequestException
-from typing import Optional, Union, IO, cast
+from typing import Optional, Union, List, Any, IO, cast
 from ftplib import FTP
 
 import contextlib
@@ -406,3 +406,33 @@ def copy(src: str, dest: str) -> None:
         raise PermissionError(f"Permission denied to copy {src} in {dest}") from e
     except Exception as e:
         raise Exception(f"An error occurred while copying {src} to {dest}") from e
+
+
+def extend_list(data: List[Any], length: int) -> List[Any]:
+    """
+    Extends a given list to a specified length by repeating its elements.
+    If the specified length is less than 1 or the list is empty, a ValueError is raised.
+
+    Args:
+        data (List[Any]): The list to be extended.
+        length (int): The desired length of the extended list.
+
+    Returns:
+        List[Any]: A new list that is extended to the specified length.
+
+    Raises:
+        ValueError: If the length is less than 1, if the list is empty, or if the extension fails.
+
+    Examples:
+        >>> extend_list([1, 2, 3], 5)
+        [1, 2, 3, 1, 2]
+    """
+
+    try:
+        if not isinstance(length, int) or length < 1:  # no extension requested?
+            raise ValueError(f"Forbidden list extension length ({length})")
+        if not data:  # empty list to extend?
+            raise ValueError("Cannot extend empty lists")
+        return (data * (length // len(data) + 1))[:length]
+    except (TypeError, ValueError) as e:
+        raise ValueError("List extension failed") from e
