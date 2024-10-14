@@ -56,7 +56,7 @@ echo "Downloading ENCODE+GENCODE annotation data..."
 original_md5sum="$(curl -sL https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=0 | md5sum | cut -d ' ' -f 1)"
 encodegencode="encode+gencode.hg38.bed.zip"
 while true; do  # retry download if caught timeout
-   wget -T 15 -c -O $encodegencode https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=0 && break
+   wget -T 15 -c -O $encodegencode https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=1 && break
 done
 local_md5sum="$(md5sum $encodegencode | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
@@ -69,7 +69,7 @@ echo "Downloading GENCODE encoding sequences..."
 original_md5sum="$(curl -sL https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=0 | md5sum | cut -d ' ' -f 1)"
 gencode="gencode.protein_coding.bed.zip"
 while true; do  # retry download if caught timeout
-   wget -T 15 -c -O $gencode https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=0 && break
+   wget -T 15 -c -O $gencode https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=1 && break
 done
 local_md5sum="$(md5sum $gencode | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
