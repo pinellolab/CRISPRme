@@ -48,15 +48,33 @@ do
 done
 cd ../..
 
+# initialize VCF config file
+VCFCONFIG="vcf_config.1000G.txt"
+printf "${VCF1000G}\n" > $VCFCONFIG
+
+# download 1000G samplesIDs  
+SAMPLESIDS="samplesIDs"
+mkdir -p $SAMPLESIDS  # create sample ids dir
+cd $SAMPLESIDS
+# download 1000G samples IDs
+echo "Downloading samples ids for 1000G dataset"
+SAMPLES1000G="hg38_1000G.samplesID.txt"
+wget https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/gnomad-4.1-converter/download_data/${SAMPLES1000G}
+cd ..
+
+# initialize samples config file
+SAMPLESCONFIG="samplesIDs.1000G.txt"
+printf "${SAMPLES1000G}\n" > $SAMPLESCONFIG
+
 # download annotation data
 ANNOTATIONDIR="Annotations"
 mkdir -p $ANNOTATIONDIR  # create annotation folder
 cd $ANNOTATIONDIR
 echo "Downloading ENCODE+GENCODE annotation data..."
-original_md5sum="$(curl -sL https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=0 | md5sum | cut -d ' ' -f 1)"
-encodegencode="encode+gencode.hg38.bed.zip"
+original_md5sum="$(curl -sL https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/dhs+encode+gencode.hg38.bed.tar.gz | md5sum | cut -d ' ' -f 1)"
+encodegencode="dhs+encode+gencode.hg38.bed.zip"
 while true; do  # retry download if caught timeout
-   wget -T 15 -c -O $encodegencode https://www.dropbox.com/s/1n2f0qxdba7u3gb/encode%2Bgencode.hg38.bed.zip?dl=1 && break
+   wget -T 15 -c -O $encodegencode https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/dhs+encode+gencode.hg38.bed.tar.gz && break
 done
 local_md5sum="$(md5sum $encodegencode | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
@@ -64,12 +82,13 @@ if [ "$original_md5sum" != "$local_md5sum" ]; then
    exit 1
 fi
 echo "Extracting ${encodegencode}..."
-unzip $encodegencode
+tar -xvf $encodegencode
+
 echo "Downloading GENCODE encoding sequences..."
-original_md5sum="$(curl -sL https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=0 | md5sum | cut -d ' ' -f 1)"
+original_md5sum="$(curl -sL https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/dhs+encode+gencode.hg38.bed.tar.gz | md5sum | cut -d ' ' -f 1)"
 gencode="gencode.protein_coding.bed.zip"
 while true; do  # retry download if caught timeout
-   wget -T 15 -c -O $gencode https://www.dropbox.com/s/isqpkg113cr1xea/gencode.protein_coding.bed.zip?dl=1 && break
+   wget -T 15 -c -O $gencode https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/gencode.protein_coding.bed.tar.gz && break
 done
 local_md5sum="$(md5sum $gencode | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
@@ -77,8 +96,23 @@ if [ "$original_md5sum" != "$local_md5sum" ]; then
    exit 1
 fi
 echo "Extracting ${gencode}..."
-unzip $gencode
+tar -xvf $gencode
+cd ..
+
+# create Dictionaries folder
+mkdir -p "Dictionaries"
+
+# create sg1617 guide file
+GUIDEFILE="sg1617.txt"
+printf "CTAACAGTTGCTTTTATCACNNN\n" > $GUIDEFILE
+
+# create NGG PAM file
+PAM="PAMs"
+mkdir -p $PAM
+cd $PAM
+NGGPAM="20bp-NGG-spCas9.txt"
+printf "NNNNNNNNNNNNNNNNNNNNNGG 3\n" > $NGGPAM
 cd ..
 
 echo "Start CRISPRme test..."
-crisprme.py complete-search --genome Genomes/hg38/ --vcf list_vcf.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/encode+gencode.hg38.bed --samplesID list_samplesID.txt --gene_annotation Annotations/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617.6.2.2 --thread 4
+crisprme.py complete-search --genome Genomes/hg38/ --vcf $VCFCONFIG --guide $GUIDEFILE --pam PAMs/$NGGPAM --annotation Annotations/$encodegencode --samplesID $SAMPLESCONFIG --gene_annotation Annotations/$gencode --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617.6.2.2 --thread 4
