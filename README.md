@@ -50,7 +50,7 @@ conda install mamba -n base -c conda-forge
 
 Once installed ```mamba```, you are ready to build the CRISPRme environmet. To build the environment, type:
 ```
-mamba create -n crisprme python=3.8 crisprme -y
+mamba create -n crisprme python=3.9.19 crisprme -y
 ```
 
 To activate the environmment, type:
@@ -72,7 +72,7 @@ mamba install crisprme==<latest_version>
 ```
 For example:
 ```
-mamba install crisprme==2.1.2
+mamba install crisprme==2.1.5
 ```
 You can find the latest release indicated at the top of our [README](https://github.com/pinellolab/CRISPRme#crisprme).
 
@@ -81,76 +81,8 @@ For OSX and Windows users is suggested to run CRISPRme via [Docker](https://www.
 
 If you plan to use CRISPRme via Docker on a Linux-based OS read and follow the instructions listed in the next section, skip it otherwise.
 
-### Install Docker on Linux machines
-Open a new terminal window and type:
-```
-sudo apt-get update
-```
-
-To allow packages installation/update type over ```HTTPS``` channels:
-```
-sudo apt-get install \
-apt-transport-https \
-ca-certificates \
-curl \
-gnupg-agent \
-software-properties-common
-```
-
-To add the docker key type:
-```
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-```
-
-To set the right Docker version for your system, type:
-```
-sudo add-apt-repository \
-"deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-$(lsb_release -cs) \
-Stable"
-```
-
-To make sure everythign is set to install Docker, refresh the repositories index again by typing:
-```
-sudo apt-get update
-```
-
-To install Docker, type:
-```
-sudo apt-get install docker-ce docker-ce-cli containerd.io
-```
-
-To test your Docker installation, type
-```
-sudo docker run hello-world
-```
-
-If the following message is printed, Docker is correctly running on your machine:
-![fig1](./docs/readme/hello-world-docker.png)
-
-To complete Docker's set up a few more steps are required. First, we need to create a Docker group. To do it, type:
-```
-sudo groupadd docker
-```
-
-To add your current user to the Docker group, type:
-```
-sudo usermod -aG docker $USER
-```
-
-Repeat the above command for all the user you plan to add to the Docker group (**NB** on most system you must be a ```sudo``` user to be able to do so).
-
-To make all changes effective, you will need to restart the machine or the environment.
-
-To test if the Docker group has been correctly configured, open a new terminal window and type:
-```
-docker run hello-world
-```
-
-If the above "hello from Docker!" message is printed, Docker has been suceesfully installed and propoerly set on your machine.
-
-### Install CRISPRme docker image
-Once obtained docker, open a new terminal window and type:
+### Install CRISPRme using Docker
+We assume you have already installed Docker on your system. Open a new terminal window and type:
 ```
 docker pull pinellolab/crisprme
 ```
@@ -159,15 +91,13 @@ This command will download and install CRISPRme Docker image on your machine.
 ## Test CRISPRme
 To test your CRISPRme installation, open a new terminal window and type:
 ```
-wget https://www.dropbox.com/s/urciozkana5md0z/crisprme_test.tar.gz?dl=1 -O crisprme_test.tar.gz
-tar -xvf crisprme_test.tar.gz
+mkdir crisprme_test && cd crisprme_test
+wget https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/main/crisprme_auto_test_conda.sh
+ 
 ```
-This will download a folder containing some test data, to run and test CRISPRme.
+This will download a script to download all the data necessary to run a full test using a single gRNA.
 
 Once downloaded, enter the folder by typing:
-```
-cd crisprme_test
-```
 
 If you installed CRISPRme via ```conda```, test your conda installation by typing:
 ```
