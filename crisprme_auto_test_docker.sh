@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# TEST CRISPRme conda package
+# TEST CRISPRme Docker
 
 echo "Download and extract fundamental data..."
 
@@ -40,6 +40,7 @@ do
    while true; do  # retry download if caught timeout
       wget -T 15 -c ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL/ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz && break
    done
+   sleep 2  # allow disk sync for md5sum check
    local_md5sum="$(md5sum ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz | cut -d ' ' -f 1)"
    if [ "$original_md5sum" != "$local_md5sum" ]; then  # check download consistency
       echo "ERROR: unexpected failure while downloading ALL.chr${i}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz"
@@ -59,7 +60,16 @@ cd $SAMPLESIDS
 # download 1000G samples IDs
 echo "Downloading samples ids for 1000G dataset"
 SAMPLES1000G="hg38_1000G.samplesID.txt"
-wget https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/gnomad-4.1-converter/download_data/${SAMPLES1000G}
+original_md5sum="$(curl -sL https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/gnomad-4.1-converter/download_data/${SAMPLES1000G} | md5sum | cut -d ' ' -f 1)"  # compute original md5sum
+while true; do # retry download if caught timeout
+   wget -T 15 -c https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/gnomad-4.1-converter/download_data/${SAMPLES1000G} && break
+done
+sleep 2  # allow disk sync for md5sum check
+local_md5sum="$(md5sum $SAMPLES1000G | cut -d ' ' -f 1)"
+if [ "$original_md5sum" != "$local_md5sum" ]; then
+   echo "ERROR: unexpected failure while downloading ${SAMPLES1000G}"
+   exit 1
+fi
 cd ..
 
 # initialize samples config file
@@ -72,31 +82,33 @@ mkdir -p $ANNOTATIONDIR  # create annotation folder
 cd $ANNOTATIONDIR
 echo "Downloading ENCODE+GENCODE annotation data..."
 original_md5sum="$(curl -sL https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/dhs+encode+gencode.hg38.bed.tar.gz | md5sum | cut -d ' ' -f 1)"
-encodegencode="dhs+encode+gencode.hg38.bed.zip"
+DHSENCODE="dhs+encode+gencode.hg38.bed.zip"
 while true; do  # retry download if caught timeout
-   wget -T 15 -c -O $encodegencode https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/dhs+encode+gencode.hg38.bed.tar.gz && break
+   wget -T 15 -c -O $DHSENCODE https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/dhs+encode+gencode.hg38.bed.tar.gz && break
 done
-local_md5sum="$(md5sum $encodegencode | cut -d ' ' -f 1)"
+sleep 2  # allow disk sync for md5sum check
+local_md5sum="$(md5sum $DHSENCODE | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
-   echo "ERROR: unexpected failure while downloading ${encodegencode}"
+   echo "ERROR: unexpected failure while downloading ${DHSENCODE}"
    exit 1
 fi
-echo "Extracting ${encodegencode}..."
-tar -xvf $encodegencode
+echo "Extracting ${DHSENCODE}..."
+tar -xvf $DHSENCODE
 
 echo "Downloading GENCODE encoding sequences..."
-original_md5sum="$(curl -sL https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/dhs+encode+gencode.hg38.bed.tar.gz | md5sum | cut -d ' ' -f 1)"
-gencode="gencode.protein_coding.bed.zip"
+original_md5sum="$(curl -sL https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/gencode.protein_coding.bed.tar.gz | md5sum | cut -d ' ' -f 1)"
+GENCODE="gencode.protein_coding.bed.zip"
 while true; do  # retry download if caught timeout
-   wget -T 15 -c -O $gencode https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/gencode.protein_coding.bed.tar.gz && break
+   wget -T 15 -c -O $GENCODE https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/gencode.protein_coding.bed.tar.gz && break
 done
-local_md5sum="$(md5sum $gencode | cut -d ' ' -f 1)"
+sleep 2  # allow disk sync for md5sum check
+local_md5sum="$(md5sum $GENCODE | cut -d ' ' -f 1)"
 if [ "$original_md5sum" != "$local_md5sum" ]; then
-   echo "ERROR: unexpected failure while downloading ${gencode}"
+   echo "ERROR: unexpected failure while downloading ${GENCODE}"
    exit 1
 fi
-echo "Extracting ${gencode}..."
-tar -xvf $gencode
+echo "Extracting ${GENCODE}..."
+tar -xvf $GENCODE
 cd ..
 
 # create Dictionaries folder
@@ -115,4 +127,4 @@ printf "NNNNNNNNNNNNNNNNNNNNNGG 3\n" > $NGGPAM
 cd ..
 
 echo "Start CRISPRme test..."
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf $VCFCONFIG --guide $GUIDEFILE --pam PAMs/$NGGPAM --annotation Annotations/$encodegencode --samplesID $SAMPLESCONFIG --gene_annotation Annotations/$gencode --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617.6.2.2 --thread 4
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/$HG38 --vcf $VCFCONFIG --guide $GUIDEFILE --pam PAMs/$NGGPAM --annotation Annotations/$DHSENCODE --samplesID $SAMPLESCONFIG --gene_annotation Annotations/$GENCODE --sorting-criteria-scoring mm+bulges --sorting-criteria mm,bulges --mm 6 --bDNA 2 --bRNA 2 --merge 3 --output sg1617.6.2.2 --thread 4
