@@ -94,6 +94,7 @@ if [ "$original_md5sum" != "$local_md5sum" ]; then
 fi
 echo "Extracting ${DHSENCODE}..."
 tar -xvf $DHSENCODE
+DHSENCODE="dhs+encode+gencode.hg38.bed"
 
 echo "Downloading GENCODE encoding sequences..."
 original_md5sum="$(curl -sL https://raw.githubusercontent.com/pinellolab/CRISPRme/gnomad-4.1-converter/download_data/gencode.protein_coding.bed.tar.gz | md5sum | cut -d ' ' -f 1)"
@@ -109,6 +110,7 @@ if [ "$original_md5sum" != "$local_md5sum" ]; then
 fi
 echo "Extracting ${GENCODE}..."
 tar -xvf $GENCODE
+GENCODE="gencode.protein_coding.bed"
 cd ..
 
 # create Dictionaries folder
