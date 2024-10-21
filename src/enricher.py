@@ -417,8 +417,6 @@ def enrich_sequence(
         assert contig == (chrom := chrom if chrom[:3] == "chr" else f"chr{chrom}")
         if vfilter == "PASS":  # skip variants not labeled as pass
             genotypes = variant[9:]  # start samples idx
-            if ":" in genotypes[0]:  # support format field with multiple fields
-                genotypes = [gt.split(":")[0] for gt in genotypes]
             variants_dictionary, indels_dictionary, indelid, indelstart = (
                 update_variant_dictionaries(
                     variants_dictionary,

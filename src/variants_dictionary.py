@@ -200,10 +200,19 @@ def retrieve_samples(
     samples_dict = {
         f"{aid + 1}": [] for aid in range(aanum)
     }  # avoid initialize values with None for typing requirements
-    for aid in samples_dict:  # consider snp and indels
-        samples_dict[aid] = [
-            f"{samples[i]}:{gt}" for i, gt in enumerate(genotypes) if aid in gt
-        ]  # append genotype to each sample
+    # if format field contains more data beside the genotype, split it
+    if ":" in genotypes[0]:
+        for aid in samples_dict:
+            samples_dict[aid] = [
+                f"{samples[i]}:{gt}"
+                for i, genotype in enumerate(genotypes)
+                if aid in (gt := genotype.split(":")[0])
+            ]
+    else:  # only genotype data in format field, no need for split
+        for aid in samples_dict:  # consider snp and indels
+            samples_dict[aid] = [
+                f"{samples[i]}:{gt}" for i, gt in enumerate(genotypes) if aid in gt
+            ]  # append genotype to each sample
     return samples_dict
 
 
@@ -536,7 +545,8 @@ def update_variant_dictionaries(
                 indelid,
             )
             indels_dictionary[indelkey] = indelentry
-    variant_dictionary[snpkey] = "$".join(snpentry)  # update variant dictionary
+    if snpentry:  # if read some snp data update variant dictionary
+        variant_dictionary[snpkey] = "$".join(snpentry)
     return variant_dictionary, indels_dictionary, indelid, indelstart
 
 
