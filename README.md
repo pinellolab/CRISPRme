@@ -148,8 +148,12 @@ The following sections will describe the main functionalities of CRISPRme, listi
 - Number of threads to use in computation
 
 **Output**
-- bestMerge targets file, containing all the highest scoring targets, in terms of CFD and targets with the lowest combination of mismatches and bulges (with preference to lowest mismatches count), each genomic position is represent by one target
-- altMerge targets file, containing all the discarded targets from the bestMerge file, each genomic position can be represented by more than target
+
+As a given genomic region may have multiple alignments, CRISPRme outputs two lists of candidate off-target sites: 
+- The "integrated_results" file reports a single candidate off-target per genomic region, merging all possible off-targets within 3 bp (by default, adjustable parameter), and integrates annotation information if provided. The nominated off-targets are selected and sorted based on highest CFD score (by default, users can select other criteria), and when the CFD score is identical, the reference alignment is favored over alternative alignments. CRISPRme only reports candidate off-targets corresponding to observed haplotypes. A more extensive description and explanation of all the columns in this main CRISPRme results file can be found in [Supplementary Table 1 of our CRISPRme paper](https://static-content.springer.com/esm/art%3A10.1038%2Fs41588-022-01257-y/MediaObjects/41588_2022_1257_MOESM1_ESM.pdf).
+- The “all_results_with_alternative_alignments” file contains all the candiate off-targets not included in the first file. This file preserves alternative alignments as well as those containing other variants with lower CFD scores.
+
+Other outputs:
 - Parameters data file, containing all the parameters used in the search
 - Count and distribution files, containing all the data count file useful in the web-tool representation to generate main tables and view
 - Integrated results and database, containing all the tabulated data with genes proximity analysis and database representation to rapid querying on the web-tool GUI
@@ -242,7 +246,7 @@ The following sections will describe the main functionalities of CRISPRme, listi
 ## Citation
 If you use CRISPRme in your research, please cite our paper [(shareable link to full text)](https://rdcu.be/c1GYQ):
 
-Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, ... Giugno R, Bauer DE, Pinello L. (2022). Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nature Genetics, 1-10. [https://doi.org/10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y)
+Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, ... Giugno R, Bauer DE, Pinello L. Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nature Genetics, 55, 34–43 (2023). [https://doi.org/10.1038/s41588-022-01257-y.](https://doi.org/10.1038/s41588-022-01257-y) PMID: 36522432.
 
 ## License
 AGPL-3.0 (academic research only).
