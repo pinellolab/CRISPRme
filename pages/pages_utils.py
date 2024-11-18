@@ -2,7 +2,6 @@
 webpages.
 """
 
-
 from app import current_working_directory, operators
 
 from typing import Dict, List, Optional, Tuple
@@ -442,18 +441,18 @@ def get_query_column(filter_criterion: str) -> Dict[str, str]:
         "sort": "",
         "samples": "",
     }
-    if filter_criterion == FILTERING_CRITERIA[0]:
-        for key in query_columns.keys():
+    if filter_criterion == FILTERING_CRITERIA[0]:  # fewest mm+bulges
+        for key in query_columns:
             query_columns[key] = "_".join([query_columns[key], f"({MMBULGES_FILTER})"])
             query_columns["sort"] = TOTAL_FEWEST_COLUMN
             query_columns["samples"] = SAMPLES_FEWEST_COLUMN
-    elif filter_criterion == FILTERING_CRITERIA[1]:
-        for key in query_columns.keys():
+    elif filter_criterion == FILTERING_CRITERIA[1]:  # cfd
+        for key in query_columns:
             query_columns[key] = "_".join([query_columns[key], f"({CFD_FILTER})"])
             query_columns["sort"] = CFD_COLUMN
             query_columns["samples"] = SAMPLES_COLUMN
-    elif filter_criterion == FILTERING_CRITERIA[2]:
-        for key in query_columns.keys():
+    elif filter_criterion == FILTERING_CRITERIA[2]:  # crista
+        for key in query_columns:
             query_columns[key] = "_".join([query_columns[key], f"({CRISTA_FILTER})"])
             query_columns["sort"] = CRISTA_COLUMN
             query_columns["samples"] = SAMPLES_CRISTA_COLUMN
@@ -595,26 +594,28 @@ def generate_table(
         [
             html.Tr(
                 [
-                    html.Td(
-                        html.A(
-                            dataframe.loc[i, col],
-                            href="".join(
-                                [
-                                    "result?job=",
-                                    f"{job_id}#{guide}new",
-                                    dataframe.loc[i, "Bulge Type"],
-                                    str(dataframe.loc[i, "Bulge Size"]),
-                                    str(dataframe.loc[i, "Mismatches"]),
-                                ]
+                    (
+                        html.Td(
+                            html.A(
+                                dataframe.loc[i, col],
+                                href="".join(
+                                    [
+                                        "result?job=",
+                                        f"{job_id}#{guide}new",
+                                        dataframe.loc[i, "Bulge Type"],
+                                        str(dataframe.loc[i, "Bulge Size"]),
+                                        str(dataframe.loc[i, "Mismatches"]),
+                                    ]
+                                ),
+                                target="_blank",
                             ),
-                            target="_blank",
-                        ),
-                        style={"vertical-align": "middle", "text-align": "center"},
-                    )
-                    if col == ""
-                    else html.Td(
-                        dataframe.iloc[i][col],
-                        style={"vertical-align": "middle", "text-align": "center"},
+                            style={"vertical-align": "middle", "text-align": "center"},
+                        )
+                        if col == ""
+                        else html.Td(
+                            dataframe.iloc[i][col],
+                            style={"vertical-align": "middle", "text-align": "center"},
+                        )
                     )
                     for col in dataframe.columns
                 ]
@@ -689,24 +690,28 @@ def generate_table_samples(
         [
             html.Tr(
                 [
-                    html.Td(
-                        html.A(
-                            dataframe.iloc[i + (page - 1) * max_rows][col],
-                            href="".join(
-                                [
-                                    "result?job=",
-                                    job_id,
-                                    "#",
-                                    guide,
-                                    "-Sample-",
-                                    dataframe.iloc[i + (page - 1) * max_rows]["Sample"],
-                                ]
-                            ),
-                            target="_blank",
+                    (
+                        html.Td(
+                            html.A(
+                                dataframe.iloc[i + (page - 1) * max_rows][col],
+                                href="".join(
+                                    [
+                                        "result?job=",
+                                        job_id,
+                                        "#",
+                                        guide,
+                                        "-Sample-",
+                                        dataframe.iloc[i + (page - 1) * max_rows][
+                                            "Sample"
+                                        ],
+                                    ]
+                                ),
+                                target="_blank",
+                            )
                         )
+                        if col == ""
+                        else html.Td(dataframe.iloc[i + (page - 1) * max_rows][col])
                     )
-                    if col == ""
-                    else html.Td(dataframe.iloc[i + (page - 1) * max_rows][col])
                     for col in dataframe.columns
                 ]
             )

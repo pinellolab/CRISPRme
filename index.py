@@ -1,19 +1,39 @@
 #!/usr/bin/env python
-"""The script creates the index page, constituting the back bone of CRISPRme web
-interface. The web interface can also be created locally, to provide an easy-to-use
-GUI to submit not released or private data and perform the off-targets search.
+"""Main module for the CRISPRme web application.
+
+This module initializes the web application, sets up the server, and defines the 
+layout and callbacks for page navigation. It handles the routing of different pages 
+based on the URL and manages the server's running mode.
+
+Attributes:
+    MODEFILE (str): The filename for storing the running mode.
+    HOST (str): The host address for the server.
+    PORTWEB (int): The port number for the website.
+    PORTLOCAL (int): The port number for the local server.
+    server (Flask): The Flask server instance.
+    navbar (html.Div): The navigation bar component of the web application.
+    app.layout (html.Div): The layout structure of the Dash application.
 """
 
+
 from pages import (
-    main_page, 
-    navbar_creation, 
-    results_page, 
-    load_page, 
-    history_page, 
-    help_page, 
-    contacts_page
+    main_page,
+    navbar_creation,
+    results_page,
+    load_page,
+    history_page,
+    help_page,
+    contacts_page,
 )
-from app import app, URL, current_working_directory, cache
+from app import (
+    URL,
+    IPADDRESS,
+    WEBADDRESS,
+    ONLINE,
+    app,
+    current_working_directory,
+    cache,
+)
 from utils import check_directories
 
 from dash.dependencies import Input, Output, State
@@ -38,9 +58,9 @@ navbar = navbar_creation.navbar()  # create navigation bar on top of the webpage
 app.layout = html.Div(
     [
         navbar,
-        dcc.Location(id='url', refresh=False),
-        html.Div(id='page-content'),
-        html.P(id='signal', style={'visibility': 'hidden'})
+        dcc.Location(id="url", refresh=False),
+        html.Div(id="page-content"),
+        html.P(id="signal", style={"visibility": "hidden"}),
     ]
 )
 
@@ -49,27 +69,27 @@ app.layout = html.Div(
 @app.callback(
     [Output("page-content", "children"), Output("job-link", "children")],
     [Input("url", "href"), Input("url", "pathname"), Input("url", "search")],
-    [State("url", "hash")]
+    [State("url", "hash")],
 )
 def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
-    """The function switches between the selected pages.
+    """Handles page changes based on the current URL and its components.
 
-    ...
+    This callback function updates the content of the web application based on
+    the provided URL parameters. It determines which page to display and returns
+    the corresponding content and link based on the path and search parameters.
 
-    Parameters
-    ----------
-    href : str
-        URL
-    path : str
-        Current path
-    search : str
-        Current search
-    hash_guide : str
-        Guide hash
+    Args:
+        href (str): The full URL of the current page.
+        path (str): The path component of the URL.
+        search (str): The query string of the URL.
+        hash_guide (str): The hash component of the URL.
 
-    Returns
-    -------
-    Tuple
+    Returns:
+        Tuple: A tuple containing the children for the page content and the job
+            link.
+
+    Raises:
+        TypeError: If any of the input parameters are not of type str.
     """
 
     if not isinstance(href, str):
@@ -81,99 +101,86 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
     if not isinstance(hash_guide, str):
         raise TypeError(f"Expected {str.__name__}, got {type(hash_guide).__name__}")
     if path == "/load":  # show loading page
-        return (
-                load_page.load_page(), 
-                os.path.join("".join(href.split("/")[:-1]), "/load", search)
-        )
+        # define url to display on load page to check on job status
+        # if online show the webaddress, show the ip address otherwise
+        job_loading_url = WEBADDRESS if ONLINE else IPADDRESS
+        return (load_page.load_page(), f"{job_loading_url}/load{search}")
     if path == "/result":  # display results page
-        job_id = search.split("=")[-1]
+        job_id = search.split("=")[-1]  # recover job id from url
         if not hash_guide or hash_guide is None:
             return results_page.result_page(job_id), os.path.join(URL, "load", search)
-        elif "new" in hash_guide:  # TODO: change name to guide page
+        elif "new" in hash_guide:  # targets table tab
             return (
                 results_page.guidePagev3(job_id, hash_guide.split("#")[1]),
-                os.path.join(URL, "load", search)
+                os.path.join(URL, "load", search),
             )
-        elif "-Sample-" in hash_guide:
+        elif "-Sample-" in hash_guide:  # sample tab
             return (
                 results_page.sample_page(job_id, hash_guide.split("#")[1]),
-                os.path.join(URL, "load", search)
+                os.path.join(URL, "load", search),
             )
-        elif "-Pos-" in hash_guide:
+        elif "-Pos-" in hash_guide:  # genomic region tab
             return (
                 results_page.cluster_page(job_id, hash_guide.split("#")[1]),
-                os.path.join(URL, "load", search)
+                os.path.join(URL, "load", search),
             )
         return results_page.result_page(job_id), os.path.join(URL, "load", search)
-
     if path == "/user-guide":  # display manual page
         return help_page.helpPage(), os.path.join(URL, "load", search)
     if path == "/contacts":  # display contacts page
         return contacts_page.contact_page(), os.path.join(URL, "load", search)
     if path == "/history":  # display results history page
         return history_page.history_page(), os.path.join(URL, "load", search)
-    if path == "/index":  # display main page
-        return main_page.index_page(), "/index"
-    return main_page.index_page(), "/index"
+    return main_page.index_page(), "/index"  # display main page
 
 
 def index():
-    """The function creates the index page, managing the whole CRISPRme web 
-    interface. The webpage displays four main pages (accessible by the user):
-    - Home page 
-    - Manual page
-    - Contacts page
-    - History page (accessible only locally)
+    """Starts the CRISPRme web application server.
 
-    The webpage can be created locally, using the appropriate command line 
-    arguments.
+    This function checks the directory structure for consistency, determines the
+    running mode (local or website), and starts the Dash application server
+    accordingly. It also handles the creation of a mode file to track the current
+    running mode and clears the cache before starting the server.
 
-    ...
+    Args:
+        None
 
-    Parameters
-    ----------
-    None
+    Returns:
+        None
 
-    Returns
-    -------
-    None
+    Raises:
+        OSError: If there is an issue writing the mode file.
     """
 
     # check CRISPRme directory tree consistency
     check_directories(current_working_directory)
-    # check if debug mode is active 
     # TODO: replace using argparse in crisprme.py
-    debug = False
-    if "--debug" in sys.argv[1:]:
-        debug = True
-    # check if local server or website
-    website = False
-    if "--website" in sys.argv[1:]:
-        website = True
-    # keep track of running mode
-    try:
-        handle = open(os.path.join(current_working_directory, MODEFILE), mode="w")
-        if website:  # 'server' mode
-            handle.write("server")
-        else:  # 'local' mode
-            handle.write("local")
-    except OSError:
-        raise OSError(f"An error occurred while writing {MODEFILE}")
-    finally:
-        handle.close()
-    if website:
+    debug = "--debug" in sys.argv[1:]  # check if debug mode is active
+    website = "--website" in sys.argv[1:]  # check if local server or website
+    try:  # keep track of the running mode (debugging purposes)
+        modefname = os.path.join(current_working_directory, MODEFILE)
+        with open(modefname, mode="w") as outfile:
+            mode = "server" if website else "local"
+            outfile.write(mode)
+    except IOError as e:
+        raise OSError("Cannot write mode file") from e
+    if website:  # online web-interface running
         app.run_server(
-            host=HOST, port=PORTWEB, debug=debug, dev_tools_ui=debug, dev_tools_props_check=debug
+            host=HOST,
+            port=PORTWEB,  # type: ignore
+            debug=debug,
+            dev_tools_ui=debug,
+            dev_tools_props_check=debug,
         )
-        cache.clear()  # clear cache once server is closed
     else:  # local web-interface running
         app.run_server(
-            host=HOST, port=PORTLOCAL, debug=debug, dev_tools_ui=debug, dev_tools_props_check=debug
+            host=HOST,
+            port=PORTLOCAL,  # type: ignore
+            debug=debug,
+            dev_tools_ui=debug,
+            dev_tools_props_check=debug,
         )
-        app.run_server(
-            host=HOST, port=PORTWEB, debug=debug, dev_tools_ui=debug, dev_tools_props_check=debug
-        )
-        cache.clear()  # clear cache once server is closed
+    cache.clear()  # clear cache once server is closed
 
 
 if __name__ == "__main__":
