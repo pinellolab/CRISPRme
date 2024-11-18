@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e # trace all command failures
-
 output_folder=$1
 ref_folder=$2
 ref_name=$(basename $2)
@@ -30,10 +28,7 @@ if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_
 else
 	awk -v key="$key" '$0 ~ key' "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 fi
-./scriptAnalisiNNN_v3.sh "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${key}" "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${key}" "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key" "$annotation_file" "${dict_folder}/my_dict_${key}.json" "${ref_folder}/${key}.fa" $mm $bDNA $bRNA "$guide_file" "$pam_file" "$output_folder" || {
-	echo "CRISPRme ERROR: SNP analysis failed (script: ${0} line $((LINENO - 1)))" >&2
-	exit 1
-}
+./scriptAnalisiNNN_v3.sh "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${key}" "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${key}" "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key" "$annotation_file" "${dict_folder}/my_dict_${key}.json" "${ref_folder}/${key}.fa" $mm $bDNA $bRNA "$guide_file" "$pam_file" "$output_folder"
 rm "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 rm "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
 # header=$(head -1 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt")

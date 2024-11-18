@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e # trace all failures
-
 dir=$(dirname $1)
 fileIn=$1
 fileOut=$2
@@ -15,7 +13,8 @@ head -1 $fileIn >$fileOut
 for chrom in ${chroms[@]}; do
 
     echo $chrom
-    awk "/${chrom}\t/" test.targets.txt >$fileIn.$chrom.ref
+    # awk "/${chrom}\t/" test.targets.txt >$fileIn.$chrom.ref
+    grep -F -w "$chrom" $fileIn >$fileIn.$chrom.ref
     cut -f 3 $fileIn.$chrom.ref | LC_ALL=C sort -T "$dir" | uniq >$fileIn.$chrom.ref.targets
     awk -v chrom="$chrom" '$0 ~ chrom"_" {print($0)}' $fileIn >$fileIn.$chrom.alt
     awk 'NR==FNR{a[$0];next} !($0 in a)' $fileIn.$chrom.ref.targets $fileIn.$chrom.alt >$fileIn.$chrom.merged
