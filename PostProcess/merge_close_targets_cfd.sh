@@ -25,7 +25,16 @@ echo "Sorting done in $(($ENDTIME - $STARTTIME)) seconds"
 # echo -e $header | cat - $fileIn.sorted.tmp > $fileIn.sorted
 # rm $fileIn.sorted.tmp
 echo "Merging contiguous targets"
+
+if [[ "${sort_pivot}" == "score" ]]; then
+    criteria=$sorting_criteria_scoring
+else
+    criteria=$sorting_criteria
+fi
+python merge_contiguous_targets.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $criteria
 # python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
-python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot
+
+
+# python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot
 # python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria
 # rm $fileIn.sorted
