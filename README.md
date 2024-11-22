@@ -19,7 +19,8 @@ interface.
 
 ## Table Of Contents
 
-1 [Installation](#1-installation)
+0 [System Requirements](#0-system-requirements)
+<br>1 [Installation](#1-installation)
 <br>&nbsp;&nbsp;1.1 [Install CRISPRme via Conda/Mamba](#11-install-crisprme-via-condamamba)
 <br>&nbsp;&nbsp;&nbsp;&nbsp;1.1.1 [Installing Conda or Mamba](#111-installing-conda-or-mamba)
 <br>&nbsp;&nbsp;&nbsp;&nbsp;1.1.2 [Installing CRISPRme](#112-installing-crisprme)
@@ -27,6 +28,23 @@ interface.
 <br>&nbsp;&nbsp;1.2 [Install CRISPRme via Docker](#12-install-crisprme-via-docker)
 <br>&nbsp;&nbsp;&nbsp;&nbsp;1.2.1 [Installing Docker](#121-installing-docker)
 <br>&nbsp;&nbsp;&nbsp;&nbsp;1.2.2 [Building and Pulling CRISPRme Docker Image](#122-building-and-pulling-crisprme-docker-image)
+<br>2 [Usage](#2-usage)
+<br>&nbsp;&nbsp;2.1 [Directory Structure](#21-directory-structure)
+
+
+## 0 System Requirements
+
+To ensure optimal performance, CRISPRme requires the following:
+
+- **Minimum Memory (RAM)**: 32 GB
+  <br>Suitable for typical use cases and smaller datasets.
+
+- **Recommended Memory for Large Analyses**: 64 GB or more
+  <br>Necessary for intensive operations such as whole-genome searches and
+  processing large variant datasets.
+
+For best results, confirm that your system meets or exceeds these specifications 
+before running CRISPRme.
 
 ## 1 Installation
 
@@ -265,31 +283,54 @@ pinellolab/crisprme latest    <image_id>     <timestamp>    <size>
 
 You are now ready to run CRISPRme using Docker.
 
+## 2 Usage
 
-## Usage
+CRISPRme is a tool designed for variant- and haplotype-aware CRISPR off-target 
+analysis. It integrates robust functionalities for off-target detection, 
+variant-aware search, and result analysis. The tool also includes a 
+user-friendly graphical interface, which can be deployed locally to streamline 
+its usage.
 
-CRISPRme offers a range of functionalities for efficient variant- and haplotype-aware CRISPR off-target searches, along with tools for further analysis of the results. Additionally, it provides a graphical interface that can be deployed locally to simplify usage.
 
-### System requirements
+### 2.1 Directory Structure
+---
 
-CRISPRme typically requires at least 32 GB of available memory (RAM) for most cases. However, for intensive searches involving complete genomes and large variant datasets, more memory may be necessary. In such cases, we recommend ensuring that the system running CRISPRme has **at least 64 GB of memory available**.
+CRISPRme operates within a specific directory structure to manage input data and 
+outputs efficiently. To ensure proper functionality, your working directory must 
+include the following main subdirectories:
 
-### CRISPRme directory structure
+- **Genomes** 
+    - **Purpose**: Stores reference genomes.
+    - **Structure**: Each reference genome resides in its own subdirectory.
+    - **Requirements**: The genome must be split into separate files, each 
+    representing a single chromosome.
 
-CRISPRme is designed to work within a specific directory tree structure in the current working directory. The tool requires five main directories to be properly organized for it to run correctly:
+- **VCFs**
+    - **Purpose**: Contains variant data in VCF format.
+    - **Structure**: Similar to the Genomes directory, each dataset has a 
+    dedicated subdirectory with VCF files split by chromosome.
+    - **Requirements**: Files must be compressed using `bgzip` (with a `.gz`
+    extension).
 
-- **Genomes**: This directory contains subdirectories, each holding the reference genome to be used. Reference genomes must be split by chromosome, with each chromosome sequence in a separate FASTA file.
+- **sampleIDs** 
+    - **Purpose**: Lists the sample identifiers corresponding to the VCF 
+    datasets.
+    - **Structure**: Tab-separated files, one for each VCF dataset, specifying 
+    the sample IDs.
+    
+- **Annotations** 
+    - **Purpose**: Provides genome annotation data.
+    - **Format**: Annotation files must be in BED format.
 
-- **VCFs**: This directory contains subdirectories, each holding the VCF files, which should be compressed using `bgzip` (with a `.gz` extension). Similar to the Genomes directory, VCF files must be split by chromosome, with one VCF file per chromosome.
+- **PAMs** 
+    - **Purpose**: Specifies the Protospacer Adjacent Motif (PAM) sequences for 
+    guide design.
+    - **Format**: Text files containing PAM sequences.
 
-- **sampleIDs**: This directory contains tab-separated files listing the samples for each VCF dataset.
-
-- **Annotation**: This directory contains annotation files in BED format.
-
-- **PAMs**: This directory contains text files specifying the PAM sequences.
-
-The image below provides a visual representation of the directory structure required by CRISPRme:
-![fig1](./docs/readme/crisprme_dirtree.png)
+The directory organization required by CRISPRme is illustrated below:
+<p align="center">
+  <img src="docs/readme/crisprme_dirtree.png" alt="crisprme_dirtree.png", width=400/>
+</p>
 
 ### CRISPRme functionalities
 
