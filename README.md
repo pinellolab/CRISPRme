@@ -34,6 +34,9 @@ interface.
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.1 [Complete Search](#221-complete-search)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.4 [GNOMAD Converter](#224-gnomad-converter)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.6 [Web Interface](#226-web-interface)
+<br>4 [Citation](#4-citation)
+<br>5 [Contacts](#5-contacts)
+<br>6 [License](#6-license)
 
 ## 0 System Requirements
 
@@ -988,7 +991,7 @@ function:
 - `--help`
   <br>Displays the help message and exits.
 
-- `--debug`
+- `--debug` (*Optional*)
   <br>Launches the local server in debug mode. This mode enables verbose logging, 
   which is useful for troubleshooting and diagnosing issues during setup or 
   operation. It provides detailed error messages and runtime information in the 
@@ -1048,19 +1051,32 @@ crisprme.py complete-test --vcf_dataset 1000G
 docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py complete-test --vcf_dataset 1000G
 ```
 
-## Citation
+## 4 Citation
 If you use CRISPRme in your research, please cite our [paper](https://rdcu.be/c1GYQ):
 
-Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, Bombieri N, Maitland SA, Ciuculescu MF, Katta V, Tsai SQ, Armant M, Wolfe SA, Giugno R, Bauer DE, Pinello L. Human genetic diversity alters off-target outcomes of therapeutic gene editing. Nat Genet. 2023 Jan;55(1):34-43. doi: [10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y). Epub 2022 Dec 15. PMID: 36522432; PMCID: PMC10272994.
+Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, Bombieri N, Maitland 
+SA, Ciuculescu MF, Katta V, Tsai SQ, Armant M, Wolfe SA, Giugno R, Bauer DE, 
+Pinello L. Human genetic diversity alters off-target outcomes of therapeutic 
+gene editing. Nat Genet. 2023 Jan;55(1):34-43. 
+doi: [10.1038/s41588-022-01257-y](https://doi.org/10.1038/s41588-022-01257-y).
+Epub 2022 Dec 15. PMID: 36522432; PMCID: PMC10272994.
 
-## Contacts
+## 5 Contacts
 
-Luca Pinello: lpinello@mgh.harvard.edu<br>
-Rosalba Giugno: rosalba.giugno@univr.it<br>
-Daniel Bauer: bauer@bloodgroup.tch.harvard.edu
+- Luca Pinello, PhD 
+  <br>lpinello@mgh.harvard.edu
 
-## License
+- Rosalba Giugno, PhD 
+  <br>rosalba.giugno@univr.it
 
-CRISPRme is licensed under AGPL-3.0, allowing use for academic research only.
+- Daniel Bauer
+  <br>bauer@bloodgroup.tch.harvard.edu
 
-For-profit institutions must purchase a license before using CRISPRme. For more information, please contact lpinello@mgh.harvard.edu.
+## 6 License
+
+CRISPRme is licensed under the **AGPL-3.0** license, which permits its use for 
+**academic research purposes only**.
+
+For any commercial or for-profit use, a separate license must be obtained. For 
+further information regarding licensing for commercial purposes, please contact 
+**Luca Pinello** at lpinello@mgh.harvard.edu.
