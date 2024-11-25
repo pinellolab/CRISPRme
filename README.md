@@ -33,6 +33,7 @@ interface.
 <br>&nbsp;&nbsp;2.2 [CRISPRme Functions](#22-crisprme-functions)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.1 [Complete Search](#221-complete-search)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.4 [GNOMAD Converter](#224-gnomad-converter)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.5 [Generate Personal Card](#225-generate-personal-card)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.6 [Web Interface](#226-web-interface)
 <br>4 [Citation](#4-citation)
 <br>5 [Contacts](#5-contacts)
@@ -365,7 +366,7 @@ outputs. The following is a summary of CRISPRme's key features:
   CRISPRme. The function supports VCFs from GNOMAD v3.1, v4.0, and v4.1, 
   including *joint* VCFs.
 
-- [**Generate Personal Card**]() (`generate-personal-card`) 
+- [**Generate Personal Card**](#225-generate-personal-card) (`generate-personal-card`) 
   <br>Generates a personalized summary for a specific sample, identifying all 
   private off-targets unique to that individual.
 
@@ -910,41 +911,111 @@ are details about the generated data:
   off-target analysis, ensuring seamless integration into the tool's pipeline.
 
 
-#### Generate-personal-card
+#### 2.2.5 Generate Personal Card
+---
 
-The `generate-personal-card` functionality generates a sample-specific report. This report, called personal card, contains all targets found by CRISPRme on the sample-specific genomic sequence, accounting for its private variants. This functionality is useful when searching private potential off-target sequences for a certain input guide.
+The Generate Personal Card functionality creates a **sample-specific** report, 
+referred to as **personal card**. This report details all off-targets 
+identified by CRISPRme for a given sample's unique genomic sequence. The report 
+accounts for private variants (genetic differences specific to the sample not 
+shared with other populations or individuals) and their potential impact on 
+off-target editing outcomes.
 
-##### Input arguments 
+This feature is particularly useful in scenarios where personalized 
+gene-editing strategies are required, such as analyzing how private genetic 
+variations influence the efficacy and safety of CRISPR-based interventions. The 
+personal card provides the following key insights: 
 
-Below the list and description of the input arguments required by `generate-personal-card` function:
+- Identification of off-target sequences present exclusively in the sample due 
+to private variants. This allows researchers to evaluate potential risks or 
+opportunities unique to the individual’s genome. 
 
-- **--help**: Displays the help message and exits.
+- Detailed information for each input guide, showing how private variants 
+affect off-target sequences.
 
-- **--result_dir**: Directory containing the CRISPRme search results. Targets are extracted from the targets reports available in the input directory.
+This functionality is a critical tool for advancing personalized medicine and 
+precision genome editing, enabling researchers and clinicians to tailor 
+CRISPR-based solutions to an individual’s unique genetic makeup.
 
-- **--guide_seq**: sequence of the guide of interest to use to extract the sample-specific targets from the input data
-
-- **--sample_id**: ID of the sample to use to generate the personal card
-
-- **--debug**: Runs the tool in debug mode.
-
-##### Output data
-- Set of plots generated with personal and private targets containing the variant CFD score and the reference CFD score
-- Filtered file with private targets of the sample directly extracted from integrated file
-
-##### Usage example
-
-Usage example of `generate-personal-card` function:
-
-- Via `conda`/`mamba`:
+Usage Example for the Generate Personal Card function:
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py generate-personal-card \
+  --result_dir Results/sg1617.6.2.2 \  # results directory from previous search
+  --guide_seq CTAACAGTTGCTTTTATCACNNN \  # guide sequence 
+  --sample_id NA21129  # sample ID
   ```
-  crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2 --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
+
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme \
+    crisprme.py generate-personal-card \
+    --result_dir Results/sg1617.6.2.2 \  # results directory from previous search
+    --guide_seq CTAACAGTTGCTTTTATCACNNN \  # guide sequence 
+    --sample_id NA21129  # sample ID
   ```
 
-- Via `Docker`:
-  ```
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
-  ```
+##### Input Arguments
+--- 
+
+Below is a detailed list of the input arguments required by the Generate 
+Personal Card function, including detailed explanations and default behaviors:
+
+**General Parameters**
+
+- `--help`
+  <br>Displays the help message with details about the available options and 
+  exits the program.
+
+- `--debug` (*Optional*)
+  <br>Runs the tool in debug mode.
+
+**Input Data Parameters**
+
+- `--results_dir` (*Required*)
+  <br>Specifies the directory containing the CRISPRme search results. The tool 
+  extracts the relevant targets from the reports available in this directory. 
+  Ensure this path includes all necessary output files generated by CRISPRme 
+  during the analysis (`*.integrated_results.*`).
+
+- `--guide_seq` (*Required*)
+  <br>The sgRNA sequence for which the sample-specific targets will be 
+  extracted. This argument ensures that the generated personal card is tailored 
+  to a specific guide of interest, enabling targeted analysis.
+
+- `--sample_id` (*Required*)
+  <br>The identifier of the sample for which the personal card will be created. 
+  This ID corresponds to the unique genetic profile being analyzed. Ensure the 
+  sample ID matches the format used in the input data to avoid discrepancies.
+
+##### Output Data Overview
+---
+
+The Generate Personal Card functionality produces sample-specific outputs, 
+allowing researchers to assess how private genetic variants influence CRISPR 
+off-target activity. 
+
+**Note 1**: All output files include the sample ID in their file names for easy 
+identification and traceability (e.g., `*.<sample_id>.*`).
+
+**Note 2**: Outputs are tailored to the specified guide sequence and sample ID, 
+ensuring precise and personalized reporting.
+
+**Output Off-targets Files description**
+
+- `*.<sample_id>.<guide_seq>.private_targets.tsv`
+  <br>A detailed table reporting all off-target sequences specific to the 
+  sample. Extracted from the *.integrated_results.* file within the input 
+  directory. The report is generated in the results directory specified via 
+  `--result_dir`.
+
+**Graphical Output**
+
+- `imgs` directory
+  <br>The function generates plots illustrating the effect of private genetic 
+  variants on the sample-specific targets. Displays changes in the CFD and  
+  CRISTA scores, and number of Mismatches and Bulges highlighting off-target 
+  risk influenced by genetic variants.
 
 #### 2.2.6 Web Interface
 ---
