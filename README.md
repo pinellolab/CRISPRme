@@ -1,9 +1,13 @@
-# CRISPRme
-
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/crisprme/README.html)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/pinellolab/crisprme)
 ![Conda](https://img.shields.io/conda/dn/bioconda/crisprme)
 ![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
+
+<p align="center">
+  <img src="docs/readme/crisprme-logo.png" alt="crisprme-logo.png", width=700/>
+</p>
+
+# CRISPRme
 
 CRISPRme is a comprehensive tool designed for thorough off-target assessment in 
 CRISPR-Cas systems. Available as a web application 
@@ -32,9 +36,14 @@ interface.
 <br>&nbsp;&nbsp;2.1 [Directory Structure](#21-directory-structure)
 <br>&nbsp;&nbsp;2.2 [CRISPRme Functions](#22-crisprme-functions)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.1 [Complete Search](#221-complete-search)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.2 [Complete Test](#222-complete-test)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.3 [Targets Integration](#223-targets-integration)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.4 [GNOMAD Converter](#224-gnomad-converter)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.5 [Generate Personal Card](#225-generate-personal-card)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.6 [Web Interface](#226-web-interface)
+<br>3 [Test](#3-test)
+<br>&nbsp;&nbsp;3.1 [Quick Test](#31-quick-test)
+<br>&nbsp;&nbsp;3.2 [Detailed Test](#32-detailed-test)
 <br>4 [Citation](#4-citation)
 <br>5 [Contacts](#5-contacts)
 <br>6 [License](#6-license)
@@ -352,12 +361,12 @@ outputs. The following is a summary of CRISPRme's key features:
   Cutting Frequency Determination (CFD) and CRISTA analyses (if applicable), and 
   identifies candidate targets.
 
-- [**Complete Test**]() (`complete-test`)
+- [**Complete Test**](#222-complete-test) (`complete-test`)
   <br>Tests CRISPRme pipeline on a small input dataset or the full genome, 
   enabling users to validate the tool's functionality before performing 
   large-scale analyses.
 
-- [**Targets Integration**]() (`targets-integration`) 
+- [**Targets Integration**](#223-targets-integration) (`targets-integration`) 
   <br>Combines *in silico* predicted targets with experimental data to create a 
   finalized target panel.
 
@@ -414,23 +423,23 @@ Usage Example for the Complete Search function:
 - **Via Conda/Mamba**
   ```bash
   crisprme.py complete-search \
-  --genome Genomes/hg38 \  # reference genome directory
-  --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
-  --guide sg1617.txt \  # guide 
-  --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
-  --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
-  --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
-  --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
-  --be-window 4,8 \  # base editing window start and stop positions within off-targets
-  --be-base A,G \  # nucleotide to test base editing potential (A>G)
-  --mm 6 \  # number of max mismatches
-  --bDNA 2 \  # number of max DNA bulges
-  --bRNA 2 \  # number of max RNA bulges
-  --merge 3 \  # merge off-targets mapped within 3 bp in clusters
-  --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
-  --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
-  --output sg1617-NGG-1000G-HGDP \  # output directory name
-  --thread 8  # number of threads 
+    --genome Genomes/hg38 \  # reference genome directory
+    --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
+    --guide sg1617.txt \  # guide 
+    --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
+    --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
+    --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
+    --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
+    --be-window 4,8 \  # base editing window start and stop positions within off-targets
+    --be-base A,G \  # nucleotide to test base editing potential (A>G)
+    --mm 6 \  # number of max mismatches
+    --bDNA 2 \  # number of max DNA bulges
+    --bRNA 2 \  # number of max RNA bulges
+    --merge 3 \  # merge off-targets mapped within 3 bp in clusters
+    --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
+    --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
+    --output sg1617-NGG-1000G-HGDP \  # output directory name
+    --thread 8  # number of threads 
   ```
 
 - **Via Docker**
@@ -678,89 +687,188 @@ populations.
     - **Purpose**: Facilitates easy interpretation and presentation of CRISPRme 
     results.
 
-#### Complete-test
+#### 2.2.2 Complete Test
+---
 
-The `complete-test` feature offers a fully automated pipeline for testing CRISPRme's installation. It handles the creation of the CRISPRme directory structure and downloads the essential files required to run the tool. `Complete-test` provides several testing options, allowing the user to perform quick tests on a single chromosome or conduct comprehensive tests on the entire genome. Furthermore, the feature supports testing CRISPRme using either the 1000 Genomes Phase 3 dataset or the Human Genome Diversity Project (HGDP) dataset. The testing environment can be configured by the user via command line parameters.
+The **Complete Test** module provides an automated pipeline for verifying the 
+correct installation and functionality of CRISPRme. This feature is designed to 
+simplify the validation process by automatically setting up the required 
+directory structure, downloading essential files, and offering flexible testing 
+options tailored to different user needs.
 
-The necessary data for these tests can be accessed [here](https://github.com/pinellolab/CRISPRme/tree/gnomad-4.1-converter/test/data), except for the FASTA and VCF files, which are downloaded from the UCSC and 1000 Genomes/HGDP databases due to their large file sizes.
+This function automatically creates the CRISPRme directory structure required 
+for the tool to function properly. Furthermore, it downloads and prepares all 
+necessary files for testing, ensuring that users do not need to manually manage 
+dependencies. Complete Test module allows users to perform a test limited to a 
+specific chromosome (e.g., chromosome 22), significantly reducing runtime and 
+resource usage. However, is also available the option to test on the entire 
+genome, ensuring all components of CRISPRme work correctly across large-scale 
+datasets. This function supports testing with 1000 Genomes Phase 3 dataset and 
+Human Genome Diversity Project (HGDP) dataset. Testing parameters, such as the 
+genome dataset and test type, can be customized via command-line arguments, 
+allowing users to tailor the testing process to their system capabilities and 
+goals.
 
-##### Input arguments
+This module is suited for:
 
-Below the list and description of the input arguments required by `complete-test` function:
+- **Initial Installation Verification**: Test whether CRISPRme has been 
+installed correctly and is functioning as expected before running actual 
+analyses. 
 
-- **--help**: Displays the help message and exits.
+- **System Configuration Testing**: Validate the compatibility of CRISPRme with 
+different system configurations (e.g., varying thread counts, datasets).
 
-- **--chrom**: Specifies the chromosome for CRISPRme's test. The chromosome number must be prefixed with chr (e.g., chr22). By default, the test is conducted on the entire genome. [OPTIONAL]
+- **Dataset Evaluation**: Test specific datasets (1000 Genomes Phase 3 or HGDP) 
+to confirm their suitability for the user’s research needs.
 
-- **--vcf_dataset**: Defines the variant dataset used for testing CRISPRme. The available options are `1000G` for the 1000 Genomes dataset and `HGDP` for the Human Genome Diversity Project dataset. The default dataset is 1000 Genomes. [OPTIONAL]
-
-- **--debug**: Runs the tool in debug mode. [OPTIONAL]
-
-##### Output data
-
-
-##### Usage example
-
-Usage example of `complete-test` function:
-
-- Via `conda`/`mamba`:
-```
-# test only on chr 22 and 1000 Genomes
-crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
-
-# test on the entire genome and HGDP 
-crisprme.py complete-test --vcf_dataset HGDP
-
-# test on the entire genome and 1000G+HGDP
-crisprme.py complete-test --vcf_dataset 1000G+HGDP
-```
-
-- Via `Docker`:
-```
-# test only on chr 22 and 1000 Genomes
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
-
-# test on the entire genome and HGDP 
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-test --vcf_dataset HGDP
-
-# test on the entire genome and 1000G+HGDP
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme
-crisprme.py complete-test --vcf_dataset 1000G+HGDP
-```
-
-#### Targets-integration
-
-The `targets-integration` feature combines the targets identified by CRISPRme with empirically validated targets, such as those obtained through GUIDE-seq or CIRCLE-seq. The empirically validated targets should be provided in a `BED` file. After integrating the two datasets, this feature generates an `integrated_result` file within the specified output directory.
-
-##### Input arguments
-
-Below the list and description of the input arguments required by `targets-integration` function:
-
-- **--help**: Displays the help message and exits.
-
-- **--targets**: File containing the targets identified and processed from a CRISPRme search.
-
-- **--empirical_data**: `BED` file with empirically verified off-targets, such as those obtained from GUIDE-seq, CIRCLE-seq, or other sequencing protocols.
-
-- **--output**: NName of the output directory where the integrated targets file will be saved.
-
-- **--debug**: Runs the tool in debug mode. [OPTIONAL]
-
-##### Output data
-
-##### Usage example
-
-Usage example of `targets-integration` function:
-
-- Via `conda`/`mamba`:
-  ```
-  crisprme.py targets-integration --targets results.integrated_results.tsv --empirical_data empirical_data.bed --output integrated_targets_dir
+Usage Example for the Complete Test function:
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py complete-test \ 
+    --chrom chr22 \  # test on chromosome 22 data only
+    --vcf_dataset 1000G  # test using 1000G variants
   ```
 
-- Via `Docker`:
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \ 
+    crisprme.py complete-test \ 
+    --chrom chr22 \  # test on chromosome 22 data only
+    --vcf_dataset 1000G  # test using 1000G variants
   ```
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py targets-integration --targets results.integrated_results.tsv --empirical_data empirical_data.bed --output integrated_targets_dir
+
+##### Input Arguments
+---
+
+Below is a detailed list of the input arguments required by the Complete Test
+function, including detailed explanations and default behaviors:
+
+**General Parameters**
+
+- `--help`
+  <br>Displays the help message with details about the available options and 
+  exits the program.
+
+- `--thread` (*Optional - Default: 4*)
+  <br>Specifies the number of threads to use for the computation, allowing for 
+  parallel processing.
+
+- `--debug` (*Optional*)
+  <br>Runs the tool in debug mode. 
+
+**Input Data Parameters (*Optional*)**
+
+- `--chrom`
+  <br>Specifies the chromosome to be used in the CRISPRme test. The chromosome 
+  identifier must be prefixed with chr (e.g., chr22). When this argument is 
+  provided, the test will be limited to the specified chromosome, enabling 
+  faster execution for targeted validation. *Default behavior*: Run the test 
+  across the entire genome.
+
+- `--vcf_dataset`
+  <br>Defines the variant dataset to be utilized for testing CRISPRme. 
+  Available options include:
+    
+    - `1000G`: Uses the 1000 Genomes Phase 3 dataset.
+    
+    - `HGDP`: Uses the Human Genome Diversity Project dataset.
+  
+  *Default behavior*: Use 1000 Genomes variant data.
+
+##### Output Data Overview
+---
+
+The results generated by the Complete Test function are saved in a subdirectory 
+within the Results directory, named `crisprme-test-*` (with `*` replaced by a 
+unique identifier).
+
+The output folder contains the same set of files produced by the 
+Complete Search functionality, including:
+
+- Detailed target reports that prioritize off-target candidates based on 
+various criteria.
+
+- Summaries categorized by guides and samples.
+
+- Graphical representations of results, such as bar plots and impact 
+assessments of genetic variants on target metrics.
+
+For a detailed description of the contents of these files, please refer to the 
+corresponding subsection in [Complete Search](#221-complete-search).
+
+#### 2.2.3 Targets Integration
+---
+
+The **Targets Integration** function enables the seamless combination of 
+computationally predicted off-targets identified by CRISPRme with 
+experimentally validated off-targets, such as those obtained from GUIDE-seq, 
+CIRCLE-seq, or other high-throughput methods. This integration enhances the 
+interpretability and reliability of CRISPRme’s results by merging empirical 
+data with *in silico* predictions.
+
+This module supports integration with user-provided datasets in `BED` format, 
+enabling flexibility in validation sources. Targets Integration 
+
+Usage Example for the Complete Test function:
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py targets-integration \ 
+    --targets results.integrated_results.tsv \  # search results
+    --empirical_data empirical_data.bed \  # empirical data BED 
+    --output integrated_targets_dir  # output directory
   ```
+
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme \
+    crisprme.py targets-integration \ 
+    --targets results.integrated_results.tsv \  # search results
+    --empirical_data empirical_data.bed \  # empirical data BED 
+    --output integrated_targets_dir  # output directory
+  ```
+
+##### Input Arguments
+---
+
+Below is a detailed list of the input arguments required by the Target 
+Integration function, including detailed explanations and default behaviors:
+
+**General Parameters**
+
+- `--help`
+  <br>Displays the help message with details about the available options and 
+  exits the program.
+
+- `--debug` (*Optional*)
+  <br>Runs the tool in debug mode. 
+
+**Input Data Parameters**
+
+- `--targets` (*Required*)
+  <br>Specifies the file containing targets identified and processed from a 
+  CRISPRme search. This file should include predicted off-target data such as 
+  mismatch counts, bulge sizes, and scores (e.g., CFD, CRISTA).
+
+- `--empirical_data` (*Required*)
+  <br>Path to a `BED` file containing empirically validated off-targets. This 
+  file typically includes genomic coordinates and additional metadata from 
+  experiments such as GUIDE-seq or CIRCLE-seq. Ensure that the `BED` file 
+  format adheres to standard conventions for compatibility.
+
+- `--output` (*Required*)
+  <br>Name of the directory where the resulting integrated targets file will be 
+  saved. 
+
+##### Output Data Overview
+---
+
+The Targets Integration module generates output files that merge 
+computationally predicted targets from CRISPRme with experimentally validated 
+off-targets provided in the BED file. The integrated data is stored in the 
+specified output directory and includes the `integrated_results.tsv`. This 
+tab-separated file contains the combined list of off-target sites. Each entry 
+represents a merged record from CRISPRme predictions and empirical data, where 
+overlaps are identified based on genomic coordinates.
 
 #### 2.2.4 GNOMAD Converter
 --- 
@@ -827,8 +935,8 @@ Usage Example for the GNOMAD Converter function:
 ##### Input Arguments
 ---
 
-Below is a detailed list of the input arguments required by the GNOMAD Converter 
-function, including detailed explanations and default behaviors:
+Below is a detailed list of the input arguments required by the GNOMAD 
+Converter function, including detailed explanations and default behaviors:
 
 **General Parameters**
 
@@ -914,8 +1022,8 @@ are details about the generated data:
 #### 2.2.5 Generate Personal Card
 ---
 
-The Generate Personal Card functionality creates a **sample-specific** report, 
-referred to as **personal card**. This report details all off-targets 
+The **Generate Personal Card** functionality creates a **sample-specific** 
+report, referred to as **personal card**. This report details all off-targets 
 identified by CRISPRme for a given sample's unique genomic sequence. The report 
 accounts for private variants (genetic differences specific to the sample not 
 shared with other populations or individuals) and their potential impact on 
@@ -941,9 +1049,9 @@ Usage Example for the Generate Personal Card function:
 - **Via Conda/Mamba**
   ```bash
   crisprme.py generate-personal-card \
-  --result_dir Results/sg1617.6.2.2 \  # results directory from previous search
-  --guide_seq CTAACAGTTGCTTTTATCACNNN \  # guide sequence 
-  --sample_id NA21129  # sample ID
+    --result_dir Results/sg1617.6.2.2 \  # results directory from previous search
+    --guide_seq CTAACAGTTGCTTTTATCACNNN \  # guide sequence 
+    --sample_id NA21129  # sample ID
   ```
 
 - **Via Docker**
@@ -1053,7 +1161,7 @@ Usage example for the Web Interface function:
     crisprme.py web-interface  # Starts the local server and launches the web interface
   ```
 
-##### Input arguments
+##### Input Arguments
 ---
 
 Below is a detailed list of the input arguments required by the Web Interface 
@@ -1068,7 +1176,7 @@ function:
   operation. It provides detailed error messages and runtime information in the 
   console.
 
-##### Output data
+##### Output Data Overview
 ---
 
 This function does not generate output data in the form of files or reports. 
@@ -1078,23 +1186,75 @@ displayed dynamically within the web interface itself, offering an interactive
 experience for viewing CRISPRme data and outputs (see [Section 2.2.1](#221-complete-search)
 for details).
 
+## 3 Test
 
+This section covers CRISPRme testing. This ensures that the software is 
+correctly installed, configured, and ready for use. This section covers two 
+testing options tailored to user needs:
 
-## Test
+- [Quick Test](#31-quick-test)
+  <br>A lightweight test to verify the installation and basic functionality.
 
-To quickly verify the installation of CRISPRme, open a new terminal window and run the following command:
+- [Detailed Test](#32-detailed-test) 
+  <br>A comprehensive pipeline test, replicating a full-scale CRISPRme analysis.
 
-- Via `Conda`/`Mamba`:
-```
-crisprme.py --version  # v2.1.6
-```
+### 3.1 Quick Test
+---
 
-- Via `Docker`:
-```
-docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py --version  # v2.1.6
-```
+The Quick Test provides a simple and efficient way to confirm that CRISPRme is 
+correctly installed and operational on your system. It ensures that the 
+software is accessible, dependencies are properly configured, and the version 
+matches the expected release.
 
-If the command returns the correct software version, CRISPRme has been successfully installed and is ready for use.
+**Step 1: Verify CRISPRme Installation**
+
+Open a terminal and execute the following command to check the software version:
+
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py --version  # Expected output: v2.1.6
+  ```
+
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+  crisprme.py --version  # Expected output: v2.1.6
+  ```
+
+If the output displays the correct software version (e.g., `v2.1.6`), CRISPRme 
+is successfully installed and ready for use.
+
+**Step 2: Access CRISPRme Help Menu**
+
+To explore the functionalities and input parameters of CRISPRme, use the 
+`--help` flag:
+
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py --help
+  ```
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+  crisprme.py --help
+  ```
+
+The help menu provides detailed descriptions of CRISPRme's features and usage 
+instructions, enabling users to familiarize themselves with available options 
+and workflows.
+
+**Why Perform the Quick Test?**
+
+The Quick Test is highly recommended:
+
+1. Immediately after installation to ensure the setup is correct.
+
+2. Before running full-scale analyses to verify dependencies and environment 
+configurations.
+
+If the Quick Test completes without errors, you can confidently proceed to detailed analyses using CRISPRme’s powerful tools and features.
+
+### 3.2 Detailed Test
 
 For a more detailed test, testing the main CRISPRme's functionality (`complete-search`), CRISPRme provides a dedicated [functionality](#complete-test). The test functionality provides two main test options, one quicker the other more detailed. The quicker test mode, performs an off-target search on a single chromosome sequence enriched with variants from either 1000 Genomes or Human Genome Diversity Project datasets. The more detailed test, instead, test crisprme searching potential off-targets across the entire genome. The test on the full genome replicates the analysis presented in our [paper](#citation), using the sg1617 single uguide RNA, `NGG` PAM, and the gencode and encode annotations.
 
