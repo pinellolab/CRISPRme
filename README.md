@@ -32,7 +32,8 @@ interface.
 <br>&nbsp;&nbsp;2.1 [Directory Structure](#21-directory-structure)
 <br>&nbsp;&nbsp;2.2 [CRISPRme Functions](#22-crisprme-functions)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.1 [Complete Search](#221-complete-search)
-
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.4 [GNOMAD Converter](#224-gnomad-converter)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.6 [Web Interface](#226-web-interface)
 
 ## 0 System Requirements
 
@@ -326,7 +327,7 @@ include the following main subdirectories:
 
 - **PAMs** 
     - **Purpose**: Specifies the Protospacer Adjacent Motif (PAM) sequences for 
-    guide design.
+    off-target search.
     - **Format**: Text files containing PAM sequences.
 
 The directory organization required by CRISPRme is illustrated below:
@@ -356,7 +357,7 @@ outputs. The following is a summary of CRISPRme's key features:
   <br>Combines *in silico* predicted targets with experimental data to create a 
   finalized target panel.
 
-- [**GNOMAD Converter**]() (`gnomAD-converter`) 
+- [**GNOMAD Converter**](#224-gnomad-converter) (`gnomAD-converter`) 
   <br>Transforms GNOMAD VCFs (`vcf.bgz` format) into a format compatible with 
   CRISPRme. The function supports VCFs from GNOMAD v3.1, v4.0, and v4.1, 
   including *joint* VCFs.
@@ -365,7 +366,7 @@ outputs. The following is a summary of CRISPRme's key features:
   <br>Generates a personalized summary for a specific sample, identifying all 
   private off-targets unique to that individual.
 
-- [**Web Interface**]() (`web-interface`)
+- [**Web Interface**](#226-web-interface) (`web-interface`)
   <br>Launches CRISPRme's interactive web interface, allowing users to manage 
   and execute tasks directly via a local browser.
 
@@ -431,24 +432,24 @@ Usage Example for the Complete Search function:
 - **Via Docker**
   ```bash
   docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
-  crisprme.py complete-search \
-  --genome Genomes/hg38 \  # reference genome directory
-  --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
-  --guide sg1617.txt \  # guide 
-  --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
-  --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
-  --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
-  --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
-  --be-window 4,8 \  # base editing window start and stop positions within off-targets
-  --be-base A,G \  # nucleotide to test base editing potential (A>G)
-  --mm 6 \  # number of max mismatches
-  --bDNA 2 \  # number of max DNA bulges
-  --bRNA 2 \  # number of max RNA bulges
-  --merge 3 \  # merge off-targets mapped within 3 bp in clusters
-  --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
-  --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
-  --output sg1617-NGG-1000G-HGDP \  # output directory name
-  --thread 8  # number of threads 
+    crisprme.py complete-search \
+    --genome Genomes/hg38 \  # reference genome directory
+    --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
+    --guide sg1617.txt \  # guide 
+    --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
+    --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
+    --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
+    --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
+    --be-window 4,8 \  # base editing window start and stop positions within off-targets
+    --be-base A,G \  # nucleotide to test base editing potential (A>G)
+    --mm 6 \  # number of max mismatches
+    --bDNA 2 \  # number of max DNA bulges
+    --bRNA 2 \  # number of max RNA bulges
+    --merge 3 \  # merge off-targets mapped within 3 bp in clusters
+    --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
+    --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
+    --output sg1617-NGG-1000G-HGDP \  # output directory name
+    --thread 8  # number of threads 
   ```
 
 ##### Input Arguments
@@ -463,7 +464,7 @@ its purpose and usage:
   <br>Displays the help message with usage details and exits. Useful for quickly 
   referencing all available options.
 
-- `--output`
+- `--output` (*Required*)
   <br>Specifies the name of the output directory where all results from the 
   analysis will be saved. This directory will be created within the `Results` 
   directory.
@@ -565,6 +566,7 @@ hg38 or hg19) to avoid alignment issues.
 arguments must always be specified.
 
 ##### Output Data Overview
+---
 
 The Complete Search function generates a comprehensive suite of reports, 
 detailing the identified and prioritized targets, along with statistical and 
@@ -658,6 +660,7 @@ populations.
     and bulges as the sorting criterion.
 
 **Graphical Output**
+
 9. `imgs` directory 
 
     - **Contents**: Contains visual representations of the top 1000 targets 
@@ -755,55 +758,154 @@ Usage example of `targets-integration` function:
   docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py targets-integration --targets results.integrated_results.tsv --empirical_data empirical_data.bed --output integrated_targets_dir
   ```
 
-#### gnomAD-converter 
+#### 2.2.4 GNOMAD Converter
+--- 
 
-The `gnomAD-converter` function provides a utility to convert gnomAD VCF files into a format suitable for use as input in CRISPRme searches. The converter currently supports gnomAD VCF files for the following versions:
+The **GNOMAD Converter** function is a utility designed to preprocess and 
+convert GNOMAD VCF files into a format compatible with CRISPRme for off-target 
+analysis. This tool facilitates the inclusion of population-level genetic 
+variation data from GNOMAD into CRISPRme.
 
-- v3.1
+The converter currently supports VCF files from the following GNOMAD versions:
+- **v3.1**
+- **v4.0**
+- **v4.1**, including joint VCF files (exomes + genomes).
 
-- v4.0
+Since individual sample data are not available in GNOMAD VCFs, the tool relies 
+on population-level groupings. Populations are treated as individual "samples" 
+for the purpose of conversion. This approach supports population-based 
+statistical analyses in CRISPRme, such as identifying population-specific 
+off-targets.
 
-- v4.1 (including joint VCFs)
+**Note 1**: For studies requiring sample-specific statistics, GNOMAD is not 
+recommended due to its population-level nature.
 
-For a successful conversion, the converter requires a sample ID file. Since individual samples are not provided in gnomAD VCFs, CRISPRme treats populations as single samples. This approach does not impact population-based statistics. However, if you require sample-specific statistics, we do not recommend using gnomAD, as the data are population-based rather than sample-based. Sample ID files for gnomAD [v3.1 and v4.0](https://github.com/pinellolab/CRISPRme/blob/gnomad-4.1-converter/test/data/hg38_gnomAD.samplesID.txt) and [v4.1](https://github.com/pinellolab/CRISPRme/blob/gnomad-4.1-converter/test/data/hg38_gnomAD.v4.1.samplesID.txt) are available on our GitHub page.
+**Note 2**: The GNOMAD Converter function is particularly useful for creating 
+GNOMAD-compatible datasets formatted for CRISPRme's population-aware off-target 
+analysis.
 
-##### Input arguments
+**Note 3**: Since GNOMAD provides population-level data rather than 
+individual-level data, CRISPRme interprets populations as pseudo-individuals. 
+This approach allows meaningful population-level statistics but is not suitable 
+for applications requiring individual-level granularity.
 
-Below the list and description of the input arguments required by `targets-integration` function:
+To ensure a smooth conversion process, sample ID files compatible with GNOMAD 
+VCFs must be provided. These files are available for download from the CRISPRme 
+GitHub repository:
 
-- **--help**: Displays the help message and exits.
+- [Sample IDs file for GNOMAD v3.1 and v4.0](https://github.com/pinellolab/CRISPRme/blob/v216/test/data/samplesIDs.gnomad.v40.txt)
 
-- **--gnomAD_VCFdir**: Directory containing the gnomAD VCF files to process and convert into a format suitable for CRISPRme.
+- [Sample IDs file for GNOMAD v4.1](https://github.com/pinellolab/CRISPRme/blob/v216/test/data/samplesIDs.gnomad.v41.txt)
 
-- **--samplesID**: Text file containing the sample IDs used during the gnomAD VCF conversion. In this file, gnomAD populations are treated as individual samples to construct VCFs suitable for CRISPRme.
+The conversion process preserves all variant information necessary for CRISPRme
+analyses, including allele frequencies and genotypes (if applicable).
 
-- **--joint**: Flag specifying whether the gnomAD VCFs to convert are joint VCFs. By default the converter assumes the input VCFs are not joint VCFs [OPTIONAL]
-
-- **--keep**: Flag specifying whether to retain all variants, regardless of their value in the FILTER field of the VCF. By default, the converter discards variants without a PASS value in the FILTER field. [OPTIONAL]
-
-- **--multiallelic**: Flag indicating whether to merge variants mapped at the same position into a single line, creating multiallelic entries. By default, the converter keeps all variants biallelic and does not merge them. [OPTIONAL]
-
-- **--thread**: Specifies the number of threads to use during the computation. By default, CRISPRme uses 4 threads. [OPTIONAL]
-
-- **--debug**: Runs the tool in debug mode. [OPTIONAL]
-
-##### Output data
-
-##### Usage example
-
-Usage example of `targets-integration` function:
-
-- Via `conda`/`mamba`:
+Usage Example for the GNOMAD Converter function:
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py gnomAD-converter \
+    --gnomAD_VCFdir gnomad_vcf_dir \  # directory containing GNOMAD VCFs
+    --samplesID samplesIDs.gnomad.v41.txt \  # GNOMAD v4.1 samples file
+    --keep \  # keep variants with filter different from PASS
+    --thread 4  # number of threads
   ```
-  # keep all variants and merge variants in multiallelic variants
-  crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_vcf_dir --samplesID hg38_gnomAD.samplesID.txt --keep --multiallelic -thread 4
+
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+    crisprme.py gnomAD-converter \
+    --gnomAD_VCFdir gnomad_vcf_dir \  # directory containing GNOMAD VCFs
+    --samplesID samplesIDs.gnomad.v41.txt \  # GNOMAD v4.1 samples file
+    --keep \  # keep variants with filter different from PASS
+    --thread 4  # number of threads
   ```
 
-- Via `Docker`:
-  ```
-  # keep all variants and merge variants in multiallelic variants
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py gnomAD-converter --gnomAD_VCFdir gnomad_vcf_dir --samplesID hg38_gnomAD.samplesID.txt --keep --multiallelic -thread 4
-  ```
+##### Input Arguments
+---
+
+Below is a detailed list of the input arguments required by the GNOMAD Converter 
+function, including detailed explanations and default behaviors:
+
+**General Parameters**
+
+- `--help`
+  <br>Displays the help message with details about the available options and 
+  exits the program.
+
+- `--thread` (*Optional - Default: 4*)
+  <br>Specifies the number of threads to use for the computation, allowing for 
+  parallel processing.
+
+- `--debug` (*Optional*)
+  <br>Runs the tool in debug mode. 
+
+**Input Data Parameters**
+
+- `--gnomAD_VCFdir` (*Required*)
+  <br>Specifies the directory containing the gnomAD VCF files to be processed 
+  and converted into a format compatible with CRISPRme.
+
+- `--samplesID` (*Required*)
+  <br>Path to a text file containing the sample IDs used during the conversion 
+  process. In this file, GNOMAD populations are treated as pseudo-individual 
+  samples to create population-based VCFs for CRISPRme.
+
+- `--joint` (*Optional*)
+  <br>Use this flag if GNOMAD VCFs being processed are joint VCFs, such as 
+  GNOMAD v4.1 joint variant files. *Default Behavior*: Assumes the input VCFs 
+  are not joint.
+
+- `--keep` (*Optional*)
+  <br>Use this flag to retain all variants during the conversion, regardless of
+  the FILTER field value. *Default behavior*: Excludes variants that do not have 
+  a `PASS` value in the FILTER field.
+
+- `--multiallelic` (*Optional*)
+  <br>Indicates whether to merge variants at the same genomic position into a 
+  single multiallelic record. *Default behavior*: Keeps variants as biallelic 
+  and does not merge them.
+
+##### Output Data Overview
+---
+
+The output of the GNOMAD Converter function consists of converted VCF files 
+formatted to be compatible with CRISPRme. These files are stored in the same 
+directory as the input VCF files. The conversion process ensures that the output 
+adheres to CRISPRme's input specifications for population-level analysis. Below 
+are details about the generated data:
+
+**File Naming Conventions**
+
+- **Multiallelic Variant Merging** (`--multiallelic`)
+  <br>If multiallelic entries were generated by merging variants at the same 
+  position, the filename will include a tag such as `*.multiallelic.*`, 
+  `*.biallelic.*` otherwise.
+
+- **Joint Variant Files** (`--joint`)
+  <br>If joint VCFs were processed, the filenames will be labeled accordingly, 
+  for example, `*.joint.*`.
+
+**Content of the Converted VCFs**
+
+- **Population Representation**
+  <br>Each output VCF treats GNOMAD populations as pseudo-individual samples, 
+  enabling CRISPRme to perform population-based statistical analysis. This 
+  structure is reflected in the sample columns of the output VCFs.
+
+- **Variant Quality**
+  <br>If the `--keep` flag is used, all variants from the input VCF are included,
+  regardless of their quality as indicated in the FILTER field. Without the 
+  `--keep` flag, only variants with a `PASS` in the FILTER field are retained.
+
+- **Allele Representation**
+  <br>By default, the converter preserves biallelic representation, creating one 
+  row per variant. If the `--multiallelic` flag is used, variants at the same 
+  position are merged into multiallelic entries.
+
+- **Compatible Structure**
+  <br>The output files are structured to align with CRISPRme's population-aware 
+  off-target analysis, ensuring seamless integration into the tool's pipeline.
+
 
 #### Generate-personal-card
 
@@ -841,30 +943,68 @@ Usage example of `generate-personal-card` function:
   docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme crisprme.py generate-personal-card --result_dir Results/sg1617.6.2.2/ --guide_seq CTAACAGTTGCTTTTATCACNNN --sample_id NA21129
   ```
 
-#### Web-interface
+#### 2.2.6 Web Interface
+---
 
-The `web-interface` deploys locally a graphical user interface similar to crisprme's website. This local server can be accessed using the major web-browser used (successfully tested on Chrome, Safari, and Firefox). The graphical interface provides an easy-to-use interface to run CRISPRme and explore the search results interactively. 
+The **Web Interface** module offers a user-friendly, locally hosted graphical 
+user interface (GUI) for CRISPRme. This feature replicates the functionality of 
+CRISPRme's online platform, enabling users to execute CRISPRme workflows and 
+explore search results interactively without requiring an internet connection.
 
-Note that this functionality is currently available only for CRISPRme distributions installed via `conda`/`mamba`.
+The GUI allows users to submit CRISPRme jobs directly through the web interface. 
+Users can upload input files, configure parameters, and monitor progress with 
+ease.
+
+The interface provides an intuitive way to explore the output files generated by 
+CRISPRme. Users can filter targets by criteria such as mismatch count, bulge 
+size, or scores (e.g., CFD or CRISTA). The interface includes dynamic plots and 
+charts. Results are presented in a structured, easy-to-navigate format, linking 
+data to relevant genomic annotations. The web interface runs as a local server, 
+ensuring data privacy and fast response times. Users can access it via their 
+preferred web browser, with compatibility confirmed for: Google Chrome, Mozilla 
+Firefox, and Safari. All functionalities are self-contained, eliminating the 
+need for an internet connection. This is particularly useful for secure
+environments or systems without reliable internet access.
+
+Usage example for the Web Interface function:
+
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py web-interface  # Starts the local server and launches the web interface
+  ```
+
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+    crisprme.py web-interface  # Starts the local server and launches the web interface
+  ```
 
 ##### Input arguments
+---
 
-Below the list and description of the input arguments required by `web-interface` function:
+Below is a detailed list of the input arguments required by the Web Interface 
+function:
 
-- **--debug**: Deploys the local server in debug mode.
+- `--help`
+  <br>Displays the help message and exits.
+
+- `--debug`
+  <br>Launches the local server in debug mode. This mode enables verbose logging, 
+  which is useful for troubleshooting and diagnosing issues during setup or 
+  operation. It provides detailed error messages and runtime information in the 
+  console.
 
 ##### Output data
+---
 
-This function does not produce output data.
+This function does not generate output data in the form of files or reports. 
+Instead, it serves to launch a local graphical user interface, which allows 
+users to interactively explore and run CRISPRme analyses. All results are 
+displayed dynamically within the web interface itself, offering an interactive 
+experience for viewing CRISPRme data and outputs (see [Section 2.2.1](#221-complete-search)
+for details).
 
-##### Usage example
 
-Usage example of `web-interface` function:
-
-- Via `conda`/`mamba`:
-  ```
-  crisprme.py web-interface  # starts local server
-  ```
 
 ## Test
 
