@@ -1198,6 +1198,10 @@ testing options tailored to user needs:
 - [Detailed Test](#32-detailed-test) 
   <br>A comprehensive pipeline test, replicating a full-scale CRISPRme analysis.
 
+For persistent issues, refer to the 
+[CRISPRme GitHub Issues Page](https://github.com/pinellolab/CRISPRme/issues) 
+or contact the maintainers.
+
 ### 3.1 Quick Test
 ---
 
@@ -1236,7 +1240,7 @@ To explore the functionalities and input parameters of CRISPRme, use the
 - **Via Docker**
   ```bash
   docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
-  crisprme.py --help
+    crisprme.py --help
   ```
 
 The help menu provides detailed descriptions of CRISPRme's features and usage 
@@ -1255,8 +1259,77 @@ configurations.
 If the Quick Test completes without errors, you can confidently proceed to detailed analyses using CRISPRme’s powerful tools and features.
 
 ### 3.2 Detailed Test
+---
 
-For a more detailed test, testing the main CRISPRme's functionality (`complete-search`), CRISPRme provides a dedicated [functionality](#complete-test). The test functionality provides two main test options, one quicker the other more detailed. The quicker test mode, performs an off-target search on a single chromosome sequence enriched with variants from either 1000 Genomes or Human Genome Diversity Project datasets. The more detailed test, instead, test crisprme searching potential off-targets across the entire genome. The test on the full genome replicates the analysis presented in our [paper](#citation), using the sg1617 single uguide RNA, `NGG` PAM, and the gencode and encode annotations.
+For a more comprehensive validation of CRISPRme’s functionality, this detailed 
+test offers a full-scale test of the main CRISPRme pipeline, specifically its 
+Complete Search module. This test provides two distinct options for testing: a 
+quicker, focused test on a single chromosome and a more detailed, exhaustive 
+test across the entire genome:
+
+- **Single Chromosome Test**
+  <br>This test runs a search for potential off-targets on a single chromosome, 
+  such as chromosome 22, enriched with variants from the 1000 Genomes or Human 
+  Genome Diversity Project (HGDP) datasets. This provides a fast way to check 
+  CRISPRme's ability to process variant data and identify off-targets for a 
+  specific chromosome.
+
+- **Full Genome Test**
+  <br>This test checks CRISPRme's ability to search for potential off-targets 
+  across the entire human genome. It runs a search using the sg1617 guide RNA 
+  with an NGG PAM site, incorporating both Gencode and ENCODE annotations to 
+  ensure comprehensive results.
+
+**Why Perform the Detailed Test?**
+
+The Detailed Test is ideal for users who wish to:
+
+- Fully assess CRISPRme’s performance across the genome.
+- Perform a more comprehensive check on CRISPRme’s ability to handle 
+large-scale data and complex analyses.
+
+Successful completion of the detailed test confirms the full functionality of 
+CRISPRme, ensuring it is ready to handle large datasets and complex genetic 
+analysis tasks.
+
+#### 3.2.1 Single Chromosome Test
+
+To run the quicker test on chromosome 22 using the 1000 Genomes dataset, 
+execute the following commands:
+
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py complete-test \ 
+    --chrom chr22 \
+    --vcf_dataset 1000G  # to test on HGDP replace '1000G' with 'HGDP'
+  ```
+
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+    crisprme.py complete-test \ 
+    --chrom chr22 \
+    --vcf_dataset 1000G  # to test on HGDP replace '1000G' with 'HGDP'
+  ```
+
+#### 3.2.2 Full Genome Test
+
+To run the detailed test across the entire genome using the 1000 Genomes 
+variants, execute the following commands:
+
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py complete-test \ 
+    --vcf_dataset 1000G  # to test on HGDP replace '1000G' with 'HGDP'
+  ```
+
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+    crisprme.py complete-test \ 
+    --vcf_dataset 1000G  # to test on HGDP replace '1000G' with 'HGDP'
+  ```
+
 
 To run the test on a single chromosome (chromosome 22) and using 1000 Genomes variants, open a new terminal window and run the following command:
 
