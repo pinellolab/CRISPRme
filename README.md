@@ -30,6 +30,8 @@ interface.
 <br>&nbsp;&nbsp;&nbsp;&nbsp;1.2.2 [Building and Pulling CRISPRme Docker Image](#122-building-and-pulling-crisprme-docker-image)
 <br>2 [Usage](#2-usage)
 <br>&nbsp;&nbsp;2.1 [Directory Structure](#21-directory-structure)
+<br>&nbsp;&nbsp;2.2 [CRISPRme Functions](#22-crisprme-functions)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.1 [Complete Search](#221-complete-search)
 
 
 ## 0 System Requirements
@@ -332,111 +334,342 @@ The directory organization required by CRISPRme is illustrated below:
   <img src="docs/readme/crisprme_dirtree.png" alt="crisprme_dirtree.png", width=400/>
 </p>
 
-### CRISPRme functionalities
+### 2.2 CRISPRme Functions
+---
 
-This section provides an overview of CRISPRme's core functionalities, including descriptions of each feature, the required input data and formats, and the resulting output data. Below is a list of CRISPRme's key functionalities:
+This section provides a comprehensive overview of CRISPRme's core functions, 
+detailing each feature, the required input data and formats, and the resulting 
+outputs. The following is a summary of CRISPRme's key features:
 
-- [**complete-search**](#complete-search): Conducts a comprehensive search across the entire genome (both reference and variant data, if requested), performs Cutting Frequency Determination (CFD) analysis, and selects targets.
+- [**Complete Search**](#221-complete-search) (`complete-search`)
+  <br>Executes a genome-wide off-targets
+  search across both reference and variant datasets (if specified), conducts 
+  Cutting Frequency Determination (CFD) and CRISTA analyses (if applicable), and 
+  identifies candidate targets.
 
-- [**complete-test**](#complete-test): Tests the full CRISPRme pipeline using a small input dataset, allowing you to verify the tool's functionality before running larger analyses.
+- [**Complete Test**]() (`complete-test`)
+  <br>Tests CRISPRme pipeline on a small input dataset or the full genome, 
+  enabling users to validate the tool's functionality before performing 
+  large-scale analyses.
 
-- [**targets-integration**](#targets-integration): Integrates in-silico predicted targets with empirical data to generate a usable target panel.
+- [**Targets Integration**]() (`targets-integration`) 
+  <br>Combines *in silico* predicted targets with experimental data to create a 
+  finalized target panel.
 
-- [**gnomAD-converter**](#gnomad-converter): Converts gnomAD v3.1 vcf.bgz files into a format compatible with CRISPRme.
+- [**GNOMAD Converter**]() (`gnomAD-converter`) 
+  <br>Transforms GNOMAD VCFs (`vcf.bgz` format) into a format compatible with 
+  CRISPRme. The function supports VCFs from GNOMAD v3.1, v4.0, and v4.1, 
+  including *joint* VCFs.
 
-- [**generate-personal-card**](#generate-personal-card): Generates a personalized card for a specific sample, extracting all private off-targets unique to that individual.
+- [**Generate Personal Card**]() (`generate-personal-card`) 
+  <br>Generates a personalized summary for a specific sample, identifying all 
+  private off-targets unique to that individual.
 
-- [**web-interface**](#web-interface): Activates CRISPRme's web interface, allowing you to interact with the tool through a browser locally.
+- [**Web Interface**]() (`web-interface`)
+  <br>Launches CRISPRme's interactive web interface, allowing users to manage 
+  and execute tasks directly via a local browser.
 
-#### Complete-search
+#### 2.2.1 Complete Search
+---
 
-The `complete-search` functionality executes a comprehensive variant- and haplotype-aware off-target analysis on the provided reference genome and variant datasets. This function processes all steps in CRISPRme's pipeline, including off-target identification, annotation, and reporting. It generates detailed reports on population- and sample-specific off-targets, as well as graphical summaries of the findings. This section describes the input parameters, output data, and provides a usage example.
+The **Complete Search** function performs an exhaustive variant- and 
+haplotype-aware off-target analysis, leveraging the provided reference genome 
+and variant datasets to deliver comprehensive results. This feature integrates 
+all critical stages of the CRISPRme pipeline, encompassing off-target 
+identification, functional annotation, and detailed reporting.
 
-##### Input arguments
+Key highlights of the Complete Search functionality include:
 
-Below the list and description of the input arguments required by `complete-search` function:
+- **Variant- and Haplotype-Awareness** 
+  <br>Accurately incorporates genetic variation, including population- and 
+  sample-specific variants, and haplotypes data, to identify off-targets that 
+  reflect real-world genomic diversity.
 
-- **--help**: Displays the help message and exits.
+- **Comprehensive Off-Target Discovery**
+  <br>Searches both the reference genome and user-specified variant datasets 
+  for potential off-targets, including those encompassing mismatches and bulges.
 
-- **--genome**: Specifies the directory containing the reference genome in FASTA format. The genome should be divided into individual chromosome files (e.g., `chr1.fa`, `chr2.fa`, etc.).
+- **Functional Annotation** 
+  <br>Annotates off-targets with relevant genomic features, such as 
+  coding/non-coding regions, regulatory elements, and gene proximity.
 
-- **--vcf**: ext file specifying the subdirectories containing the VCFs used to enrich the input reference genome. If not specified, CRISPRme searches off-targets only on the reference genome sequence. [OPTIONAL]
+- **Detailed Reporting**
+  <br>Generates population-specific and sample-specific off-target summaries, 
+  highlighting variations that may impact specificity or introduce novel PAM 
+  sites. Provides CFD (Cutting Frequency Determination) and CRISTA scores, and 
+  mismatches and bulges counts to rank off-targets based on their potential 
+  impact. Includes graphical representations of findings to facilitate result 
+  interpretation.
 
-- **--guide**: Text file containing a list of guide sequences (one per row) to search within the input data. This option is mutually exclusive with the `--sequence` argument.
+- **Output Formats** 
+  <br>Produces user-friendly output files, including text-based tables and 
+  visualization-ready graphical summaries.
 
-- **--sequence**: Text file listing guide sequences formatted as a FASTA file. This option cannot be used in conjunction with `--guide`.
-
-- **--pam**: Text file containing the PAM sequence to be used in the search.
-
-- **--be-window**: Specifies the base editor window, requiring start and stop coordinates (1-based, with respect to the target start), separated by a comma. This option is used to search for susceptibility to base editing. [OPTIONAL]
-
-- **--be-base**: Specifies the base editor nucleotide(s) to check for the chosen editor. [OPTIONAL]
-
-- **--annotation**: BED file containing annotation data, such as a list of genetic regions with associated functions (e.g., DNase hypersensitive sites, enhancers, etc.).
-
-- **--samplesID**: Text file containing a list of sample IDs (one per line) corresponding to the VCF datasets used. These files must be located within the sampleID directory. This option is mandatory if `--vcf` is specified. [OPTIONAL]
-
-- **--gene_annotation**: BED file containing gene data, such as Gencode annotations, used to compute gene proximity for the identified targets.
-
-- **--mm**: Maximum number of mismatches allowed during the target search.
-
-- **--bDNA**: Maximum bulge size allowed on DNA.
-
-- **--bRNA**: Maximum bulge size allowed on RNA.
-
-- **--merge**: Specifies the window size (in base pairs) used to merge candidate off-targets. When merging, the pivot targets are selected based on the highest score, particularly when CFD and CRISTA scores are computed, using the criteria defined by the `--sorting-criteria-scoring` argument. If CFD and CRISTA scores are not available, the merging follows the criteria specified in `--sorting-criteria`. The default window size for merging is set to 3 base pairs. [OPTIONAL]
-
-- **--sorting-criteria-scoring**: Defines the criteria for sorting and merging targets based on CFD/CRISTA scores, prioritizing the highest score. The criteria must be provided as a comma-separated list. Available options include `mm` (number of mismatches), `bulges` (bulge size), and `mm+bulges` (total number of mismatches and bulges). By default, `mm+bulges` is used as the sorting criterion. [OPTIONAL]
-
-- **--sorting-criteria**: Specifies the criteria for sorting and merging targets based on the fewest mismatches and bulges, particularly when CFD and CRISTA scores cannot be computed. The criteria should be provided as a comma-separated list. Available options include `mm` (number of mismatches), `bulges` (bulge size), and `mm+bulges` (total mismatches and bulges). By default, the tool uses `mm+bulges` as the primary criterion and `mm` as a secondary criterion, with `mm+bulges` serving as the main pivot for merging. [OPTIONAL]
-
-- **--output**: Name of the output directory, which will contain all the results of CRISPRme's analysis. This directory will be located within the `Results` directory.
-
-- **--thread**: Number of threads to use during the computation. By default, CRISPRme uses 4 threads. [OPTIONAL]
-
-- **debug**: Runs the tool in debug mode. [OPTIONAL]
-
-##### Output data
-
-The `complete-search` functionality generates various reports detailing the targets identified and prioritized by CRISPRme, along with statistical summaries of these targets categorized by sample or input guide. Additionally, CRISPRme provides graphical summaries of the search results and statistics in image format.
-
-Below is a description of the contents of each output file:
-
-- **`*.bestMerge.txt`**: This file contains the top targets selected based on the input criteria. Each row represents the best target for a specific genomic location, chosen according to the highest CFD score (if computed), highest CRISTA score (if computed), and the fewest combined mismatches and bulges.
-
-- **`*.altMerge.txt`**: This file includes all alternative alignments that were not selected for the `*.bestMerge.txt` file. It lists all additional targets identified by CRISPRme at each candidate off-target position. Each genomic position may have multiple reported targets in this file.
-
-- **`*.integrated_results.tsv`**: This file details the best targets according to the input criteria, along with annotation data from the input files. It includes information on the gene proximity of each candidate off-target and its location within regulatory elements.
-
-- **`*.all_results_with_alternative_alignments.tsv`**: This file lists all targets identified by CRISPRme, including alternative alignments at potential off-target sites. Each reported target is annotated with gene proximity and its location within functional genomic regulatory elements, based on the input annotation files.
-
-- **`*.summary_by_guide.<guide-sequence>_CFD.txt`**: This file summarizes the number of candidate off-targets identified by CRISPRme for each guide, using the CFD score as the primary sorting criterion. It provides counts of targets based on bulge type, mismatch number, and bulge size, as well as how many targets were found in the reference sequence, variant genome, and how many were a result of PAM creation due to a variant. These counts are derived from the targets listed in the `*.bestMerge.txt` file.
-
-- **`*.summary_by_guide.<guide-sequence>_CRISTA.txt`**: This file provides a summary similar to the `*_CFD.txt` file, but uses the CRISTA score as the primary sorting criterion. It details the number of candidate off-targets per guide, categorized by bulge type, mismatch number, bulge size, and the presence of targets in the reference sequence, variant genome, and those resulting from PAM creation due to a variant.
-
-- **`*.summary_by_guide.<guide-sequence>_fewest.txt`**: This file summarizes the number of candidate off-targets identified by CRISPRme for each guide, using the fewest combined mismatches and bulge size as the primary sorting criterion. It provides counts based on bulge type, mismatch number, and bulge size, and notes how many targets were found in the reference sequence, variant genome, and those due to PAM creation by a variant.
-
-- **`*.summary_by_samples.<guide-sequence>_CFD.txt`**: This file counts the candidate off-targets identified by CRISPRme that are private to each sample, using the CFD score as the primary sorting criterion. It also reports how many targets were found in the sample’s population and superpopulation, and how many involved PAM creation induced by a variant.
-
-- **`*.summary_by_samples.<guide-sequence>_CRISTA.txt`**: Similar to the `*_CFD.txt` file, this file counts private candidate off-targets for each sample, using the CRISTA score as the primary sorting criterion. It also provides details on targets found in the population, superpopulation, and those involving PAM creation due to a variant.
-
-- **`*.summary_by_samples.<guide-sequence>_fewest.txt`**: This file summarizes the candidate off-targets identified by CRISPRme that are private to each sample, sorted by the fewest combined mismatches and bulge size. It includes counts of targets found in the sample’s population and superpopulation, as well as those involving PAM creation due to a variant.
-
-- **`imgs` directory**: This directory contains images that illustrate the impact of genetic variants on the top 1000 targets, selected according to each of the previously mentioned criteria (CFD score, CRISTA score, and the combined number of mismatches and bulge size). The images depict changes in these metrics due to genetic variations. Additionally, the directory includes bar plots that show the distribution of targets across different populations, categorized by the combined number of mismatches and bulge size identified by CRISPRme.
-
-##### Usage example
-
-Usage example of `complete-search` function:
-
-- Via `conda`/`mamba`:
-  ```
-  crisprme.py complete-search --genome Genomes/hg38/ --vcf vcf_list.txt/ --guide sg1617.txt --pam PAMs/20bp-NGG-spCas9.txt --annotation Annotations/dhs+gencode+encode.hg38.bed --samplesID samplesID_list.txt --be-window 4,8 --be-base A --gene_annotation Annotations/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm --output sg1617_NGG --thread 4
+Usage Example for the Complete Search function:
+- **Via Conda/Mamba**
+  ```bash
+  crisprme.py complete-search \
+  --genome Genomes/hg38 \  # reference genome directory
+  --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
+  --guide sg1617.txt \  # guide 
+  --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
+  --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
+  --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
+  --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
+  --be-window 4,8 \  # base editing window start and stop positions within off-targets
+  --be-base A,G \  # nucleotide to test base editing potential (A>G)
+  --mm 6 \  # number of max mismatches
+  --bDNA 2 \  # number of max DNA bulges
+  --bRNA 2 \  # number of max RNA bulges
+  --merge 3 \  # merge off-targets mapped within 3 bp in clusters
+  --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
+  --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
+  --output sg1617-NGG-1000G-HGDP \  # output directory name
+  --thread 8  # number of threads 
   ```
 
-- Via `Docker`:
+- **Via Docker**
+  ```bash
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+  crisprme.py complete-search \
+  --genome Genomes/hg38 \  # reference genome directory
+  --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
+  --guide sg1617.txt \  # guide 
+  --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
+  --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
+  --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
+  --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
+  --be-window 4,8 \  # base editing window start and stop positions within off-targets
+  --be-base A,G \  # nucleotide to test base editing potential (A>G)
+  --mm 6 \  # number of max mismatches
+  --bDNA 2 \  # number of max DNA bulges
+  --bRNA 2 \  # number of max RNA bulges
+  --merge 3 \  # merge off-targets mapped within 3 bp in clusters
+  --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
+  --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
+  --output sg1617-NGG-1000G-HGDP \  # output directory name
+  --thread 8  # number of threads 
   ```
-  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py complete-search --genome Genomes/hg38/ --vcf vcf_list.txt/ --guide sg1617.txt --pam ./PAMs/20bp-NGG-SpCas9.txt --annotation Annotations/dhs+encode+gencode.hg38.bed --samplesID samplesID_list.txt --be-window 4,8 --be-base A --gene_annotation Annotations/gencode.protein_coding.bed --bMax 2 --mm 6 --bDNA 2 --bRNA 2 --merge 3 --sorting-criteria-scoring mm+bulges --sorting-criteria mm+bulges,mm --output sg1617_NGG --thread 4
-  ```
+
+##### Input Arguments
+---
+
+Below is a detailed list of the input arguments required or optionally used by 
+the Complete Search function. Each parameter is explained to ensure clarity in 
+its purpose and usage:
+
+**General Parameters**
+- `--help`
+  <br>Displays the help message with usage details and exits. Useful for quickly 
+  referencing all available options.
+
+- `--output`
+  <br>Specifies the name of the output directory where all results from the 
+  analysis will be saved. This directory will be created within the `Results` 
+  directory.
+
+- `--thread` (*Optional - Default: 4*)
+  <br>Defines the number of CPU threads to use for parallel computation. 
+  Increasing the number of threads can speed up analysis on systems with 
+  multiple cores.
+
+- `--debug` (*Optional*)
+  <br>Runs the tool in debug mode. 
+
+**Input Data Parameters** 
+
+- `--genome` (*Required*)
+  <br>Path to the directory containing the reference genome in FASTA format. 
+  Each chromosome must be in a separate file (e.g., `chr1.fa`, `chr2.fa`, etc.). 
+
+- `--vcf` (*Optional*)
+  <br>Path to text config file listing the directories containing VCF files to 
+  be integrated into the analysis. When provided, CRISPRme conducts variant- 
+  and haplotype-aware searches. If not specified, the tool searches only on the 
+  reference genome. 
+
+- `--guide` 
+  <br>Path to a text file containing one or more guide RNA sequences (one per 
+  line) to search for in the input genome and variants. This argument cannot be
+  used together with `--sequence`.
+
+- `--sequence`
+  <br>Path to a FASTA file listing guide RNA sequences. This argument is an 
+  alternative to `--guide` and cannot be used simultaneously.
+
+- `--pam` (*Required*)
+  <br>Path to a text file specifying the PAM sequence(s) required for the 
+  search. The file should define the PAM format (e.g., `NGG` for SpCas9).
+
+**Annotation Parameters (*Optional*)**
+
+- `--annotation`
+  <br>Path to a BED file containing genomic annotations, such as regulatory 
+  regions (e.g., DNase hypersensitive sites, enhancers, promoters). These 
+  annotations provide functional context for identified off-targets.
+
+- `--gene_annotation`
+  <br>Path to a BED file containing gene information, such as Gencode 
+  protein-coding annotations. This is used to calculate the proximity of 
+  off-targets to genes for downstream analyses.
+
+**Base Editing Parameters (*Optional*)**
+
+- `--be-window`
+  <br>Specifies the editing window for base editors, defined as start and stop 
+  positions relative to the guide RNA (1-based, comma-separated). This defines 
+  the region of interest for base-editing analysis.
+
+- `--be-base`
+  <br>Defines the target nucleotide(s) for base editing. This is only used when 
+  base editing functionality is needed.
+
+**Sample-Specific Parameters (*Optional*)**
+
+- `--samplesID` 
+  <br>Path to a text config file listing sample identifiers (one per line)
+  corresponding to VCF datasets. This enables sample-specific off-target 
+  analyses. Mandatory if `--vcf` is specified.
+
+**Search and Merging Parameters**
+
+- `--mm` (*Required*)
+  <br>Maximum number of mismatches allowed during off-target identification.
+
+- `--bDNA` (*Required*)
+  <br>Maximum allowable DNA bulge size.
+
+- `--bRNA` (*Required*)
+  <br>Maximum allowable RNA bulge size.
+
+- `--merge` (*Optional - Default: 3*)
+  <br>Defines the window size (in base pairs) used to merge closely spaced 
+  off-targets. Pivot targets are selected based on the highest score (e.g., 
+  CFD, CRISTA) or criteria defined by the `--sorting-criteria`. 
+
+- `--sorting-criteria-scoring` (*Optional - Default: `mm+bulges`*)
+  <br>Specifies sorting criteria for merging when using CFD/CRISTA scores. 
+  Options include:
+    - mm: Number of mismatches.
+    - bulges: Total bulge size.
+    - mm+bulges: Combined mismatches and bulges. 
+
+- `--sorting-criteria` (*Optional - Default: `mm+bulges,mm`*)
+  <br>Sorting criteria used when CFD/CRISTA scores are unavailable. Options are 
+  similar to `--sorting-criteria-scoring` but tailored for simpler analyses. 
+
+**Note 1**: Ensure compatibility between input files and genome builds (e.g., 
+hg38 or hg19) to avoid alignment issues.
+
+**Note 2**: Optional arguments can be omitted when not applicable, but required 
+arguments must always be specified.
+
+##### Output Data Overview
+
+The Complete Search function generates a comprehensive suite of reports, 
+detailing the identified and prioritized targets, along with statistical and 
+graphical summaries. These outputs are essential for interpreting the search 
+results and understanding the impact of genetic diversity on CRISPR off-target.
+
+**Output Off-targets Files Description**
+
+1. `*.integrated_results.tsv`
+    
+    - **Contents**: A detailed file containing the top targets (`*.bestMerge.txt`) 
+    enriched with annotations from the input files. Includes:
+        - Gene proximity of off-targets
+        - Overlaps with regulatory elements
+    
+    - **Purpose**: Integrates functional genomic context into the prioritization 
+    of off-targets.
+
+2. `*.all_results_with_alternative_alignments.tsv` 
+    
+    - **Contents**: Comprehensive listing of all identified targets, including 
+    alternative alignments. Annotated with:
+        - Gene proximity
+        - Overlaps with regulatory elements
+    
+    - **Purpose**: Facilitates a full exploration of CRISPRme's off-target 
+    predictions and their functional relevance.
+
+**Guide-Specific Summary Files**
+
+These files summarize off-target statistics per guide sequence based on 
+different sorting criteria.
+    
+3. `*.summary_by_guide.<guide-sequence>_CFD.txt` 
+    
+    - **Contents**: Summarizes off-target counts per guide using the CFD score
+    as the primary sorting criterion (data derived from 
+    `*.integrated_results.tsv`). Includes counts of:
+        - Targets by bulge type (DNA, RNA).
+        - Mismatch number and bulge size.
+        - Targets in the reference genome, variant genome, and those caused by 
+        PAM creation due to variants.
+
+    - **Purpose**: Provides insight into the distribution and characteristics of 
+    off-targets prioritized by CFD score.
+    
+4. `*.summary_by_guide.<guide-sequence>_CRISTA.txt`
+
+    - **Contents**: Summarizes off-target counts per guide using the CRISTA score
+    as the primary sorting criterion (data derived from 
+    `*.integrated_results.tsv`). Includes counts of:
+        - Targets by bulge type (DNA, RNA).
+        - Mismatch number and bulge size.
+        - Targets in the reference genome, variant genome, and those caused by 
+        PAM creation due to variants.
+
+    - **Purpose**: Provides insight into the distribution and characteristics of 
+    off-targets prioritized by CRISTA score.
+
+5. `*.summary_by_guide.<guide-sequence>_fewest.txt`
+
+    - **Contents**: Summarizes off-target counts per guide using the fewest 
+    mismatches and bulges as the sorting criterion.
+
+    - **Purpose**: Highlights off-targets that are closest to perfect matches, 
+    providing an alternative prioritization method.
+
+**Sample-Specific Summary Files**
+
+These files focus on off-targets unique to individual samples and their 
+populations.
+
+6. `*.summary_by_samples.<guide-sequence>_CFD.txt`
+
+    - **Contents**: Counts of private off-targets per sample, sorted by CFD 
+    score. Reports targets:
+        - Private to the sample.
+        - Found in the population or superpopulation.
+        - Resulting from PAM creation due to a variant.
+
+    - **Purpose**: Quantifies sample-specific off-targets and their broader 
+    population impact.
+
+7. `*.summary_by_samples.<guide-sequence>_CRISTA.txt`
+    
+    - **Contents**: Similar to the CFD-based sample summary but uses CRISTA 
+    score for sorting.
+
+8. `*.summary_by_samples.<guide-sequence>_fewest.txt`
+    - **Contents**: Summarizes private off-targets using the fewest mismatches 
+    and bulges as the sorting criterion.
+
+**Graphical Output**
+9. `imgs` directory 
+
+    - **Contents**: Contains visual representations of the top 1000 targets 
+      based on CFD score, CRISTA score, and Fewest mismatches and bulges. Images 
+      include:
+        - Bar plots showing the distribution of targets across populations and 
+        bulge types.
+        - Graphical summaries illustrating the impact of genetic variants on 
+        mismatches, bulge size, and scores.
+
+    - **Purpose**: Facilitates easy interpretation and presentation of CRISPRme 
+    results.
 
 #### Complete-test
 
