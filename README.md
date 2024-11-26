@@ -4,7 +4,7 @@
 ![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
 
 <p align="center">
-  <img src="docs/readme/crisprme-logo.png" alt="crisprme-logo.png", width=700/>
+  <img src="assets/readme/crisprme-logo.png" alt="crisprme-logo.png", width=700/>
 </p>
 
 # CRISPRme
@@ -347,7 +347,7 @@ include the following main subdirectories:
 
 The directory organization required by CRISPRme is illustrated below:
 <p align="center">
-  <img src="docs/readme/crisprme_dirtree.png" alt="crisprme_dirtree.png", width=400/>
+  <img src="assets/readme/crisprme_dirtree.png" alt="crisprme_dirtree.png", width=400/>
 </p>
 
 ### 2.2 CRISPRme Functions
