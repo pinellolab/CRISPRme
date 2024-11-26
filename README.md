@@ -44,6 +44,8 @@ interface.
 <br>3 [Test](#3-test)
 <br>&nbsp;&nbsp;3.1 [Quick Test](#31-quick-test)
 <br>&nbsp;&nbsp;3.2 [Detailed Test](#32-detailed-test)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 3.2.1 [Single Chromosome Test](#321-single-chromosome-test)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 3.2.2 [Full Genome Test](#322-full-genome-test)
 <br>4 [Citation](#4-citation)
 <br>5 [Contacts](#5-contacts)
 <br>6 [License](#6-license)
@@ -1293,6 +1295,7 @@ CRISPRme, ensuring it is ready to handle large datasets and complex genetic
 analysis tasks.
 
 #### 3.2.1 Single Chromosome Test
+---
 
 To run the quicker test on chromosome 22 using the 1000 Genomes dataset, 
 execute the following commands:
@@ -1313,6 +1316,7 @@ execute the following commands:
   ```
 
 #### 3.2.2 Full Genome Test
+---
 
 To run the detailed test across the entire genome using the 1000 Genomes 
 variants, execute the following commands:
