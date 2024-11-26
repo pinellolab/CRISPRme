@@ -1211,7 +1211,8 @@ def print_help_complete_test():
         "chromosomes\n"
         "\t--vcf_dataset, VCFs dataset to be used during CRISPRme testing. "
         "Available options include 1000 Genomes (1000G) and Human Genome "
-        "Diversity Project (HGDP). The default dataset is 1000 Genomes.\n"
+        "Diversity Project (HGDP). To use the combined dataset type '1000G+HGDP' "
+        "The default dataset is 1000 Genomes.\n"
         "\t--thread, number of threads.\n"
         "\t--debug, debug mode.\n"
     )
@@ -1264,7 +1265,7 @@ def complete_test_crisprme():
     debug = "--debug" in input_args  # run local or via conda/Docker
     # begin crisprme test
     script_test = os.path.join(
-        script_path.replace("PostProcess", "src"), "crisprme_test.py"
+        script_path.replace("PostProcess", "src"), "complete_test.py"
     )  # the script is located within src -- TODO: start migration to src
     code = subprocess.call(
         f"python {script_test} {chrom} {vcf_dataset} {threads} {debug}", shell=True
