@@ -82,7 +82,7 @@ operators = [
     ["eq ", "="],
     ["contains "],
 ]
-ONLINE = True  # NOTE change to True for online version, False for offline
+ONLINE = False  # NOTE change to True for online version, False for offline
 DISPLAY_OFFLINE = ""
 DISPLAY_ONLINE = ""
 if ONLINE:

@@ -58,16 +58,8 @@ import string
 import os
 
 
-# Allowed mismatches and bulges
-# ONLINE = False  # NOTE change to True for online version, False for offline
-if ONLINE:
-    MAX_MMS = 7  # max allowed mismatches
-    MAX_BULGES = 3  # max allowed bulges
-else:
-    # NOTE modify value for increasing/decreasing max mms or bulges available on
-    # Dropdown selection
-    MAX_MMS = 7  # max allowed mismatches
-    MAX_BULGES = 3  # max allowed bulges
+MAX_BULGES = 3  # max allowed bulges
+MAX_MMS = 7  # max allowed mismatches
 # mismatches, bulges and guides values
 AV_MISMATCHES = [{"label": i, "value": i} for i in range(MAX_MMS)]
 AV_BULGES = [{"label": i, "value": i} for i in range(MAX_BULGES)]
@@ -1538,7 +1530,7 @@ def change_variants_checklist_state(genome_value: str) -> List:
                 "disabled": False,
             },
             {"label": " plus HGDP variants", "value": "HGDP", "disabled": False},
-            {"label": " plus personal variants*", "value": "PV", "disabled": True},
+            {"label": " plus personal variants*", "value": "PV", "disabled": ONLINE},
         ]
     personal_vcf = get_custom_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
@@ -1857,7 +1849,7 @@ def index_page() -> html.Div:
                         {
                             "label": " Personal annotations*",
                             "value": "MA",
-                            "disabled": True,
+                            "disabled": ONLINE,
                         },
                     ],
                     id="checklist-annotations",
