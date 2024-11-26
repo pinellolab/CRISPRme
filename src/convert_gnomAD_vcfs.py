@@ -1,7 +1,30 @@
 """
+Module for converting gnomAD VCF files.
+
+This module provides functionality to parse command line arguments, read sample IDs,
+and convert gnomAD VCF files by updating their headers, filtering variants, and merging
+alleles. It utilizes multiprocessing to handle multiple VCF files efficiently and
+ensures robust error handling throughout the conversion process.
+
+Key functions include:
+- `parse_commandline`: Validates and parses command line arguments.
+- `read_samples_ids`: Reads sample IDs from a specified file.
+- `tabix_index`: Creates an index for a VCF file using tabix.
+- `load_vcf`: Loads a VCF file and indexes it if necessary.
+- `update_header`: Updates the VCF header with sample information.
+- `variant_observed`: Checks if any allele count indicates a variant is observed.
+- `format_variant_record`: Formats a variant record into a string.
+- `convert_vcf`: Converts a VCF file by updating its header and filtering variants.
+- `bcftools_merge`: Merges alleles in a VCF file using bcftools.
+- `run_conversion_pipeline`: Runs the conversion pipeline for a single VCF file.
+- `convert_gnomad_vcfs`: Main entry point for converting gnomAD VCF files based 
+    on user parameters.
+
+This module is designed to facilitate the processing of genomic data for research 
+and analysis purposes.
 """
 
-from utils import remove  # type: ignore
+from utils import remove
 
 from functools import partial
 from typing import List, Tuple
@@ -19,6 +42,47 @@ import os
 GT = ["0/0", "0/1"]
 GTLINE = '##FORMAT=<ID=GT,Number=1,Type=String,Description="Sample Collapsed Genotype">'
 BCFTOOLSNORM = "bcftools norm"
+
+
+def parse_commandline(args: List[str]) -> Tuple[str, str, bool, bool, bool, int]:
+    """Parse and validate command line arguments for gnomAD VCF conversion.
+
+    This function checks the provided arguments for correctness and extracts the
+    necessary parameters for the gnomAD VCF conversion process. It ensures that
+    the directory, joint processing flag, and thread count are valid before
+    returning the parsed values.
+
+    Args:
+        args (List[str]): A list of command line arguments.
+
+    Returns:
+        Tuple[str, str, bool, bool, bool, int]: A tuple containing the gnomAD
+            VCF directory, sample IDs, a flag indicating whether to use joint
+            VCF processing, a flag indicating whether to keep files, a flag for
+            multiallelic processing, and the number of threads to use.
+
+    Raises:
+        ValueError: If the number of arguments is incorrect, if the specified
+            directory is not valid, or if the number of threads is out of
+            allowed range.
+    """
+
+    if len(args) != 6:
+        raise ValueError(
+            "Wrong number of input arguments, cannot proceed with gnomAD VCF conversion"
+        )
+    gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads = args
+    if not os.path.isdir(gnomad_vcfs_dir):
+        raise ValueError(
+            f"The specified gnomAD VCF directory is not a directory ({gnomad_vcfs_dir})"
+        )
+    threads = int(threads)
+    if threads > multiprocessing.cpu_count() or threads < 0:
+        raise ValueError(f"Forbidden number of threads selected ({threads})")
+    joint = joint == "True"
+    keep = keep == "True"
+    multiallelic = multiallelic == "True"
+    return gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads
 
 
 def read_samples_ids(samples_ids: str):
@@ -96,7 +160,7 @@ def load_vcf(vcf_fname: str) -> pysam.VariantFile:
     return pysam.VariantFile(vcf_fname, index_filename=tbi_index)
 
 
-def update_header(header: pysam.VariantHeader, samples: List[str]) -> str:
+def update_header(header: pysam.VariantHeader, samples: List[str], joint: bool) -> str:
     """
     Updates the header of a VCF file with the specified samples and additional
     metadata fields.
@@ -111,7 +175,8 @@ def update_header(header: pysam.VariantHeader, samples: List[str]) -> str:
 
     header.add_line(GTLINE)  # add FORMAT metadata field
     header.add_samples(samples)  # add samples to header
-    return str(header)
+    header = str(header).replace("<ID=AF_joint,", "<ID=AF,") if joint else str(header)  # type: ignore
+    return header  # type: ignore
 
 
 def variant_observed(allele_count: Tuple[int]) -> bool:
@@ -161,7 +226,7 @@ def format_variant_record(variant: pysam.VariantRecord, genotypes: str) -> str:
     return "\t".join([f"{e}" if e is not None else "." for e in variant_format])
 
 
-def convert_vcf(vcf_fname: str, samples: List[str], keep: bool):
+def convert_vcf(vcf_fname: str, samples: List[str], joint: bool, keep: bool):
     """
     Converts a VCF file by updating the header, filtering variants, and creating
     a new compressed VCF file.
@@ -186,12 +251,12 @@ def convert_vcf(vcf_fname: str, samples: List[str], keep: bool):
     except OSError as e:
         raise OSError(f"An error occurred while loading {vcf_fname}") from e
     samples_ac = [
-        f"AC_{sample}" for sample in samples
+        f"AC_joint_{sample}" if joint else f"AC_{sample}" for sample in samples
     ]  # recover allele count field for each input sample
     try:
         with gzip.open(vcf_outfname, mode="wt") as outfile:
             # write the upated header to the converted vcf
-            outfile.write(update_header(vcf.header.copy(), samples))
+            outfile.write(update_header(vcf.header.copy(), samples, joint))
             for variant in vcf:
                 if not keep and "PASS" not in variant.filter.keys():
                     continue
@@ -249,7 +314,7 @@ def bcftools_merge(vcf_fname: str, multiallelic: bool) -> str:
 
 
 def run_conversion_pipeline(
-    vcf_fname: str, samples: List[str], keep: bool, multiallelic: bool
+    vcf_fname: str, samples: List[str], joint: bool, keep: bool, multiallelic: bool
 ) -> None:
     """
     Runs a conversion pipeline to process a VCF file by adding genotypes and merging
@@ -267,7 +332,9 @@ def run_conversion_pipeline(
         None
     """
 
-    vcf_genotypes = convert_vcf(vcf_fname, samples, keep)  # add genotypes to input VCF
+    vcf_genotypes = convert_vcf(
+        vcf_fname, samples, joint, keep
+    )  # add genotypes to input VCF
     # merge variants into mutlialleic/biallelic sites
     vcf_merged = bcftools_merge(vcf_genotypes, multiallelic)
     assert os.path.isfile(vcf_merged) and os.stat(vcf_merged).st_size > 0
@@ -284,21 +351,10 @@ def convert_gnomad_vcfs():
         OSError: If an error occurs during the gnomAD VCF conversion process.
     """
 
-    argv = sys.argv[1:]
-    if len(argv) != 5:
-        raise ValueError(
-            "Wrong number of input arguments, cannot proceed with gnomAD VCF conversion"
-        )
-    gnomad_vcfs_dir, samples_ids, keep, multiallelic, threads = argv
-    if not os.path.isdir(gnomad_vcfs_dir):
-        raise ValueError(
-            f"The specified gnomAD VCF directory is not a directory ({gnomad_vcfs_dir})"
-        )
-    threads = int(threads)
-    if threads > multiprocessing.cpu_count() or threads < 0:
-        raise ValueError(f"Forbidden number of threads selected ({threads})")
-    keep = keep == "True"
-    multiallelic = multiallelic == "True"
+    # read input arguments
+    gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads = (
+        parse_commandline(sys.argv[1:])
+    )
     start = time.time()
     # recover gnomAD file within the specified location (compressed with bgz extension)
     gnomad_vcfs = glob(os.path.join(gnomad_vcfs_dir, "*.vcf*bgz"))
@@ -311,6 +367,7 @@ def convert_gnomad_vcfs():
         partial_run_conversion_pipeline = partial(
             run_conversion_pipeline,
             samples=samples,
+            joint=joint,
             keep=keep,
             multiallelic=multiallelic,
         )
