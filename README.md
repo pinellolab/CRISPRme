@@ -1371,10 +1371,10 @@ Epub 2022 Dec 15. PMID: 36522432; PMCID: PMC10272994.
 
 ## 5 Contacts
 
-- Luca Pinello, PhD 
+- Luca Pinello
   <br>lpinello@mgh.harvard.edu
 
-- Rosalba Giugno, PhD 
+- Rosalba Giugno
   <br>rosalba.giugno@univr.it
 
 - Daniel Bauer

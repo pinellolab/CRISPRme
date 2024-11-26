@@ -34,7 +34,6 @@ from app import (
     current_working_directory,
     cache,
 )
-from utils import check_directories
 
 from dash.dependencies import Input, Output, State
 from typing import Tuple
@@ -50,6 +49,15 @@ MODEFILE = ".mode_type.txt"  # running mode report file
 HOST = "0.0.0.0"  # server host
 PORTWEB = 80  # website port
 PORTLOCAL = 8080  # local server port
+CRISPRME_DIRS = [
+    "Genomes",
+    "Results",
+    "Dictionaries",
+    "VCFs",
+    "Annotations",
+    "PAMs",
+    "samplesIDs",
+]  # crisprme directory tree
 
 # initialize the webpage
 server = app.server  # start server
@@ -63,6 +71,29 @@ app.layout = html.Div(
         html.P(id="signal", style={"visibility": "hidden"}),
     ]
 )
+
+
+def check_directories(basedir: str) -> None:
+    """Check and create necessary directories in the specified base directory.
+
+    This function verifies if the provided base directory exists and creates
+    any missing subdirectories defined in the CRISPRME_DIRS list.
+
+    Args:
+        basedir (str): The base directory to check and create subdirectories in.
+
+    Raises:
+        TypeError: If basedir is not a string.
+        FileNotFoundError: If the base directory does not exist.
+    """
+
+    if not isinstance(basedir, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(basedir).__name__}")
+    if not os.path.exists(basedir):
+        raise FileNotFoundError(f"Unable to locate {basedir}")
+    for d in CRISPRME_DIRS:
+        if not os.path.exists(os.path.join(basedir, d)):
+            os.makedirs(os.path.join(basedir, d))
 
 
 # switch between the website pages
