@@ -9,7 +9,7 @@ import os
 import re
 
 
-version = "2.1.5"  #  CRISPRme version; TODO: update when required
+version = "2.1.6"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -1011,6 +1011,8 @@ def print_help_gnomad_converter():
         "\t--samplesID, specifies the precomputed sample IDs file necessary "
         "for incorporating population-specific information into the output "
         "VCFs\n"
+        "\t--joint, optional flag to specify the input GnomAD VCF contain joint "
+        "allele frequencies\n"
         "\t--keep, optional flag to retain all variants, regardless of their "
         "filter flag. By default, variants with a filter flag different from "
         "PASS are discarded\n"
@@ -1073,6 +1075,8 @@ def gnomAD_converter():
             raise FileNotFoundError(f"Unable to locate {samples_ids}")
     except IndexError as e:
         raise ValueError("Please input some parameter for flag --samplesID") from e
+    # read joint gnomad vcf files
+    joint = "--joint" in args
     # read keep arg
     keep = "--keep" in args  # keep all variants regardless of filter label
     # read multiallelic arg
@@ -1091,8 +1095,8 @@ def gnomAD_converter():
         script_path.replace("PostProcess", "src"), "convert_gnomAD_vcfs.py"
     )
     cmd = (
-        f"python {gnomad_converter_script} {gnomad_dir} {samples_ids} {keep} "
-        f"{multiallelic} {threads}"
+        f"python {gnomad_converter_script} {gnomad_dir} {samples_ids} {joint} "
+        f"{keep} {multiallelic} {threads}"
     )
     code = subprocess.call(cmd, shell=True)
     if code != 0:
@@ -1207,8 +1211,10 @@ def print_help_complete_test():
         "chromosomes\n"
         "\t--vcf_dataset, VCFs dataset to be used during CRISPRme testing. "
         "Available options include 1000 Genomes (1000G) and Human Genome "
-        "Diversity Project (HGDP). The default dataset is 1000 Genomes.\n"
-        "\t--debug, debug mode\n"
+        "Diversity Project (HGDP). To use the combined dataset type '1000G+HGDP' "
+        "The default dataset is 1000 Genomes.\n"
+        "\t--thread, number of threads.\n"
+        "\t--debug, debug mode.\n"
     )
     sys.exit(1)
 
@@ -1246,13 +1252,23 @@ def complete_test_crisprme():
         except IndexError:
             sys.stderr.write("Please input some parameter for flag --vcf_dataset\n")
             sys.exit(1)
+    threads = 4
+    if "--thread" in input_args:  # number of threads to use during test
+        try:
+            threads = input_args[input_args.index("--thread") + 1]
+            if threads.startswith("--"):
+                sys.stderr.write("Please input some parameter for flag --thread\n")
+                sys.exit(1)
+        except IndexError:
+            sys.stderr.write("Please input some value for flag --thread\n")
+            sys.exit(1)
     debug = "--debug" in input_args  # run local or via conda/Docker
     # begin crisprme test
     script_test = os.path.join(
-        script_path.replace("PostProcess", "src"), "crisprme_test.py"
+        script_path.replace("PostProcess", "src"), "complete_test.py"
     )  # the script is located within src -- TODO: start migration to src
     code = subprocess.call(
-        f"python {script_test} {chrom} {vcf_dataset} {debug}", shell=True
+        f"python {script_test} {chrom} {vcf_dataset} {threads} {debug}", shell=True
     )
     if code != 0:
         raise OSError(
@@ -1262,18 +1278,36 @@ def complete_test_crisprme():
 
 # HELP FUNCTION
 def callHelp():
-    print(
-        "help:\n",
-        "\nALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND CHROMOSOME SEPARATED, ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED AND CHROMOSOME SEPARATED\n",
-        "\ncrisprme.py complete-search FUNCTION SEARCHING THE WHOLE GENOME (REFERENCE AND VARIANT IF REQUESTED) AND PERFORM CFD ANALYSIS AND TARGET SELECTION",
-        "\ncrisprme.py complete-test FUNCTION TO TEST THE COMPLETE PIPELINE OF CRISPRme with a small input",
-        "\ncrisprme.py targets-integration FUNCTION THAT INTEGRATES IN-SILICO TARGETS WITH EMPIRICAL DATA GENERATING A USABLE PANEL",
-        "\ncrisprme.py gnomAD-converter FUNCTION THAT CONVERTS ALL gnomADv3.1 vcf.bgz FILES INTO COMPATIBLE VCFs",
-        "\ncrisprme.py generate-personal-card FUNCTION TO GENERATE PERSONAL CARD FOR A SPECIFIC SAMPLE EXTRACTING ALL THE PRIVATE TARGETS",
-        "\ncrisprme.py web-interface FUNCTION TO ACTIVATE WEB INTERFACE OF CRISPRme TO USE WITH A BROWSER LOCALLY",
-        "\ncrisprme.py --version PRINT CRISPRME VERSION TO STDOUT AND EXIT",
-        "\n\nADD help TO ANY FUNCTION TO VISUALIZE A BRIEF HELP PAGE (example: crisprme.py complete-search --help)\n",
+    # print general help, listing all available functions with a brief
+    # description of their purpose
+    sys.stderr.write(
+        "Help:\n\n"
+        "- ALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND SEPARATED BY CHROMOSOME\n"
+        "- ALL VCFs USED BY THE SOFTWARE MUST BE ZIPPED (WITH BGZIP) AND SEPARATED BY CHROMOSOME\n\n"
+        "Functionalities:\n\n"
+        "crisprme.py complete-search\n"
+        "\tPerforms genome-wide off-targets search (reference and variant, if "
+        "specified), including CFD and CRISTA analysis, and target selection\n\n"
+        "crisprme.py complete-test\n"
+        "\tTest the complete CRISPRme pipeline on single chromosomes or complete "
+        "genomes\n\n"
+        "crisprme.py targets-integration\n"
+        "\tIntegrates in-silico targets with empirical data to generate a usable "
+        "panel\n\n"
+        "crisprme.py gnomAD-converter\n"
+        "\tConverts gnomAD VCF files into CRISPRme compatible VCFs (supports "
+        "gnomAD >= v3.1)\n\n"
+        "crisprme.py generate-personal-card\n"
+        "\tGenerates a personal card for specific samples by extracting all "
+        "private targets\n\n"
+        "crisprme.py web-interface\n"
+        "\tActivates CRISPRme's web interface for local browser use\n\n"
+        "crisprme.py --version\n"
+        "\tPrints CRISPRme version to stdout and exit\n\n"
+        "For additional information on each CRISPRme functionality type <function> "
+        "--help (e.g. 'crisprme.py complete-search --help')\n"
     )
+    sys.exit(1)  # stop execution
 
 
 if len(sys.argv) < 2:

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# set -e  # capture any failure
-
 fileIn=$1
 fileOut=$2
 thresh=$3 #threshold to use in order to merge near targets
@@ -27,10 +25,16 @@ echo "Sorting done in $(($ENDTIME - $STARTTIME)) seconds"
 # echo -e $header | cat - $fileIn.sorted.tmp > $fileIn.sorted
 # rm $fileIn.sorted.tmp
 echo "Merging contiguous targets"
+
+if [[ "${sort_pivot}" == "score" ]]; then
+    criteria=$sorting_criteria_scoring
+else
+    criteria=$sorting_criteria
+fi
+python merge_contiguous_targets.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $criteria
 # python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
-python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria
-# python remove_contiguous_samples_cfd_new.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria || {
-#     echo "CRISPRme ERROR: contigous SNP removal failed (script: ${0} line $((LINENO-1)))" >&2
-# 	exit 1
-# }
+
+
+# python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot
+# python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria
 # rm $fileIn.sorted

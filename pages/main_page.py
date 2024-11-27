@@ -58,16 +58,8 @@ import string
 import os
 
 
-# Allowed mismatches and bulges
-# ONLINE = False  # NOTE change to True for online version, False for offline
-if ONLINE:
-    MAX_MMS = 7  # max allowed mismatches
-    MAX_BULGES = 3  # max allowed bulges
-else:
-    # NOTE modify value for increasing/decreasing max mms or bulges available on
-    # Dropdown selection
-    MAX_MMS = 7  # max allowed mismatches
-    MAX_BULGES = 3  # max allowed bulges
+MAX_BULGES = 3  # max allowed bulges
+MAX_MMS = 7  # max allowed mismatches
 # mismatches, bulges and guides values
 AV_MISMATCHES = [{"label": i, "value": i} for i in range(MAX_MMS)]
 AV_BULGES = [{"label": i, "value": i} for i in range(MAX_BULGES)]
@@ -394,9 +386,7 @@ def change_url(
     gencode_name = "gencode.protein_coding.bed"
     annotation_name = ".dummy.bed"  # to proceed without annotation file
     if "EN" in annotation_var:
-        # annotation_name = "encode+gencode.hg38.bed"
-        ##use annotation wiht dhs
-        annotation_name = "dhs+encode+gencode.hg38.bed"
+        annotation_name = "dhs+encode+gencode.hg38.bed"  # use dhs annotation file
         if "MA" in annotation_var:
             annotation_name = "".join(
                 [
@@ -961,6 +951,9 @@ def change_url(
             "log_error.txt"
         )
     )
+    # set sorting criteria for score and fewest
+    sorting_criteria_scoring = "mm+bulges"
+    sorting_criteria = "mm+bulges,mm"
     # TODO: use functions rather than calling scripts
     run_job_sh = os.path.join(
         app_directory, POSTPROCESS_DIR, "submit_job_automated_new_multiple_vcfs.sh"
@@ -978,7 +971,7 @@ def change_url(
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
     assert isinstance(rna, int)
-    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} 1> {log_verbose} 2>{log_error}"
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} 1> {log_verbose} 2>{log_error}"
     # run job
     pool_executor.submit(subprocess.run, cmd, shell=True)
     return ("/load", f"?job={job_id}")
@@ -1540,7 +1533,7 @@ def change_variants_checklist_state(genome_value: str) -> List:
                 "disabled": False,
             },
             {"label": " plus HGDP variants", "value": "HGDP", "disabled": False},
-            {"label": " plus personal variants*", "value": "PV", "disabled": True},
+            {"label": " plus personal variants*", "value": "PV", "disabled": ONLINE},
         ]
     personal_vcf = get_custom_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
@@ -1859,7 +1852,7 @@ def index_page() -> html.Div:
                         {
                             "label": " Personal annotations*",
                             "value": "MA",
-                            "disabled": True,
+                            "disabled": ONLINE,
                         },
                     ],
                     id="checklist-annotations",

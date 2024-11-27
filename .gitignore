@@ -7,10 +7,8 @@ VCFs/
 Gencode/
 Cache/
 *nohup*
-Annotations/
 PAMs/*
 samplesIDs/*
-guides/
 *.csv
 *.pkl
 *.zip

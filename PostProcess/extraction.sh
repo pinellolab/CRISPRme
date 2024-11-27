@@ -1,7 +1,6 @@
 #!/bin/bash
 
 ##NOTE AWK & GREP REPORT NO STDOUT IF NO MATCHES ARE FOUND (AWK DO NOT PRODUCE ANY OUTPUT)
-# set -e # trace all errors
 
 #PARAM $1 is ref targets file
 #PARAM $2 is var targets file
