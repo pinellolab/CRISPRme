@@ -340,9 +340,12 @@ def run_conversion_pipeline(
     assert os.path.isfile(vcf_merged) and os.stat(vcf_merged).st_size > 0
 
 
-def convert_gnomad_vcfs():
+def convert_gnomad_vcfs() -> None:
     """
     Converts gnomAD VCF files based on specified parameters and sample data.
+
+    Returns:
+        None
 
     Raises:
         ValueError: If the number of input arguments is incorrect, the gnomAD VCF

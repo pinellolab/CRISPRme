@@ -1,4 +1,28 @@
 """
+This module provides utility functions for file handling, downloading data from 
+FTP and HTTP sources, and managing directory structures for the CRISPRme project. 
+It includes functions for checking directory structures, downloading files, 
+decompressing archives, and computing file hashes.
+
+Key functions include:
+- `check_crisprme_directory_tree`: Checks and creates the necessary CRISPRme 
+    directory structure.
+- `ftp_download`: Downloads a file from an FTP server to a specified local destination.
+- `http_download`: Downloads a file from an HTTP or HTTPS URL to a specified 
+    local destination.
+- `download`: Downloads a file from either an FTP server or an HTTP/HTTPS URL 
+    based on provided parameters.
+- `remove`: Removes a file or directory specified by the given path.
+- `rename`: Renames a file or directory from the original path to the new 
+    specified name.
+- `untar`: Decompresses and extracts the contents of a tar.gz file to a specified 
+    destination.
+- `gunzip`: Decompresses a gzip file to the specified output file.
+- `compute_md5`: Computes the MD5 hash of a file for integrity verification.
+
+This module is designed to facilitate data management and processing for genomic
+analysis workflows, ensuring that necessary files and directories are correctly 
+handled and maintained.
 """
 
 from io import TextIOWrapper

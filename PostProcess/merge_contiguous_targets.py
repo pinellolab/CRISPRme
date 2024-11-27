@@ -1,4 +1,36 @@
 """
+This module provides functionality for merging target data from input files based 
+on specified criteria. It includes functions for parsing command line arguments, 
+processing target data, and writing results to output files.
+
+Key functions include:
+- `parse_commandline`: Parses and validates command line arguments for target 
+    merging configuration.
+- `split_target_row`: Splits a target row string into its individual components.
+- `update_target_fields`: Updates specified fields in the target list by appending 
+    corresponding values from another list.
+- `distribute_targets`: Distributes targets between reference and variant targets 
+    from a given cluster.
+- `target_only_var`: Updates a target list to indicate whether it is a variant-only 
+    target.
+- `remove_duplicate_targets`: Removes duplicate values from specified fields in a 
+    target list.
+- `unfold_variant_targets`: Recovers and processes all variant targets from a given 
+    dictionary.
+- `sorting_score`: Generates a sorting key function based on specified criteria 
+    for sorting.
+- `sorting_fewest`: Creates a sorting key function based on the fewest specified 
+    criteria.
+- `initialize_sorting_criteria`: Initializes a sorting criteria function based on 
+    the provided parameters.
+- `retrieve_best_target`: Identifies and retrieves the best target from a given 
+    cluster of targets.
+- `merge_targets`: Merges target data from an input file and writes the best 
+    targets to an output file.
+- `main`: The entry point of the module that orchestrates the merging process.
+
+This module is designed to facilitate the analysis of genomic target data, allowing 
+users to efficiently merge and sort targets based on various criteria.
 """
 
 from typing import List, Tuple, Dict, Callable
@@ -14,6 +46,45 @@ SORTCRITERIA = {"mm": 2, "bulges": 1, "mm+bulges": 0}
 def parse_commandline(
     args: List[str],
 ) -> Tuple[str, str, int, int, int, int, int, int, int, str, List[str]]:
+    """
+    Parses command line arguments for target merging configuration.
+    This function validates the input arguments and returns the necessary
+    parameters for processing target files.
+
+    Args:
+        args (List[str]): A list of command line arguments where:
+            - args[0] is the targets file name.
+            - args[1] is the output file name.
+            - args[2] is the targets merge range in base pairs.
+            - args[3] is the chromosome column index (1-based).
+            - args[4] is the position column index (1-based).
+            - args[5] is the mm+bulges column index (1-based).
+            - args[6] is the guide column index (1-based).
+            - args[7] is the SNP info column index (1-based).
+            - args[8] is the score column index (1-based).
+            - args[9] is the sorting pivot (score or mm+bulges).
+            - args[10] is a comma-separated list of sorting criteria.
+
+    Returns:
+        Tuple[str, str, int, int, int, int, int, int, int, str, List[str]]:
+        A tuple containing the parsed parameters:
+            - targets_fname: The targets file name.
+            - outfname: The output file name.
+            - rangebp: The targets merge range in base pairs.
+            - chromidx: The chromosome column index (0-based).
+            - posidx: The position column index (0-based).
+            - mmbidx: The mm+bulges column index (0-based).
+            - guideidx: The guide column index (0-based).
+            - snpidx: The SNP info column index (0-based).
+            - scoreidx: The score column index (0-based).
+            - pivot: The sorting pivot.
+            - sortcrit: A list of sorting criteria.
+
+    Raises:
+        FileNotFoundError: If the targets file cannot be found.
+        ValueError: If the merge range is less than 1 or if invalid sort criteria are provided.
+    """
+
     targets_fname = args[0]  # targets file
     if not os.path.isfile(targets_fname):
         raise FileNotFoundError(f"Unable to locate {targets_fname}")
@@ -48,7 +119,30 @@ def parse_commandline(
     )
 
 
-def split_target_row(target_row: str, guideidx: int, chromidx: int, posidx: int):
+def split_target_row(
+    target_row: str, guideidx: int, chromidx: int, posidx: int
+) -> Tuple[str, str, int]:
+    """
+    Splits a target row string into its individual components.
+    This function retrieves the guide, chromosome, and position from a target
+    row based on specified indices.
+
+    Args:
+        target_row (str): A string representing a single target row, with fields
+            separated by whitespace.
+        guideidx (int): The index of the guide field in the target row.
+        chromidx (int): The index of the chromosome field in the target row.
+        posidx (int): The index of the position field in the target row.
+
+    Returns:
+        Tuple[str, str, int]: A tuple containing the extracted guide, chromosome,
+            and position:
+            - guide (str): The guide extracted from the target row.
+            - chromosome (str): The chromosome extracted from the target row.
+            - position (int): The position extracted from the target row, converted
+                to an integer.
+    """
+
     fields = target_row.strip().split()
     return fields[guideidx], fields[chromidx], int(fields[posidx])
 
@@ -56,6 +150,24 @@ def split_target_row(target_row: str, guideidx: int, chromidx: int, posidx: int)
 def update_target_fields(
     target: List[str], fields: List[str], samplesidx: int, snpid_idx: int, afidx: int
 ) -> List[str]:
+    """Update specified fields in the target list by appending corresponding
+    values from the fields list.
+
+    This function modifies the target list by concatenating values from the fields
+    list at given indices, which is useful for aggregating information related to
+    samples, SNP IDs, and allele frequencies.
+
+    Args:
+        target (List[str]): The list of target values to be updated.
+        fields (List[str]): The list of new values to append to the target.
+        samplesidx (int): The index in the target list for sample information.
+        snpid_idx (int): The index in the target list for SNP ID information.
+        afidx (int): The index in the target list for allele frequency information.
+
+    Returns:
+        List[str]: The updated target list with concatenated values.
+    """
+
     target[samplesidx] = f"{target[samplesidx]},{fields[samplesidx]}"
     target[snpid_idx] = f"{target[snpid_idx]},{fields[snpid_idx]}"
     target[afidx] = f"{target[afidx]},{fields[afidx]}"
@@ -70,6 +182,34 @@ def distribute_targets(
     samplesidx: int,
     afidx: int,
 ) -> Tuple[List[List[str]], Dict[str, List[List[str]]]]:
+    """
+    Distributes targets between reference and variant targets from a given cluster.
+    It merges identical targets found in different datasets into a structured
+    format.
+
+    This function processes a list of target strings, categorizing them into
+    reference targets and variant targets based on specific indices. Reference
+    targets are collected in a list, while variant targets are stored in a dictionary,
+    allowing for the merging of identical targets across datasets.
+
+    Args:
+        cluster (List[str]): A list of target strings to be processed.
+        snpidx (int): The index indicating the SNP status of the target.
+        posidx (int): The index indicating the position of the target.
+        snpid_idx (int): The index for SNP IDs in the target fields.
+        samplesidx (int): The index for sample information in the target fields.
+        afidx (int): The index for allele frequencies in the target fields.
+
+    Returns:
+        Tuple[List[List[str]], Dict[str, List[List[str]]]]: A tuple containing a
+            list of reference
+        targets and a dictionary of variant targets, where each key corresponds
+            to a unique target and its value is a list of associated target fields.
+
+    Raises:
+        ValueError: If the input data is malformed or indices are out of range.
+    """
+
     # distribute targets between reference and variant targets
     # dict used to merge identical targets found in different datasets
     reftargets, vartargets = [], {}
@@ -91,6 +231,22 @@ def distribute_targets(
 
 
 def target_only_var(target: List[str], varonly: bool) -> List[str]:
+    """
+    Updates a target list to indicate whether it is a variant-only target.
+    This function modifies the target's status based on the provided flag.
+
+    The function checks the `varonly` flag and updates the 13th element of the
+    target list to "y" if the flag is set to True, indicating that the target is
+    only found in variant genomes. It returns the modified target list.
+
+    Args:
+        target (List[str]): A list representing the target information.
+        varonly (bool): A flag indicating whether the target is variant-only.
+
+    Returns:
+        List[str]: The updated target list with the appropriate status.
+    """
+
     # set apprpriate flag if no target in reference in current cluster
     target[12] = "y" if varonly else target[12]
     return target
@@ -98,7 +254,29 @@ def target_only_var(target: List[str], varonly: bool) -> List[str]:
 
 def remove_duplicate_targets(
     target: List[str], snpidx: int, snpid_idx: int, afidx: int, samplesidx: int
-):
+) -> List[str]:
+    """
+    Removes duplicate values from specified fields in a target list.
+    This function ensures that SNP IDs, SNP information, allele frequencies, and
+    sample data contain only unique entries.
+
+    The function takes a target list and specified indices for SNPs, SNP IDs,
+    allele frequencies, and samples. It processes each of these fields to eliminate
+    duplicates by converting them into sets and then back into comma-separated
+    strings, returning the modified target list.
+
+    Args:
+        target (List[str]): A list representing the target information.
+        snpidx (int): The index for SNP information in the target list.
+        snpid_idx (int): The index for SNP IDs in the target list.
+        afidx (int): The index for allele frequencies in the target list.
+        samplesidx (int): The index for sample information in the target list.
+
+    Returns:
+        List[str]: The updated target list with duplicates removed from specified
+            fields.
+    """
+
     # remove duplicate values from snp ids, snp info, allele freqs, and samples
     target[snpidx] = ",".join(set(target[snpidx].split(",")))
     target[snpid_idx] = ",".join(set(target[snpid_idx].split(",")))
@@ -115,6 +293,30 @@ def unfold_variant_targets(
     afidx: int,
     samplesidx: int,
 ) -> List[List[str]]:
+    """
+    Recovers and processes all variant targets from a given dictionary.
+    This function compiles variant targets into a single list while applying
+    necessary transformations and removing duplicates.
+
+    The function iterates through the provided dictionary of variant targets,
+    applying the `target_only_var` function to each target based on the `varonly`
+    flag. It then removes duplicates from the resulting list of targets using the
+    `remove_duplicate_targets` function, returning a cleaned list of variant targets.
+
+    Args:
+        vartargets (Dict[str, List[List[str]]]): A dictionary of variant targets,
+            where each key corresponds to a unique target identifier and the value
+            is a list of target fields.
+        varonly (bool): A flag indicating whether to mark targets as variant-only.
+        snpidx (int): The index for SNP information in the target list.
+        snpid_idx (int): The index for SNP IDs in the target list.
+        afidx (int): The index for allele frequencies in the target list.
+        samplesidx (int): The index for sample information in the target list.
+
+    Returns:
+        List[List[str]]: A list of processed variant targets with duplicates removed.
+    """
+
     # recover all variant targets and store in a list
     vartargets_list = []
     for targets in vartargets.values():
@@ -127,6 +329,27 @@ def unfold_variant_targets(
 
 
 def sorting_score(criteria: List[str], score_idx: int, mmbidx: int) -> Callable:
+    """
+    Generates a sorting key function based on specified criteria for sorting.
+    This function allows for dynamic sorting of items based on one to three criteria,
+    prioritizing scores and additional metrics.
+
+    The function returns a callable that can be used as a key in sorting operations.
+    Depending on the number of criteria provided, it constructs a tuple that includes
+    the negative score (to sort in descending order) and additional metrics derived
+    from the specified indices, ensuring that items are sorted according to the defined
+    priorities.
+
+    Args:
+        criteria (List[str]): A list of criteria used for sorting.
+        score_idx (int): The index of the score in the items to be sorted.
+        mmbidx (int): The base index used to calculate additional metrics from
+            the criteria.
+
+    Returns:
+        Callable: A function that takes an item and returns a tuple for sorting purposes.
+    """
+
     if len(criteria) == 1:  # single criterion
         return lambda x: (
             -float(x[score_idx]),
@@ -148,6 +371,25 @@ def sorting_score(criteria: List[str], score_idx: int, mmbidx: int) -> Callable:
 
 
 def sorting_fewest(criteria: List[str], mmbidx: int) -> Callable:
+    """
+    Creates a sorting key function based on the fewest specified criteria.
+    This function allows for sorting items by one to three criteria, focusing on
+    the values derived from the specified indices.
+
+    The function returns a callable that can be used as a key in sorting operations.
+    Depending on the number of criteria provided, it constructs a tuple of integer
+    values from the specified indices, enabling sorting based on the defined
+    priorities.
+
+    Args:
+        criteria (List[str]): A list of criteria used for sorting.
+        mmbidx (int): The base index used to calculate values from the criteria.
+
+    Returns:
+        Callable: A function that takes an item and returns a tuple for sorting
+            purposes.
+    """
+
     if len(criteria) == 1:  # one criterion
         return lambda x: (int(x[mmbidx - SORTCRITERIA[criteria[0]]]))
     elif len(criteria) == 2:
@@ -167,7 +409,29 @@ def sorting_fewest(criteria: List[str], mmbidx: int) -> Callable:
 
 def initialize_sorting_criteria(
     criteria: List[str], scoreidx: int, mmbidx: int, score: bool
-):
+) -> Callable:
+    """
+    Initializes a sorting criteria function based on the provided parameters.
+    This function determines whether to sort by score or by the fewest criteria
+    based on the input flag.
+
+    Depending on the value of the `score` flag, the function returns either a
+    sorting function that prioritizes scores or one that focuses on the fewest
+    specified criteria. This allows for flexible sorting behavior based on the
+    user's needs.
+
+    Args:
+        criteria (List[str]): A list of criteria used for sorting.
+        scoreidx (int): The index of the score in the items to be sorted.
+        mmbidx (int): The base index used to calculate additional metrics from
+            the criteria.
+        score (bool): A flag indicating whether to sort by score or by the fewest
+            criteria.
+
+    Returns:
+        Callable: A function that can be used as a key in sorting operations.
+    """
+
     if score:
         return sorting_score(criteria, scoreidx, mmbidx)
     return sorting_fewest(criteria, mmbidx)
@@ -184,7 +448,37 @@ def retrieve_best_target(
     sorting_criteria: List[str],
     outfile: TextIOWrapper,
     outfile_disc: TextIOWrapper,
-):
+) -> None:
+    """
+    Identifies and retrieves the best target from a given cluster of targets.
+    This function processes the targets based on specified criteria and outputs
+    the best target along with alternative alignments to the provided output files.
+
+    The function first distributes the targets into reference and variant categories,
+    then unfolds the variant targets into a list. It sorts both reference and variant
+    targets according to the specified sorting criteria, determines the best target
+    based on the pivot condition, and writes the results to the specified output files,
+    including the count of remaining targets.
+
+    Args:
+        cluster (List[str]): A list of target strings representing the cluster.
+        snpidx (int): The index indicating the SNP status of the target.
+        posidx (int): The index indicating the position of the target.
+        guideidx (int): The index for guide information in the target fields.
+        scoreidx (int): The index for scores in the target fields.
+        mmbidx (int): The base index used to calculate additional metrics from
+            the criteria.
+        pivot (str): A string indicating the pivot for sorting (e.g., "score").
+        sorting_criteria (List[str]): A list of criteria used for sorting the
+            targets.
+        outfile (TextIOWrapper): The output file for the best target.
+        outfile_disc (TextIOWrapper): The output file for alternative alignments.
+
+    Returns:
+        None: This function does not return a value but writes output to the
+            specified files.
+    """
+
     if not cluster:  # opening the first cluster, it will be empty
         return  # do nothing
     reftargets, vartargets = distribute_targets(
@@ -236,7 +530,27 @@ def retrieve_best_target(
 
 def merge_targets(
     inargs: Tuple[str, str, int, int, int, int, int, int, int, str, List[str]]
-):
+) -> None:
+    """
+    Merges target data from an input file and writes the best targets to an output
+    file. This function processes clusters of targets based on specified criteria
+    and handles discarded samples in a separate output file.
+
+    The function reads target data from the input file, grouping targets into
+    clusters based on guide, chromosome, and position. It retrieves the best target
+    from each cluster and writes the results to the specified output files, ensuring
+    that discarded samples are also recorded.
+
+    Args:
+        inargs (Tuple[str, str, int, int, int, int, int, int, int, str, List[str]]):
+            A tuple containing input parameters, including input and output file
+            names, indices for various target fields, and sorting criteria.
+
+    Returns:
+        None: This function does not return a value but writes output to the
+            specified files.
+    """
+
     outfname_disc = f"{inargs[1]}.discarded_samples"  # discarded targets file
     # initialize variables used during merge
     prevpos, prevguide, prevchrom, cluster = -(inargs[2] + 1), "", "", []
