@@ -2,7 +2,7 @@
 FROM mambaorg/micromamba
 
 # File Author / Maintainer
-# MAINTAINER Samuele Cancelleri
+LABEL org.opencontainers.image.authors="ManuelTgn, lucapinello"
 
 # Set the variables for version control during installation
 ARG crispritz_version=2.6.6
