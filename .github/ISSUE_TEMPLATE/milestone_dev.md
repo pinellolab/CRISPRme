@@ -1,6 +1,7 @@
 ---
 name: Development Task
 title: ''
+about: GitHub issue template tailored for development tasks, linked to milestones
 labels: ''
 assignees: ''
 
