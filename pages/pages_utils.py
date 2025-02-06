@@ -2,8 +2,7 @@
 webpages.
 """
 
-
-from app import current_working_directory, operators
+from app import operators
 
 from typing import Dict, List, Optional, Tuple
 from glob import glob
@@ -595,26 +594,28 @@ def generate_table(
         [
             html.Tr(
                 [
-                    html.Td(
-                        html.A(
-                            dataframe.loc[i, col],
-                            href="".join(
-                                [
-                                    "result?job=",
-                                    f"{job_id}#{guide}new",
-                                    dataframe.loc[i, "Bulge Type"],
-                                    str(dataframe.loc[i, "Bulge Size"]),
-                                    str(dataframe.loc[i, "Mismatches"]),
-                                ]
+                    (
+                        html.Td(
+                            html.A(
+                                dataframe.loc[i, col],
+                                href="".join(
+                                    [
+                                        "result?job=",
+                                        f"{job_id}#{guide}new",
+                                        dataframe.loc[i, "Bulge Type"],
+                                        str(dataframe.loc[i, "Bulge Size"]),
+                                        str(dataframe.loc[i, "Mismatches"]),
+                                    ]
+                                ),
+                                target="_blank",
                             ),
-                            target="_blank",
-                        ),
-                        style={"vertical-align": "middle", "text-align": "center"},
-                    )
-                    if col == ""
-                    else html.Td(
-                        dataframe.iloc[i][col],
-                        style={"vertical-align": "middle", "text-align": "center"},
+                            style={"vertical-align": "middle", "text-align": "center"},
+                        )
+                        if col == ""
+                        else html.Td(
+                            dataframe.iloc[i][col],
+                            style={"vertical-align": "middle", "text-align": "center"},
+                        )
                     )
                     for col in dataframe.columns
                 ]
@@ -689,24 +690,28 @@ def generate_table_samples(
         [
             html.Tr(
                 [
-                    html.Td(
-                        html.A(
-                            dataframe.iloc[i + (page - 1) * max_rows][col],
-                            href="".join(
-                                [
-                                    "result?job=",
-                                    job_id,
-                                    "#",
-                                    guide,
-                                    "-Sample-",
-                                    dataframe.iloc[i + (page - 1) * max_rows]["Sample"],
-                                ]
-                            ),
-                            target="_blank",
+                    (
+                        html.Td(
+                            html.A(
+                                dataframe.iloc[i + (page - 1) * max_rows][col],
+                                href="".join(
+                                    [
+                                        "result?job=",
+                                        job_id,
+                                        "#",
+                                        guide,
+                                        "-Sample-",
+                                        dataframe.iloc[i + (page - 1) * max_rows][
+                                            "Sample"
+                                        ],
+                                    ]
+                                ),
+                                target="_blank",
+                            )
                         )
+                        if col == ""
+                        else html.Td(dataframe.iloc[i + (page - 1) * max_rows][col])
                     )
-                    if col == ""
-                    else html.Td(dataframe.iloc[i + (page - 1) * max_rows][col])
                     for col in dataframe.columns
                 ]
             )

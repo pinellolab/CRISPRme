@@ -1,9 +1,12 @@
-"""Build the layout of the main webpage of CRISPRme.
-The main webpage reads the input data and manages the analysis.
+"""
+main_page.py
+
+This module is responsible for handling the main page functionalities of the 
+CRISPRme application. It imports various utility functions and constants from 
+the `pages_utils` module and other necessary modules to facilitate the operations 
+on the main page.
 """
 
-
-import re
 from seq_script import extract_seq, convert_pam
 from .pages_utils import (
     ANNOTATIONS_DIR,
@@ -94,14 +97,12 @@ def split_filter_part(filter_part: str) -> Tuple:
     """
 
     if not isinstance(filter_part, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(filter_part).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(filter_part).__name__}")
     for operator_type in operators:
         for operator in operator_type:
             if operator in filter_part:
                 name_part, value_part = filter_part.split(operator, 1)
-                name = name_part[(name_part.find(
-                    "{") + 1): name_part.rfind("}")]
+                name = name_part[(name_part.find("{") + 1) : name_part.rfind("}")]
                 value_part = value_part.strip()
                 v0 = value_part[0]
                 if v0 == value_part[-1] and v0 in ("'", '"', "`"):
@@ -131,7 +132,7 @@ def split_filter_part(filter_part: str) -> Tuple:
         Output("be-window-start", "value"),
         Output("be-window-stop", "value"),
         Output("be-nts", "value"),
-        Output("radio-base_editor", "value")
+        Output("radio-base_editor", "value"),
     ],
     [Input("load-example-button", "n_clicks")],
 )
@@ -163,7 +164,7 @@ def load_example_data(load_button_click: int) -> List[str]:
         "4",  # start window in base editor
         "8",  # stop window in base editor
         "A",  # nt to check in base editor
-        "Y"  # base editor radio button to yes
+        "Y",  # base editor radio button to yes
     ]
 
 
@@ -296,20 +297,17 @@ def change_url(
         raise TypeError(f"Expected {str.__name__}, got {type(href).__name__}")
     if nuclease is not None:
         if not isinstance(nuclease, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(nuclease).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(nuclease).__name__}")
     if genome_selected is not None:
         if not isinstance(genome_selected, str):
             raise TypeError(
                 f"Expected {str.__name__}, got {type(genome_selected).__name__}"
             )
     if not isinstance(ref_var, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(ref_var).__name__}")
+        raise TypeError(f"Expected {list.__name__}, got {type(ref_var).__name__}")
     if pam is not None:
         if not isinstance(pam, str):
-            raise TypeError(
-                f"Exepcted {str.__name__}, got {type(pam).__name__}")
+            raise TypeError(f"Exepcted {str.__name__}, got {type(pam).__name__}")
     if text_guides is not None:
         if not isinstance(text_guides, str):
             raise TypeError(
@@ -323,16 +321,13 @@ def change_url(
     #         raise TypeError(f"Expected {str.__name__}, got {type(dna).__name__}")
     if adv_opts is not None:
         if not isinstance(adv_opts, list):
-            raise TypeError(
-                f"Expected {list.__name__}, got {type(adv_opts).__name__}")
+            raise TypeError(f"Expected {list.__name__}, got {type(adv_opts).__name__}")
     if dest_email is not None:
         if not isinstance(dest_email, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(dest_email).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(dest_email).__name__}")
     if job_name is not None:
         if not isinstance(job_name, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(job_name).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(job_name).__name__}")
     if n is None:
         raise PreventUpdate  # do not update the page
     # job start
@@ -371,8 +366,7 @@ def change_url(
             d
             for d in os.listdir(os.path.join(current_working_directory, RESULTS_DIR))
             if (
-                os.path.isdir(os.path.join(
-                    current_working_directory, RESULTS_DIR, d))
+                os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, d))
                 and not d.startswith(".")  # avoid hidden files/directories
             )
         ]
@@ -414,10 +408,8 @@ def change_url(
                     ".bed",
                 ]
             )
-            annotation_dir = os.path.join(
-                current_working_directory, ANNOTATIONS_DIR)
-            annotation_tmp = os.path.join(
-                annotation_dir, f"ann_tmp_{job_id}.bed")
+            annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
+            annotation_tmp = os.path.join(annotation_dir, f"ann_tmp_{job_id}.bed")
             cmd = f"cp {os.path.join(annotation_dir, annotation_name)} {annotation_tmp}"
             code = subprocess.call(cmd, shell=True)
             if code != 0:
@@ -548,8 +540,8 @@ def change_url(
         for seqname_and_seq in text_guides.split(">"):
             if not seqname_and_seq:
                 continue
-            seqname = seqname_and_seq[:seqname_and_seq.find("\n")]
-            seq = seqname_and_seq[seqname_and_seq.find("\n"):]
+            seqname = seqname_and_seq[: seqname_and_seq.find("\n")]
+            seq = seqname_and_seq[seqname_and_seq.find("\n") :]
             seq = seq.strip()  # remove endline
             if "chr" in seq:
                 for line in seq.split("\n"):
@@ -567,8 +559,9 @@ def change_url(
                     )
             else:
                 seq_read = "".join(seq.split()).strip()
-            guides.extend(convert_pam.getGuides(seq_read, pam_char,
-                                                guide_seqlen, pam_begin))
+            guides.extend(
+                convert_pam.getGuides(seq_read, pam_char, guide_seqlen, pam_begin)
+            )
         guides = list(set(guides))  # remove potential duplicate guides
         # create new guides dataset
         if not guides:
@@ -615,8 +608,7 @@ def change_url(
                     )
                 else:
                     text_guides = (
-                        text_guides.replace(
-                            "\n", "N" * pam_len + "\n") + "N" * pam_len
+                        text_guides.replace("\n", "N" * pam_len + "\n") + "N" * pam_len
                     )
                 handle_guides.write(text_guides)
         except OSError as e:
@@ -630,15 +622,15 @@ def change_url(
     if dna > rna:
         max_bulges = dna
     # base editing
-    if be_start is None or not bool(be_start) or radio_be_value == 'N':
+    if be_start is None or not bool(be_start) or radio_be_value == "N":
         be_start = 1
     else:
         be_start = int(be_start)
-    if be_stop is None or not bool(be_stop) or radio_be_value == 'N':
+    if be_stop is None or not bool(be_stop) or radio_be_value == "N":
         be_stop = 0
     else:
         be_stop = int(be_stop)
-    if be_nt is None or not bool(be_nt) or radio_be_value == 'N':
+    if be_nt is None or not bool(be_nt) or radio_be_value == "N":
         be_nt = "none"
     else:
         assert be_nt in DNA_ALPHABET
@@ -691,16 +683,14 @@ def change_url(
         d
         for d in os.listdir(os.path.join(current_working_directory, RESULTS_DIR))
         if (
-            os.path.isdir(os.path.join(
-                current_working_directory, RESULTS_DIR, d))
+            os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, d))
             and not d.startswith(".")  # ignore hidden directories
         )
     ]
     computed_results_dirs.remove(job_id)  # remove current job results
     for res_dir in computed_results_dirs:
         if os.path.exists(
-            os.path.join(current_working_directory,
-                         RESULTS_DIR, res_dir, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, res_dir, PARAMS_FILE)
         ):
             if filecmp.cmp(
                 os.path.join(
@@ -710,29 +700,35 @@ def change_url(
             ):
                 try:
                     # old job guides
-                    guides_old = open(
-                        os.path.join(
-                            current_working_directory,
-                            RESULTS_DIR,
-                            res_dir,
-                            GUIDES_FILE,
+                    guides_old = (
+                        open(
+                            os.path.join(
+                                current_working_directory,
+                                RESULTS_DIR,
+                                res_dir,
+                                GUIDES_FILE,
+                            )
                         )
-                    ).read().split("\n")
+                        .read()
+                        .split("\n")
+                    )
                     # current job guides
-                    guides_current = open(
-                        os.path.join(
-                            current_working_directory,
-                            RESULTS_DIR,
-                            job_id,
-                            GUIDES_FILE,
+                    guides_current = (
+                        open(
+                            os.path.join(
+                                current_working_directory,
+                                RESULTS_DIR,
+                                job_id,
+                                GUIDES_FILE,
+                            )
                         )
-                    ).read().split("\n")
+                        .read()
+                        .split("\n")
+                    )
                 except OSError as e:
                     raise e
-                if (
-                    collections.Counter(guides_old) == collections.Counter(
-                        guides_current
-                    )
+                if collections.Counter(guides_old) == collections.Counter(
+                    guides_current
                 ):
                     if os.path.exists(
                         os.path.join(
@@ -883,8 +879,7 @@ def change_url(
                         cmd = f"rm -r {current_job_dir}"
                         code = subprocess.call(cmd, shell=True)
                         if code != 0:
-                            raise ValueError(
-                                f"An error occurred while running {cmd}")
+                            raise ValueError(f"An error occurred while running {cmd}")
                         return "/load", f"?job={res_dir}"
                     else:
                         # log file not found
@@ -894,7 +889,7 @@ def change_url(
                                 current_working_directory,
                                 RESULTS_DIR,
                                 res_dir,
-                                QUEUE_FILE
+                                QUEUE_FILE,
                             )
                         ):
                             if send_email:
@@ -916,10 +911,8 @@ def change_url(
                                             ),
                                             mode="a+",
                                         ) as handle_email:
-                                            handle_email.write(
-                                                "--OTHEREMAIL--")
-                                            handle_email.write(
-                                                f"{dest_email}\n")
+                                            handle_email.write("--OTHEREMAIL--")
+                                            handle_email.write(f"{dest_email}\n")
                                             handle_email.write(
                                                 f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
                                             )
@@ -946,8 +939,7 @@ def change_url(
                                             ),
                                             mode="w+",
                                         ) as handle_email:
-                                            handle_email.write(
-                                                f"{dest_email}\n")
+                                            handle_email.write(f"{dest_email}\n")
                                             handle_email.write(
                                                 f"{''.join(href.split('/')[:-1])}/load?job={job_id}\n"
                                             )
@@ -981,13 +973,10 @@ def change_url(
     annotation = os.path.join(
         current_working_directory, ANNOTATIONS_DIR, annotation_name
     )
-    pam_file = os.path.join(
-        current_working_directory, PAMS_DIR, f"{pam}.txt"
-    )
+    pam_file = os.path.join(current_working_directory, PAMS_DIR, f"{pam}.txt")
     samples_ids = os.path.join(result_dir, SAMPLES_FILE_LIST)
     postprocess = os.path.join(app_directory, POSTPROCESS_DIR)
-    gencode = os.path.join(current_working_directory,
-                           ANNOTATIONS_DIR, gencode_name)
+    gencode = os.path.join(current_working_directory, ANNOTATIONS_DIR, gencode_name)
     log_verbose = os.path.join(result_dir, "log_verbose.txt")
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
@@ -1080,8 +1069,7 @@ def check_input(
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if is_open is not None:
         if not isinstance(is_open, bool):
-            raise TypeError(
-                f"Expected {bool.__name__}, got {type(is_open).__name__}")
+            raise TypeError(f"Expected {bool.__name__}, got {type(is_open).__name__}")
     print("Check input for JOB")
     if n is None:
         raise PreventUpdate  # do not check data --> no trigger
@@ -1137,8 +1125,7 @@ def check_input(
     elif guide_type != "GS":
         text_guides = text_guides.strip()
         if not all(
-            [len(g) == len(text_guides.split("\n")[0])
-             for g in text_guides.split("\n")]
+            [len(g) == len(text_guides.split("\n")[0]) for g in text_guides.split("\n")]
         ):
             text_guides = select_same_len_guides(text_guides)
     # check PAM
@@ -1154,7 +1141,7 @@ def check_input(
                 pam_begin = True
             else:
                 end_idx = index_pam_value
-                pam_char = pam_char.split()[0][(end_idx * (-1)):]
+                pam_char = pam_char.split()[0][(end_idx * (-1)) :]
                 pam_begin = False
     except OSError as e:
         raise e
@@ -1165,7 +1152,7 @@ def check_input(
             if not seqname_and_seq:
                 continue
             seqname = seqname_and_seq[: seqname_and_seq.find("\n")]
-            seq = seqname_and_seq[seqname_and_seq.find("\n"):]
+            seq = seqname_and_seq[seqname_and_seq.find("\n") :]
             seq = seq.strip()
             if "chr" in seq:
                 for line in seq.split("\n"):
@@ -1248,9 +1235,7 @@ def check_input(
     if len(text_guides.split("\n")) > 1000000000:
         text_guides = "\n".join(text_guides.split("\n")[:1000000000]).strip()
     if no_guides:
-        text_update = {
-            "width": "300px", "height": "30px", "border": "1px solid red"
-        }
+        text_update = {"width": "300px", "height": "30px", "border": "1px solid red"}
         update_style = True
         miss_input_list.append(
             str(
@@ -1349,8 +1334,7 @@ def is_email_valid(email: str) -> Dict[str, str]:
     """
     if email is not None:
         if not isinstance(email, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(email).__name__}")
+            raise TypeError(f"Expected {str.__name__}, got {type(email).__name__}")
     if email is None:
         raise PreventUpdate  # do not do anything
     if ("@" in email) and (len(email.split("@")) == 2):
@@ -1437,8 +1421,7 @@ def change_disabled_vcf_dropdown(checklist_value: List) -> Tuple[bool, str]:
 
 
 @app.callback(
-    [Output("annotation-dropdown", "disabled"),
-     Output("annotation-dropdown", "value")],
+    [Output("annotation-dropdown", "disabled"), Output("annotation-dropdown", "value")],
     [Input("checklist-annotations", "value")],
 )
 def change_disabled_annotation_dropdown(checklist_value: List) -> Tuple[bool, str]:
@@ -1482,8 +1465,7 @@ def select_cas_pam_dropdown(casprot: str) -> List:
     """
 
     if not isinstance(casprot, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(casprot).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(casprot).__name__}")
     available_pams = get_available_PAM()
     options = [
         {"label": pam["label"], "value": pam["value"]}
@@ -1511,12 +1493,10 @@ def change_placeholder_guide_textbox(guide_type: str) -> List:
     """
 
     if not isinstance(guide_type, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(guide_type).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(guide_type).__name__}")
     place_holder_text = ""
     if guide_type == "IP":  # individual spacers
-        place_holder_text = str(
-            "GAGTCCGAGCAGAAGAAGAA\n" "CCATCGGTGGCCGTTTGCCC")
+        place_holder_text = str("GAGTCCGAGCAGAAGAAGAA\n" "CCATCGGTGGCCGTTTGCCC")
     elif guide_type == "GS":  # genomic sequences
         place_holder_text = str(
             ">sequence1\n"
@@ -1533,8 +1513,7 @@ def change_placeholder_guide_textbox(guide_type: str) -> List:
 
 # change variants options
 @app.callback(
-    [Output("checklist-variants", "options"),
-     Output("vcf-dropdown", "options")],
+    [Output("checklist-variants", "options"), Output("vcf-dropdown", "options")],
     [Input("available-genome", "value")],
 )
 def change_variants_checklist_state(genome_value: str) -> List:
@@ -1633,7 +1612,7 @@ def index_page() -> html.Div:
                         id="warning-list",
                     ),
                     dbc.ModalFooter(
-                        dbc.Button("Close", id="close",className="modal-button")
+                        dbc.Button("Close", id="close", className="modal-button")
                     ),
                 ],
                 id="modal",
@@ -1655,8 +1634,7 @@ def index_page() -> html.Div:
             ),
             dcc.Textarea(
                 id="text-guides",
-                placeholder=str(
-                    "GAGTCCGAGCAGAAGAAGAA\n" "CCATCGGTGGCCGTTTGCCC"),
+                placeholder=str("GAGTCCGAGCAGAAGAAGAA\n" "CCATCGGTGGCCGTTTGCCC"),
                 style={"width": "300px", "height": "30px"},
             ),
             dbc.FormText(
@@ -1811,8 +1789,7 @@ def index_page() -> html.Div:
                 [
                     html.Div(
                         html.H4("Base editing?"),
-                        style={"display": "inline-block",
-                               "margin-right": "20px"}
+                        style={"display": "inline-block", "margin-right": "20px"},
                     ),
                     html.Div(
                         dcc.RadioItems(
@@ -1821,9 +1798,14 @@ def index_page() -> html.Div:
                                 {"label": "Yes", "value": "Y"},
                                 {"label": "No", "value": "N"},
                             ],
-                            value="N", labelStyle={"margin-right": "5px", "display": "inline-block"}),
-                        style={"display": "inline-block"}
-                    )
+                            value="N",
+                            labelStyle={
+                                "margin-right": "5px",
+                                "display": "inline-block",
+                            },
+                        ),
+                        style={"display": "inline-block"},
+                    ),
                 ]
             ),
             html.Div(
@@ -1837,8 +1819,7 @@ def index_page() -> html.Div:
                                 style={"width": "60px"},
                             ),
                         ],
-                        style={"display": "inline-block",
-                               "margin-right": "20px"},
+                        style={"display": "inline-block", "margin-right": "20px"},
                     ),
                     html.Div(  # BE window stop dropdown
                         [
@@ -1849,8 +1830,7 @@ def index_page() -> html.Div:
                                 style={"width": "60px"},
                             ),
                         ],
-                        style={"display": "inline-block",
-                               "margin-right": "20px"},
+                        style={"display": "inline-block", "margin-right": "20px"},
                     ),
                     html.Div(  # BE nucleotides dropdown
                         [
@@ -1862,12 +1842,12 @@ def index_page() -> html.Div:
                                 style={"width": "60px"},
                             ),
                         ],
-                        style={"display": "inline-block",
-                               "margin-right": "20px"},
-                    )
+                        style={"display": "inline-block", "margin-right": "20px"},
+                    ),
                 ],
-                id="div-base-editor-dropdowns", style={"display": "none"}
-            )
+                id="div-base-editor-dropdowns",
+                style={"display": "none"},
+            ),
         ],
         style={"margin-top": "10%"},
     )
@@ -2051,8 +2031,7 @@ def index_page() -> html.Div:
 
 
 @app.callback(
-    Output("div-base-editor-dropdowns", "style"),
-    [Input("radio-base_editor", "value")]
+    Output("div-base-editor-dropdowns", "style"), [Input("radio-base_editor", "value")]
 )
 def update_visibility_base_editor_dropdowns(radio_value: str) -> Dict:
     """Update visibilyt of base editing dropdowns.
@@ -2075,8 +2054,7 @@ def update_visibility_base_editor_dropdowns(radio_value: str) -> Dict:
 
 
 @app.callback(
-    [Output("be-window-start", "options"),
-     Output("be-window-stop", "options")],
+    [Output("be-window-start", "options"), Output("be-window-stop", "options")],
     [Input("text-guides", "value")],
     [State("radio-guide", "value"), State("available-genome", "value")],
 )
@@ -2109,9 +2087,7 @@ def update_base_editing_dropdown(
                 f"Expected {str.__name__}, got {type(text_guides).__name__}"
             )
     if not isinstance(guide_type, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(guide_type).__name__}"
-        )
+        raise TypeError(f"Expected {str.__name__}, got {type(guide_type).__name__}")
     dropdown_options = [{"label": "", "value": ""}]
     if text_guides is None:
         return dropdown_options, dropdown_options
@@ -2122,8 +2098,8 @@ def update_base_editing_dropdown(
         for seqname_and_seq in text_guides.split(">"):
             if not seqname_and_seq:
                 continue
-            seqname = seqname_and_seq[:seqname_and_seq.find("\n")]
-            seq = seqname_and_seq[seqname_and_seq.find("\n"):].strip()
+            seqname = seqname_and_seq[: seqname_and_seq.find("\n")]
+            seq = seqname_and_seq[seqname_and_seq.find("\n") :].strip()
             if "chr" in seq:  # BED regions
                 for line in seq.split("\n"):
                     if not line:
@@ -2140,16 +2116,11 @@ def update_base_editing_dropdown(
             guides.append(seq_read)
         guides = "\n".join(list(set(guides)))
     if not all(
-        [
-            len(guide) == len(guides.split("\n")[0])
-            for guide in guides.split("\n")
-        ]
+        [len(guide) == len(guides.split("\n")[0]) for guide in guides.split("\n")]
     ):
         guides = select_same_len_guides(guides)
     guides = guides.split("\n")
-    dropdown_options = [
-        {"label": i, "value": i} for i in range(1, len(guides[0]) + 1)
-    ]
+    dropdown_options = [{"label": i, "value": i} for i in range(1, len(guides[0]) + 1)]
     return dropdown_options, dropdown_options
 
 
@@ -2172,8 +2143,7 @@ def check_mail_address(mail_address: str) -> bool:
         return False
     assert mail_address is not None
     if not isinstance(mail_address, str):
-        raise TypeError(
-            f"Expected {str.__name__}, got {type(mail_address).__name__}")
+        raise TypeError(f"Expected {str.__name__}, got {type(mail_address).__name__}")
     mail_address_fields = mail_address.split("@")
     if len(mail_address_fields) > 1 and bool(mail_address_fields[-1]):
         return True
