@@ -61,7 +61,7 @@ from app import (
     app,
     cache,
     app_directory,
-    WORKINGDIR,
+    current_working_directory,
     URL,
 )
 from PostProcess.supportFunctions.loadSample import associateSample
@@ -121,10 +121,10 @@ def result_page(job_id: str) -> html.Div:
         raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     # start result page creation code
     value = job_id
-    job_directory = os.path.join(WORKINGDIR, "Results", f"{job_id}")
+    job_directory = os.path.join(current_working_directory, "Results", f"{job_id}")
     # check existance and zip integrated file
     integrated_file_name = glob(
-        os.path.join(WORKINGDIR, "Results", f"{job_id}", "*integrated*")
+        os.path.join(current_working_directory, "Results", f"{job_id}", "*integrated*")
     )[
         0
     ]  # take the first list element
@@ -133,7 +133,7 @@ def result_page(job_id: str) -> html.Div:
     # check existence and zip alt_merge file
     alt_merge_file_name = glob(
         os.path.join(
-            WORKINGDIR,
+            current_working_directory,
             "Results",
             f"{job_id}",
             "*all_results_with_alternative_alignments*",
@@ -147,7 +147,7 @@ def result_page(job_id: str) -> html.Div:
     if not os.path.isdir(job_directory):
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     count_guides = 0
-    guides_file = os.path.join(WORKINGDIR, "Results", f"{value}", GUIDES_FILE)
+    guides_file = os.path.join(current_working_directory, "Results", f"{value}", GUIDES_FILE)
     assert os.path.isfile(guides_file)
     try:
         with open(guides_file) as handle:
@@ -159,7 +159,7 @@ def result_page(job_id: str) -> html.Div:
         handle.close()
     # Load mismatches
     try:
-        with open(os.path.join(WORKINGDIR, RESULTS_DIR, value, PARAMS_FILE)) as p:
+        with open(os.path.join(current_working_directory, RESULTS_DIR, value, PARAMS_FILE)) as p:
             all_params = p.read()
             real_genome_name = (
                 next(s for s in all_params.split("\n") if "Genome_idx" in s)
@@ -203,7 +203,7 @@ def result_page(job_id: str) -> html.Div:
     mms = int(mms[0])
     # load acfd for each guide
     acfd_file = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         "".join([".", job_id, ".acfd_CFD.txt"]),
@@ -219,7 +219,7 @@ def result_page(job_id: str) -> html.Div:
     finally:
         handle.close()
     guides_error_file = os.path.join(
-        WORKINGDIR, RESULTS_DIR, job_id, "guides_error.txt"
+        current_working_directory, RESULTS_DIR, job_id, "guides_error.txt"
     )
     list_error_guides = []
     if os.path.exists(guides_error_file):
@@ -369,7 +369,7 @@ def result_page(job_id: str) -> html.Div:
                                 ),
                                 html.Div(
                                     os.path.join(
-                                        WORKINGDIR,
+                                        current_working_directory,
                                         RESULTS_DIR,
                                         job_id,
                                         ".".join([job_id, "general_table.txt"]),
@@ -693,7 +693,7 @@ def download_link_sample(
     file_to_load = ".".join([file_to_load, "txt"])
     file_to_load = file_to_load.strip().split("/")[-1]
     # print(file_to_load)
-    if os.path.exists(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, file_to_load)):
+    if os.path.exists(os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)):
         return (
             html.A(
                 "Download file",
@@ -744,7 +744,7 @@ def download_general_table(
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
     # print(file_to_load)
-    if os.path.exists(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, file_to_load)):
+    if os.path.exists(os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)):
         return (
             html.A(
                 "Download General Table",
@@ -795,7 +795,7 @@ def download_general_table(
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
     # print(file_to_load)
-    if os.path.exists(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, file_to_load)):
+    if os.path.exists(os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)):
         return (
             html.A(
                 "Download Integrated Results",
@@ -848,7 +848,7 @@ def download_general_table(
     job_id = search.split("=")[-1]
     file_to_load = file_to_load.split("/")[-1]
     # print(file_to_load)
-    if os.path.exists(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, file_to_load)):
+    if os.path.exists(os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)):
         return (
             html.A(
                 "Download All Results Including Alternative Alignments",
@@ -898,7 +898,7 @@ def download_link_sample(
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = ".".join([file_to_load, "zip"])
-    if os.path.exists(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, file_to_load)):
+    if os.path.exists(os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)):
         return (
             html.A(
                 "Download zip",
@@ -948,7 +948,7 @@ def downloadLinkGuide(
         raise PreventUpdate
     job_id = search.split("=")[-1]
     file_to_load = ".".join([file_to_load, "zip"])
-    if os.path.exists(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, file_to_load)):
+    if os.path.exists(os.path.join(current_working_directory, RESULTS_DIR, job_id, file_to_load)):
         return (
             html.A(
                 "Download zip",
@@ -979,10 +979,10 @@ def download_file(path: str) -> flask.Response:
 
     if not isinstance(path, str):
         raise TypeError(f"Expected {str.__name__}, got {type(path).__name__}")
-    # print(WORKINGDIR)
+    # print(current_working_directory)
     # print('test', path)
     return flask.send_from_directory(
-        os.path.join(WORKINGDIR, "Results/"), path, as_attachment=True
+        os.path.join(current_working_directory, "Results/"), path, as_attachment=True
     )
 
 
@@ -1045,7 +1045,7 @@ def update_iupac_decomposition_table_cluster(
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
     try:
-        with open(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)) as handle:
+        with open(os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)) as handle:
             all_params = handle.read()
             genome_type_f = (
                 next(s for s in all_params.split("\n") if "Genome_selected" in s)
@@ -1068,7 +1068,7 @@ def update_iupac_decomposition_table_cluster(
     )
     # load data and cache the data table (in pd.DataFrame)
     df_cached = global_store_general(
-        os.path.join(WORKINGDIR, RESULTS_DIR, job_id, decomp_fname)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, decomp_fname)
     )
     if df_cached is None:  # nothing to display and do not update the page
         raise PreventUpdate
@@ -1157,14 +1157,14 @@ def update_table_cluster(
     if not isinstance(hash_term, str):
         raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     hash_term = hash_term.split("#")[1]
     guide = hash_term[: hash_term.find("-Pos-")]
     chr_pos = hash_term[hash_term.find("-Pos-") + 5 :]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
     try:
-        with open(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)) as handle:
+        with open(os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)) as handle:
             all_params = handle.read()
             genome_type_f = (
                 next(s for s in all_params.split("\n") if "Genome_selected" in s)
@@ -1183,7 +1183,7 @@ def update_table_cluster(
     guide_fname = job_id + "." + chromosome + "_" + position + "." + guide + ".txt"
     # cache guide data table
     df_cached = global_store_general(
-        os.path.join(WORKINGDIR, RESULTS_DIR, job_id, guide_fname)
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, guide_fname)
     )
     if df_cached is None:  # empty file -> nothing cached and nothing to do
         raise PreventUpdate
@@ -1234,7 +1234,7 @@ def update_table_cluster(
             :2
         ]
         for row in data_to_send:
-            summarized_sample_cell = dict()
+            summarized_sample_cell = {}
             for s in row["Samples"].split(","):
                 if s == "n":
                     break
@@ -1284,11 +1284,11 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
     chr_pos = hash_term[(hash_term.find("-Pos-") + 5) :]
     chromosome = chr_pos.split("-")[0]
     position = chr_pos.split("-")[1]
-    if not os.path.isdir(os.path.join(WORKINGDIR, RESULTS_DIR, job_id)):
+    if not os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, job_id)):
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     try:
         with open(
-            os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
@@ -1326,7 +1326,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
         ]
         file_to_grep = ".bestMerge.txt"
     cluster_grep_result = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         ".".join([job_id, f"{chromosome}_{position}", guide, "txt"]),
@@ -1335,7 +1335,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
         [
             "head -1",
             os.path.join(
-                WORKINGDIR,
+                current_working_directory,
                 RESULTS_DIR,
                 job_id,
                 f".{job_id}{file_to_grep}",
@@ -1357,7 +1357,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                     "grep -F",
                     guide,
                     os.path.join(
-                        WORKINGDIR,
+                        current_working_directory,
                         RESULTS_DIR,
                         job_id,
                         f"{job_id}.Annotation.targets.txt",
@@ -1379,7 +1379,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 + " grep -F "
                 + guide
                 + " "
-                + WORKINGDIR
+                + current_working_directory
                 + "Results/"
                 + job_id
                 + "/"
@@ -1402,7 +1402,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                         "grep -F",
                         guide,
                         os.path.join(
-                            WORKINGDIR,
+                            current_working_directory,
                             RESULTS_DIR,
                             job_id,
                             f"{job_id}{file_to_grep}",
@@ -1438,7 +1438,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
         )
     )
     decomp_fname = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         f"{job_id}.{chromosome}_{position}.{guide}.scomposition.txt",
@@ -1454,7 +1454,7 @@ def cluster_page(job_id: str, hash_term: str) -> html.Div:
                 "grep -F",
                 guide,
                 os.path.join(
-                    WORKINGDIR,
+                    current_working_directory,
                     RESULTS_DIR,
                     job_id,
                     f".{job_id}{file_to_grep}",
@@ -1676,7 +1676,7 @@ def global_get_sample_targets(
         raise TypeError(f"Expected {int.__name__}, got {type(page).__name__}")
     if job_id is None:
         return ""
-    db_path = glob(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".*.db"))[0]
+    db_path = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db"))[0]
     assert isinstance(db_path, str)
     conn = sqlite3.connect(db_path)
     c = conn.cursor()
@@ -1755,7 +1755,7 @@ def update_table_sample(
     guide = hash_term[: hash_term.find("-Sample-")]
     sample = str(hash_term[hash_term.rfind("-") + 1 :])
     try:
-        with open(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)) as handle:
+        with open(os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)) as handle:
             all_params = handle.read()
             genome_type_f = (
                 next(s for s in all_params.split("\n") if "Genome_selected" in s)
@@ -1777,7 +1777,7 @@ def update_table_sample(
     sample_df.drop(drop_cols, inplace=True, axis=1)
     # personal targets report filename
     integrated_sample_personal_fname = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         ".".join([job_id, sample, guide, "personal_targets.tsv"]),
@@ -1831,11 +1831,11 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
         raise TypeError(f"Expected {str.__name__}, got {type(hash_term).__name__}")
     guide = hash_term[: hash_term.find("-Sample-")]
     sample = str(hash_term[(hash_term.rfind("-") + 1) :])
-    if not os.path.isdir(os.path.join(WORKINGDIR, RESULTS_DIR, job_id)):
+    if not os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, job_id)):
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
     try:
         with open(
-            os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
@@ -1873,26 +1873,26 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
         )
     )
     # header file
-    header = os.path.join(WORKINGDIR, RESULTS_DIR, job_id, "header.txt")
-    # file_to_grep = WORKINGDIR + 'Results/' + \
+    header = os.path.join(current_working_directory, RESULTS_DIR, job_id, "header.txt")
+    # file_to_grep = current_working_directory + 'Results/' + \
     #     job_id + '/.' + job_id + '.bestMerge.txt'
     integrated_fname = glob(
-        os.path.join(WORKINGDIR, RESULTS_DIR, job_id, "*integrated*")
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, "*integrated*")
     )[
         0
     ]  # take the first element
     assert isinstance(integrated_fname, str)
     file_to_grep = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         f"{job_id}.bestMerge.txt.integrated_results.tsv",
     )
     sample_grep_result = os.path.join(
-        WORKINGDIR, RESULTS_DIR, job_id, f"{job_id}.{sample}.{guide}.txt"
+        current_working_directory, RESULTS_DIR, job_id, f"{job_id}.{sample}.{guide}.txt"
     )
     integrated_sample_personal = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         f"{job_id}.{sample}.{guide}.personal_targets.tsv",
@@ -1906,7 +1906,7 @@ def sample_page(job_id: str, hash_term: str) -> html.Div:
         )
     )
     # define path to db
-    db_path = glob(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".*.db"))[0]
+    db_path = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db"))[0]
     assert isinstance(db_path, str)
     # initialize db for queries
     conn = sqlite3.connect(db_path)
@@ -2104,7 +2104,7 @@ def update_table_subset(
     filter_criterion = read_json(job_id)
     try:
         with open(
-            os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
@@ -2147,7 +2147,7 @@ def update_table_subset(
     result.drop(drop_cols, axis=1, inplace=True)
     # name of target file filtered with bul-type, mm and bul
     targets_with_mm_bul = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv",
@@ -2183,9 +2183,11 @@ def guidePagev3(job_id, hash):
     if bulge_t != "X":
         add_header += " - " + str(bulge_t) + " " + str(bulge_s)
     value = job_id
-    if not os.path.isdir(WORKINGDIR + "Results/" + job_id):
+    print(job_id)
+    print("------")
+    if not os.path.isdir(os.path.join(current_working_directory, "Results/", job_id)):
         return html.Div(dbc.Alert("The selected result does not exist", color="danger"))
-    with open(WORKINGDIR + "Results/" + value + "/.Params.txt") as p:
+    with open(os.path.join(current_working_directory, "Results/", job_id, ".Params.txt")) as p:
         all_params = p.read()
         genome_type_f = (
             next(s for s in all_params.split("\n") if "Genome_selected" in s)
@@ -2195,7 +2197,7 @@ def guidePagev3(job_id, hash):
         )[-1]
         pam = (next(s for s in all_params.split("\n") if "Pam" in s)).split("\t")[-1]
 
-    job_directory = WORKINGDIR + "Results/" + job_id + "/"
+    job_directory = os.path.join(current_working_directory, "Results", job_id)
     genome_type = "ref"
     style_hide_reference = {"display": "none"}
     value_hide_reference = []
@@ -2247,10 +2249,10 @@ def guidePagev3(job_id, hash):
         )
     )
     integrated_file_name = glob(
-        WORKINGDIR + "Results/" + job_id + "/" + "*integrated*"
+        current_working_directory + "/Results/" + job_id + "/" + "*integrated*"
     )[0]
     integrated_file_name = str(integrated_file_name)
-    file_to_grep = job_directory + job_id + ".bestMerge.txt.integrated_results.tsv"
+    file_to_grep = os.path.join(job_directory, job_id, ".bestMerge.txt.integrated_results.tsv")
     # file_to_grep_alt = job_directory + job_id + '.altMerge.txt'
 
     guide_grep_result = (
@@ -2270,7 +2272,7 @@ def guidePagev3(job_id, hash):
 
     final_list.append(
         html.Div(
-            job_id
+            f"{job_id}/"
             + "."
             + str(bulge_t)
             + "."
@@ -2285,7 +2287,7 @@ def guidePagev3(job_id, hash):
         )
     )
 
-    path_db = glob(WORKINGDIR + "Results/" + job_id + "/.*.db")[0]
+    path_db = glob(current_working_directory + "/Results/" + job_id + "/.*.db")[0]
     path_db = str(path_db)
     conn = sqlite3.connect(path_db)
     c = conn.cursor()
@@ -2353,7 +2355,6 @@ def guidePagev3(job_id, hash):
     return html.Div(final_list, style={"margin": "1%"})
 
 
-# TODO: move auxiliary functions close to each other
 # @cache.memoize()
 def global_store_subset_no_ref(
     job_id: str, bulge_t: str, bulge_s: str, mms: str, guide: str, page: int
@@ -2397,7 +2398,7 @@ def global_store_subset_no_ref(
     if job_id is None:
         return ""  # do not do anything
     # recover path to db file
-    db_path = glob(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".*.db"))[
+    db_path = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db"))[
         0
     ]  # take the first element
     assert isinstance(db_path, str)
@@ -2429,7 +2430,6 @@ def global_store_subset_no_ref(
     return result
 
 
-# TODO: move auxiliary functions close to each other
 # @cache.memoize()
 def global_store_subset(
     job_id: str, bulge_t: str, bulge_s: str, mms: str, guide: str, page: int
@@ -2473,7 +2473,7 @@ def global_store_subset(
     if job_id is None:
         return ""  # do not do anything
     # recover path to db
-    db_path = glob(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".*.db"))[0]
+    db_path = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db"))[0]
     assert isinstance(db_path, str)
     # initialize db
     conn = sqlite3.connect(db_path)
@@ -2501,7 +2501,7 @@ def global_store_subset(
     )
     # add mismatches and bulges
     targets_with_mm_bul = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         f"{job_id}.{bulge_t}.{mms}.{bulge_s}.{guide}.targets.tsv",
@@ -2552,7 +2552,7 @@ def load_distribution_populations(
     job_id = job_id.split("=")[-1]  # job identifier
     try:
         with open(
-            os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             all_params = handle_params.read()
             mms = (next(s for s in all_params.split("\n") if "Mismatches" in s)).split(
@@ -2593,7 +2593,7 @@ def load_distribution_populations(
                                             base64.b64encode(
                                                 open(
                                                     os.path.join(
-                                                        WORKINGDIR,
+                                                        current_working_directory,
                                                         RESULTS_DIR,
                                                         job_id,
                                                         "imgs",
@@ -2749,7 +2749,7 @@ def update_table_general_profile(
     job_id = search.split("=")[-1]
     try:
         with open(
-            os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
@@ -2780,11 +2780,11 @@ def update_table_general_profile(
     # Get error guides
     error_guides = []
     if os.path.exists(
-        os.path.join(WORKINGDIR, RESULTS_DIR, job_id, "guides_error.txt")
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, "guides_error.txt")
     ):
         try:
             with open(
-                os.path.join(WORKINGDIR, RESULTS_DIR, job_id, "guides_error.txt")
+                os.path.join(current_working_directory, RESULTS_DIR, job_id, "guides_error.txt")
             ) as handle_guide_error:
                 for e_g in handle_guide_error:
                     error_guides.append(e_g.strip())
@@ -2793,14 +2793,14 @@ def update_table_general_profile(
     # Get guide from .guide.txt
     try:
         with open(
-            os.path.join(WORKINGDIR, RESULTS_DIR, job_id, GUIDES_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, GUIDES_FILE)
         ) as handle_guides:
             guides = handle_guides.read().strip().split("\n")
             guides.sort()
     except OSError as e:
         raise e
     acfd_file = os.path.join(
-        WORKINGDIR,
+        current_working_directory,
         RESULTS_DIR,
         job_id,
         "".join([".", job_id, ".acfd_", filter_criterion, ".txt"]),
@@ -2847,7 +2847,7 @@ def update_table_general_profile(
         table_to_file.append(f"Nuclease: {nuclease}")
         data_general_count = pd.read_csv(
             os.path.join(
-                WORKINGDIR,
+                current_working_directory,
                 RESULTS_DIR,
                 job_id,
                 f".{job_id}.general_target_count.{g}_{filter_criterion}.txt",
@@ -2974,7 +2974,7 @@ def update_table_general_profile(
         df.append(data_guides)
     dff = pd.DataFrame(df)  # create data table
     table_to_file_save_dest = os.path.join(
-        WORKINGDIR, RESULTS_DIR, job_id, f"{job_id}.general_table.txt"
+        current_working_directory, RESULTS_DIR, job_id, f"{job_id}.general_table.txt"
     )
     try:
         outfile = open(table_to_file_save_dest, "w")
@@ -2986,7 +2986,7 @@ def update_table_general_profile(
         outfile.close()
     # zip integrated results
     integrated_fname = glob(
-        os.path.join(WORKINGDIR, RESULTS_DIR, job_id, "*integrated*")
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, "*integrated*")
     )[0]
     assert isinstance(integrated_fname, str)
     # integrated_file = integrated_fname
@@ -3000,7 +3000,7 @@ def update_table_general_profile(
     # zip alt_merge results
     alt_merge_fname = glob(
         os.path.join(
-            WORKINGDIR, RESULTS_DIR, job_id, "*all_results_with_alternative_alignments*"
+            current_working_directory, RESULTS_DIR, job_id, "*all_results_with_alternative_alignments*"
         )
     )[0]
     assert isinstance(alt_merge_fname, str)
@@ -3154,9 +3154,8 @@ def filter_position_table(
 
     """
 
-    if n is not None:
-        if not isinstance(n, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if n is not None and not isinstance(n, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
@@ -3194,7 +3193,7 @@ def filter_position_table(
     # recover the guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover db file
-    db_path = glob(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".*.db"))[0]
+    db_path = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db"))[0]
     assert isinstance(db_path, str)
     assert os.path.isfile(db_path)
     # connect db with sqlite3
@@ -3315,9 +3314,8 @@ def update_position_filter(
         New genomic locations and potential filtering criterion
     """
 
-    if n is not None:
-        if not isinstance(n, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if n is not None and not isinstance(n, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
@@ -3409,19 +3407,12 @@ def filter_sample_table(
         Updated samples table
     """
 
-    if n_prev is not None:
-        if not isinstance(n_prev, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n_prev).__name__}")
-    if n_next is not None:
-        if not isinstance(n_next, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n_next).__name__}")
-    if not isinstance(filter_q, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(filter_q).__name__}")
-    if n is not None:
-        if not isinstance(n, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
-    if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
+    if n_prev is not None and not isinstance(n_prev, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n_prev).__name__}")
+    if n_next is not None and not isinstance(n_next, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n_next).__name__}")
+    if n is not None and not isinstance(n, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(current_page, str):
         raise TypeError(f"Expected {str.__name__}, got {type(current_page).__name__}")
     if sel_cel is None:
@@ -3450,14 +3441,14 @@ def filter_sample_table(
     btn_sample_section = [n, n_prev, n_next]
     # get job identifier
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLES_ID_FILE)
     )[2]
     # read CRISPRme run parameters
     try:
         with open(
-            os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
+            os.path.join(current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE)
         ) as handle_params:
             params = handle_params.read()
             genome_type_f = (
@@ -3648,20 +3639,16 @@ def update_sample_filter(
         New filter query
     """
 
-    if n is not None:
-        if not isinstance(n, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
-    if superpopulation is not None:
-        if not isinstance(superpopulation, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(superpopulation).__name__}"
-            )
-    if population is not None:
-        if not isinstance(population, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(population).__name__}")
-    if sample is not None:
-        if not isinstance(sample, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
+    if n is not None and not isinstance(n, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if superpopulation is not None and not isinstance(superpopulation, str):
+        raise TypeError(
+            f"Expected {str.__name__}, got {type(superpopulation).__name__}"
+        )
+    if population is not None and not isinstance(population, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(population).__name__}")
+    if sample is not None and not isinstance(sample, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     if n is None:
         raise PreventUpdate
     # prevent page updates when at least one filter element is none
@@ -3697,15 +3684,14 @@ def update_sample_drop(pop: str, search: str) -> Tuple[List, None]:
     Tuple[List, None]
     """
 
-    if pop is not None:
-        if not isinstance(pop, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(pop).__name__}")
+    if pop is not None and not isinstance(pop, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(pop).__name__}")
     if not isinstance(search, str):
         raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if pop is None or pop == "":
         return [], None  # no update required
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     pop_dict = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLES_ID_FILE)
     )[3]
@@ -3739,15 +3725,14 @@ def update_population_drop(superpop: str, search: str) -> Tuple[Dict, None]:
     Tuple[List, None]
     """
 
-    if superpop is not None:
-        if not isinstance(superpop, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(superpop).__name__}")
+    if superpop is not None and not isinstance(superpop, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(superpop).__name__}")
     if not isinstance(search, str):
         raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     if superpop is None or superpop == "":
         raise PreventUpdate  # no update required
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     population_1000gp = associateSample.loadSampleAssociation(
         os.path.join(job_directory, SAMPLES_ID_FILE)
     )[2]
@@ -3849,7 +3834,7 @@ def update_images_tabs(
         raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
     bulge = 0
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # define plot containers
     # radar_chart_images = list()
@@ -3869,7 +3854,7 @@ def update_images_tabs(
                             base64.b64encode(
                                 open(
                                     os.path.join(
-                                        WORKINGDIR,
+                                        current_working_directory,
                                         RESULTS_DIR,
                                         job_id,
                                         IMGS_DIR,
@@ -3924,7 +3909,7 @@ def update_images_tabs(
             base64.b64encode(
                 open(
                     os.path.join(
-                        WORKINGDIR,
+                        current_working_directory,
                         RESULTS_DIR,
                         job_id,
                         radar_img_encode_gencode,
@@ -4026,9 +4011,8 @@ def generate_sample_card(
         Sample card webpage
     """
 
-    if n is not None:
-        if not isinstance(n, int):
-            raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
+    if n is not None and not isinstance(n, int):
+        raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
@@ -4045,7 +4029,7 @@ def generate_sample_card(
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover job id
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     # read summary by sample data
     samples_summary = pd.read_csv(
         os.path.join(
@@ -4075,7 +4059,7 @@ def generate_sample_card(
         job_directory, f"{job_id}.{sample}.{guide}.private_targets.tsv"
     )
     # path to database
-    db_path = glob(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".*.db"))[0]
+    db_path = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db"))[0]
     assert isinstance(db_path, str)
     if not os.path.isfile(db_path):
         raise FileNotFoundError(f"Unable to locate {db_path}")
@@ -4112,10 +4096,10 @@ def generate_sample_card(
     # plot images in personal card tab
     # TODO: avoid calling scripts, use functions instead
     os.system(
-        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {WORKINGDIR}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
+        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
     )
     os.system(
-        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {WORKINGDIR}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
+        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
     )
     cmd = f"rm -rf {integrated_personal}"
     code = subprocess.call(cmd, shell=True)
@@ -4137,7 +4121,7 @@ def generate_sample_card(
             base64.b64encode(
                 open(
                     os.path.join(
-                        WORKINGDIR,
+                        current_working_directory,
                         RESULTS_DIR,
                         job_id,
                         IMGS_DIR,
@@ -4151,7 +4135,7 @@ def generate_sample_card(
             base64.b64encode(
                 open(
                     os.path.join(
-                        WORKINGDIR,
+                        current_working_directory,
                         RESULTS_DIR,
                         job_id,
                         IMGS_DIR,
@@ -4413,7 +4397,7 @@ def update_content_tab(
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover job ID
     job_id = search.split("=")[-1]
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     # read parameters file
     try:
         with open(os.path.join(job_directory, PARAMS_FILE)) as handle_params:
@@ -4684,11 +4668,11 @@ def update_content_tab(
             onlyfile = [
                 f
                 for f in os.listdir(
-                    os.path.join(WORKINGDIR, "Genomes", genome_selected)
+                    os.path.join(current_working_directory, "Genomes", genome_selected)
                 )
                 if (
                     os.path.isfile(
-                        os.path.join(WORKINGDIR, "Genomes", genome_selected, f)
+                        os.path.join(current_working_directory, "Genomes", genome_selected, f)
                     )
                     and (f.endswith(".fa") or f.endswith(".fasta"))
                 )
@@ -5199,7 +5183,7 @@ def update_content_tab(
                             base64.b64encode(
                                 open(
                                     os.path.join(
-                                        WORKINGDIR,
+                                        current_working_directory,
                                         RESULTS_DIR,
                                         job_id,
                                         IMGS_DIR,
@@ -5359,29 +5343,28 @@ def global_store(job_id: str) -> pd.DataFrame:
     pd.DataFrame
     """
 
-    if job_id is not None:
-        if not isinstance(job_id, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
+    if job_id is not None and not isinstance(job_id, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(job_id).__name__}")
     if job_id is None:
         return ""  # nothing to return
     target = [
         f
-        for f in os.listdir(os.path.join(WORKINGDIR, RESULTS_DIR, job_id))
-        if os.path.isfile(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, f))
+        for f in os.listdir(os.path.join(current_working_directory, RESULTS_DIR, job_id))
+        if os.path.isfile(os.path.join(current_working_directory, RESULTS_DIR, job_id, f))
         and f.endswith("scores.txt")
     ]
     # use targets file
     if not target:
         target = [
             f
-            for f in os.listdir(os.path.join(WORKINGDIR, RESULTS_DIR, job_id))
-            if os.path.isfile(os.path.join(WORKINGDIR, RESULTS_DIR, job_id, f))
+            for f in os.listdir(os.path.join(current_working_directory, RESULTS_DIR, job_id))
+            if os.path.isfile(os.path.join(current_working_directory, RESULTS_DIR, job_id, f))
             and f.endswith("targets.txt")
         ]
     targets_summary = pd.read_csv(
-        os.path.join(WORKINGDIR, RESULTS_DIR, job_id, target[0]),
+        os.path.join(current_working_directory, RESULTS_DIR, job_id, target[0]),
         sep="\t",
-        usecols=range(0, 38),
+        usecols=range(38),
         na_filter=False,
     )
     targets_summary.rename(
@@ -5469,7 +5452,7 @@ def update_table(
     # recover job ID
     job_id = search.split("=")[-1]
     # recover job directory
-    job_directory = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     # recover guide
     guide = hash_guide.split("#")[1]
     filtering_expressions = filter_term.split(" && ")
@@ -5661,7 +5644,7 @@ def update_output(
                     asc1,
                     url,
                     guide,
-                    WORKINGDIR,
+                    current_working_directory,
                 )
             else:
                 data = query_manager.noshold(
@@ -5674,7 +5657,7 @@ def update_output(
                     asc1,
                     url,
                     guide,
-                    WORKINGDIR,
+                    current_working_directory,
                 )
             # find columns to drop (use user's filter)
             drop_cols = drop_columns(data, filter_target_value)

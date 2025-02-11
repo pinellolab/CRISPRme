@@ -1,10 +1,5 @@
-"""
-main_page.py
-
-This module is responsible for handling the main page functionalities of the 
-CRISPRme application. It imports various utility functions and constants from 
-the `pages_utils` module and other necessary modules to facilitate the operations 
-on the main page.
+"""Build the layout of the main webpage of CRISPRme.
+The main webpage reads the input data and manages the analysis.
 """
 
 from seq_script import extract_seq, convert_pam
@@ -39,7 +34,7 @@ from app import (
     URL,
     app,
     operators,
-    WORKINGDIR,
+    current_working_directory,
     app_directory,
     DISPLAY_OFFLINE,
     ONLINE,
@@ -63,16 +58,8 @@ import string
 import os
 
 
-# Allowed mismatches and bulges
-# ONLINE = False  # NOTE change to True for online version, False for offline
-if ONLINE:
-    MAX_MMS = 7  # max allowed mismatches
-    MAX_BULGES = 3  # max allowed bulges
-else:
-    # NOTE modify value for increasing/decreasing max mms or bulges available on
-    # Dropdown selection
-    MAX_MMS = 7  # max allowed mismatches
-    MAX_BULGES = 3  # max allowed bulges
+MAX_BULGES = 3  # max allowed bulges
+MAX_MMS = 7  # max allowed mismatches
 # mismatches, bulges and guides values
 AV_MISMATCHES = [{"label": i, "value": i} for i in range(MAX_MMS)]
 AV_BULGES = [{"label": i, "value": i} for i in range(MAX_BULGES)]
@@ -364,9 +351,9 @@ def change_url(
         # get already assigned job ids
         assigned_ids = [
             d
-            for d in os.listdir(os.path.join(WORKINGDIR, RESULTS_DIR))
+            for d in os.listdir(os.path.join(current_working_directory, RESULTS_DIR))
             if (
-                os.path.isdir(os.path.join(WORKINGDIR, RESULTS_DIR, d))
+                os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, d))
                 and not d.startswith(".")  # avoid hidden files/directories
             )
         ]
@@ -383,14 +370,14 @@ def change_url(
     if job_name and job_name != "None":
         assert isinstance(job_name, str)
         job_id = f"{job_name}_{job_id}"
-    result_dir = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+    result_dir = os.path.join(current_working_directory, RESULTS_DIR, job_id)
     # create results directory
     cmd = f"mkdir {result_dir}"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
         raise ValueError(f"An error occurred while running {cmd}")
     # NOTE test command for queue
-    cmd = f"touch {os.path.join(WORKINGDIR, RESULTS_DIR, job_id, QUEUE_FILE)}"
+    cmd = f"touch {os.path.join(current_working_directory, RESULTS_DIR, job_id, QUEUE_FILE)}"
     code = subprocess.call(cmd, shell=True)
     if code != 0:
         raise ValueError(f"An error occurred while running {cmd}")
@@ -399,7 +386,7 @@ def change_url(
     gencode_name = "gencode.protein_coding.bed"
     annotation_name = ".dummy.bed"  # to proceed without annotation file
     if "EN" in annotation_var:
-        annotation_name = "encode+gencode.hg38.bed"
+        annotation_name = "dhs+encode+gencode.hg38.bed"  # use dhs annotation file
         if "MA" in annotation_var:
             annotation_name = "".join(
                 [
@@ -408,7 +395,7 @@ def change_url(
                     ".bed",
                 ]
             )
-            annotation_dir = os.path.join(WORKINGDIR, ANNOTATIONS_DIR)
+            annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
             annotation_tmp = os.path.join(annotation_dir, f"ann_tmp_{job_id}.bed")
             cmd = f"cp {os.path.join(annotation_dir, annotation_name)} {annotation_tmp}"
             code = subprocess.call(cmd, shell=True)
@@ -517,7 +504,9 @@ def change_url(
     pam_len = 0
     pam_begin = False
     try:
-        with open(os.path.join(WORKINGDIR, PAMS_DIR, f"{pam}.txt")) as handle_pam:
+        with open(
+            os.path.join(current_working_directory, PAMS_DIR, f"{pam}.txt")
+        ) as handle_pam:
             pam_char = handle_pam.readline()
             index_pam_value = pam_char.split()[-1]
             if int(index_pam_value) < 0:
@@ -679,17 +668,21 @@ def change_url(
     # those of previous searches
     computed_results_dirs = [
         d
-        for d in os.listdir(os.path.join(WORKINGDIR, RESULTS_DIR))
+        for d in os.listdir(os.path.join(current_working_directory, RESULTS_DIR))
         if (
-            os.path.isdir(os.path.join(WORKINGDIR, RESULTS_DIR, d))
+            os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, d))
             and not d.startswith(".")  # ignore hidden directories
         )
     ]
     computed_results_dirs.remove(job_id)  # remove current job results
     for res_dir in computed_results_dirs:
-        if os.path.exists(os.path.join(WORKINGDIR, RESULTS_DIR, res_dir, PARAMS_FILE)):
+        if os.path.exists(
+            os.path.join(current_working_directory, RESULTS_DIR, res_dir, PARAMS_FILE)
+        ):
             if filecmp.cmp(
-                os.path.join(WORKINGDIR, RESULTS_DIR, res_dir, PARAMS_FILE),
+                os.path.join(
+                    current_working_directory, RESULTS_DIR, res_dir, PARAMS_FILE
+                ),
                 os.path.join(result_dir, PARAMS_FILE),
             ):
                 try:
@@ -697,7 +690,7 @@ def change_url(
                     guides_old = (
                         open(
                             os.path.join(
-                                WORKINGDIR,
+                                current_working_directory,
                                 RESULTS_DIR,
                                 res_dir,
                                 GUIDES_FILE,
@@ -710,7 +703,7 @@ def change_url(
                     guides_current = (
                         open(
                             os.path.join(
-                                WORKINGDIR,
+                                current_working_directory,
                                 RESULTS_DIR,
                                 job_id,
                                 GUIDES_FILE,
@@ -725,13 +718,15 @@ def change_url(
                     guides_current
                 ):
                     if os.path.exists(
-                        os.path.join(WORKINGDIR, RESULTS_DIR, res_dir, LOG_FILE)
+                        os.path.join(
+                            current_working_directory, RESULTS_DIR, res_dir, LOG_FILE
+                        )
                     ):  # log file found
                         adj_date = False
                         try:
                             with open(
                                 os.path.join(
-                                    WORKINGDIR,
+                                    current_working_directory,
                                     RESULTS_DIR,
                                     res_dir,
                                     LOG_FILE,
@@ -759,7 +754,7 @@ def change_url(
                             try:
                                 with open(
                                     os.path.join(
-                                        WORKINGDIR,
+                                        current_working_directory,
                                         RESULTS_DIR,
                                         res_dir,
                                         LOG_FILE,
@@ -777,7 +772,7 @@ def change_url(
                                 try:
                                     with open(
                                         os.path.join(
-                                            WORKINGDIR,
+                                            current_working_directory,
                                             RESULTS_DIR,
                                             res_dir,
                                             EMAIL_FILE,
@@ -805,7 +800,7 @@ def change_url(
                             # to email.txt
                             if os.path.exists(
                                 os.path.join(
-                                    WORKINGDIR,
+                                    current_working_directory,
                                     RESULTS_DIR,
                                     res_dir,
                                     EMAIL_FILE,
@@ -814,7 +809,7 @@ def change_url(
                                 try:
                                     with open(
                                         os.path.join(
-                                            WORKINGDIR,
+                                            current_working_directory,
                                             RESULTS_DIR,
                                             res_dir,
                                             EMAIL_FILE,
@@ -842,7 +837,7 @@ def change_url(
                                 try:
                                     with open(
                                         os.path.join(
-                                            WORKINGDIR,
+                                            current_working_directory,
                                             RESULTS_DIR,
                                             res_dir,
                                             EMAIL_FILE,
@@ -865,7 +860,9 @@ def change_url(
                                         )
                                 except OSError as e:
                                     raise e
-                        current_job_dir = os.path.join(WORKINGDIR, RESULTS_DIR, job_id)
+                        current_job_dir = os.path.join(
+                            current_working_directory, RESULTS_DIR, job_id
+                        )
                         cmd = f"rm -r {current_job_dir}"
                         code = subprocess.call(cmd, shell=True)
                         if code != 0:
@@ -876,7 +873,7 @@ def change_url(
                         # we may have entered a job directory that was in queue
                         if os.path.exists(
                             os.path.join(
-                                WORKINGDIR,
+                                current_working_directory,
                                 RESULTS_DIR,
                                 res_dir,
                                 QUEUE_FILE,
@@ -885,7 +882,7 @@ def change_url(
                             if send_email:
                                 if os.path.exists(
                                     os.path.join(
-                                        WORKINGDIR,
+                                        current_working_directory,
                                         RESULTS_DIR,
                                         res_dir,
                                         EMAIL_FILE,
@@ -894,7 +891,7 @@ def change_url(
                                     try:
                                         with open(
                                             os.path.join(
-                                                WORKINGDIR,
+                                                current_working_directory,
                                                 RESULTS_DIR,
                                                 res_dir,
                                                 EMAIL_FILE,
@@ -922,7 +919,7 @@ def change_url(
                                     try:
                                         with open(
                                             os.path.join(
-                                                WORKINGDIR,
+                                                current_working_directory,
                                                 RESULTS_DIR,
                                                 res_dir,
                                                 EMAIL_FILE,
@@ -954,22 +951,27 @@ def change_url(
             "log_error.txt"
         )
     )
+    # set sorting criteria for score and fewest
+    sorting_criteria_scoring = "mm+bulges"
+    sorting_criteria = "mm+bulges,mm"
     # TODO: use functions rather than calling scripts
     run_job_sh = os.path.join(
         app_directory, POSTPROCESS_DIR, "submit_job_automated_new_multiple_vcfs.sh"
     )
-    genome = os.path.join(WORKINGDIR, GENOMES_DIR, genome_ref)
+    genome = os.path.join(current_working_directory, GENOMES_DIR, genome_ref)
     vcfs = os.path.join(result_dir, ".list_vcfs.txt")
-    annotation = os.path.join(WORKINGDIR, ANNOTATIONS_DIR, annotation_name)
-    pam_file = os.path.join(WORKINGDIR, PAMS_DIR, f"{pam}.txt")
+    annotation = os.path.join(
+        current_working_directory, ANNOTATIONS_DIR, annotation_name
+    )
+    pam_file = os.path.join(current_working_directory, PAMS_DIR, f"{pam}.txt")
     samples_ids = os.path.join(result_dir, SAMPLES_FILE_LIST)
     postprocess = os.path.join(app_directory, POSTPROCESS_DIR)
-    gencode = os.path.join(WORKINGDIR, ANNOTATIONS_DIR, gencode_name)
+    gencode = os.path.join(current_working_directory, ANNOTATIONS_DIR, gencode_name)
     log_verbose = os.path.join(result_dir, "log_verbose.txt")
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
     assert isinstance(rna, int)
-    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {WORKINGDIR} {gencode} {dest_email} {be_start} {be_stop} {be_nt} 1> {log_verbose} 2>{log_error}"
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} 1> {log_verbose} 2>{log_error}"
     # run job
     pool_executor.submit(subprocess.run, cmd, shell=True)
     return ("/load", f"?job={job_id}")
@@ -1118,7 +1120,9 @@ def check_input(
             text_guides = select_same_len_guides(text_guides)
     # check PAM
     try:
-        with open(os.path.join(WORKINGDIR, PAMS_DIR, f"{pam}.txt")) as handle_pam:
+        with open(
+            os.path.join(current_working_directory, PAMS_DIR, f"{pam}.txt")
+        ) as handle_pam:
             pam_char = handle_pam.readline()
             index_pam_value = int(pam_char.split()[-1])
             if index_pam_value < 0:
@@ -1529,7 +1533,7 @@ def change_variants_checklist_state(genome_value: str) -> List:
                 "disabled": False,
             },
             {"label": " plus HGDP variants", "value": "HGDP", "disabled": False},
-            {"label": " plus personal variants*", "value": "PV", "disabled": True},
+            {"label": " plus personal variants*", "value": "PV", "disabled": ONLINE},
         ]
     personal_vcf = get_custom_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
@@ -1848,7 +1852,7 @@ def index_page() -> html.Div:
                         {
                             "label": " Personal annotations*",
                             "value": "MA",
-                            "disabled": True,
+                            "disabled": ONLINE,
                         },
                     ],
                     id="checklist-annotations",

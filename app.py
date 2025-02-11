@@ -35,7 +35,7 @@ import os
 WEBADDRESS = "http://crisprme.di.univr.it"  # webpage address
 IPADDRESS = "127.0.0.1:8080"  # server IP address (local server)
 URL = ""  # server URL
-WORKINGDIR = os.getcwd()  # current working directory
+current_working_directory = f"{os.getcwd()}/"  # current working directory
 
 
 def start_message() -> None:

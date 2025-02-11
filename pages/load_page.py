@@ -9,7 +9,7 @@ The analysis results are kept in storage for 3 days. After 3 days the results
 are automatically deleted and could not be accessed anymore.
 """
 
-from app import app, WORKINGDIR, URL
+from app import app, current_working_directory, URL
 from .pages_utils import RESULTS_DIR, GUIDES_FILE, LOG_FILE, PARAMS_FILE
 
 from dash.dependencies import Input, Output, State
@@ -72,11 +72,11 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
     # recover job directories
     job_data = [
         d
-        for d in os.listdir(os.path.join(WORKINGDIR, RESULTS_DIR))
-        if os.path.isdir(os.path.join(WORKINGDIR, RESULTS_DIR, d))
+        for d in os.listdir(os.path.join(current_working_directory, RESULTS_DIR))
+        if os.path.isdir(os.path.join(current_working_directory, RESULTS_DIR, d))
     ]
     current_job_directory = os.path.join(
-        WORKINGDIR, RESULTS_DIR, dir_name.split("=")[-1]
+        current_working_directory, RESULTS_DIR, dir_name.split("=")[-1]
     )
     if dir_name.split("=")[-1] in job_data:
         job_data = [
@@ -362,7 +362,7 @@ def remove_result(n: int, dir_name: str) -> html.P:
         raise PreventUpdate  # do not do anything
     elif n == 1:
         current_job_directory = os.path.join(
-            WORKINGDIR, RESULTS_DIR, dir_name.split("=")[-1]
+            current_working_directory, RESULTS_DIR, dir_name.split("=")[-1]
         )
         # remove job data
         cmd = f"rm -rf {current_job_directory}"

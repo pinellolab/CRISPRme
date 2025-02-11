@@ -24,7 +24,7 @@ from pages import (
     help_page,
     contacts_page,
 )
-from app import URL, IPADDRESS, WEBADDRESS, ONLINE, WORKINGDIR, app, cache
+from app import URL, IPADDRESS, WEBADDRESS, ONLINE, current_working_directory, app, cache
 
 from dash.dependencies import Input, Output, State
 from typing import Tuple
@@ -176,11 +176,11 @@ def index():
         OSError: If there is an issue writing the mode file.
     """
 
-    check_directories(WORKINGDIR)  # check CRISPRme directory tree consistency
+    check_directories(current_working_directory)  # check CRISPRme directory tree consistency
     debug = "--debug" in sys.argv[1:]  # check if debug mode is active
     website = "--website" in sys.argv[1:]  # check if local server or website
     try:  # keep track of running mode (debugging purposes)
-        modefname = os.path.join(WORKINGDIR, MODEFILE)
+        modefname = os.path.join(current_working_directory, MODEFILE)
         with open(modefname, mode="w") as outfile:
             mode = "server" if website else "local"
             outfile.write(mode)
