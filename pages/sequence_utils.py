@@ -28,15 +28,36 @@ PAMDICT = {
     "V": "ARWMDHVYSBCKG",
     "N": "ACGTRYSWKMBDHV",
 }
-
 GENOMES_DIR = "Genomes"
 
 
 def clean_interval_value(value: str) -> int:
+    """Clean an interval value string.
+
+    This function removes commas, spaces, and periods from an interval value string
+    and converts it to an integer.
+
+    Args:
+        value: The interval value string.
+
+    Returns:
+        The cleaned interval value as an integer.
+    """
     return int(value.replace(",", "").replace(" ", "").replace(".", ""))
 
 
 def retrieve_coordinates(input_range: str) -> Tuple[str, int, int]:
+    """Retrieve coordinates from an input range string.
+
+    This function parses an input range string in the format "chrom:start-stop"
+    and returns the chromosome, start, and stop coordinates as a tuple.
+
+    Args:
+        input_range: The input range string.
+
+    Returns:
+        A tuple containing the chromosome, start coordinate, and stop coordinate.
+    """
     chrom, coordinates = input_range.split(":")  # extract chromosome
     start = clean_interval_value(coordinates.split("-")[0])  # extract start position
     stop = clean_interval_value(coordinates.split("-")[1])  # extract stop position
@@ -44,6 +65,23 @@ def retrieve_coordinates(input_range: str) -> Tuple[str, int, int]:
 
 
 def write_mock_bed(seqname: str, chrom: str, start: int, stop: int) -> str:
+    """Write a mock BED file.
+
+    This function creates a temporary BED file containing a single interval
+    defined by the provided sequence name, chromosome, start, and stop coordinates.
+
+    Args:
+        seqname: The name of the sequence.
+        chrom: The chromosome name.
+        start: The start coordinate.
+        stop: The stop coordinate.
+
+    Returns:
+        The path to the created BED file.
+
+    Raises:
+        IOError: If an error occurs while writing the BED file.
+    """
     # define mock bed file name
     bedfname = os.path.join(os.getcwd(), f"{seqname}.bed")
     try:
@@ -58,6 +96,20 @@ def write_mock_bed(seqname: str, chrom: str, start: int, stop: int) -> str:
 
 
 def retrieve_chromosomes_fasta(genome: str) -> List[str]:
+    """Retrieve chromosome FASTA files.
+
+    This function retrieves a list of chromosome FASTA files from the specified
+    genome directory, excluding FASTA index files (.fai).
+
+    Args:
+        genome: The name of the genome.
+
+    Returns:
+        A list of chromosome FASTA filenames.
+
+    Raises:
+        FileNotFoundError: If the genome directory is not found.
+    """
     genomedir = os.path.join(os.getcwd(), GENOMES_DIR, genome)
     if not os.path.isdir(genomedir):
         raise FileNotFoundError(f"Cannot find Genome folder {genomedir}")
@@ -69,6 +121,18 @@ def retrieve_chromosomes_fasta(genome: str) -> List[str]:
 
 
 def getfasta(bedfname: str, chromfasta: str) -> str:
+    """Extract sequence from FASTA using bedtools getfasta.
+
+    This function extracts a sequence from a FASTA file based on coordinates
+    specified in a BED file using the bedtools getfasta utility.
+
+    Args:
+        bedfname: Path to the BED file.
+        chromfasta: Path to the chromosome FASTA file.
+
+    Returns:
+        The extracted sequence string.
+    """
     # extract sequence from input coordinates
     sequence = subprocess.check_output(
         [f"{GETFASTA} -fi {chromfasta} -bed {bedfname}"], shell=True
@@ -77,6 +141,22 @@ def getfasta(bedfname: str, chromfasta: str) -> str:
 
 
 def extract_sequence(seqname: str, input_range: str, genome: str) -> str:
+    """Extract a genomic sequence.
+
+    This function extracts a genomic sequence from a specified FASTA file based on
+    the provided sequence name, input range, and genome.
+
+    Args:
+        seqname: The name of the sequence.
+        input_range: The genomic range in "chrom:start-stop" format.
+        genome: The name of the genome.
+
+    Returns:
+        The extracted sequence string.
+
+    Raises:
+        FileNotFoundError: If the FASTA file for the specified chromosome is not found.
+    """
     # replace spaces with underscores in sequence name
     seqname = "_".join(seqname.replace(">", "").split())
     # retrieve genomic coordinates
@@ -98,6 +178,17 @@ def extract_sequence(seqname: str, input_range: str, genome: str) -> str:
 
 
 def generate_iupac_pam(pam: str):
+    """Generate all possible PAM sequences from an IUPAC PAM string.
+
+    This function takes an IUPAC PAM string as input and generates a list of all
+    possible PAM sequences by expanding the IUPAC characters using the PAMDICT.
+
+    Args:
+        pam: The IUPAC PAM string.
+
+    Returns:
+        A list of all possible PAM sequences.
+    """
     pam_chars = [PAMDICT[nt] for nt in pam]  # expand pam characters
     return ["".join(e) for e in product(*pam_chars)]
 
@@ -105,9 +196,24 @@ def generate_iupac_pam(pam: str):
 def search_pam_fwd(
     iupac_pam: List[str], sequence: str, pamstart: bool, guidelen: int, pamlen: int
 ) -> List[str]:
+    """Search for PAMs in the forward strand.
+
+    This function searches for all occurrences of PAM sequences from a given list
+    of IUPAC PAMs in the forward strand of a given sequence.
+
+    Args:
+        iupac_pam: A list of IUPAC PAM strings.
+        sequence: The input sequence string.
+        pamstart: True if PAM is upstream of the guide, False otherwise.
+        guidelen: The length of the guide sequence.
+        pamlen: The length of the PAM sequence.
+
+    Returns:
+        A list of guide sequences found in the forward strand.
+    """
     guides = []  # list of retrieved guides
     for pam in iupac_pam:  # iterate over all possible pams
-        for i in ([m.start() for m in re.finditer("(?=" + pam + ")", sequence)]):
+        for i in [m.start() for m in re.finditer("(?=" + pam + ")", sequence)]:
             if pamstart:  # pam upstreeam the guide
                 if i <= (len(sequence) - guidelen - pamlen):
                     guides.append(sequence[i + pamlen : i + pamlen + guidelen])
@@ -115,23 +221,58 @@ def search_pam_fwd(
                 guides.append(sequence[i - guidelen : i])
     return guides
 
+
 def search_pam_rev(
     iupac_pam: List[str], sequence: str, pamstart: bool, guidelen: int, pamlen: int
 ) -> List[str]:
+    """Search for PAMs in the reverse strand.
+
+    This function searches for all occurrences of PAM sequences from a given list
+    of IUPAC PAMs in the reverse strand of a given sequence.
+
+    Args:
+        iupac_pam: A list of IUPAC PAM strings.
+        sequence: The input sequence string.
+        pamstart: True if PAM is upstream of the guide, False otherwise.
+        guidelen: The length of the guide sequence.
+        pamlen: The length of the PAM sequence.
+
+    Returns:
+        A list of guide sequences found in the reverse strand.
+    """
     guides = []  # list of retrieved guides
     for pam in iupac_pam:  # iterate over all possible pams
-        for i in ([m.start() for m in re.finditer("(?=" + pam + ")", sequence)]):
+        for i in [m.start() for m in re.finditer("(?=" + pam + ")", sequence)]:
             if pamstart:  # pam upstreeam the guide
                 if i >= guidelen:
                     guide = str(Seq(sequence[i - guidelen : i]).reverse_complement())
                     guides.append(guide)
             elif i <= (len(sequence) - guidelen - pamlen):  # pam downstream
-                guide = str(Seq(sequence[i + pamlen : i + pamlen + guidelen]).reverse_complement())
+                guide = str(
+                    Seq(
+                        sequence[i + pamlen : i + pamlen + guidelen]
+                    ).reverse_complement()
+                )
                 guides.append()
     return guides
 
 
-def get_guides(sequence: str, pam: str, guidelen: str, pamstart: bool):
+def get_guides(sequence: str, pam: str, guidelen: str, pamstart: bool) -> List[str]:
+    """Retrieve CRISPR guides from a given sequence.
+
+    This function searches for CRISPR guides in both the forward and reverse strands
+    of a given sequence, considering the provided PAM sequence, guide length, and
+    PAM position relative to the guide.
+
+    Args:
+        sequence: The input sequence string.
+        pam: The PAM sequence.
+        guidelen: The length of the guide sequence.
+        pamstart: True if PAM is upstream of the guide, False otherwise.
+
+    Returns:
+        A list of guide sequences found in both strands.
+    """
     pamlen = len(pam)  # pam length
     guidelen = int(guidelen)  # cast to int
     iupac_pam = generate_iupac_pam(pam)  # compute pam exploding iupac chars
@@ -141,9 +282,3 @@ def get_guides(sequence: str, pam: str, guidelen: str, pamstart: bool):
     guides_fwd = search_pam_fwd(iupac_pam, sequence, pamstart, guidelen, pamlen)
     guides_rev = search_pam_rev(iupac_pam_rev, sequence, pamstart, guidelen, pamlen)
     return guides_fwd + guides_rev
-
-
-if __name__ == "__main__":
-    sequence = extract_sequence(">sequence1", "chrx:51-74", "test_genome")
-    print(sequence)
-    print(get_guides(sequence, "NGG", 10, False))

@@ -25,7 +25,6 @@ Current CRISPRme maintainers:
     - Luca Pinello, PhD <lpinello@mgh.harvard.edu>
 """
 
-
 from .pages_utils import GITHUB_LINK
 
 from typing import List

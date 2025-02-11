@@ -8,13 +8,12 @@ recover the results obtained from each analysis by clicking the link
 on the job identifier.
 """
 
-
 from .pages_utils import RESULTS_DIR, PARAMS_FILE, LOG_FILE, GUIDES_FILE
 
 from typing import Dict, List, Optional, Tuple
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-from app import app, current_working_directory, URL
+from app import app, WORKINGDIR, URL
 
 import dash_html_components as html
 import pandas as pd
@@ -122,17 +121,15 @@ def get_results() -> pd.DataFrame:
 
     # retrieve results stored in directories (in /Results)
     results_dirs = []
-    for resdir in os.listdir(os.path.join(current_working_directory, RESULTS_DIR)):
+    for resdir in os.listdir(os.path.join(WORKINGDIR, RESULTS_DIR)):
         if os.path.isdir(
-            os.path.join(current_working_directory, RESULTS_DIR, resdir)
+            os.path.join(WORKINGDIR, RESULTS_DIR, resdir)
         ) and os.path.isfile(
-            os.path.join(current_working_directory, RESULTS_DIR, resdir, PARAMS_FILE)
+            os.path.join(WORKINGDIR, RESULTS_DIR, resdir, PARAMS_FILE)
         ):
             results_dirs.append(resdir)
     # allow empty results?
-    assert len(results_dirs) <= len(
-        os.listdir(os.path.join(current_working_directory, RESULTS_DIR))
-    )
+    assert len(results_dirs) <= len(os.listdir(os.path.join(WORKINGDIR, RESULTS_DIR)))
     cols = [
         "Job",
         "Genome",
@@ -147,15 +144,11 @@ def get_results() -> pd.DataFrame:
     for job_id in results_dirs:
         try:
             if os.path.exists(
-                os.path.join(
-                    current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-                )
+                os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
             ):
                 try:
                     with open(
-                        os.path.join(
-                            current_working_directory, RESULTS_DIR, job_id, PARAMS_FILE
-                        )
+                        os.path.join(WORKINGDIR, RESULTS_DIR, job_id, PARAMS_FILE)
                     ) as handle_params:
                         params = handle_params.read()
                         mms = (
@@ -169,7 +162,7 @@ def get_results() -> pd.DataFrame:
                         try:
                             with open(
                                 os.path.join(
-                                    current_working_directory,
+                                    WORKINGDIR,
                                     RESULTS_DIR,
                                     job_id,
                                     LOG_FILE,
@@ -206,7 +199,7 @@ def get_results() -> pd.DataFrame:
                         )[-1]
                         if os.path.exists(
                             os.path.join(
-                                current_working_directory,
+                                WORKINGDIR,
                                 RESULTS_DIR,
                                 job_id,
                                 GUIDES_FILE,
@@ -215,7 +208,7 @@ def get_results() -> pd.DataFrame:
                             try:
                                 with open(
                                     os.path.join(
-                                        current_working_directory,
+                                        WORKINGDIR,
                                         RESULTS_DIR,
                                         job_id,
                                         GUIDES_FILE,
@@ -293,10 +286,14 @@ def generate_table_results(
     header = html.Thead(
         html.Tr(
             [
-                html.Th(col, style={"vertical-align": "middle", "text-align": "center"})
-                if col != "Load" and col != "Delete"
-                else html.Th(
-                    "", style={"vertical-align": "middle", "text-align": "center"}
+                (
+                    html.Th(
+                        col, style={"vertical-align": "middle", "text-align": "center"}
+                    )
+                    if col != "Load" and col != "Delete"
+                    else html.Th(
+                        "", style={"vertical-align": "middle", "text-align": "center"}
+                    )
                 )
                 for col in results_df.columns
             ]
@@ -365,10 +362,10 @@ def history_page():
 
     results = get_results()
     # print(results)
-    mode_type = open(current_working_directory+'.mode_type.txt','r').readlines()
+    mode_type = open(WORKINGDIR + ".mode_type.txt", "r").readlines()
     # print(mode_type)
-    if mode_type[0] == 'server':
-        #avoid showing result in server mode (online)
+    if mode_type[0] == "server":
+        # avoid showing result in server mode (online)
         results = pd.DataFrame()
     final_list = []
     final_list.append(
@@ -387,7 +384,7 @@ def history_page():
     final_list.append(
         html.Div("None,None", id="div-history-filter-query", style={"display": "none"})
     )
-    if mode_type[0] != 'server':
+    if mode_type[0] != "server":
         final_list.append(
             html.Div(
                 generate_table_results(results, 1),
@@ -396,7 +393,7 @@ def history_page():
             ),
         )
     else:
-        final_list.append(html.Div('HISTORY IS NOT AVAILABLE WHILE USING WEBSITE MODE'))
+        final_list.append(html.Div("HISTORY IS NOT AVAILABLE WHILE USING WEBSITE MODE"))
     final_list.append(html.Div(id="div-remove-jobid", style={"display": "none"}))
     final_list.append(
         html.Div(

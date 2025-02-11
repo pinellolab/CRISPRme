@@ -2,7 +2,7 @@
 webpages.
 """
 
-from app import operators
+from app import operators, WORKINGDIR
 
 from typing import Dict, List, Optional, Tuple
 from glob import glob
@@ -362,9 +362,7 @@ def write_json(dropdown_value: str, job_id: str) -> None:
     """
     if not isinstance(dropdown_value, str):
         raise TypeError(f"Expected {str.__name__}, got {type(dropdown_value).__name__}")
-    dropdown_json_file = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id, ".dropdown.json"
-    )
+    dropdown_json_file = os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".dropdown.json")
     try:
         handle = open(dropdown_json_file, mode="w")
         handle.write(f"{dropdown_value}")
@@ -390,9 +388,7 @@ def read_json(job_id: str) -> str:
     str
         Table filtering criterion
     """
-    dropdown_json_file = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id, ".dropdown.json"
-    )
+    dropdown_json_file = os.path.join(WORKINGDIR, RESULTS_DIR, job_id, ".dropdown.json")
     if not os.path.isfile(dropdown_json_file):
         raise FileNotFoundError(f"Unable to locate {dropdown_json_file}")
     try:
@@ -1001,10 +997,10 @@ def get_available_PAM() -> List:
 
     pams_files = [
         f
-        for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
+        for f in os.listdir(os.path.join(WORKINGDIR, PAMS_DIR))
         if (
             not f.startswith(".")  # ignore hidden files
-            and os.path.isfile(os.path.join(current_working_directory, PAMS_DIR, f))
+            and os.path.isfile(os.path.join(WORKINGDIR, PAMS_DIR, f))
         )
     ]
     # remove '.txt' from filenames
@@ -1031,10 +1027,10 @@ def get_available_CAS() -> List:
 
     cas_files = [
         f
-        for f in os.listdir(os.path.join(current_working_directory, PAMS_DIR))
+        for f in os.listdir(os.path.join(WORKINGDIR, PAMS_DIR))
         if (
             not f.startswith(".")  # ignore hidden files
-            and os.path.isfile(os.path.join(current_working_directory, PAMS_DIR, f))
+            and os.path.isfile(os.path.join(WORKINGDIR, PAMS_DIR, f))
         )
     ]
     # removed .txt from filenames
@@ -1076,10 +1072,10 @@ def get_custom_VCF(genome_value: str) -> List:
             )
     vcf_dirs = [
         d
-        for d in os.listdir(os.path.join(current_working_directory, VCFS_DIR))
+        for d in os.listdir(os.path.join(WORKINGDIR, VCFS_DIR))
         if (
             not d.startswith(".")  # ignore hidden directories
-            and os.path.isdir(os.path.join(current_working_directory, VCFS_DIR, d))
+            and os.path.isdir(os.path.join(WORKINGDIR, VCFS_DIR, d))
         )
     ]
     genome_value = genome_value.replace(" ", "_")
@@ -1113,8 +1109,8 @@ def get_available_genomes() -> List:
 
     genomes = [
         d
-        for d in os.listdir(os.path.join(current_working_directory, GENOMES_DIR))
-        if os.path.isdir(os.path.join(current_working_directory, GENOMES_DIR, d))
+        for d in os.listdir(os.path.join(WORKINGDIR, GENOMES_DIR))
+        if os.path.isdir(os.path.join(WORKINGDIR, GENOMES_DIR, d))
     ]
     genomes = [g.replace("_", " ") for g in genomes]
     genomes_dirs = [
@@ -1138,9 +1134,7 @@ def get_custom_annotations() -> List:
         User's annotation data
     """
 
-    annotation_data = glob(
-        os.path.join(current_working_directory, ANNOTATIONS_DIR, "*.bed")
-    )
+    annotation_data = glob(os.path.join(WORKINGDIR, ANNOTATIONS_DIR, "*.bed"))
     annotations = [
         {"label": ann.strip().split("/")[-1], "value": ann.strip().split("/")[-1]}
         for ann in annotation_data

@@ -15,6 +15,7 @@ import sys
 import ssl
 import smtplib
 from email.message import EmailMessage
+
 PSW = "tlgylyubfalteffs"
 
 
@@ -37,26 +38,29 @@ def send_mail() -> None:
     None
     """
 
-    with open(sys.argv[1] + '/email.txt', 'r') as e:
+    with open(sys.argv[1] + "/email.txt", "r") as e:
         # message building
-        all_content = e.read().strip().split('--OTHEREMAIL--')
+        all_content = e.read().strip().split("--OTHEREMAIL--")
         for em in all_content:
             # read mail content from file
             msg = EmailMessage()
-            em = em.strip().split('\n')
-            msg['To'] = em[0]
+            em = em.strip().split("\n")
+            msg["To"] = em[0]
             job_link = em[1]
             date_submission = em[2]
-            msg['Subject'] = 'CRISPRme - Job completed'
+            msg["Subject"] = "CRISPRme - Job completed"
 
-            msg['From'] = "crisprme.job@gmail.com"
-            content_email = 'The requested job is completed, visit the following link ' + \
-                job_link + ' to view the report.'
+            msg["From"] = "crisprme.job@gmail.com"
+            content_email = (
+                "The requested job is completed, visit the following link "
+                + job_link
+                + " to view the report."
+            )
 
             # TODO add Parameters section with date and other parameters
             msg.set_content(content_email)
 
-            print('EMAIL SENT')
+            print("EMAIL SENT")
             # gmail settings
             port = 465  # For SSL (used for gmail account)
             # Create a secure SSL context
@@ -64,6 +68,7 @@ def send_mail() -> None:
             with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
                 server.login("crisprme.job@gmail.com", PSW)
                 server.send_message(msg)
+
 
 # call the above funtion
 # TODO: avoid calling through bash
