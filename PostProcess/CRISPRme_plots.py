@@ -1,24 +1,17 @@
 """
-Linda Lin
-1/15/2021
-
-Input: CRISPRme best file (top 1000 sites or more, without on-target)
-Output: top OT plots for CRISPRme manuscript
-
-(Note: will get runtime warnings but all are fine to ignore)
 """
-
-import pandas as pd
-import numpy as np
-import math
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
 import matplotlib.colors as mcolors
-#import seaborn as sns
-import sys
+import pandas as pd
+import numpy as np
+
 import matplotlib
 import warnings
+import math
+import sys
+
 
 # ignore all warnings
 warnings.filterwarnings("ignore")
@@ -33,18 +26,14 @@ def reference_count_analysis(row):
         # if yes, calculate ref mm count
         refTarget = str(
             row['Aligned_protospacer+PAM_REF_(fewest_mm+b)'])
-        countMM = 0
-        for nt in refTarget:
-            if nt.islower():
-                countMM += 1
+        countMM = sum(bool(nt.islower()) for nt in refTarget)
         # return ref mm+bul count wrt to alt mm+bul count
         row['Mismatches+bulges_REF_(fewest_mm+b)'] = countMM + \
             int(row['Bulges_(fewest_mm+b)'])
-        row['Mismatches+bulges_ALT_(fewest_mm+b)'] = row['Mismatches+bulges_(fewest_mm+b)']
     else:
         # if no, ref and alt total count are identical
         row['Mismatches+bulges_REF_(fewest_mm+b)'] = row['Mismatches+bulges_(fewest_mm+b)']
-        row['Mismatches+bulges_ALT_(fewest_mm+b)'] = row['Mismatches+bulges_(fewest_mm+b)']
+    row['Mismatches+bulges_ALT_(fewest_mm+b)'] = row['Mismatches+bulges_(fewest_mm+b)']
     return row
 
 
@@ -67,10 +56,8 @@ def plot_with_MMvBUL(df, out_folder, guide):
 
     # Make index column that numbers the OTs starting from 1
     df.reset_index(inplace=True)
-    index_count = 1
-    for index in df.index:
+    for index_count, index in enumerate(df.index, start=1):
         df.loc[index, 'index'] = index_count
-        index_count += 1
     # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
     # This will cause a warning of invalid sqrt later on, but that's fine to ignore
     # df["prim_AF"] = df["prim_AF"].fillna(-1)
@@ -154,6 +141,7 @@ def plot_with_MMvBUL(df, out_folder, guide):
     plt.savefig(out_folder+f"CRISPRme_fewest_top_1000_log_for_main_text_{guide}.png")
     plt.savefig(out_folder+f"CRISPRme_fewest_top_1000_log_for_main_text_{guide}.pdf")
     plt.clf()
+    plt.close()
 
 
 def plot_with_CRISTA_score(df, out_folder, guide):
@@ -166,11 +154,8 @@ def plot_with_CRISTA_score(df, out_folder, guide):
     df = df.head(1000)
     # Make index column that numbers the OTs starting from 1
     df.reset_index(inplace=True)
-    index_count = 1
-    for index in df.index:
+    for index_count, index in enumerate(df.index, start=1):
         df.loc[index, 'index'] = index_count
-        index_count += 1
-
     # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
     # This will cause a warning of invalid sqrt later on, but that's fine to ignore
     df["Variant_MAF_(highest_CRISTA)"] = df["Variant_MAF_(highest_CRISTA)"].fillna(-1)
@@ -251,6 +236,7 @@ def plot_with_CRISTA_score(df, out_folder, guide):
     plt.savefig(out_folder+f"CRISPRme_CRISTA_top_1000_log_for_main_text_{guide}.png")
     plt.savefig(out_folder+f"CRISPRme_CRISTA_top_1000_log_for_main_text_{guide}.pdf")
     plt.clf()
+    plt.close()
 
 
 def plot_with_CFD_score(df, out_folder, guide):
@@ -264,11 +250,8 @@ def plot_with_CFD_score(df, out_folder, guide):
     df = df.head(1000)
     # Make index column that numbers the OTs starting from 1
     df.reset_index(inplace=True)
-    index_count = 1
-    for index in df.index:
+    for index_count, index in enumerate(df.index, start=1):
         df.loc[index, 'index'] = index_count
-        index_count += 1
-
     # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
     # This will cause a warning of invalid sqrt later on, but that's fine to ignore
     df["Variant_MAF_(highest_CFD)"] = df["Variant_MAF_(highest_CFD)"].fillna(-1)
@@ -353,6 +336,7 @@ def plot_with_CFD_score(df, out_folder, guide):
     plt.savefig(out_folder+f"CRISPRme_CFD_top_1000_log_for_main_text_{guide}.png")
     plt.savefig(out_folder+f"CRISPRme_CFD_top_1000_log_for_main_text_{guide}.pdf")
     plt.clf()
+    plt.close()
 
 
 # Read file
