@@ -1,43 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 22 19:55:54 2020
-
-@author: francesco
-"""
+'''
+Semi-Brute Force Calculation of Samples
+For each target:
+- If it belongs to a new cluster, save the previous cluster, then compute the 
+    possible existing decompositions and move on to the next target.
+- If it belongs to the same cluster:
+    - If the target falls into a category that has already been analyzed 
+        (e.g., X0, DNA1, DNA2, RNA1, RNA2, where the number indicates the number 
+        of bulges present), use the decomposition data already computed to avoid 
+        recalculating it.
+    - If the category has not been analyzed yet, perform a full decomposition 
+        (similar to top1) and store the data for subsequent targets.
+TODO: Parallelize the analysis.
+NOTE: Verify if it is compatible with PAM at the beginning.
 
 '''
-Calcolo semi bruteforce dei sample.
-Per ogni target, se è un nuovo cluster, salva il cluster precedente, poi calcola le possibili scomposizioni esistenti, e passa al prossimo target.
-Se stesso cluster: se il target è di una categoria già analizzata (X0, DNA1, DNA2 ... RNA1,RNA2 ... dove il numero indica i bulges presenti), usa
-i dati della scomposizione già effettuata per evitare il ricalcolo della scomposizione.
-Se invece la categoria non è stata già analizzata, fa una scomposizione completa (come il top1), e salva i dati per i prossimi target
 
-#TODO parallelizzare l'analisi
-#NOTE da verificare se è compatibile com pam all'inizio
-Added compatibility with dictionary chr_pos -> s1,s2;A,C/sNew;A,T
-'''
-
-# argv1 è il file .bed con le annotazioni
-# argv2 è il file .cluster.txt, che è ordinato per cromosoma. Era (03/03) il file top1 ordinato per chr
-# argv3 è nome del file in output
-# argv4 è directory dei dizionari
-#argv5 is pamfile
-# argv 6 is max allowed mms
-# argv 7 is genome reference directory (Eg ../../Genomes/hg38_ref)
-# argv8 is guide file
-# argv9 is max allowed DNA bulges
-# argv10 is max allowed RNA bulges
-# argv11 is absolute path of sample file to load dictionary sample -> pop
-# NOTE 06/03  -> removed PAM Disruption calculation
-# NOTE 29/03 -> le colonne min max sono rimosse, dal file total.cluster sono già presenti colonne sample, annotation, real guide
-# 29/03 colonne in input #Bulge_type     crRNA   DNA     Chromosome      Position        Cluster Position        Direction       Mismatches      Bulge_Size      Total   PAM_gen Var_uniq        Samples Annotation Type Real Guide
-# NOTE1 can happend that a iupac falls under the N char of NGG, meaning that a target can have the same number of mms both in his REF and VAR part:
-# CACTGCAACCTCTGTCTCCCKGG
-# CACTGCAACCTCTGTCTCCCGGG        REF
-# CACTGCAACCTCTGTCTCCCTGG        VAR
-# So check if decrease_ref_count is not empty to avoid this (in this case +1 will be added to samples for VAR part of target and +1 for all the
-# other samples for REF part)
+# argv1: BED file containing annotations.
+# argv2: .cluster.txt file, sorted by chromosome. As of 03/03, it was the top1 file sorted by chromosome.
+# argv3: Output file name.
+# argv4: Directory containing dictionaries.
+# argv5: PAM file.
+# argv6: Maximum allowed mismatches.
+# argv7: Genome reference directory (e.g., ../../Genomes/hg38_ref).
+# argv8: Guide file.
+# argv9: Maximum allowed DNA bulges.
+# argv10: Maximum allowed RNA bulges.
+# argv11: Absolute path of the sample file to load the dictionary mapping sample -> population.
 
 import pickle
 from typing import final  # to read CFD matrices

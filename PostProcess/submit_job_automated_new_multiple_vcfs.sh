@@ -1,31 +1,52 @@
 #!/bin/bash
 
-#file for automated search of guide+pam in reference and variant genomes
+# This script automates the search for guide RNA and PAM sequences in reference 
+# and variant genomes. It processes input files, manages directories, and executes 
+# various analyses to identify potential CRISPR targets.
+# The script handles both reference and variant genomes, performs indexing, 
+# searching, and post-analysis, and generates results in specified output formats.
+#
+# Args:
+#   $1: Reference genome folder path.
+#   $2: List of VCF files.
+#   $3: Guide RNA file path.
+#   $4: PAM file path.
+#   $5: Annotation file path.
+#   $6: Sample ID file path.
+#   $7: Maximum bulge size.
+#   $8: Mismatches allowed.
+#   $9: Bulge DNA size.
+#   ${10}: Bulge RNA size.
+#   ${11}: Merge threshold.
+#   ${12}: Output folder path.
+#   ${13}: Starting directory path.
+#   ${14}: Number of CPUs to use.
+#   ${15}: Current working directory path.
+#   ${16}: Gene proximity file path.
+#   ${17}: Email address for notifications.
+#
+# Returns:
+#   Generates various output files including target lists, merged results, and a database.
+#   Sends an email notification upon completion if an email address is provided.
 
-ref_folder=$(realpath $1)
-vcf_list=$(realpath $2)
-# IFS=',' read -ra vcf_list <<< $2
-guide_file=$(realpath $3)
-pam_file=$(realpath $4)
-annotation_file=$(realpath $5)
-sampleID=$(realpath $6)
+ref_folder=$(realpath $1)  # reference genome folder
+vcf_list=$(realpath $2)  # vcf folders list
+guide_file=$(realpath $3)  # guide 
+pam_file=$(realpath $4)  # pam
+annotation_file=$(realpath $5)  # annotation bed
+sampleID=$(realpath $6)  # sample ids 
+bMax=$7  # max number of bulges
+mm=$8  # mismatches
+bDNA=$9  # dna bulges
+bRNA=${10}  # rna bulges 
+merge_t=${11}  # targets merge threshold (bp)
+output_folder=$(realpath ${12})  # output folder
+starting_dir=$(realpath ${13})  # root dir 
+ncpus=${14}  # number of threads
+current_working_directory=$(realpath ${15})  # current working directory
+gene_proximity=$(realpath ${16})  # gene annotation bed
+email=${17}  # email address (website only)
 
-bMax=$7
-mm=$8
-bDNA=$9
-bRNA=${10}
-
-merge_t=${11}
-
-output_folder=$(realpath ${12})
-
-starting_dir=$(realpath ${13})
-ncpus=${14}
-current_working_directory=$(realpath ${15})
-
-gene_proximity=$(realpath ${16})
-
-email=${17}
 echo -e "MAIL: $email"
 echo -e "CPU used: $ncpus"
 
@@ -33,6 +54,10 @@ echo -e "CPU used: $ncpus"
 base_check_start=${18}
 base_check_end=${19}
 base_check_set=${20}
+
+# sorting criteria while merging best targets
+sorting_criteria_scoring=${21}
+sorting_criteria=${22}
 
 log="$output_folder/log.txt"
 touch $log
@@ -510,11 +535,11 @@ tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11
 #MERGE BEST FILES TARGETS TO REMOVE CONTIGOUS
 #TODO CHECK MERGE
 #SCORE CFD
-./merge_close_targets_cfd.sh $final_res.bestCFD.txt $final_res.bestCFD.txt.trimmed $merge_t 'score' &
+./merge_close_targets_cfd.sh $final_res.bestCFD.txt $final_res.bestCFD.txt.trimmed $merge_t 'score' $sorting_criteria_scoring $sorting_criteria &
 #TOTAL (MM+BUL)
-./merge_close_targets_cfd.sh $final_res.bestmmblg.txt $final_res.bestmmblg.txt.trimmed $merge_t 'total' &
+./merge_close_targets_cfd.sh $final_res.bestmmblg.txt $final_res.bestmmblg.txt.trimmed $merge_t 'total' $sorting_criteria_scoring $sorting_criteria &
 #SCORE CRISTA
-./merge_close_targets_cfd.sh $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.trimmed $merge_t 'score' &
+./merge_close_targets_cfd.sh $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.trimmed $merge_t 'score' $sorting_criteria_scoring $sorting_criteria &
 wait
 #CHANGE NAME TO BEST AND ALT FILES
 mv $final_res.bestCFD.txt.trimmed $final_res.bestCFD.txt

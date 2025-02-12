@@ -1,9 +1,5 @@
 #!/usr/bin/env python
-"""
-Created on Fri Aug 28 15:58:04 2020
 
-@author: francesco
-"""
 import sys
 import time
 
@@ -12,8 +8,8 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
     # avoid crush when cluster is empty in the first call
     if not cluster:
         return
-    list_ref = list()
-    dict_var = dict()
+    list_ref = []
+    dict_var = {}
     for ele in cluster:
         if ele[snp_info] == 'n':
             list_ref.append(ele)
@@ -75,11 +71,99 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
     if sort_order == 'score':
         # sort per score (CFD or CRISTA)
         if validity_check_ref:
-            final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
-                -float(x[cfd]), int(x[total])))
+            if sort_criteria == "mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 1]), int(x[total - 2]), int(x[pos]))) 
+            elif sort_criteria == "mm+bulges,mm,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm,bulges,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total - 1]), int(x[total]), int(x[pos])))
+
         if validity_check_var:
-            final_list_best_var = sorted(final_list_best_var, key=lambda x: (
-                -float(x[cfd]), int(x[total])))
+            if sort_criteria == "mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 1]), int(x[total - 2]), int(x[pos]))) 
+            elif sort_criteria == "mm+bulges,mm,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total]), int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 1]), int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm,bulges,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    -float(x[cfd]), int(x[total - 2]), int(x[total - 1]), int(x[total]), int(x[pos])))
+
         if var_only:  # no ref found
             # count the residual targets in the list
             final_list_best_var[0][cfd-1] = str(len(final_list_best_var)-1)
@@ -115,11 +199,99 @@ def get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info):
     else:
         # sort for total (mm+bul) in target
         if validity_check_ref:
-            final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
-                int(x[total-2]), int(x[total-1])))
+            if sort_criteria == "mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 1]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 1]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total]), int(x[total - 1]), int(x[total - 2]), int(x[pos]))) 
+            elif sort_criteria == "mm+bulges,mm,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total]), int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges,mm":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 1]), int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 1]), int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges,bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 2]), int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm,bulges,mm+bulges":
+                final_list_best_ref = sorted(final_list_best_ref, key=lambda x: (
+                    int(x[total - 2]), int(x[total - 1]), int(x[total]), int(x[pos])))
+
         if validity_check_var:
-            final_list_best_var = sorted(final_list_best_var, key=lambda x: (
-                int(x[total-2]), int(x[total-1])))
+            if sort_criteria == "mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 1]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 1]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm+bulges,bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total]), int(x[total - 1]), int(x[total - 2]), int(x[pos]))) 
+            elif sort_criteria == "mm+bulges,mm,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total]), int(x[total - 2]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "bulges,mm+bulges,mm":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 1]), int(x[total]), int(x[total - 2]), int(x[pos])))
+            elif sort_criteria == "bulges,mm,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 1]), int(x[total - 2]), int(x[total]), int(x[pos])))
+            elif sort_criteria == "mm,mm+bulges,bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 2]), int(x[total]), int(x[total - 1]), int(x[pos])))
+            elif sort_criteria == "mm,bulges,mm+bulges":
+                final_list_best_var = sorted(final_list_best_var, key=lambda x: (
+                    int(x[total - 2]), int(x[total - 1]), int(x[total]), int(x[pos])))
+
         if var_only:  # no ref found
             # count the residual targets in the list
             final_list_best_var[0][cfd-1] = str(len(final_list_best_var)-1)
@@ -162,6 +334,10 @@ true_guide = int(sys.argv[7])-1  # real guide used in the search
 snp_info = int(sys.argv[8])-1  # snp_info (ref_alt_allele)
 cfd = int(sys.argv[9])-1  # CFD score
 sort_order = str(sys.argv[10])
+
+#NEW
+sort_criteria = str(sys.argv[11])
+
 # -1 is to get the correct "python enumeration" from the bash script
 
 start = time.time()

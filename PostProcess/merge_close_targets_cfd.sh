@@ -4,6 +4,8 @@ fileIn=$1
 fileOut=$2
 thresh=$3 #threshold to use in order to merge near targets
 sort_criteria=$4
+sorting_criteria_scoring=$5
+sorting_criteria=$6
 
 ##########ADJUST THESE PARAMETERS BASED ON INPUT FILE##########
 #columns start from 1
@@ -22,7 +24,12 @@ ENDTIME=$(date +%s)
 echo "Sorting done in $(($ENDTIME - $STARTTIME)) seconds"
 # echo -e $header | cat - $fileIn.sorted.tmp > $fileIn.sorted
 # rm $fileIn.sorted.tmp
-echo "Merging targets"
+echo "Merging contiguous targets"
+if [[ "${sort_pivot}" == "score" ]]; then
+    criteria=$sorting_criteria_scoring
+else
+    criteria=$sorting_criteria
+fi
 # python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
-python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_criteria
+python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_criteria $criteria
 # rm $fileIn.sorted
