@@ -1,5 +1,6 @@
 """
 """
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.lines as mlines
@@ -17,47 +18,36 @@ import sys
 warnings.filterwarnings("ignore")
 
 # set matplotlib to not use X11 server
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 
 
 def reference_count_analysis(row):
     # check if target is alternative
-    if row['REF/ALT_origin_(fewest_mm+b)'] == 'alt':
+    if row["REF/ALT_origin_(fewest_mm+b)"] == "alt":
         # if yes, calculate ref mm count
-        refTarget = str(
-            row['Aligned_protospacer+PAM_REF_(fewest_mm+b)'])
+        refTarget = str(row["Aligned_protospacer+PAM_REF_(fewest_mm+b)"])
         countMM = sum(bool(nt.islower()) for nt in refTarget)
         # return ref mm+bul count wrt to alt mm+bul count
-        row['Mismatches+bulges_REF_(fewest_mm+b)'] = countMM + \
-            int(row['Bulges_(fewest_mm+b)'])
+        row["Mismatches+bulges_REF_(fewest_mm+b)"] = countMM + int(
+            row["Bulges_(fewest_mm+b)"]
+        )
     else:
         # if no, ref and alt total count are identical
-        row['Mismatches+bulges_REF_(fewest_mm+b)'] = row['Mismatches+bulges_(fewest_mm+b)']
-    row['Mismatches+bulges_ALT_(fewest_mm+b)'] = row['Mismatches+bulges_(fewest_mm+b)']
+        row["Mismatches+bulges_REF_(fewest_mm+b)"] = row[
+            "Mismatches+bulges_(fewest_mm+b)"
+        ]
+    row["Mismatches+bulges_ALT_(fewest_mm+b)"] = row["Mismatches+bulges_(fewest_mm+b)"]
     return row
 
 
 def plot_with_MMvBUL(df, out_folder, guide):
-    # Remove targets ref with mm+bul<=1 for on-targets and on-targets variant-induced
-    df = df.loc[df["Mismatches+bulges_(fewest_mm+b)"] > 1]
-
-    # new col to store the scoring value for non-SpCas9 targets
-    df['Mismatches+bulges_REF_(fewest_mm+b)'] = 0
-    df['Mismatches+bulges_ALT_(fewest_mm+b)'] = 0
-
-    # sort in order to have highest REF mm+bul on top
-    df.sort_values('Mismatches+bulges_(fewest_mm+b)',
-                   ascending=True, inplace=True)
-    # top1000 targets
-    df = df.head(1000)
-
     # compute analysis to reference_count_analysis
     df = df.apply(reference_count_analysis, axis=1)
 
     # Make index column that numbers the OTs starting from 1
     df.reset_index(inplace=True)
     for index_count, index in enumerate(df.index, start=1):
-        df.loc[index, 'index'] = index_count
+        df.loc[index, "index"] = index_count
     # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
     # This will cause a warning of invalid sqrt later on, but that's fine to ignore
     # df["prim_AF"] = df["prim_AF"].fillna(-1)
@@ -65,7 +55,7 @@ def plot_with_MMvBUL(df, out_folder, guide):
 
     # If multiple AFs (haplotype with multiple SNPs), take min AF
     # Approximation until we have haplotype frequencies
-    df["AF"] = df["Variant_MAF_(fewest_mm+b)"].astype(str).str.split(',')
+    df["AF"] = df["Variant_MAF_(fewest_mm+b)"].astype(str).str.split(",")
     df["AF"] = df["AF"].apply(lambda x: min(x))
     df["AF"] = pd.to_numeric(df["AF"])
 
@@ -87,12 +77,33 @@ def plot_with_MMvBUL(df, out_folder, guide):
     transparent_gray = mcolors.colorConverter.to_rgba("gray", alpha=0.5)
 
     # # Size legend
-    s1 = mlines.Line2D([], [], marker='o', label='1', linestyle='None',
-                       markersize=math.sqrt(math.sqrt((1+0.001)*1000)), color='black')
-    s01 = mlines.Line2D([], [], marker='o', label='0.1', linestyle='None',
-                        markersize=math.sqrt(math.sqrt((0.1+0.001)*1000)), color='black')
-    s001 = mlines.Line2D([], [], marker='o', label='0.01', linestyle='None',
-                         markersize=math.sqrt(math.sqrt((0.01+0.001)*1000)), color='black')
+    s1 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="1",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((1 + 0.001) * 1000)),
+        color="black",
+    )
+    s01 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="0.1",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((0.1 + 0.001) * 1000)),
+        color="black",
+    )
+    s001 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="0.01",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((0.01 + 0.001) * 1000)),
+        color="black",
+    )
 
     """
     Log, ref/alt, top 1000: for main text
@@ -100,17 +111,28 @@ def plot_with_MMvBUL(df, out_folder, guide):
     # matplotlib plot settings
     plt.rcParams["figure.dpi"] = 600
     plt.rcParams["figure.figsize"] = 7.5, 2.25
-    plt.rcParams.update({'font.size': 7})
-    plt.rcParams['pdf.fonttype'] = 42
-    plt.rcParams['ps.fonttype'] = 42
+    plt.rcParams.update({"font.size": 7})
+    plt.rcParams["pdf.fonttype"] = 42
+    plt.rcParams["ps.fonttype"] = 42
 
     # Plot data
-    ax = df.plot.scatter(x="index", y="Mismatches+bulges_REF_(fewest_mm+b)",
-                         s="ref_AF", c=transparent_red, zorder=1)
+    ax = df.plot.scatter(
+        x="index",
+        y="Mismatches+bulges_REF_(fewest_mm+b)",
+        s="ref_AF",
+        c=transparent_red,
+        zorder=1,
+    )
 
     # ax = df.plot.scatter(x="index", y="highest_CFD_score(ref)", s="ref_AF", c=transparent_red, zorder=1, ax=ax)
-    df.plot.scatter(x="index", y="Mismatches+bulges_ALT_(fewest_mm+b)",
-                    s="plot_AF", c=transparent_blue, zorder=2, ax=ax)
+    df.plot.scatter(
+        x="index",
+        y="Mismatches+bulges_ALT_(fewest_mm+b)",
+        s="plot_AF",
+        c=transparent_blue,
+        zorder=2,
+        ax=ax,
+    )
 
     ax.set_xscale("log")
     # plt.title("Top CRISPRme-identified sites for sgRNA 1617")
@@ -122,14 +144,30 @@ def plot_with_MMvBUL(df, out_folder, guide):
     # plt.ylim(ymin=0, ymax=1)
 
     # Arrows
-    for x, y, z in zip(df["index"], df["Mismatches+bulges_REF_(fewest_mm+b)"], df["Mismatches+bulges_ALT_(fewest_mm+b)"]-df["Mismatches+bulges_REF_(fewest_mm+b)"]):
-        plt.arrow(x, y+0.02, 0, z-0.04, color='gray', head_width=(x*(10**0.005-10**(-0.005))),
-                  head_length=0.02, length_includes_head=True, zorder=0, alpha=0.5)
+    for x, y, z in zip(
+        df["index"],
+        df["Mismatches+bulges_REF_(fewest_mm+b)"],
+        df["Mismatches+bulges_ALT_(fewest_mm+b)"]
+        - df["Mismatches+bulges_REF_(fewest_mm+b)"],
+    ):
+        plt.arrow(
+            x,
+            y + 0.02,
+            0,
+            z - 0.04,
+            color="gray",
+            head_width=(x * (10**0.005 - 10 ** (-0.005))),
+            head_length=0.02,
+            length_includes_head=True,
+            zorder=0,
+            alpha=0.5,
+        )
         # +/- to avoid overlap of arrow w/ points, head_width calculated to remain constant despite log scale of x-axis
 
     # Size legend
-    plt.gca().add_artist(plt.legend(
-        handles=[s1, s01, s001], title="Allele frequency", ncol=3, loc=9))
+    plt.gca().add_artist(
+        plt.legend(handles=[s1, s01, s001], title="Allele frequency", ncol=3, loc=9)
+    )
 
     # Color legend
     red = mpatches.Patch(color=transparent_red, label="Reference")
@@ -138,31 +176,24 @@ def plot_with_MMvBUL(df, out_folder, guide):
 
     # Save
     plt.tight_layout()
-    plt.savefig(out_folder+f"CRISPRme_fewest_top_1000_log_for_main_text_{guide}.png")
-    plt.savefig(out_folder+f"CRISPRme_fewest_top_1000_log_for_main_text_{guide}.pdf")
+    plt.savefig(out_folder + f"CRISPRme_fewest_top_1000_log_for_main_text_{guide}.png")
+    plt.savefig(out_folder + f"CRISPRme_fewest_top_1000_log_for_main_text_{guide}.pdf")
     plt.clf()
     plt.close()
 
 
 def plot_with_CRISTA_score(df, out_folder, guide):
-    # Remove targets with mm+bul<=1 since they are probably on-target introduced by variants
-    df = df.loc[df["Mismatches+bulges_(highest_CRISTA)"] > 1]
-    # sort values to have highest scored target on top
-    df.sort_values('CRISTA_score_(highest_CRISTA)',
-                   ascending=False, inplace=True)
-    # keep top1000 targets
-    df = df.head(1000)
     # Make index column that numbers the OTs starting from 1
     df.reset_index(inplace=True)
     for index_count, index in enumerate(df.index, start=1):
-        df.loc[index, 'index'] = index_count
+        df.loc[index, "index"] = index_count
     # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
     # This will cause a warning of invalid sqrt later on, but that's fine to ignore
     df["Variant_MAF_(highest_CRISTA)"] = df["Variant_MAF_(highest_CRISTA)"].fillna(-1)
 
     # If multiple AFs (haplotype with multiple SNPs), take min AF
     # Approximation until we have haplotype frequencies
-    df["AF"] = df["Variant_MAF_(highest_CRISTA)"].astype(str).str.split(',')
+    df["AF"] = df["Variant_MAF_(highest_CRISTA)"].astype(str).str.split(",")
     df["AF"] = df["AF"].apply(lambda x: min(x))
     df["AF"] = pd.to_numeric(df["AF"])
 
@@ -184,12 +215,33 @@ def plot_with_CRISTA_score(df, out_folder, guide):
     transparent_gray = mcolors.colorConverter.to_rgba("gray", alpha=0.5)
 
     # # Size legend
-    s1 = mlines.Line2D([], [], marker='o', label='1', linestyle='None',
-                       markersize=math.sqrt(math.sqrt((1+0.001)*1000)), color='black')
-    s01 = mlines.Line2D([], [], marker='o', label='0.1', linestyle='None',
-                        markersize=math.sqrt(math.sqrt((0.1+0.001)*1000)), color='black')
-    s001 = mlines.Line2D([], [], marker='o', label='0.01', linestyle='None',
-                         markersize=math.sqrt(math.sqrt((0.01+0.001)*1000)), color='black')
+    s1 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="1",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((1 + 0.001) * 1000)),
+        color="black",
+    )
+    s01 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="0.1",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((0.1 + 0.001) * 1000)),
+        color="black",
+    )
+    s001 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="0.01",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((0.01 + 0.001) * 1000)),
+        color="black",
+    )
 
     """
     Log, ref/alt, top 1000: for main text
@@ -197,16 +249,27 @@ def plot_with_CRISTA_score(df, out_folder, guide):
     # matplotlib plot settings
     plt.rcParams["figure.dpi"] = 600
     plt.rcParams["figure.figsize"] = 7.5, 2.25
-    plt.rcParams.update({'font.size': 7})
-    plt.rcParams['pdf.fonttype'] = 42
-    plt.rcParams['ps.fonttype'] = 42
+    plt.rcParams.update({"font.size": 7})
+    plt.rcParams["pdf.fonttype"] = 42
+    plt.rcParams["ps.fonttype"] = 42
 
     # Plot data CFD SCORE
-    ax = df.plot.scatter(x="index", y="CRISTA_score_REF_(highest_CRISTA)",
-                         s="ref_AF", c=transparent_red, zorder=1)
+    ax = df.plot.scatter(
+        x="index",
+        y="CRISTA_score_REF_(highest_CRISTA)",
+        s="ref_AF",
+        c=transparent_red,
+        zorder=1,
+    )
     # ax = df.plot.scatter(x="index", y="highest_CRISTA_score(ref)", s="ref_AF", c=transparent_red, zorder=1, ax=ax)
-    df.plot.scatter(x="index", y="CRISTA_score_ALT_(highest_CRISTA)",
-                    s="plot_AF", c=transparent_blue, zorder=2, ax=ax)
+    df.plot.scatter(
+        x="index",
+        y="CRISTA_score_ALT_(highest_CRISTA)",
+        s="plot_AF",
+        c=transparent_blue,
+        zorder=2,
+        ax=ax,
+    )
     ax.set_xscale("log")
 
     plt.xlabel("Candidate off-target site")
@@ -217,14 +280,30 @@ def plot_with_CRISTA_score(df, out_folder, guide):
     plt.ylim(ymin=0, ymax=1)
 
     # Arrows
-    for x, y, z in zip(df["index"], df["CRISTA_score_REF_(highest_CRISTA)"], df["CRISTA_score_ALT_(highest_CRISTA)"]-df["CRISTA_score_REF_(highest_CRISTA)"]):
-        plt.arrow(x, y+0.02, 0, z-0.04, color='gray', head_width=(x*(10**0.005-10**(-0.005))),
-                  head_length=0.02, length_includes_head=True, zorder=0, alpha=0.5)
+    for x, y, z in zip(
+        df["index"],
+        df["CRISTA_score_REF_(highest_CRISTA)"],
+        df["CRISTA_score_ALT_(highest_CRISTA)"]
+        - df["CRISTA_score_REF_(highest_CRISTA)"],
+    ):
+        plt.arrow(
+            x,
+            y + 0.02,
+            0,
+            z - 0.04,
+            color="gray",
+            head_width=(x * (10**0.005 - 10 ** (-0.005))),
+            head_length=0.02,
+            length_includes_head=True,
+            zorder=0,
+            alpha=0.5,
+        )
         # +/- to avoid overlap of arrow w/ points, head_width calculated to remain constant despite log scale of x-axis
 
     # Size legend
-    plt.gca().add_artist(plt.legend(
-        handles=[s1, s01, s001], title="Allele frequency", ncol=3, loc=9))
+    plt.gca().add_artist(
+        plt.legend(handles=[s1, s01, s001], title="Allele frequency", ncol=3, loc=9)
+    )
 
     # Color legend
     red = mpatches.Patch(color=transparent_red, label="Reference")
@@ -233,32 +312,24 @@ def plot_with_CRISTA_score(df, out_folder, guide):
 
     # Save
     plt.tight_layout()
-    plt.savefig(out_folder+f"CRISPRme_CRISTA_top_1000_log_for_main_text_{guide}.png")
-    plt.savefig(out_folder+f"CRISPRme_CRISTA_top_1000_log_for_main_text_{guide}.pdf")
+    plt.savefig(out_folder + f"CRISPRme_CRISTA_top_1000_log_for_main_text_{guide}.png")
+    plt.savefig(out_folder + f"CRISPRme_CRISTA_top_1000_log_for_main_text_{guide}.pdf")
     plt.clf()
     plt.close()
 
 
 def plot_with_CFD_score(df, out_folder, guide):
-    # Remove targets with mm+bul<=1 since they are probably on-target introduced by variants
-    df = df.loc[df["Mismatches+bulges_(highest_CFD)"] > 1]
-
-    # sort values to have highest scored target on top
-    df.sort_values('CFD_score_(highest_CFD)',
-                   ascending=False, inplace=True)
-    # keep top1000 targets
-    df = df.head(1000)
     # Make index column that numbers the OTs starting from 1
     df.reset_index(inplace=True)
     for index_count, index in enumerate(df.index, start=1):
-        df.loc[index, 'index'] = index_count
+        df.loc[index, "index"] = index_count
     # If prim_AF = 'n', then it's a ref-nominated site, so we enter a fake numerical AF
     # This will cause a warning of invalid sqrt later on, but that's fine to ignore
     df["Variant_MAF_(highest_CFD)"] = df["Variant_MAF_(highest_CFD)"].fillna(-1)
 
     # If multiple AFs (haplotype with multiple SNPs), take min AF
     # Approximation until we have haplotype frequencies
-    df["AF"] = df["Variant_MAF_(highest_CFD)"].astype(str).str.split(',')
+    df["AF"] = df["Variant_MAF_(highest_CFD)"].astype(str).str.split(",")
     df["AF"] = df["AF"].apply(lambda x: min(x))
     df["AF"] = pd.to_numeric(df["AF"])
 
@@ -284,12 +355,33 @@ def plot_with_CFD_score(df, out_folder, guide):
     # """
 
     # # Size legend
-    s1 = mlines.Line2D([], [], marker='o', label='1', linestyle='None',
-                       markersize=math.sqrt(math.sqrt((1+0.001)*1000)), color='black')
-    s01 = mlines.Line2D([], [], marker='o', label='0.1', linestyle='None',
-                        markersize=math.sqrt(math.sqrt((0.1+0.001)*1000)), color='black')
-    s001 = mlines.Line2D([], [], marker='o', label='0.01', linestyle='None',
-                         markersize=math.sqrt(math.sqrt((0.01+0.001)*1000)), color='black')
+    s1 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="1",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((1 + 0.001) * 1000)),
+        color="black",
+    )
+    s01 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="0.1",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((0.1 + 0.001) * 1000)),
+        color="black",
+    )
+    s001 = mlines.Line2D(
+        [],
+        [],
+        marker="o",
+        label="0.01",
+        linestyle="None",
+        markersize=math.sqrt(math.sqrt((0.01 + 0.001) * 1000)),
+        color="black",
+    )
 
     """
     Log, ref/alt, top 1000: for main text
@@ -297,16 +389,27 @@ def plot_with_CFD_score(df, out_folder, guide):
     # matplotlib plot settings
     plt.rcParams["figure.dpi"] = 600
     plt.rcParams["figure.figsize"] = 7.5, 2.25
-    plt.rcParams.update({'font.size': 7})
-    plt.rcParams['pdf.fonttype'] = 42
-    plt.rcParams['ps.fonttype'] = 42
+    plt.rcParams.update({"font.size": 7})
+    plt.rcParams["pdf.fonttype"] = 42
+    plt.rcParams["ps.fonttype"] = 42
 
     # Plot data CFD SCORE
-    ax = df.plot.scatter(x="index", y="CFD_score_REF_(highest_CFD)",
-                         s="ref_AF", c=transparent_red, zorder=1)
+    ax = df.plot.scatter(
+        x="index",
+        y="CFD_score_REF_(highest_CFD)",
+        s="ref_AF",
+        c=transparent_red,
+        zorder=1,
+    )
     # ax = df.plot.scatter(x="index", y="highest_CFD_score(ref)", s="ref_AF", c=transparent_red, zorder=1, ax=ax)
-    df.plot.scatter(x="index", y="CFD_score_ALT_(highest_CFD)",
-                    s="plot_AF", c=transparent_blue, zorder=2, ax=ax)
+    df.plot.scatter(
+        x="index",
+        y="CFD_score_ALT_(highest_CFD)",
+        s="plot_AF",
+        c=transparent_blue,
+        zorder=2,
+        ax=ax,
+    )
     ax.set_xscale("log")
 
     plt.xlabel("Candidate off-target site")
@@ -317,14 +420,29 @@ def plot_with_CFD_score(df, out_folder, guide):
     plt.ylim(ymin=0, ymax=1)
 
     # Arrows
-    for x, y, z in zip(df["index"], df["CFD_score_REF_(highest_CFD)"], df["CFD_score_ALT_(highest_CFD)"]-df["CFD_score_REF_(highest_CFD)"]):
-        plt.arrow(x, y+0.02, 0, z-0.04, color='gray', head_width=(x*(10**0.005-10**(-0.005))),
-                  head_length=0.02, length_includes_head=True, zorder=0, alpha=0.5)
+    for x, y, z in zip(
+        df["index"],
+        df["CFD_score_REF_(highest_CFD)"],
+        df["CFD_score_ALT_(highest_CFD)"] - df["CFD_score_REF_(highest_CFD)"],
+    ):
+        plt.arrow(
+            x,
+            y + 0.02,
+            0,
+            z - 0.04,
+            color="gray",
+            head_width=(x * (10**0.005 - 10 ** (-0.005))),
+            head_length=0.02,
+            length_includes_head=True,
+            zorder=0,
+            alpha=0.5,
+        )
         # +/- to avoid overlap of arrow w/ points, head_width calculated to remain constant despite log scale of x-axis
 
     # Size legend
-    plt.gca().add_artist(plt.legend(
-        handles=[s1, s01, s001], title="Allele frequency", ncol=3, loc=9))
+    plt.gca().add_artist(
+        plt.legend(handles=[s1, s01, s001], title="Allele frequency", ncol=3, loc=9)
+    )
 
     # Color legend
     red = mpatches.Patch(color=transparent_red, label="Reference")
@@ -333,21 +451,37 @@ def plot_with_CFD_score(df, out_folder, guide):
 
     # Save
     plt.tight_layout()
-    plt.savefig(out_folder+f"CRISPRme_CFD_top_1000_log_for_main_text_{guide}.png")
-    plt.savefig(out_folder+f"CRISPRme_CFD_top_1000_log_for_main_text_{guide}.pdf")
+    plt.savefig(out_folder + f"CRISPRme_CFD_top_1000_log_for_main_text_{guide}.png")
+    plt.savefig(out_folder + f"CRISPRme_CFD_top_1000_log_for_main_text_{guide}.pdf")
     plt.clf()
     plt.close()
 
 
 # Read file
-df = pd.read_csv(sys.argv[1], sep="\t",
-                 index_col=False, na_values=['n'])
+df = pd.read_csv(sys.argv[1], sep="\t", index_col=False, na_values=["n"])
 out_folder = sys.argv[2]
 # guide = sys.argv[3]
 
-for guide in df['Spacer+PAM'].unique():
+
+def filter_table(df, plot_term):
+    score_mapping = {
+        "cfd": ("Mismatches+bulges_(highest_CFD)", "CFD_score_(highest_CFD)"),
+        "crista": ("Mismatches+bulges_(highest_CRISTA)", "CFD_score_(highest_CRISTA)"),
+        "mm+b": ("Mismatches+bulges_(fewest_mm+b)", "Mismatches+bulges_(fewest_mm+b)"),
+    }
+    # Remove targets with mm+bul<=1 since they are probably on-target introduced
+    # by variants
+    colname, sort_cname = score_mapping[plot_term]
+    df = df[df[colname] > 1]
+    # sort values to have highest scored target on top
+    ascending = plot_term == "mm+b"
+    df_sorted = df.sort_values(sort_cname, ascending=ascending)
+    return df_sorted.head(1000)  # keep top 1000 targets
+
+
+for guide in df["Spacer+PAM"].unique():
     # reset df temp after every process to avoid memory problems
     df_guide = df.loc[df["Spacer+PAM"] == guide]
-    plot_with_CFD_score(df_guide, out_folder, guide)
-    plot_with_CRISTA_score(df_guide, out_folder, guide)
-    plot_with_MMvBUL(df_guide, out_folder, guide)
+    plot_with_CFD_score(filter_table(df_guide, "cfd"), out_folder, guide)
+    plot_with_CRISTA_score(filter_table(df_guide, "crista"), out_folder, guide)
+    plot_with_MMvBUL(filter_table(df_guide, "mm+b"), out_folder, guide)

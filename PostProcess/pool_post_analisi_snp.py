@@ -22,17 +22,18 @@ ncpus = int(sys.argv[13])
 
 def start_analysis(f):
     # splitted = f.split('.')
-    chrom = str(f).replace('.fa', '')
+    chrom = str(f).replace(".fa", "")
     # for elem in splitted:
     # if "chr" in elem:
     #     chrom = elem
     os.system(
-        f"./post_analisi_snp.sh \"{output_folder}\" \"{ref_folder}\" \"{vcf_name}\" \"{guide_file}\" \"{mm}\" \"{bDNA}\" \"{bRNA}\" {annotation_file} {pam_file} {dict_folder} {final_res} {final_res_alt} {chrom}")
+        f'./post_analisi_snp.sh "{output_folder}" "{ref_folder}" "{vcf_name}" "{guide_file}" "{mm}" "{bDNA}" "{bRNA}" {annotation_file} {pam_file} {dict_folder} {final_res} {final_res_alt} {chrom}'
+    )
 
 
 chrs = []
 for f in os.listdir(ref_folder):
-    if '.fa' in f and '.fai' not in f:
+    if ".fa" in f and ".fai" not in f:
         chrs.append(f)
 
 # t = 6
