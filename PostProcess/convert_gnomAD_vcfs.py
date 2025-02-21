@@ -332,9 +332,8 @@ def run_conversion_pipeline(
         None
     """
 
-    vcf_genotypes = convert_vcf(
-        vcf_fname, samples, joint, keep
-    )  # add genotypes to input VCF
+    # add genotypes to input VCF
+    vcf_genotypes = convert_vcf(vcf_fname, samples, joint, keep)  
     # merge variants into mutlialleic/biallelic sites
     vcf_merged = bcftools_merge(vcf_genotypes, multiallelic)
     assert os.path.isfile(vcf_merged) and os.stat(vcf_merged).st_size > 0

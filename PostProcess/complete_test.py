@@ -63,7 +63,7 @@ VCF1000GURL = (
 )
 VCFHGDPSERVER = "ngs.sanger.ac.uk"
 VCFHGDPURL = "/production/hgdp/hgdp_wgs.20190516/hgdp_wgs.20190516.full.{}.vcf.gz"
-TESTDATAURL = "https://raw.githubusercontent.com/pinellolab/CRISPRme/v216/test/data/"
+TESTDATAURL = "https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/main/test/data/"
 
 
 def ensure_hg38_directory(dest: str) -> str:
@@ -460,8 +460,9 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
     pam = write_ngg_pamfile()  # write test NGG PAM file
     guide = write_sg1617_guidefile()  # write test sg1617 guide
     debug_arg = "--debug" if debug else ""
+    # TODO: replace call to local crisprme
     crisprme_cmd = (
-        f"crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
+        f"python crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
         f"--thread 4 --bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
         f"--gene_annotation {gencode} --output crisprme-test-out --thread {threads} "
