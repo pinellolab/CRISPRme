@@ -59,16 +59,14 @@ base_check_set=${20}
 sorting_criteria_scoring=${21}
 sorting_criteria=${22}
 
+# log files
 log="$output_folder/log.txt"
 touch $log
-#echo -e 'Job\tStart\t'$(date) > $log
+logerror="$output_folder/log_error.txt"
 start_time='Job\tStart\t'$(date)
 
-# output=$output_folder/output.txt
-# touch $output
-
+# check if there are input variant datasets
 rm -f $output_folder/queue.txt
-#for vcf_f in "${vcf_list[@]}";
 if [ $2 == "_" ]; then
 	echo -e "_" >>$output_folder/tmp_list_vcf.txt
 	vcf_list=$output_folder/tmp_list_vcf.txt
@@ -78,7 +76,10 @@ if [ $6 != "_" ]; then
 	echo >>$6
 fi
 
-while read vcf_f; do
+# iterate over each variant dataset to compute the enriched genomes, index each
+# enriched genome, search off-targets, reconstruct haplotypes (if input VCFs are
+# phased), and score off-targets
+while read vcf_f; do  
 	if [ -z "$vcf_f" ]; then
 		continue
 	fi
@@ -109,7 +110,8 @@ while read vcf_f; do
 		real_chroms+=("$chr")
 	done
 
-	if [ "$vcf_name" != "_" ]; then
+	# create fake chormosomes fasta for indels
+	if [ "$vcf_name" != "_" ]; then  
 		unset array_fake_chroms
 		declare -a array_fake_chroms
 		for file_chr in "$vcf_folder"/*.vcf.gz; do
@@ -127,10 +129,13 @@ while read vcf_f; do
 		done
 	fi
 
+	# create output folder in /Results/
 	if ! [ -d "$output_folder" ]; then
 		mkdir "$output_folder"
 	fi
 
+	# retrieve full pam sequence (guide + pam) and the position where the pam 
+	# occurs within the full sequence (guide + pam)
 	fullseqpam=$(cut -f1 -d' ' "$pam_file")
 	pos=$(cut -f2 -d' ' "$pam_file")
 	if [ $pos -gt 0 ]; then
@@ -139,37 +144,41 @@ while read vcf_f; do
 		true_pam=${fullseqpam:0:-$pos}
 	fi
 
-	# if ! [ -d "$current_working_directory/Results" ]; then
-	# 	mkdir "$current_working_directory/Results"
-	# fi
-
+	# ensure that fundamental folders are available 
+	if ! [ -d "$current_working_directory/Results" ]; then
+		mkdir "$current_working_directory/Results"
+	fi
 	if ! [ -d "$current_working_directory/Dictionaries" ]; then
 		mkdir "$current_working_directory/Dictionaries"
 	fi
-
 	if ! [ -d "$current_working_directory/Genomes" ]; then
 		mkdir "$current_working_directory/Genomes"
 	fi
-
 	if ! [ -d "$current_working_directory/genome_library/" ]; then
 		mkdir "$current_working_directory/genome_library"
 	fi
-
 	if ! [ -d "$output_folder/crispritz_targets" ]; then
 		mkdir "$output_folder/crispritz_targets"
 	fi
 
+	# START STEP 1 - Genome enrichment
 	if [ "$vcf_name" != "_" ]; then
-
 		cd "$current_working_directory/Genomes"
 		if ! [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
-			# echo -e 'Add-variants\tStart\t'$(date) >&2
 			echo -e "Adding variants"
-			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true"
-			#if ! [ -d "${ref_name}+${vcf_name}" ]; then
-			#	mkdir "${ref_name}+${vcf_name}"
-			#fi
+			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true"  # use crispritz for enrichment
+			if [ -s $logerror ]; then
+				printf "ERROR: Genome enrichment failed on %s\n" "$vcf_name" >&2
+				# since failure happened, force genome enrichment to be repeated
+				if [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
+					rm -r "$current_working_directory/Genomes/${ref_name}+${vcf_name}"*
+				fi
+				if [ -d "$current_working_directory/Genomes/variants_genome" ]; then
+					rm -r "$current_working_directory/Genomes/variants_genome"
+				fi
+				exit 1
+			fi
 			mv "$current_working_directory/Genomes/variants_genome/SNPs_genome/${ref_name}_enriched/" "./${ref_name}+${vcf_name}/"
 			if ! [ -d "$current_working_directory/Dictionaries/dictionaries_${vcf_name}/" ]; then
 				mkdir "$current_working_directory/Dictionaries/dictionaries_${vcf_name}/"
@@ -184,13 +193,26 @@ while read vcf_f; do
 				mkdir "genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS"
 			fi
 			echo -e 'Add-variants\tEnd\t'$(date) >>$log
-			# echo -e 'Add-variants\tEnd\t'$(date) >&2
+			# if [ -s $logerror ]; then
+			# 	msenrichment="$output_folder/.msenrichment"
+			# 	touch $msenrichment
+			# END STEP 1 - genome enrichment
+			
+			# START STEP 1.1 - indels indexing
 			echo -e 'Indexing Indels\tStart\t'$(date) >>$log
-			# echo -e 'Indexing Indels\tStart\t'$(date) >&2
 			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/variants_genome/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus
+			if [ -s $logerror ]; then
+				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
+				if [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
+					rm -r "$current_working_directory/Genomes/${ref_name}+${vcf_name}"*
+				fi
+				if [ -d "$current_working_directory/Genomes/variants_genome" ]; then
+					rm -r "$current_working_directory/Genomes/variants_genome"
+				fi
+				exit 1
+			fi
 			echo -e 'Indexing Indels\tEnd\t'$(date) >>$log
-			# echo -e 'Indexing Indels\tEnd\t'$(date) >&2
-			if ! [ -d $current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS ]; then
+			if ! [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS" ]; then
 				mkdir $current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS
 			fi
 			mv $current_working_directory/Genomes/variants_genome/fake* $current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS
@@ -206,30 +228,44 @@ while read vcf_f; do
 	if [ "$vcf_name" != "_" ]; then
 		if ! [ -d "$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS" ]; then
 			echo -e 'Indexing Indels\tStart\t'$(date) >>$log
-			# echo -e 'Indexing Indels\tStart\t'$(date) >&2
 			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus
+			if [ -s $logerror ]; then
+				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
+				if [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
+					rm -r "$current_working_directory/Genomes/${ref_name}+${vcf_name}"*
+				fi
+				if [ -d "$current_working_directory/Genomes/variants_genome" ]; then
+					rm -r "$current_working_directory/Genomes/variants_genome"
+				fi
+				exit 1
+			fi
 			echo -e 'Indexing Indels\tEnd\t'$(date) >>$log
-			# echo -e 'Indexing Indels\tEnd\t'$(date) >&2
 		fi
 	fi
+	# END STEP 1.1 - indels indexing
 
 	if [ -d "$current_working_directory/Dictionaries/fake_chrom_$vcf_name" ]; then
 		rm -r "$current_working_directory/Dictionaries/fake_chrom_$vcf_name"
 	fi
 
+	# START STEP 2 - genome indexing
 	cd "$current_working_directory/"
 	if ! [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}" ]; then
 		if ! [ -d "$current_working_directory/genome_library/${true_pam}_2_${ref_name}" ]; then
 			if ! [ $bMax -gt 1 ]; then
 				if ! [ -d "$current_working_directory/genome_library/${true_pam}_1_${ref_name}" ]; then
 					echo -e 'Index-genome Reference\tStart\t'$(date) >>$log
-					# echo -e 'Index-genome Reference\tStart\t'$(date) >&2
-					# echo -e 'Indexing_Reference' > $output
 					echo -e "Indexing reference genome"
 					crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
+					if [ -s $logerror ]; then
+						printf "ERROR: reference genome indexing failed\n" >&2
+						if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}" ]; then
+							rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
+						fi
+						exit 1
+					fi
 					pid_index_ref=$!
 					echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-					# echo -e 'Index-genome Reference\tEnd\t'$(date) >&2
 					idx_ref="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
 				else
 					echo -e "Reference Index already present"
@@ -237,70 +273,80 @@ while read vcf_f; do
 				fi
 			else
 				echo -e 'Index-genome Reference\tStart\t'$(date) >>$log
-				# echo -e 'Index-genome Reference\tStart\t'$(date) >&2
-				# echo -e 'Indexing_Reference' > $output
 				echo -e "Indexing reference genome"
 				crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
+				if [ -s $logerror ]; then
+					printf "ERROR: reference genome indexing failed\n" >&2
+					if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}" ]; then
+						rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
+					fi
+					exit 1
+				fi
 				pid_index_ref=$!
 				echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-				# echo -e 'Index-genome Reference\tEnd\t'$(date) >&2
 				idx_ref="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
 			fi
 		else
 			echo -e "Reference Index already present"
 			echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-			# echo -e 'Index-genome Reference\tEnd\t'$(date) >&2
 			idx_ref="$current_working_directory/genome_library/${true_pam}_2_${ref_name}"
 		fi
 	else
 		echo -e "Reference Index already present"
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-		# echo -e 'Index-genome Reference\tEnd\t'$(date) >&2
 		idx_ref="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
 	fi
 
-	if [ "$vcf_name" != "_" ]; then
+	if [ "$vcf_name" != "_" ]; then  # index alternative genomes (snps only)
 		if ! [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}" ]; then
 			if ! [ -d "$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}" ]; then
-				if ! [ $bMax -gt 1 ]; then
+				if ! [ $bMax -gt 1 ]; then  # case with #bulges <= 1
 					if ! [ -d "$current_working_directory/genome_library/${true_pam}_1_${ref_name}+${vcf_name}" ]; then
 						echo -e 'Index-genome Variant\tStart\t'$(date) >>$log
-						# echo -e 'Index-genome Variant\tStart\t'$(date) >&2
-						# echo -e 'Indexing_Enriched' > $output
 						echo -e "Indexing variant genome"
+						# use crispritz to index alternative genome
 						crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus #${ref_folder%/}+${vcf_name}/
+						if [ -s $logerror ]; then
+							printf "ERROR: alternative genome indexing failed on %s\n" "$vcf_name" >&2
+							if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}" ]; then
+								rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
+							fi
+							exit 1
+						fi
 						pid_index_var=$!
 						echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-						# echo -e 'Index-genome Variant\tEnd\t'$(date) >&2
 						idx_var="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
 					else
 						echo -e "Variant Index already present"
 						idx_var="$current_working_directory/genome_library/${true_pam}_1_${ref_name}+${vcf_name}"
 					fi
-				else
+				else  # case with #bulges > 1
 					echo -e 'Index-genome Variant\tStart\t'$(date) >>$log
-					# echo -e 'Index-genome Variant\tStart\t'$(date) >&2
-					# echo -e 'Indexing_Enriched' > $output
 					echo -e "Indexing variant genome"
 					crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus
+					if [ -s $logerror ]; then
+						printf "ERROR: alternative genome indexing failed on %s\n" "$vcf_name" >&2
+						if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}" ]; then
+							rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
+						fi
+						exit 1
+					fi
 					pid_index_ref=$!
 					echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-					# echo -e 'Index-genome Variant\tEnd\t'$(date) >&2
 					idx_var="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
 				fi
 			else
 				echo -e "Variant Index already present"
 				echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-				# echo -e 'Index-genome Variant\tEnd\t'$(date) >&2
 				idx_var="$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}"
 			fi
 		else
 			echo -e "Variant Index already present"
 			echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-			# echo -e 'Index-genome Variant\tEnd\t'$(date) >&2
 			idx_var="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
 		fi
 	fi
+	# END STEP 2 - genome indexing
 
 	#ceil npcus to use 1/2 of cpus per search
 	ceiling_result=$((($ncpus) / 2))
@@ -309,19 +355,27 @@ while read vcf_f; do
 		ceiling_result=1
 	fi
 
-	#start searches
+	# START STEP 3 - off-targets search
 	cd "$output_folder"
 	echo $idx_ref
-	#TODO ricerca ref lanciata in parallelo con ricerca alternative
+	# TODO: ricerca ref lanciata in parallelo con ricerca alternative
 	if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
-		echo -e 'Search Reference\tStart\t'$(date) >>$log
-		# echo -e 'Search Reference\tStart\t'$(date) >&2
-		# echo -e 'Search Reference' >  $output
-		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then
+		echo -e 'Search Reference\tStart\t'$(date) >>$log  # off-targets search on reference genome
+		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulges 
 			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
+			if [ -s $logerror ]; then
+				printf "ERROR: off-targets search (no bulges) on reference genome failed\n" >&2
+				rm -r $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
+				exit 1
+			fi
 			pid_search_ref=$!
-		else
+		else  # consider dna/rna bulges (not combined)
 			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
+			if [ -s $logerror ]; then
+				printf "ERROR: off-targets search on reference genome failed\n" >&2
+				rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
+				exit 1
+			fi
 			pid_search_ref=$!
 		fi
 	else
@@ -329,19 +383,25 @@ while read vcf_f; do
 	fi
 
 	if [ "$vcf_name" != "_" ]; then
-		#TODO RICERCA ALTERNATIVE PARALLELA A REF
+		# TODO: search in parallel on ref and alt
 		if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
-			echo -e 'Search Variant\tStart\t'$(date) >>$log
-			# echo -e 'Search Variant\tStart\t'$(date) >&2
-			# echo -e 'Search Variant' >  $output
-			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then
+			echo -e 'Search Variant\tStart\t'$(date) >>$log  # search off-targets on alternative genomes (snps only)
+			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulge
 				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var
-				# mv "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
+				if [ -s $logerror ]; then
+					printf "ERROR: off-targets search (no bulges) on alternative genome failed on variants in %s\n" "$vcf_name" >&2
+					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
+					exit 1
+				fi
 				echo -e 'Search Variant\tEnd\t'$(date) >>$log
-			else
+			else  # consider bulges
 				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
+				if [ -s $logerror ]; then
+					printf "ERROR: off-targets search on alternative genome failed on variants in %s\n" "$vcf_name" >&2
+					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
+					exit 1
+				fi
 				echo -e 'Search Variant\tEnd\t'$(date) >>$log
-				# mv "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
 			fi
 		else
 			echo -e "Search for variant already done"
@@ -350,45 +410,44 @@ while read vcf_f; do
 		if ! [ -f "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 			echo -e "Search INDELs Start"
 			echo -e 'Search INDELs\tStart\t'$(date) >>$log
-			# echo -e 'Search INDELs\tStart\t'$(date) >&2
 			cd $starting_dir
-			#commented to avoid indels search
-			#TODO REMOVE POOL SCRIPT FROM PROCESSING
+			# TODO: REMOVE POOL SCRIPT FROM PROCESSING
 			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus"
-			# mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" "$output_folder/crispritz_targets"
+			if [ -s $logerror ]; then
+				printf "ERROR: off-targets search on indels failed on variants in %s\n" "$vcf_name" >&2
+				rm -r $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
+				exit 1
+			fi
 			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp"
 			mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp" "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
 			echo -e "Search INDELs End"
 			echo -e 'Search INDELs\tEnd\t'$(date) >>$log
-			# echo -e 'Search INDELs\tEnd\t'$(date) >&2
 		else
 			echo -e "Search INDELs already done"
 		fi
 	fi
-
+	
+	# wait for jobs completion
 	while kill "-0" $pid_search_ref &>/dev/null; do
 		echo -e "Waiting for search genome reference"
 		sleep 100
 	done
 	echo -e 'Search Reference\tEnd\t'$(date) >>$log
-	# echo -e 'Search Reference\tEnd\t'$(date) >&2
-
 	# move all targets into targets directory
 	mv $output_folder/*.targets.txt $output_folder/crispritz_targets
-
+	# move profiles into profile folder
 	if ! [ -d "$output_folder/crispritz_prof" ]; then
 		mkdir $output_folder/crispritz_prof
 	fi
 	mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
+	# END STEP 3 - off-targets search
 
+	# START STEP 4 - off-targets post-analysis
 	cd "$starting_dir"
-
 	echo -e "Start post-analysis"
-
-	# echo -e 'Post analysis' >  $output
+	# START STEP 4.1 - off-targets post analysis snps
 	if [ "$vcf_name" != "_" ]; then
 		echo -e 'Post-analysis SNPs\tStart\t'$(date) >>$log
-		# echo -e 'Post-analysis SNPs\tStart\t'$(date) >&2
 		final_res="$output_folder/final_results_$(basename ${output_folder}).bestMerge.txt"
 		final_res_alt="$output_folder/final_results_$(basename ${output_folder}).altMerge.txt"
 		if ! [ -f "$final_res" ]; then
@@ -397,11 +456,14 @@ while read vcf_f; do
 		if ! [ -f "$final_res_alt" ]; then
 			touch "$final_res_alt"
 		fi
-
-		#TODO ANALISI DEGLI SNP IN PARALLELO
+		# TODO: snp analysis in parallel
 		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus
-
-		#CONCATENATE REF&VAR RESULTS
+		if [ -s $logerror ]; then
+			printf "ERROR: off-targets post-analysis (snps) failed on variants in %s\n" "$vcf_name" >&2
+			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+			exit 1
+		fi
+		# CONCATENATE REF&VAR RESULTS
 		for key in "${real_chroms[@]}"; do
 			echo "Concatenating $key"
 			#touch file to avoid inconsistencies when files are broken or deleted
@@ -416,23 +478,28 @@ while read vcf_f; do
 			rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestmmblg.txt"
 			rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestCRISTA.txt"
 		done
-
+		if [ -s $logerror ]; then
+			printf "ERROR: off-targets post-analysis (snps) file concatenation failed on variants in %s\n" "$vcf_name" >&2
+			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+			exit 1
+		fi
 		echo -e 'Post-analysis SNPs\tEnd\t'$(date) >>$log
-
-	else
-		echo -e 'Post-analysis\tStart\t'$(date) >>$log
-		# echo -e 'Post-analysis\tStart\t'$(date) >&2
+	else  # no variants -> analyze reference off-tagets
+		echo -e 'Post-analysis\tStart\t'$(date) >>$log  # 
 		final_res="$output_folder/final_results_$(basename ${output_folder}).bestMerge.txt"
 		final_res_alt="$output_folder/final_results_$(basename ${output_folder}).altMerge.txt"
 		if ! [ -f "$final_res" ]; then
 			touch "$final_res"
 		fi
-		if ! [ -f "$final_res_alt" ]; then
+		if ! [ -f "$final_res_alt" ]; then  # mock required to avoid crashes 
 			touch "$final_res_alt"
 		fi
-
 		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
-
+		if [ -s $logerror ]; then
+			printf "ERROR: off-targets post-analysis (reference) failed\n" >&2
+			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+			exit 1
+		fi
 		#CONCATENATE REF&VAR RESULTS
 		for key in "${real_chroms[@]}"; do
 			echo "Concatenating $key"
@@ -448,20 +515,28 @@ while read vcf_f; do
 			rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestmmblg.txt"
 			rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestCRISTA.txt"
 		done
+		if [ -s $logerror ]; then
+			printf "ERROR: off-targets post-analysis (reference) file concatenation failed\n" >&2
+			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+			exit 1
+		fi
 		echo -e 'Post-analysis\tEnd\t'$(date) >>$log
-
 	fi
+	# END STEP 4.1 - off-targets post analysis snps
 
+	# START STEP 4.2 - off-targets post analysis indels
 	if [ "$vcf_name" != "_" ]; then
 		echo -e "SNPs analysis ended. Starting INDELs analysis"
 		cd "$starting_dir"
-
 		echo -e 'Post-analysis INDELs\tStart\t'$(date) >>$log
 		#SKIP INDELS ANALYSIS IF NO RESULTS FOUND
 		if [ $(wc -l <"$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt") -gt 1 ]; then
-
 			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
-
+			if [ -s $logerror ]; then
+				printf "ERROR: off-targets post-analysis (indels) failed on variants in %s\n" "$vcf_name" >&2
+				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+				exit 1
+			fi
 			#CONCATENATE INDELS RESULTS
 			for key in "${array_fake_chroms[@]}"; do
 				echo "Concatenating $key"
@@ -478,10 +553,16 @@ while read vcf_f; do
 				rm -f "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestCRISTA_INDEL.txt"
 				rm -f "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestmmblg_INDEL.txt"
 			done
+			if [ -s $logerror ]; then
+				printf "ERROR: off-targets post-analysis (indels) file concatenation failed on variants in %s\n" "$vcf_name" >&2
+				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+				exit 1
+			fi
 		fi
 		echo -e 'Post-analysis INDELs\tEnd\t'$(date) >>$log
-
 	fi
+	# END STEP 4.2 - off-targets post analysis indels
+	# END STEP 4 - off-targets post-analysis
 done <$vcf_list
 
 echo -e "Adding header to files"
