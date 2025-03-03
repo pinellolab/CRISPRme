@@ -325,7 +325,7 @@ while read vcf_f; do
 					echo -e "Indexing variant genome"
 					crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus
 					if [ -s $logerror ]; then
-						printf "ERROR: alternative genome indexing failed on %s\n" "$vcf_name" >&2
+						printf "ERROR: alternative genome indexing failed on %s (bulges > 1)\n" "$vcf_name" >&2
 						if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}" ]; then
 							rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
 						fi
@@ -364,16 +364,16 @@ while read vcf_f; do
 		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulges 
 			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
 			if [ -s $logerror ]; then
-				printf "ERROR: off-targets search (no bulges) on reference genome failed\n" >&2
-				rm -r $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
+				printf "ERROR: off-targets search on reference genome failed\n" >&2
+				rm -f $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
 				exit 1
 			fi
 			pid_search_ref=$!
 		else  # consider dna/rna bulges (not combined)
 			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
 			if [ -s $logerror ]; then
-				printf "ERROR: off-targets search on reference genome failed\n" >&2
-				rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
+				printf "ERROR: off-targets search (no bulges) on reference genome failed\n" >&2
+				rm -f $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
 				exit 1
 			fi
 			pid_search_ref=$!
@@ -389,7 +389,7 @@ while read vcf_f; do
 			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulge
 				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var
 				if [ -s $logerror ]; then
-					printf "ERROR: off-targets search (no bulges) on alternative genome failed on variants in %s\n" "$vcf_name" >&2
+					printf "ERROR: off-targets search on alternative genome failed on variants in %s\n" "$vcf_name" >&2
 					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
 					exit 1
 				fi
@@ -397,7 +397,7 @@ while read vcf_f; do
 			else  # consider bulges
 				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
 				if [ -s $logerror ]; then
-					printf "ERROR: off-targets search on alternative genome failed on variants in %s\n" "$vcf_name" >&2
+					printf "ERROR: off-targets search (no bulges) on alternative genome failed on variants in %s\n" "$vcf_name" >&2
 					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
 					exit 1
 				fi
@@ -434,12 +434,16 @@ while read vcf_f; do
 	done
 	echo -e 'Search Reference\tEnd\t'$(date) >>$log
 	# move all targets into targets directory
-	mv $output_folder/*.targets.txt $output_folder/crispritz_targets
+	if [ -z "$(ls -A "${output_folder}/crispritz_targets")" ]; then
+		mv $output_folder/*.targets.txt $output_folder/crispritz_targets
+	fi
 	# move profiles into profile folder
 	if ! [ -d "$output_folder/crispritz_prof" ]; then
 		mkdir $output_folder/crispritz_prof
 	fi
-	mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
+	if [ -z "$(ls -A "${output_folder}/crispritz_prof")" ]; then
+		mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
+	fi
 	# END STEP 3 - off-targets search
 
 	# START STEP 4 - off-targets post-analysis
@@ -555,7 +559,7 @@ while read vcf_f; do
 			done
 			if [ -s $logerror ]; then
 				printf "ERROR: off-targets post-analysis (indels) file concatenation failed on variants in %s\n" "$vcf_name" >&2
-				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+				rm -r $output_folder/*.bestCFD*.txt $output_folder/*.bestmmblg*.txt $output_folder/*.bestCRISTA*.txt  # delete results folder
 				exit 1
 			fi
 		fi
@@ -566,43 +570,53 @@ while read vcf_f; do
 done <$vcf_list
 
 echo -e "Adding header to files"
-
 while read samples; do
 	if [ -z "$samples" ]; then
 		continue
 	fi
-	# tail -n +2 $samples >> "$output_folder/.sampleID.txt"
+	# copy samples ids file content to temporary sample ids file (skip header)
 	grep -v '#' "${current_working_directory}/samplesIDs/$samples" >>"$output_folder/.sampleID.txt"
+	if [ -s $logerror ]; then
+		printf "ERROR: samples IDs processing failed on dataset %s\n" "$samples" >&2
+		rm $output_folder/.sampleID.txt
+		exit 1
+	fi
 done <$sampleID
-# if [ "$vcf_name" != "_" ]; then
-touch "$output_folder/.sampleID.txt"
-sed -i 1i"#SAMPLE_ID\tPOPULATION_ID\tSUPERPOPULATION_ID\tSEX" "$output_folder/.sampleID.txt"
-# fi
+touch "$output_folder/.sampleID.txt"  # if not created, create it to avoid potentil crashes in only reference searches
+sed -i 1i"#SAMPLE_ID\tPOPULATION_ID\tSUPERPOPULATION_ID\tSEX" "$output_folder/.sampleID.txt"  # add header to sampleID file
+sampleID=$output_folder/.sampleID.txt  # point to new sample ID file
+if [ -s $logerror ]; then
+	printf "ERROR: samples IDs files processing failed\n" >&2
+	rm $sampleID
+	exit 1
+fi
 
-sampleID=$output_folder/.sampleID.txt
-
-# echo -e 'Merging targets' >  $output
-
-# #create result file for each scoring method
-# echo "header" >$final_res.bestCFD.txt
-# echo "header" >$final_res.bestmmblg.txt
-# echo "header" >$final_res.bestCRISTA.txt
-
-#header into final_res best
+# add header to primary results files 
 sed -i '1i #Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref' "$final_res.bestCFD.txt"
 sed -i '1i #Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref' "$final_res.bestmmblg.txt"
 sed -i '1i #Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref' "$final_res.bestCRISTA.txt"
-# #header into final_res alt
+if [  -s $logerror ]; then 
+	printf "ERROR: failed adding headers to primary results files\n" >&2
+	rm $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
+	exit 1
+fi
+# add header to alternative results files
 echo "header" >$final_res_alt.bestCFD.txt
 echo "header" >$final_res_alt.bestmmblg.txt
 echo "header" >$final_res_alt.bestCRISTA.txt
 sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestCFD.txt"
 sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestmmblg.txt"
 sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref/' "$final_res_alt.bestCRISTA.txt"
+if [  -s $logerror ]; then 
+	printf "ERROR: failed adding headers to alternative results files\n" >&2
+	rm $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
+	exit 1
+fi
 
+# START STEP 5 - targets merge
+# sort files to have chromosomes and positions in proximity -> simplify merge
 echo -e 'Merging Targets\tStart\t'$(date) >>$log
-#SORT FILE TO HAVE CHR AND POS IN PROXIMITY TO MERGE THEM
-#sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
+# sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
 head -1 $final_res.bestCFD.txt >$final_res.tmp
 tail -n +2 $final_res.bestCFD.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,21rg -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestCFD.txt
 #sort using guide_seq,chr,cluster_pos,score,total(mm+bul)
@@ -611,37 +625,37 @@ tail -n +2 $final_res.bestCRISTA.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k21,2
 #sort using guide_seq,chr,cluster_pos,total(mm+bul)
 head -1 $final_res.bestmmblg.txt >$final_res.tmp
 tail -n +2 $final_res.bestmmblg.txt | LC_ALL=C sort -k16,16 -k5,5 -k7,7n -k11,11n -T $output_folder >>$final_res.tmp && mv $final_res.tmp $final_res.bestmmblg.txt
-
-# cp $final_res.bestCFD.txt $final_res.sorted.bestCFD.txt
-#MERGE BEST FILES TARGETS TO REMOVE CONTIGOUS
-#TODO CHECK MERGE
-#SCORE CFD
+if [ -s $logerror ]; then 
+	printf "ERROR: results file preprocessing failed for targets merge step\n" >&2
+	rm $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
+	exit 1
+fi
+# merge contiguous targets (proximity threshold defined by merge_t)
+# CFD score
 ./merge_close_targets_cfd.sh $final_res.bestCFD.txt $final_res.bestCFD.txt.trimmed $merge_t 'score' $sorting_criteria_scoring $sorting_criteria &
-#TOTAL (MM+BUL)
+# MM+BUL counts
 ./merge_close_targets_cfd.sh $final_res.bestmmblg.txt $final_res.bestmmblg.txt.trimmed $merge_t 'total' $sorting_criteria_scoring $sorting_criteria &
-#SCORE CRISTA
+# CRISTA score
 ./merge_close_targets_cfd.sh $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.trimmed $merge_t 'score' $sorting_criteria_scoring $sorting_criteria &
 wait
-#CHANGE NAME TO BEST AND ALT FILES
+if [ -s $logerror ]; then
+	printf "ERROR: merging contiguous targets failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
+	exit 1
+fi
+# rename primary and alternative results files
 mv $final_res.bestCFD.txt.trimmed $final_res.bestCFD.txt
 mv $final_res.bestCFD.txt.trimmed.discarded_samples $final_res_alt.bestCFD.txt
 mv $final_res.bestmmblg.txt.trimmed $final_res.bestmmblg.txt
 mv $final_res.bestmmblg.txt.trimmed.discarded_samples $final_res_alt.bestmmblg.txt
 mv $final_res.bestCRISTA.txt.trimmed $final_res.bestCRISTA.txt
 mv $final_res.bestCRISTA.txt.trimmed.discarded_samples $final_res_alt.bestCRISTA.txt
-
-#sort ALT files to avoid as much as possible duplicates
-#REMOVED SINCE CAN RETURN DIFFERENT DIMENSION FILES
-# sort -T $output_folder -u $final_res_alt.bestCFD.txt -o $final_res_alt.bestCFD.txt
-# sort -T $output_folder -u $final_res_alt.bestmmblg.txt -o $final_res_alt.bestmmblg.txt
-# sort -T $output_folder -u $final_res_alt.bestCRISTA.txt -o $final_res_alt.bestCRISTA.txt
-
 echo -e 'Merging Targets\tEnd\t'$(date) >>$log
+# END STEP 5 - targets merge
 
+# START STEP 6 - targets annotation
 echo -e 'Annotating results\tStart\t'$(date) >>$log
-
-#ANNOTATE BEST TARGETS
-#TODO SISTEMARE ANNOTAZIONE (DIVISIONE INTERVAL TREE / PARALLEL SEARCH)
+# annotate primary targets 
 ./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
 ./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
 ./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
@@ -649,7 +663,12 @@ wait
 mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
 mv $final_res.bestCRISTA.txt.annotated $final_res.bestCRISTA.txt
-#ANNOTATE ALT TARGETS
+if [ -s $logerror ]; then
+	printf "ERROR: primary targets annotation failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
+	exit 1
+fi
+# annotate alternative targets
 ./annotate_final_results.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
 ./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
 ./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
@@ -657,8 +676,12 @@ wait
 mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
 mv $final_res_alt.bestCRISTA.txt.annotated $final_res_alt.bestCRISTA.txt
-
-#SCORING BEST RESULTS
+if [ -s $logerror ]; then
+	printf "ERROR: alternative targets annotation failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
+	exit 1
+fi
+# compute risk scores for primary targets
 ./add_risk_score.py $final_res.bestCFD.txt $final_res.bestCFD.txt.risk "False" &
 ./add_risk_score.py $final_res.bestmmblg.txt $final_res.bestmmblg.txt.risk "False" &
 ./add_risk_score.py $final_res.bestCRISTA.txt $final_res.bestCRISTA.txt.risk "False" &
@@ -666,7 +689,12 @@ wait
 mv $final_res.bestCFD.txt.risk $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.risk $final_res.bestmmblg.txt
 mv $final_res.bestCRISTA.txt.risk $final_res.bestCRISTA.txt
-#SCORING ALT RESULTS
+if [ -s $logerror ]; then
+	printf "ERROR: computing risk scores on primary targets failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
+	exit 1
+fi
+# compute risk scores for alternative targets
 ./add_risk_score.py $final_res_alt.bestCFD.txt $final_res_alt.bestCFD.txt.risk "False" &
 ./add_risk_score.py $final_res_alt.bestmmblg.txt $final_res_alt.bestmmblg.txt.risk "False" &
 ./add_risk_score.py $final_res_alt.bestCRISTA.txt $final_res_alt.bestCRISTA.txt.risk "False" &
@@ -674,106 +702,168 @@ wait
 mv $final_res_alt.bestCFD.txt.risk $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.risk $final_res_alt.bestmmblg.txt
 mv $final_res_alt.bestCRISTA.txt.risk $final_res_alt.bestCRISTA.txt
-
-#remove N's and dots from rsID from BEST FILES
+if [ -s $logerror ]; then
+	printf "ERROR: computing risk scores on alternative targets failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
+	exit 1
+fi
+# remove Ns and dots from rsID from primary targets files
 ./remove_n_and_dots.py $final_res.bestCFD.txt &
 ./remove_n_and_dots.py $final_res.bestmmblg.txt &
 ./remove_n_and_dots.py $final_res.bestCRISTA.txt &
 wait
-#remove N's and dots from rsID from ALT FILES
+if [ -s $logerror ]; then
+	printf "ERROR: rsids NaN values replacement on primary targets failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
+	exit 1
+fi
+# remove Ns and dots from rsID from primary targets files
 ./remove_n_and_dots.py $final_res_alt.bestCFD.txt &
 ./remove_n_and_dots.py $final_res_alt.bestmmblg.txt &
 ./remove_n_and_dots.py $final_res_alt.bestCRISTA.txt &
 wait
-
-#join targets by columns for BEST and ALT files
+if [ -s $logerror ]; then
+	printf "ERROR: rsids NaN values replacement on alternative targets failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
+	exit 1
+fi
+# join targets by columns for primary and alternative results
 pr -m -t -J $final_res.bestCFD.txt $final_res.bestmmblg.txt $final_res.bestCRISTA.txt >$final_res
+if [ -s $logerror ]; then
+	printf "ERROR: targets join on primary targets failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
+	exit 1
+fi
 pr -m -t -J $final_res_alt.bestCFD.txt $final_res_alt.bestmmblg.txt $final_res_alt.bestCRISTA.txt >$final_res_alt
-
-#MERGE ALTERNATIVE CHR IF SAME SEQUENCE OF ALIGNED CHR
-# ./merge_alt_chr.sh $final_res $final_res.chr_merged
-# mv $final_res.chr_merged $final_res
-
-#update header for final_res and final_res_alt
+if [ -s $logerror ]; then
+	printf "ERROR: targets join on alternative targets failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
+	exit 1
+fi
+# update headers for primary and alternative results 
 sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref\tHighest_CFD_Risk_Score\tHighest_CFD_Absolute_Risk_Score\tMMBLG_#Bulge_type\tMMBLG_crRNA\tMMBLG_DNA\tMMBLG_Reference\tMMBLG_Chromosome\tMMBLG_Position\tMMBLG_Cluster_Position\tMMBLG_Direction\tMMBLG_Mismatches\tMMBLG_Bulge_Size\tMMBLG_Total\tMMBLG_PAM_gen\tMMBLG_Var_uniq\tMMBLG_Samples\tMMBLG_Annotation_Type\tMMBLG_Real_Guide\tMMBLG_rsID\tMMBLG_AF\tMMBLG_SNP\tMMBLG_#Seq_in_cluster\tMMBLG_CFD\tMMBLG_CFD_ref\tMMBLG_CFD_Risk_Score\tMMBLG_CFD_Absolute_Risk_Score\tCRISTA_#Bulge_type\tCRISTA_crRNA\tCRISTA_DNA\tCRISTA_Reference\tCRISTA_Chromosome\tCRISTA_Position\tCRISTA_Cluster_Position\tCRISTA_Direction\tCRISTA_Mismatches\tCRISTA_Bulge_Size\tCRISTA_Total\tCRISTA_PAM_gen\tCRISTA_Var_uniq\tCRISTA_Samples\tCRISTA_Annotation_Type\tCRISTA_Real_Guide\tCRISTA_rsID\tCRISTA_AF\tCRISTA_SNP\tCRISTA_#Seq_in_cluster\tCRISTA_CFD\tCRISTA_CFD_ref\tCRISTA_CFD_Risk_Score\tCRISTA_CFD_Absolute_Risk_Score/' "$final_res"
+if [ -s $logerror ]; then
+	printf "ERROR: header update on primary targets failed\n" >&2
+	rm $final_res* $final_res_alt*
+	exit 1
+fi	
 sed -i '1 s/^.*$/#Bulge_type\tcrRNA\tDNA\tReference\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\t#Seq_in_cluster\tCFD\tCFD_ref\tHighest_CFD_Risk_Score\tHighest_CFD_Absolute_Risk_Score\tMMBLG_#Bulge_type\tMMBLG_crRNA\tMMBLG_DNA\tMMBLG_Reference\tMMBLG_Chromosome\tMMBLG_Position\tMMBLG_Cluster_Position\tMMBLG_Direction\tMMBLG_Mismatches\tMMBLG_Bulge_Size\tMMBLG_Total\tMMBLG_PAM_gen\tMMBLG_Var_uniq\tMMBLG_Samples\tMMBLG_Annotation_Type\tMMBLG_Real_Guide\tMMBLG_rsID\tMMBLG_AF\tMMBLG_SNP\tMMBLG_#Seq_in_cluster\tMMBLG_CFD\tMMBLG_CFD_ref\tMMBLG_CFD_Risk_Score\tMMBLG_CFD_Absolute_Risk_Score\tCRISTA_#Bulge_type\tCRISTA_crRNA\tCRISTA_DNA\tCRISTA_Reference\tCRISTA_Chromosome\tCRISTA_Position\tCRISTA_Cluster_Position\tCRISTA_Direction\tCRISTA_Mismatches\tCRISTA_Bulge_Size\tCRISTA_Total\tCRISTA_PAM_gen\tCRISTA_Var_uniq\tCRISTA_Samples\tCRISTA_Annotation_Type\tCRISTA_Real_Guide\tCRISTA_rsID\tCRISTA_AF\tCRISTA_SNP\tCRISTA_#Seq_in_cluster\tCRISTA_CFD\tCRISTA_CFD_ref\tCRISTA_CFD_Risk_Score\tCRISTA_CFD_Absolute_Risk_Score/' "$final_res_alt"
-
+if [ -s $logerror ]; then
+	printf "ERROR: header update on alternative targets failed\n" >&2
+	rm $final_res* $final_res_alt*
+	exit 1
+fi	
 echo -e 'Annotating results\tEnd\t'$(date) >>$log
+# END STEP 6 - targets annotation
 
-# echo -e 'Creating images' >  $output
+# START STEP 7 - graphical reports
 echo -e 'Creating images\tStart\t'$(date) >>$log
-
 cd $output_folder
-#FIX FILES NAMES AND REMOVE UNUSED FILES
+# adjust filenames and remove redundant files
 echo -e "Cleaning directory"
 rm -f *.CFDGraph.txt
 rm -f indels.CFDGraph.txt
 rm -r "crispritz_prof"
-rm -r "crispritz_targets" #remove targets in online version to avoid memory saturation
-#change name to best and alt files
+rm -r "crispritz_targets" # remove targets in online version to avoid memory saturation
+# change primary and alt filenames
 mv $final_res "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
 mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
-
+# create result summaries for primary and alternative results
 cd $starting_dir
-if [ "$vcf_name" != "_" ]; then
-	# ./process_summaries.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt" $guide_file $sampleID $mm $bMax "${output_folder}" "var"
+if [ "$vcf_name" != "_" ]; then  # variants available
 	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CFD"
 	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "fewest"
 	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CRISTA"
-else
-	# ./process_summaries.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt" $guide_file $sampleID $mm $bMax "${output_folder}" "ref"
+	if [ -s $logerror ]; then
+		printf "ERROR: summary processing failed (variants pipeline)\n" >&2
+		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+		exit 1
+	fi	
+else  # only reference search
 	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CFD"
 	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "fewest"
 	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CRISTA"
+	if [ -s $logerror ]; then
+		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
+		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+		exit 1
+	fi
 fi
-
-if ! [ -d "$output_folder/imgs" ]; then
+if ! [ -d "$output_folder/imgs" ]; then  # create images folder
 	mkdir "$output_folder/imgs"
 fi
-
-if [ "$vcf_name" != "_" ]; then
+if [ "$vcf_name" != "_" ]; then  # variants available -> create population distribution plots
 	cd "$output_folder/imgs"
 	while IFS= read -r line || [ -n "$line" ]; do
 		for total in $(seq 0 $(expr $mm + $bMax)); do
-			# python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution.txt" $total $line
 			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_CFD.txt" $total $line "CFD"
 			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_CRISTA.txt" $total $line "CRISTA"
 			python $starting_dir/populations_distribution.py "${output_folder}/.$(basename ${output_folder}).PopulationDistribution_fewest.txt" $total $line "fewest"
+			if [ -s $logerror ]; then
+				printf "ERROR: population distribution plots creation failed for guide %s (mm+bulges: %d)\n" "$line" "$total" >&2
+				rm -r "${output_folder}/imgs"
+				exit 1
+			fi
 		done
-
 	done <$guide_file
 fi
-
 cd $starting_dir
+# generate radar charts
 if [ "$vcf_name" != "_" ]; then
-	# ./radar_chart_dict_generator.py $guide_file "${output_folder}/$(basename ${output_folder}).bestMerge.txt" $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax
 	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
 	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
 	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
+	if [ -s $logerror ]; then
+		printf  "ERROR: summary processing failed (variants pipeline)\n" >&2
+		rm -r "${output_folder}/imgs"
+		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+		exit 1
+	fi
 else
 	echo -e "dummy_file" >dummy.txt
-	# ./radar_chart_dict_generator.py $guide_file "${output_folder}/$(basename ${output_folder}).bestMerge.txt" dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax
 	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
 	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
 	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
 	rm dummy.txt
+	if [ -s $logerror ]; then
+		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
+		rm -r "${output_folder}/imgs"
+		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+		exit 1
+	fi
 fi
 echo -e 'Creating images\tEnd\t'$(date) >>$log
+# END STEP 7 - graphical reports
 
+# START STEP 8 - results integration
 echo $gene_proximity
 echo -e 'Integrating results\tStart\t'$(date) >>$log
 echo >>$guide_file
-
 if [ $gene_proximity != "_" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	echo $genome_version
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	if [ -s $logerror ]; then
+		printf  "ERROR: targets integration failed on primary results\n" >&2
+		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		exit 1
+	fi
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	if [ -s $logerror ]; then
+		printf  "ERROR: targets integration failed on primary results\n" >&2
+		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		exit 1
+	fi
 	rm "${output_folder}/dummy.txt"
 	python $starting_dir/CRISPRme_plots.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/imgs/" &>"${output_folder}/warnings.txt"
-	rm -f "${output_folder}/warnings.txt" #delete warnings file
-
+	if [ -s $logerror ]; then
+		printf  "ERROR: score plots generation failed\n" >&2
+		rm -r "${output_folder}/imgs"
+		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		exit 1
+	fi
+	rm -f "${output_folder}/warnings.txt" # delete warnings file
 fi
 echo -e 'Integrating results\tEnd\t'$(date) >>$log
 truncate -s -1 $guide_file
@@ -781,42 +871,36 @@ truncate -s -1 $vcf_list
 if [ $6 != "_" ]; then
 	truncate -s -1 $6
 fi
+# END STEP 8 - results integration
 
+# START STEP 9 - database creation
 echo -e 'Building database'
 echo -e 'Creating database\tStart\t'$(date) >>$log
-# echo -e 'Creating database\tStart\t'$(date) >&2
 if [ -f "${output_folder}/$(basename ${output_folder}).db" ]; then
 	rm -f "${output_folder}/$(basename ${output_folder}).db"
 fi
-#python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${output_folder}/$(basename ${output_folder})"
 python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/.$(basename ${output_folder})"
+if [ -s $logerror ]; then
+	printf "ERROR: database creation failed\n" >&2 
+	rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+	exit 1
+fi
 echo -e 'Creating database\tEnd\t'$(date) >>$log
-# echo -e 'Creating database\tEnd\t'$(date) >&2
+# END STEP 9 - database creation
 
-# python $starting_dir/change_headers_bestMerge.py "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${output_folder}/$(basename ${output_folder}).altMerge.new.header.txt"
-# mv "${output_folder}/$(basename ${output_folder}).altMerge.new.header.txt" "${output_folder}/$(basename ${output_folder}).altMerge.txt"
-#hide bestmerge file
-# mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt"
-
-# echo -e 'Integrating results\tEnd\t'$(date) >&2
 echo -e 'Job\tDone\t'$(date) >>$log
-# echo -e 'Job\tDone\t'$(date) >&2
-# echo -e 'Job End' >  $output
-
-#change name of empirical not found
-# mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv" "${output_folder}/.$(basename ${output_folder}).bestMerge.txt.empirical_not_found.tsv"
 
 if [ $(wc -l <"$guide_file") -gt 1 ]; then
 	mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.tsv"
 	mv "${output_folder}/$(basename ${output_folder}).altMerge.txt.integrated_results.tsv" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignments.tsv"
-	#generate zipped version for file
+	# zip primary and alternative results
 	zip -j "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.zip" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.tsv"
 	zip -j "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignments.zip" "${output_folder}/Multiple_spacers+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignments.tsv"
 else
 	guide_elem=$(head -1 $guide_file)
 	mv "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.tsv"
 	mv "${output_folder}/$(basename ${output_folder}).altMerge.txt.integrated_results.tsv" "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignments.tsv"
-	#generate zipped version for file
+	# zip primary and alternative results
 	zip -j "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.zip" "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_integrated_results.tsv"
 	zip -j "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignments.zip" "${output_folder}/${guide_elem}+${true_pam}_$(basename ${ref_folder})+${vcf_name}_${mm}+${bMax}_all_results_with_alternative_alignments.tsv"
 fi
@@ -826,17 +910,13 @@ if [ "$email" != "_" ]; then
 	python $starting_dir/../pages/send_mail.py $output_folder
 fi
 
-#keep log_error but no block visualization
+# keep log_error but no block visualization
 mv $output_folder/log_error.txt $output_folder/log_error_no_check.txt
-#removing single best files after use and clean merged file to save space
-#keep the two integrated files with all the targets
-#save these files to test
+# removing single best files after use and clean merged file to save space
+# keep the two targets files
 rm $final_res.bestCFD.txt
 rm $final_res.bestmmblg.txt
 rm $final_res.bestCRISTA.txt
 rm $final_res_alt.bestCFD.txt
 rm $final_res_alt.bestmmblg.txt
 rm $final_res_alt.bestCRISTA.txt
-#save bestMerge and altMerge
-# rm "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
-# rm "${output_folder}/$(basename ${output_folder}).altMerge.txt"
