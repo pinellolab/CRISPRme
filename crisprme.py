@@ -20,7 +20,7 @@ origin_path = os.path.dirname(os.path.abspath(__file__))
 conda_path = "opt/crisprme/PostProcess/"
 # path corrected to use with conda
 corrected_origin_path = script_path[:-3] + conda_path
-corrected_web_path = f"{origin_path[:-3]}opt/crisprme/"
+corrected_web_path = f"{origin_path[:-3]}/opt/crisprme/"
 # corrected_web_path = os.getcwd()
 
 script_path = corrected_origin_path
