@@ -462,7 +462,7 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
     debug_arg = "--debug" if debug else ""
     # TODO: replace call to local crisprme
     crisprme_cmd = (
-        f"python crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
+        f"crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
         f"--thread 4 --bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
         f"--gene_annotation {gencode} --output crisprme-test-out --thread {threads} "
