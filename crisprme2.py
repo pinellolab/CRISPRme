@@ -2,7 +2,7 @@
 
 from crisprme_version import __version__
 
-from typing import NoReturn
+from typing import NoReturn, Tuple, List
 from argparse import (
     ArgumentParser,
     Namespace,
@@ -11,6 +11,7 @@ from argparse import (
 )
 from colorama import Fore
 
+import multiprocessing
 import sys
 import os
 
@@ -31,6 +32,18 @@ COMMANDS = [
     GENERATEPERSONALCARD,
     WEBINTERFACE,
 ]
+# crisprme's directories
+CRISPRMEDIRS = [
+    "Annotations",
+    "Dictionaries",
+    "Genomes",
+    "PAMs",
+    "Results",
+    "samplesIDs",
+    "VCFs",
+]
+# utils
+DNA = ["A", "C", "G", "T"]
 
 
 class CRISPRmeArgumentParser(ArgumentParser):
@@ -38,19 +51,16 @@ class CRISPRmeArgumentParser(ArgumentParser):
         command = f" {sys.argv[1]}" if sys.argv[1] in COMMANDS else ""
         errormsg = (
             f"{Fore.RED}\nERROR: {message}.{Fore.RESET}"
-            + f"\n\nRun {CRISPRME}{command} -h for usage\n\n"
+            + f"\n\nRun `{CRISPRME}{command} -h` for usage\n\n"
         )
         sys.stderr.write(errormsg)  # write error to stderr
         sys.exit(os.EX_USAGE)  # exit execution -> usage error
 
 
-def error_argparse(error: str, command: str) -> None:
-    errormsg = (
-        f"{Fore.RED}\nERROR: {error}.{Fore.RESET}"
-        + f"\n\nRun {CRISPRME} {command} -h for usage\n\n"
-    )
-    sys.stderr.write(errormsg)  # write error to stderr
-    sys.exit(os.EX_USAGE)  # exit execution -> usage error
+def check_crisprme_directories() -> None:
+    for directory in CRISPRMEDIRS:
+        if not os.path.isdir(os.path.join(os.getcwd(), directory)):
+            os.makedirs(os.path.join(os.getcwd(), directory))
 
 
 def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersAction:
@@ -78,7 +88,7 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         dest="vcf_config",
         metavar="VCF-CONFIG-FILE",
         required=False,
-        default="_",
+        default="",
         help="path to the configuration file listing one or more VCF directories, "
         "containing one or more bgzipped VCFs (default: no variants used)",
     )
@@ -129,7 +139,7 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         dest="be_base",
         metavar="BASE-EDITING-BASE",
         required=False,
-        default="none",
+        default="",
         help="comma-separated list of nucleotide bases to check for editing "
         "susceptibility (e.g., A,C)",
     )
@@ -138,11 +148,11 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         type=str,
         dest="annotation",
         metavar="ANNOTATION-BED-FILE",
-        nargs="?",
-        default="empty.txt",
-        help="BED file with genome annotations (e.g., regulatory elements, "
-        "enhancers). The fourth column must contain the annotation name (default: "
-        "no annotations)",
+        nargs="*",
+        default=[],
+        help="BED files with genome annotations (e.g., regulatory elements, "
+        "enhancers). The fourth column must contain the annotation name. The "
+        "flag accepts multiple input arguments (default: no annotations)",
     )
     parser_complete_search.add_argument(
         "--gene-annotation",
@@ -150,17 +160,17 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         dest="gene_annotation",
         metavar="GENE-ANNOTATION-BED-FILE",
         required=False,
-        default="empty.txt",
+        default="",
         help="BED file with gene annotations (e.g., GENCODE). Used to identify "
         "the nearest gene for each target (default: skip nearest gene search)",
     )
     parser_complete_search.add_argument(
-        "--samplesID",
+        "--samples-ids",
         type=str,
-        dest="samples_id",
+        dest="samples_ids",
         metavar="SAMPLESIDS-CONFIG-FILE",
         required=False,
-        default="empty.txt",
+        default="",
         help="path to config file listing files that contain sample IDs present "
         "in the VCF folders. Required only if --vcf is specified",
     )
@@ -189,6 +199,18 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         required=False,
         default=0,
         help="maximum number of RNA bulges allowed in the search (default: 0)",
+    )
+    parser_complete_search.add_argument(
+        "--merge",
+        type=int,
+        dest="merge_t",
+        metavar="MERGE-WINDOW",
+        required=False,
+        default=3,
+        help="nmber of nucleotides defining the merging window for candidate "
+        "off-targets. Off-targets falling within this window are clustered, and "
+        "the one with the highest score is selected as the representative (pivot) "
+        "of the group (default: 3)",
     )
     parser_complete_search.add_argument(
         "--sorting-criteria",
@@ -497,10 +519,150 @@ def create_parser():
     return parser
 
 
-def complete_search_crisprme(args: Namespace) -> None:
-    if len(sys.argv) <= 2:  # if no input arguments throw error
-        error = f"No arguments provided for {COMPLETETEST} command"
-        error_argparse(error, COMPLETETEST)
+def validate_file_exists(fname: str, flag: str, parser: CRISPRmeArgumentParser) -> str:
+    if not os.path.isfile(fname):
+        parser.error(f"The file specified for {flag} does not exist: {fname}")
+    return os.path.abspath(fname)
+
+def validate_directory_exists(dirname: str, flag: str, parser: CRISPRmeArgumentParser) -> str:
+    if not os.path.isdir(dirname):
+        parser.error(f"The directory specified for {flag} does not exist: {dirname}")
+    return os.path.abspath(dirname)
+
+def validate_be_window(be_window: str, parser: CRISPRmeArgumentParser) -> Tuple[int, int]:
+    start, stop = 1, 0  # dummy window start & stop values
+    if be_window:  # window selected, initialize start & stop
+        window_coords = be_window.strip().split(",")  # comma-separated
+        if len(window_coords) != 2:
+            parser.error(
+                "base editing window requires exactly a start and stop position. "
+                f"Given {len(window_coords)} positions"
+            )
+        start, stop = window_coords
+        if stop < start:
+            parser.error(f"base editing window stop < start ({stop} < {start})")
+    return int(start), int(stop)
+
+def validate_be_base(be_base: str, parser: CRISPRmeArgumentParser) -> str:
+    bents = be_base.strip().split(",")  # retrieve be bases
+    if len(bents) != 2:
+        parser.error(f"given more/less than 2 base editing bases ({len(bents)})") 
+    if len(set(bents)) == 1:
+        parser.error(f"base editing bases are identical ({be_base})")
+    if any(nt not in DNA for nt in bents):
+        parser.error("base editing bases appear to not be part of the DNA alphabet")
+    return be_base
+
+def validate_annotation(annotation: List[str], parser: CRISPRmeArgumentParser) -> List[str]:
+    if not annotation:  # no input annotation file, assign dummy file
+        return ["empty.txt"]
+    # validate each annotation file
+    return [validate_file_exists(fann, "--annotation", parser) for fann in annotation]  
+
+def validate_gene_annotation(gene_annotation: str, parser: CRISPRmeArgumentParser) -> str:
+    if not gene_annotation:  # no input gene annotation file, assign dummy file
+        return "empty.txt"
+    # validate gene annotation file
+    return validate_file_exists(gene_annotation, "--gene-annotation", parser)
+
+def validate_mismatches(mm: int, parser: CRISPRmeArgumentParser) -> int:
+    if mm < 0:
+        parser.error(f"negative number of mismatches selected ({mm})")
+    return mm
+
+def validate_bulges(bnum: int, btype: str, parser: CRISPRmeArgumentParser) -> int:
+    if bnum < 0:
+        parser.error(f"negative number of {btype} bulges selected ({bnum})")
+    return bnum
+
+def validate_merge_threshold(merge_t: int, parser: CRISPRmeArgumentParser) -> int:
+    if merge_t < 0:
+        parser.error(f"negative merge window selected ({merge_t})")
+    return merge_t
+
+def validate_sorting_criteria(sorting_criteria: str, flag: str, parser: CRISPRmeArgumentParser) -> str:
+    criteria = sorting_criteria.split(",")
+    if len(criteria) > len(set(criteria)):
+        parser.error(f"repeated sorting criteria in {flag}")
+    if len(criteria) > 3:
+        parser.error(f"forbidden or repeated sorting criteria in {flag}")
+    if any(c not in ["mm+bulges", "mm", "bulges"] for c in criteria):
+        parser.error(f"forbidden sorting criteria selected in {flag}")
+    return sorting_criteria
+
+def validate_output_dir(outdir: str, parser: CRISPRmeArgumentParser) -> str:
+    # output dir must be in Results folder
+    outdir = os.path.join(os.getcwd(), CRISPRMEDIRS[4], outdir)
+    if not os.path.isdir(outdir):  # output folder not present, create it
+        os.makedirs(outdir)
+    elif any(os.scandir(outdir)):  # output folder not empty, prevent run
+        parser.error(
+            f"Output folder {outdir} not empty! Select another output folder.\n"
+            f"If the previous run threw an error please consider deleting {outdir}"
+        )
+    return validate_directory_exists(outdir, "--output", parser)
+
+def validate_threads_num(threads: int, parser: CRISPRmeArgumentParser) -> int:
+    if threads < 0:  # threads number cannot be negative 
+        parser.error(f"Forbidden number of threads selected ({threads})")
+    return multiprocessing.cpu_count() if threads == 0 else threads
+
+
+def process_pam_file(pam_file: str) -> Tuple[str, int, bool]:
+    try:
+        with open(pam_file, mode="r") as infile:  # read pam and pam index
+            guide_pam, pamidx = infile.readline().strip().split()
+    except IOError as e:
+        raise IOError(f"error while reading PAM file {pam_file}") from e
+    pamidx_ = abs(int(pamidx)) 
+    # pam may occur at the beginning or the end of the guide
+    pam = guide_pam[:pamidx_] if int(pamidx) < 0 else guide_pam[-pamidx_:] 
+    return pam, len(guide_pam), int(pamidx) < 0
+
+
+
+
+def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) -> None:
+    # check if all crisprme directories are available, if not create them
+    check_crisprme_directories()
+    # check input arguments validity 
+    genome = validate_directory_exists(args.genome, "--genome", parser)
+    if bool(args.vcf_config) and not bool(args.samples_ids):
+        parser.error(
+            "missing --samples-ids, samples ids file required to perform "
+            "variant-aware off-targets search"
+        )
+    vcf_config = validate_file_exists(args.vcf_config, "--vcf", parser) if args.vcf_config else "_"
+    guide_file = validate_file_exists(args.guide, "--guide", parser) if args.guide else None
+    fasta_guide = validate_file_exists(args.sequence, "--sequence", parser) if args.sequence else None
+    bed_guide = validate_file_exists(args.coordinates, "--coordinates", parser) if args.coordinates else None
+    pam_file = validate_file_exists(args.pam, "--pam", parser)
+    if bool(args.be_window) and not bool(args.be_base):
+        parser.error(
+            "base editing window selected, please indicate the bases to check "
+            "for editing susceptibility"
+        )
+    if not bool(args.be_window) and bool(args.be_base):
+        parser.error("base editing bases given, please indicate the window to check")
+    be_start, be_stop = validate_be_window(args.be_window, parser)
+    be_base = validate_be_base(args.be_base, parser)
+    annotations = validate_annotation(args.annotation, parser)
+    gene_annotation = validate_file_exists(args.gene_annotation, "--gene-annotation", parser) if args.gene_annotation else "empty.txt"
+    if bool(args.samples_ids) and not bool(args.vcf_config):
+        parser.error("--samples-ids selected, but no input arguments detected for --vcf")
+    samples_ids = validate_file_exists(args.samples_ids, "--samples-ids", parser) if args.samples_ids else "empty.txt"
+    mm = validate_mismatches(args.mm, parser)
+    bdna = validate_bulges(args.bdna, "DNA", parser)
+    brna = validate_bulges(args.brna, "RNA", parser)
+    merge_t = validate_merge_threshold(args.merge_t, parser)
+    sorting_criteria = validate_sorting_criteria(args.sorting_criteria, "--sorting-criteria", parser)
+    sorting_criteria_score = validate_sorting_criteria(args.sorting_criteria_scoring, "--sorting-criteria-scoring", parser)
+    outdir = validate_output_dir(args.outdir_complete_search, parser)
+    threads = validate_threads_num(args.threads_complete_search, parser)
+
+
+
+
     print("parsing args...")
 
 
@@ -509,21 +671,14 @@ def complete_test_crisprme(args: Namespace) -> None:
 
 
 def main():
-    """Main function with argparse-based command handling."""
-    parser = create_parser()
-
-    # If no arguments provided, check directory and show help
-    if len(sys.argv) == 1:
-        # directoryCheck()
+    parser = create_parser()  # initialize parser
+    if len(sys.argv) == 1:  # if no arguments provided show help
         parser.print_help()
-        return
-
-    # Parse arguments
-    args = parser.parse_args()
-
-    # Execute the appropriate function based on the command
+        sys.exit(os.EX_USAGE)
+    args = parser.parse_args()  # parse input arguments
+    # execute the appropriate crisprme function based on the command
     if args.command == COMPLETESEARCH:  # run complete-search command
-        complete_search_crisprme(args)
+        complete_search_crisprme(args, parser)
     elif args.command == COMPLETETEST:  # run complete-test command
         complete_test_crisprme(args)
     elif args.command == TARGETSINTEGRATION:  # run targets-integration command
