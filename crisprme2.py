@@ -2,7 +2,8 @@
 
 from crisprme_version import __version__
 
-from typing import NoReturn, Tuple, List
+from itertools import product
+from typing import NoReturn, Tuple, List, Union
 from argparse import (
     ArgumentParser,
     Namespace,
@@ -10,9 +11,13 @@ from argparse import (
     _SubParsersAction,
 )
 from colorama import Fore
+from Bio.Seq import Seq
 
 import multiprocessing
+import subprocess
+import pysam
 import sys
+import re
 import os
 
 # crisprme program name
@@ -44,6 +49,24 @@ CRISPRMEDIRS = [
 ]
 # utils
 DNA = ["A", "C", "G", "T"]
+# IUPAC nucleotide code mapping - defining which bases each ambiguous code represents
+IUPAC_CODE_MAP = {
+    "A": "ARWMDHV",      # A and codes that include A
+    "C": "CYSMBHV",      # C and codes that include C
+    "G": "GRSKBDV",      # G and codes that include G
+    "T": "TYWKBDH",      # T and codes that include T
+    "R": "ARWMDHVSKBG",  # A or G (puRine)
+    "Y": "CYSMBHVWKDT",  # C or T (pYrimidine)
+    "S": "CYSMBHVKDRG",  # C or G (Strong)
+    "W": "ARWMDHVYKBT",  # A or T (Weak)
+    "K": "GRSKBDVYWHT",  # G or T (Keto)
+    "M": "ARWMDHVYSBC",  # A or C (aMino)
+    "B": "CYSMBHVRKDGWT", # C, G, or T (not A)
+    "D": "ARWMDHVSKBGYT", # A, G, or T (not C)
+    "H": "ARWMDHVYSBCKT", # A, C, or T (not G)
+    "V": "ARWMDHVYSBCKG", # A, C, or G (not T)
+    "N": "ACGTRYSWKMBDHV", # Any nucleotide
+}
 
 
 class CRISPRmeArgumentParser(ArgumentParser):
@@ -544,6 +567,8 @@ def validate_be_window(be_window: str, parser: CRISPRmeArgumentParser) -> Tuple[
     return int(start), int(stop)
 
 def validate_be_base(be_base: str, parser: CRISPRmeArgumentParser) -> str:
+    if not be_base:
+        return "none"
     bents = be_base.strip().split(",")  # retrieve be bases
     if len(bents) != 2:
         parser.error(f"given more/less than 2 base editing bases ({len(bents)})") 
@@ -620,7 +645,161 @@ def process_pam_file(pam_file: str) -> Tuple[str, int, bool]:
     return pam, len(guide_pam), int(pamidx) < 0
 
 
+def initialize_genome_index(vcf_config: str, pam: str, bmax: int, genomeref: str) -> Tuple[str, bool]:
+    if vcf_config:
+        with open(vcf_config, mode="r") as infile:
+            genome_indexes = ",".join([f"{pam}_{bmax}_{genomeref}_{os.path.basename(line)}" for line in infile if line.strip()])
+        return genome_indexes, True
+    return f"{pam}_{bmax}_{genomeref}", False
 
+def write_command_line(argv: List[str], outdir: str) -> None:
+    with open(os.path.join(outdir, ".crisprme_command_line"), mode="w") as outfile:
+        command = " ".join(argv)
+        outfile.write(f"CRISPRme input\n{command}\n")
+
+
+def write_version(outdir: str) -> None:
+    with open(os.path.join(outdir, ".crisprme_version"), mode="w") as outfile:
+        outfile.write(f"CRISPRme version: {__version__}\n")
+
+def write_params(outdir: str, genomeref: str, genomeidx: str, pam: str, mm: int, bdna: int, brna: int, annotations: List[str], refcmp: bool) -> None:
+    with open(os.path.join(outdir, "Params.txt"), mode="w") as outfile:
+        genomeref = genomeref.replace(" ", "_")
+        outfile.write(f"Genome_selected\t{genomeref}\n")
+        outfile.write(f"Genome_ref\t{genomeref}\n")
+        outfile.write(f"Genome_idx\t{genomeidx}\n")
+        outfile.write(f"Pam\t{pam}\n")
+        outfile.write(f"Max_bulges\t{max(bdna, brna)}\n")
+        outfile.write(f"Mismatches\t{mm}\n")
+        outfile.write(f"DNA\t{bdna}\n")
+        outfile.write(f"RNA\t{brna}\n")
+        annotations_ = ",".join(annotations)
+        outfile.write(f"Annotation\t{annotations_}\n")
+        outfile.write(f"Ref_comp\t{refcmp}\n")
+
+def initialize_search(argv: List[str], genome: str, vcf_config: str, pam: str, mm: int, bdna: int, brna: int, annotations: List[str], outdir: str) -> None:
+    genomeref = os.path.basename(genome)  # reference genome identifier
+    genomeidx, index = initialize_genome_index(vcf_config, pam, max(bdna, brna), genomeref)
+    write_command_line(argv, outdir)
+    write_version(outdir)
+    write_params(outdir, genomeref, genomeidx if max(bdna, brna) > 0 else "None", pam, mm, bdna, brna, annotations, index)
+
+def read_guide_file(guide_file: str) -> List[str]:
+    with open(guide_file, mode="r") as infile:
+        guides = {line.strip() for line in infile}
+    return list(guides)
+
+
+def expand_iupac_sequence(sequence: str) -> List[str]:
+    sequence = sequence.upper()
+    # validate sequence contains only valid IUPAC codes
+    invalid_chars = set(sequence) - set(IUPAC_CODE_MAP.keys())
+    if invalid_chars:
+        raise ValueError(f"Invalid IUPAC codes in sequence '{sequence}': {', '.join(invalid_chars)}")
+    # get all possible characters for each position
+    nt_options = [IUPAC_CODE_MAP[nt] for nt in sequence]
+    return ["".join(combination) for combination in product(*nt_options)]  # generate all combinations
+
+def find_pam_positions(sequence: str, pam_variants: List[str]) -> List[int]:
+    positions = []
+    for pam in pam_variants:  # use lookahead to find overlapping matches
+        matches = re.finditer(f"(?={re.escape(pam)})", sequence)
+        positions.extend(match.start() for match in matches)
+    return sorted(set(positions))  # remove duplicates and sort
+
+def extract_guide_sequences(sequence: str, pam_positions: List[int], guide_length: int, pam_length: int, pam_at_start: bool, reverse_complement: bool = False) -> List[str]:
+    guides = []
+    sequence_length = len(sequence)
+    for pos in pam_positions:
+        if pam_at_start:  # PAM is at 5' end: PAM + guide
+            start = pos + pam_length
+            stop = start + guide_length
+            if stop > sequence_length:  # check bounds
+                continue
+        else:  # PAM is at 3' end: guide + PAM
+            stop = pos
+            start = stop - guide_length
+            if start < 0:   # check bounds
+                continue
+        guide_seq = sequence[start:stop]
+        if guide_seq and len(guide_seq) == guide_length:
+            if reverse_complement:
+                guide_seq = str(Seq(guide_seq).reverse_complement())
+            guides.append(guide_seq)
+    return guides
+
+
+def get_guides(sequence: str, pam: str, guidelen: int, pam_at_start: bool) -> List[str]:
+    guides = set()  # avoid duplicates in guides list
+    try:  # search guides on forward strand
+        pam_variants = expand_iupac_sequence(pam)  # compute pams variants
+        pam_positions = find_pam_positions(sequence, pam_variants)  # find pam occurrences
+        # extract guide sequences from forward strand
+        guides.update(extract_guide_sequences(sequence, pam_positions, guidelen, len(pam), pam_at_start))
+    except ValueError as e:
+        raise ValueError(f"Error processing forward PAM '{pam}': {e}") from e
+    try:  # search guides on reverse strand
+        reverse_pam = str(Seq(pam).reverse_complement())  # get reverse complement of PAM
+        reverse_pam_variants = expand_iupac_sequence(reverse_pam)
+        # find PAM positions on reverse strand (searching forward sequence for reverse PAM)
+        reverse_positions = find_pam_positions(sequence, reverse_pam_variants)
+        # extract guide sequences from reverse strand
+        # for reverse strand, the logic is inverted:
+        # - if original PAM is at beginning, reverse PAM guides come from before the PAM
+        # - if original PAM is at end, reverse PAM guides come from after the PAM
+        guides.update(extract_guide_sequences(sequence, reverse_positions, guidelen, len(pam), not pam_at_start, reverse_complement=True))
+    except ValueError as e:
+        raise ValueError(f"Error processing reverse PAM '{pam}': {e}") from e
+    return list(guides)
+
+def read_fasta_guide(fasta_guide: str, pam: str, guidelen: int, pam_at_start: bool) -> List[str]:
+    with open(fasta_guide, mode="r") as infile:
+        sequences = [line.strip() for line in infile if not line.startswith(">")]
+    guides = []
+    for sequence in sequences:
+        guides.extend(get_guides(sequence, pam, guidelen, pam_at_start))
+    return guides
+
+def extract_guide_bed(genome: str, chrom: str, start: int, stop: int) -> str:
+    chromfa = os.path.join(genome, f"{chrom}.fa")
+    if not os.path.isfile(chromfa):  # try FASTA extension
+        chromfa = os.path.join(genome, f"{chrom}.fasta")
+    if not os.path.isfile(chromfa):  # both extension failed
+        raise ValueError(f"guide extraction from bed file failed, unable to find {chromfa}")    
+    with pysam.FastaFile(chromfa) as fasta:  # open FASTA and extract sequence
+        # Note: pysam uses 0-based coordinates, bedtools uses 1-based
+        sequence = fasta.fetch(chrom, start - 1, stop)
+    subprocess.call(f"rm {chromfa}.fai")  # remove fasta index
+    return sequence
+
+def read_bed_guide(bed_guide: str, genome: str) -> List[str]:
+    with open(bed_guide, mode="r") as infile:
+        guides = {extract_guide_bed(genome, fields[0], int(fields[1].replace(",", "").replace(".", "")), int(fields[2].replace(",", "").replace(".", ""))) for line in infile for fields in [line.strip().split()[:3]]}
+    return list(guides)
+
+def format_guide(guide: str, pamlen: int, pam_at_start: bool) -> str:
+    ns = "N" * pamlen  # add as many Ns as the pam length
+    return f"{ns}{guide}" if pam_at_start else f"{guide}{ns}"
+
+def initialize_input_guides(guide_file: Union[str, None], fasta_guide: Union[str, None], bed_guide: Union[str, None], genomedir: str, pam: str, guidelen: int, pam_at_start: bool, outdir: str) -> str:
+    format_n = False
+    if guide_file:  # guides given as guide file
+        guides = read_guide_file(guide_file)
+        format_n = True  # Ns already inserted at pam positions in guide
+    elif fasta_guide:  # guides given as FASTA
+        guides = read_fasta_guide(fasta_guide, pam, guidelen, pam_at_start)
+    elif bed_guide:  # guides given as BED
+        guides = read_bed_guide(bed_guide, genomedir)
+    else:  # wtf happened?
+        raise ValueError("We shouldn't be here")
+    guides_file = os.path.join(outdir, "guides.txt")
+    with open(guides_file, mode="w") as outfile:
+        for guide in guides:
+            guide_f = guide if format_n else format_guide(guide, len(pam), pam_at_start)
+            outfile.write(f"{guide_f}\n")
+    assert os.path.isfile(guides_file) and os.stat(guides_file).st_size > 0
+    return guides_file
+    
 
 def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) -> None:
     # check if all crisprme directories are available, if not create them
@@ -659,11 +838,35 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
     sorting_criteria_score = validate_sorting_criteria(args.sorting_criteria_scoring, "--sorting-criteria-scoring", parser)
     outdir = validate_output_dir(args.outdir_complete_search, parser)
     threads = validate_threads_num(args.threads_complete_search, parser)
-
-
-
-
-    print("parsing args...")
+    # retrieve pam sequence pam + guide total length, pam position in guide
+    pam, guide_pam_len, pam_at_start = process_pam_file(pam_file)  
+    # create info files related to the current run
+    initialize_search(sys.argv, genome, vcf_config, pam, mm, bdna, brna, annotations, outdir)
+    # initialize guides file (guides.txt in output folder)
+    guides_file = initialize_input_guides(guide_file, fasta_guide, bed_guide, genome, pam, (guide_pam_len - len(pam)), pam_at_start, outdir)
+    log_verbose = os.path.join(outdir, "log_verbose.txt")
+    log_error = os.path.join(outdir, "log_error.txt")
+    void_mail = "_"
+    sys.stdout.write(
+        f"Launching job {os.path.basename(outdir)}. The stdout is redirected in "
+        f"{log_verbose} and stderr is redirected in {log_error}"
+    )
+    annotations = ",".join(annotations)
+    # start search with set parameters
+    with open(log_verbose, mode="w") as logv, open(log_error, mode="w") as loge:
+            crisprme_run = (
+                f"{os.path.join(script_path, 'submit_job_automated_new_multiple_vcfs.sh')} "
+                f"{genome} {vcf_config} {guides_file} {pam_file} {annotations} "
+                f"{samples_ids} {max(bdna, brna)} {mm} {bdna} {brna} {merge_t} "
+                f"{outdir} {script_path} {threads} {os.getcwd()} {gene_annotation} "
+                f"{void_mail} {be_start} {be_stop} {be_base} {sorting_criteria_score} "
+                f"{sorting_criteria}"
+            )
+            code = subprocess.call(crisprme_run, shell=True, stderr=loge, stdout=logv)
+            if code != 0:
+                raise OSError(f"CRISPRme run failed! See {log_error} for details\n")
+    subprocess.call(f"mv {guides_file} {outdir}/.guides.txt")
+    subprocess.call(f"mv {outdir}/Params.txt {outdir}/.Params.txt")
 
 
 def complete_test_crisprme(args: Namespace) -> None:
