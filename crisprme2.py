@@ -67,6 +67,9 @@ IUPAC_CODE_MAP = {
     "V": "ARWMDHVYSBCKG", # A, C, or G (not T)
     "N": "ACGTRYSWKMBDHV", # Any nucleotide
 }
+# script's path locations
+SCRIPTPATH = os.path.dirname(os.path.abspath(__file__))
+CONDAPATH = "opt/crisprme/PostProcess"
 
 
 class CRISPRmeArgumentParser(ArgumentParser):
@@ -799,7 +802,13 @@ def initialize_input_guides(guide_file: Union[str, None], fasta_guide: Union[str
             outfile.write(f"{guide_f}\n")
     assert os.path.isfile(guides_file) and os.stat(guides_file).st_size > 0
     return guides_file
-    
+
+def establish_script_path_complete_search(debug: bool) -> str:
+    if debug:  # run local installation
+        sys.stdout.write("Warning: running in development mode")
+        return os.path.join(os.getcwd(), "PostProcess")
+    return os.path.join(SCRIPTPATH[:-3], CONDAPATH)  # run global (mamba)
+
 
 def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) -> None:
     # check if all crisprme directories are available, if not create them
@@ -848,10 +857,15 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
     log_error = os.path.join(outdir, "log_error.txt")
     void_mail = "_"
     sys.stdout.write(
-        f"Launching job {os.path.basename(outdir)}. The stdout is redirected in "
-        f"{log_verbose} and stderr is redirected in {log_error}"
+        f"\nLaunching job {os.path.basename(outdir)}. The stdout is redirected in "
+        f"{log_verbose} and stderr is redirected in {log_error}\n"
     )
     annotations = ",".join(annotations)
+    script_path = establish_script_path_complete_search(args.debug_complete_search)
+    
+    annotations = os.path.join(script_path, "vuoto.txt")
+    gene_annotation = os.path.join(script_path, "vuoto.txt")
+    
     # start search with set parameters
     with open(log_verbose, mode="w") as logv, open(log_error, mode="w") as loge:
             crisprme_run = (
@@ -865,8 +879,8 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
             code = subprocess.call(crisprme_run, shell=True, stderr=loge, stdout=logv)
             if code != 0:
                 raise OSError(f"CRISPRme run failed! See {log_error} for details\n")
-    subprocess.call(f"mv {guides_file} {outdir}/.guides.txt")
-    subprocess.call(f"mv {outdir}/Params.txt {outdir}/.Params.txt")
+    subprocess.call(f"mv {guides_file} {outdir}/.guides.txt", shell=True)
+    subprocess.call(f"mv {outdir}/Params.txt {outdir}/.Params.txt", shell=True)
 
 
 def complete_test_crisprme(args: Namespace) -> None:
@@ -884,18 +898,18 @@ def main():
         complete_search_crisprme(args, parser)
     elif args.command == COMPLETETEST:  # run complete-test command
         complete_test_crisprme(args)
-    elif args.command == TARGETSINTEGRATION:  # run targets-integration command
-        # target_integration()
-        pass
-    elif args.command == GNOMADCONVERTER:  # run gnomad-converter command
-        # gnomAD_converter()
-        pass
-    elif args.command == GENERATEPERSONALCARD:  # run generate-personal-card command
-        # personal_card()
-        pass
-    elif args.command == WEBINTERFACE:  # run web-interface command
-        # web_interface()
-        pass
+    # elif args.command == TARGETSINTEGRATION:  # run targets-integration command
+    #     # target_integration()
+    #     pass
+    # elif args.command == GNOMADCONVERTER:  # run gnomad-converter command
+    #     # gnomAD_converter()
+    #     pass
+    # elif args.command == GENERATEPERSONALCARD:  # run generate-personal-card command
+    #     # personal_card()
+    #     pass
+    # elif args.command == WEBINTERFACE:  # run web-interface command
+    #     # web_interface()
+    #     pass
     else:
         # This shouldn't happen with argparse, but just in case
         parser.print_help()
