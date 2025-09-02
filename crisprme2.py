@@ -1,5 +1,6 @@
 """ """
 
+
 from crisprme_version import __version__
 
 from itertools import product
@@ -15,6 +16,7 @@ from Bio.Seq import Seq
 
 import multiprocessing
 import subprocess
+import contextlib
 import pysam
 import sys
 import re
@@ -70,6 +72,8 @@ IUPAC_CODE_MAP = {
 # script's path locations
 SCRIPTPATH = os.path.dirname(os.path.abspath(__file__))
 CONDAPATH = "opt/crisprme/PostProcess"
+WEBPATH = "opt/crisprme"  # webserver path location
+
 
 
 class CRISPRmeArgumentParser(ArgumentParser):
@@ -480,7 +484,7 @@ def create_personal_card_parser(subparsers: _SubParsersAction) -> _SubParsersAct
     )
     parser_personal_card.add_argument(
         "--debug",
-        dest="debug_gnomad_converter",
+        dest="debug_personal_card",
         action="store_true",
         help="run in debug mode (local execution vs conda/Docker)",
     )
@@ -887,6 +891,37 @@ def complete_test_crisprme(args: Namespace) -> None:
     pass
 
 
+def personal_card(args: Namespace, parser: CRISPRmeArgumentParser) -> None:
+    # check targets directory existence
+    targetsdir = validate_directory_exists(args.results_dir, "--results-dir", parser)
+    guideseq = args.guide_seq  # guide sequence 
+    sample_id = args.sample_id  # sample of interest
+    script_path = establish_script_path_complete_search(args.debug_personal_card)
+    crisprme_run = (
+        f"{os.path.join(script_path, 'generate_sample_card.py')} {targetsdir} "
+        f"{guideseq} {sample_id} {script_path}"
+    )
+    code = subprocess.call(crisprme_run, shell=True)
+    if code != 0:
+        parser.error(f"CRISPRme personal card generation failed!\n")
+
+
+def establish_script_path_web_interface(debug: bool) -> str:
+    if debug:  # run local installation
+        sys.stdout.write("\nWarning: running in development mode\n")
+        return os.getcwd()
+    return os.path.join(SCRIPTPATH[:-3], WEBPATH)  # run global (mamba)
+
+
+def web_interface(args: Namespace, parser: CRISPRmeArgumentParser) -> None:
+    web_path = establish_script_path_web_interface(args.debug_web_interface)
+    crisprme_run = os.path.join(web_path, "index.py")
+    with contextlib.suppress(KeyboardInterrupt):
+        code = subprocess.call(crisprme_run, shell=True)
+        if code != 0:
+            parser.error(f"CRISPRme web-interface failed!\n")
+
+
 def main():
     parser = create_parser()  # initialize parser
     if len(sys.argv) == 1:  # if no arguments provided show help
@@ -907,9 +942,8 @@ def main():
     # elif args.command == GENERATEPERSONALCARD:  # run generate-personal-card command
     #     # personal_card()
     #     pass
-    # elif args.command == WEBINTERFACE:  # run web-interface command
-    #     # web_interface()
-    #     pass
+    elif args.command == WEBINTERFACE:  # run web-interface command
+        web_interface(args, parser)
     else:
         # This shouldn't happen with argparse, but just in case
         parser.print_help()

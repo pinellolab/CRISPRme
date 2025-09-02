@@ -38,8 +38,8 @@ import os
 
 MODEFILE = ".mode_type.txt"  # running mode report file
 HOST = "0.0.0.0"  # server host
-PORTWEB = 80  # website port
-PORTLOCAL = 8080  # local server port
+PORTWEB = "80"  # website port
+PORTLOCAL = "8080"  # local server port
 CRISPRME_DIRS = [
     "Genomes",
     "Results",
