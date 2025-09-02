@@ -805,7 +805,7 @@ def initialize_input_guides(guide_file: Union[str, None], fasta_guide: Union[str
 
 def establish_script_path_complete_search(debug: bool) -> str:
     if debug:  # run local installation
-        sys.stdout.write("Warning: running in development mode")
+        sys.stdout.write("\nWarning: running in development mode\n")
         return os.path.join(os.getcwd(), "PostProcess")
     return os.path.join(SCRIPTPATH[:-3], CONDAPATH)  # run global (mamba)
 

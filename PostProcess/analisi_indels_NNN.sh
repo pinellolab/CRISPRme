@@ -22,7 +22,8 @@
 REFtargets=$1
 ENRtargets=$2
 jobid=$3
-annotationfile=$4
+# annotationfile=$4
+annotations=$4
 dictionaries=$5
 referencegenome=$6
 
@@ -96,7 +97,7 @@ rm "$jobid.total.txt"
 
 #echo 'Estrazione sample dal file .total.cluster.txt'
 
-./analisi_indels_NNN.py "$annotationfile" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" "$mismatch" "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA
+./analisi_indels_NNN.py "$annotations" "$jobid.total.cluster.txt" "$jobid" "$dictionaries" "$pam_file" "$mismatch" "$referencegenome" "$guide_file" $bulgesDNA $bulgesRNA
 # OUTPUT    $jobid.bestCFD_INDEL.txt
 #           $jobid.CFDGraph.txt     (per fare l'area graph dei CFD REF vs ENR)
 # NOTA AnnotatorAllTargets.py salva su disco SOLO il target con CFD più alto nel cluster e tra le scomposizioni esistenti
