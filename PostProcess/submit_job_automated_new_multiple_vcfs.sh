@@ -743,10 +743,6 @@ fi
 ./remove_n_and_dots.py $final_res_alt.bestmmblg.txt &
 ./remove_n_and_dots.py $final_res_alt.bestCRISTA.txt &
 wait
-
-echo "Completed"
-exit
-
 if [ -s $logerror ]; then
 	printf "ERROR: rsids NaN values replacement on alternative targets failed\n" >&2
 	rm -f $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
