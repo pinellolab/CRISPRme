@@ -34,7 +34,6 @@ vcf_list=$(realpath $2)  # vcf folders list
 guide_file=$(realpath $3)  # guide 
 pam_file=$(realpath $4)  # pam
 annotations=$5  # annotation bed files
-# annotation_file=$(realpath $5)
 sampleID=$(realpath $6)  # sample ids 
 bMax=$7  # max number of bulges
 mm=$8  # mismatches
@@ -75,6 +74,9 @@ base_check_set=${20}
 # sorting criteria while merging best targets
 sorting_criteria_scoring=${21}
 sorting_criteria=${22}
+
+# annotation column names
+annotation_colnames=${23}
 
 # log files
 log="$output_folder/log.txt"
@@ -679,24 +681,29 @@ echo -e 'Annotating results\tStart\t'$(date) >>$log
 # ./annotate_final_results.py $final_res.bestCFD.txt $annotations $final_res.bestCFD.txt.annotated &
 # ./annotate_final_results.py $final_res.bestmmblg.txt $annotations $final_res.bestmmblg.txt.annotated &
 # ./annotate_final_results.py $final_res.bestCRISTA.txt $annotations $final_res.bestCRISTA.txt.annotated &
-# wait
-# mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
-# mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
-# mv $final_res.bestCRISTA.txt.annotated $final_res.bestCRISTA.txt
-# if [ -s $logerror ]; then
-# 	printf "ERROR: primary targets annotation failed\n" >&2
-# 	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
-# 	exit 1
-# fi
-# # annotate alternative targets
+python annotate_offtargets.py $final_res.bestCFD.txt $annotations $annotation_colnames $final_res.bestCFD.txt.annotated &
+python annotate_offtargets.py $final_res.bestmmblg.txt $annotations $annotation_colnames $final_res.bestmmblg.txt.annotated &
+python annotate_offtargets.py $final_res.bestCRISTA.txt $annotations $annotation_colnames $final_res.bestCRISTA.txt.annotated &
+wait
+mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
+mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
+mv $final_res.bestCRISTA.txt.annotated $final_res.bestCRISTA.txt
+if [ -s $logerror ]; then
+	printf "ERROR: primary targets annotation failed\n" >&2
+	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
+	exit 1
+fi
+# annotate alternative targets
 # ./annotate_final_results.py $final_res_alt.bestCFD.txt $annotations $final_res_alt.bestCFD.txt.annotated &
 # ./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotations $final_res_alt.bestmmblg.txt.annotated &
 # ./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotations $final_res_alt.bestCRISTA.txt.annotated &
-# wait
-# mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
-# mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
-# mv $final_res_alt.bestCRISTA.txt.annotated $final_res_alt.bestCRISTA.txt
-
+python annotate_offtargets.py $final_res_alt.bestCFD.txt $annotations $annotation_colnames $final_res_alt.bestCFD.txt.annotated &
+python annotate_offtargets.py $final_res_alt.bestmmblg.txt $annotations $annotation_colnames $final_res_alt.bestmmblg.txt.annotated &
+python annotate_offtargets.py $final_res_alt.bestCRISTA.txt $annotations $annotation_colnames $final_res_alt.bestCRISTA.txt.annotated &
+wait
+mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
+mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
+mv $final_res_alt.bestCRISTA.txt.annotated $final_res_alt.bestCRISTA.txt
 if [ -s $logerror ]; then
 	printf "ERROR: alternative targets annotation failed\n" >&2
 	rm -f $output_folder/*.bestCFD.txt* $output_folder/*.bestmmblg.txt* $output_folder/*.bestCRISTA.txt* $output_folder/*.bestMerge.txt* $output_folder/*.altMerge.txt*
@@ -830,29 +837,29 @@ if [ "$vcf_name" != "_" ]; then  # variants available -> create population distr
 fi
 cd $starting_dir
 # generate radar charts
-if [ "$vcf_name" != "_" ]; then
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "fewest"
-	if [ -s $logerror ]; then
-		printf  "ERROR: summary processing failed (variants pipeline)\n" >&2
-		rm -r "${output_folder}/imgs"
-		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
-		exit 1
-	fi
-else
-	echo -e "dummy_file" >dummy.txt
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "fewest"
-	rm dummy.txt
-	if [ -s $logerror ]; then
-		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
-		rm -r "${output_folder}/imgs"
-		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
-		exit 1
-	fi
-fi
+# if [ "$vcf_name" != "_" ]; then
+# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CFD"
+# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
+# 	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "fewest"
+# 	if [ -s $logerror ]; then
+# 		printf  "ERROR: summary processing failed (variants pipeline)\n" >&2
+# 		rm -r "${output_folder}/imgs"
+# 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+# 		exit 1
+# 	fi
+# else
+# 	echo -e "dummy_file" >dummy.txt
+# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CFD"
+# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
+# 	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "fewest"
+# 	rm dummy.txt
+# 	if [ -s $logerror ]; then
+# 		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
+# 		rm -r "${output_folder}/imgs"
+# 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+# 		exit 1
+# 	fi
+# fi
 echo -e 'Creating images\tEnd\t'$(date) >>$log
 # END STEP 7 - graphical reports
 

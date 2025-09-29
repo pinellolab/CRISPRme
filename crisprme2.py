@@ -185,6 +185,18 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         "flag accepts multiple input arguments (default: no annotations)",
     )
     parser_complete_search.add_argument(
+        "--annotation-colnames",
+        type=str,
+        metavar="ANNOTATION-COLNAMES",
+        dest="annotation_colnames",
+        nargs="*",
+        default=[],
+        help="list of custom column names to use in the final report. Each name "
+        "corresponds to one of the input BED files provided with '--annotation'. "
+        "Must match the number and order of files in '--annotation' (default: "
+        "annotation columns are named 'annotation_<i>')",
+    )
+    parser_complete_search.add_argument(
         "--gene-annotation",
         type=str,
         dest="gene_annotation",
@@ -591,6 +603,15 @@ def validate_annotation(annotation: List[str], parser: CRISPRmeArgumentParser) -
     # validate each annotation file
     return [validate_file_exists(fann, "--annotation", parser) for fann in annotation]  
 
+def validate_annotation_colnames(annotation_colnames: List[str], annotations: List[str], parser: CRISPRmeArgumentParser) -> List[str]:
+    if len(annotations) == 1 and annotations[0] == "empty.txt":  # no annotation
+        return ["annotation_empty"]
+    if not annotation_colnames:  # use default column names
+        return [f"annotation_{i}" for i, _ in enumerate(annotations)]
+    if len(annotation_colnames) != len(annotations):
+        parser.error(f"Mismatching number of annotation column names ({len(annotation_colnames)}) and annotation datasets ({len(annotations)})")
+    return annotation_colnames
+
 def validate_gene_annotation(gene_annotation: str, parser: CRISPRmeArgumentParser) -> str:
     if not gene_annotation:  # no input gene annotation file, assign dummy file
         return "empty.txt"
@@ -653,7 +674,7 @@ def process_pam_file(pam_file: str) -> Tuple[str, int, bool]:
 
 
 def initialize_genome_index(vcf_config: str, pam: str, bmax: int, genomeref: str) -> Tuple[str, bool]:
-    if vcf_config:
+    if vcf_config != "_":
         with open(vcf_config, mode="r") as infile:
             genome_indexes = ",".join([f"{pam}_{bmax}_{genomeref}_{os.path.basename(line)}" for line in infile if line.strip()])
         return genome_indexes, True
@@ -839,6 +860,7 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
     be_start, be_stop = validate_be_window(args.be_window, parser)
     be_base = validate_be_base(args.be_base, parser)
     annotations = validate_annotation(args.annotation, parser)
+    annotation_colnames = validate_annotation_colnames(args.annotation_colnames, annotations, parser)
     gene_annotation = validate_file_exists(args.gene_annotation, "--gene-annotation", parser) if args.gene_annotation else "empty.txt"
     if bool(args.samples_ids) and not bool(args.vcf_config):
         parser.error("--samples-ids selected, but no input arguments detected for --vcf")
@@ -865,10 +887,12 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
         f"{log_verbose} and stderr is redirected in {log_error}\n"
     )
     annotations = ",".join(annotations)
+    annotation_colnames = ",".join(annotation_colnames)
     script_path = establish_script_path_complete_search(args.debug_complete_search)
     
-    annotations = os.path.join(script_path, "vuoto.txt")
-    gene_annotation = os.path.join(script_path, "vuoto.txt")
+    # TODO: remove 
+    # annotations = os.path.join(script_path, "vuoto.txt")
+    # gene_annotation = os.path.join(script_path, "vuoto.txt")
     
     # start search with set parameters
     with open(log_verbose, mode="w") as logv, open(log_error, mode="w") as loge:
@@ -878,13 +902,13 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
                 f"{samples_ids} {max(bdna, brna)} {mm} {bdna} {brna} {merge_t} "
                 f"{outdir} {script_path} {threads} {os.getcwd()} {gene_annotation} "
                 f"{void_mail} {be_start} {be_stop} {be_base} {sorting_criteria_score} "
-                f"{sorting_criteria}"
+                f"{sorting_criteria} {annotation_colnames}"
             )
             code = subprocess.call(crisprme_run, shell=True, stderr=loge, stdout=logv)
             if code != 0:
                 raise OSError(f"CRISPRme run failed! See {log_error} for details\n")
-    subprocess.call(f"mv {guides_file} {outdir}/.guides.txt", shell=True)
-    subprocess.call(f"mv {outdir}/Params.txt {outdir}/.Params.txt", shell=True)
+    # subprocess.call(f"mv {guides_file} {outdir}/.guides.txt", shell=True)
+    # subprocess.call(f"mv {outdir}/Params.txt {outdir}/.Params.txt", shell=True)
 
 
 def complete_test_crisprme(args: Namespace) -> None:
