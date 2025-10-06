@@ -167,6 +167,8 @@ base_start = sys.argv[9]
 base_end = sys.argv[10]
 base_set = sys.argv[11]
 
+colnames = sys.argv[12]  # annotation colnames
+
 # OPEN INPUT FILES AND PREPARE OUTPUT FILE
 # crispritz results file open
 inCrispritzResults = open(crispritzResultFile, "r")
@@ -286,14 +288,24 @@ saveDict = {
     "Annotation_closest_gene_name": "NA",
     "Annotation_closest_gene_ID": "NA",
     "Annotation_closest_gene_distance_(kb)": "NA",
-    "Annotation_ENCODE": "NA",
-    "Annotation_DHS": "NA",
-    "Annotation_personal": "NA",
-    "Susceptible_to_ABE": "NA",
-    "Susceptible_to_CBE": "NA",
-    "Susceptible_to_GBE": "NA",
-    "Susceptible_to_TBE": "NA",
 }
+#     "Annotation_ENCODE": "NA",
+#     "Annotation_DHS": "NA",
+#     "Annotation_personal": "NA",
+#     "Susceptible_to_ABE": "NA",
+#     "Susceptible_to_CBE": "NA",
+#     "Susceptible_to_GBE": "NA",
+#     "Susceptible_to_TBE": "NA",
+# }
+for cname in colnames.split(","):
+    saveDict[f"Annotation_{cname}"] = "NA"
+
+# add base editing columns
+bediting_cnames = ["Susceptible_to_ABE", "Susceptible_to_CBE", "Susceptible_to_GBE", "Susceptible_to_TBE"]
+for cname in bediting_cnames:
+    saveDict[cname] = "NA"
+
+print(list(saveDict.keys()))
 
 start_time = time.time()
 
@@ -357,6 +369,8 @@ for nline, line in enumerate(inCrispritzResults):
         )
         if float(annotationLine[len(annotationLine) - 1]) != 0:
             saveDict["Annotation_GENCODE"] = "intergenic"
+        else:
+            saveDict["Annotation_GENCODE"] = annotationLine[11].strip()
 
     variantList = ["NA"]
     if str(target[18]) != "NA":  # check if target has variants reported (CFD)
@@ -941,34 +955,37 @@ for nline, line in enumerate(inCrispritzResults):
             ][-count_N_in_guide:]
 
     # annotate with empirical and convert _personal and _gencode annotation to better visualization
+    annotation_subdict = {f"Annotation_{cname}": set() for cname in colnames.split(",")}
     annotationList = target[14].split(",")
-    personal_annotations = set()
-    encode_annotations = set()
-    gencode_annotations = set()
-    DHS_annotations = set()
+    if len(annotationList) != 1 and annotationList[0] != "NA":
+        for ann in annotationList:
+            cname = ann.split("__")[-1]
+            annotation_subdict[f"Annotation_{cname}"].add(ann.replace(f"__{cname}", ""))
+    for cname, ann in annotation_subdict.items():
+        saveDict[cname] = ",".join(ann) if ann else "NA"
 
-    for elem in annotationList:
-        if "_personal" in elem:
-            personal_annotations.add(elem.replace("_personal", ""))
-        elif "_gencode" in elem:
-            gencode_annotations.add(elem.replace("_gencode", ""))
-        elif "_DHS" in elem:
-            DHS_annotations.add(elem.replace("_DHS", ""))
-        else:
-            encode_annotations.add(elem)
+    # for elem in annotationList:
+    #     if "_personal" in elem:
+    #         personal_annotations.add(elem.replace("_personal", ""))
+    #     elif "_gencode" in elem:
+    #         gencode_annotations.add(elem.replace("_gencode", ""))
+    #     elif "_DHS" in elem:
+    #         DHS_annotations.add(elem.replace("_DHS", ""))
+    #     else:
+    #         encode_annotations.add(elem)
 
-    if len(DHS_annotations):
-        saveDict["Annotation_DHS"] = ",".join(DHS_annotations)
+    # if len(DHS_annotations):
+    #     saveDict["Annotation_DHS"] = ",".join(DHS_annotations)
 
-    if len(personal_annotations):
-        saveDict["Annotation_personal"] = ",".join(personal_annotations)
-        check_personal_existence = True
+    # if len(personal_annotations):
+    #     saveDict["Annotation_personal"] = ",".join(personal_annotations)
+    #     check_personal_existence = True
 
-    if len(encode_annotations):
-        saveDict["Annotation_ENCODE"] = ",".join(encode_annotations)
+    # if len(encode_annotations):
+    #     saveDict["Annotation_ENCODE"] = ",".join(encode_annotations)
 
-    if len(gencode_annotations):
-        saveDict["Annotation_GENCODE"] = ",".join(gencode_annotations)
+    # if len(gencode_annotations):
+    #     saveDict["Annotation_GENCODE"] = ",".join(gencode_annotations)
 
     foundEmpirical = sorted(empiricalTree[int(target[6]) - 4 : int(target[6]) + 4])
 
@@ -1047,15 +1064,15 @@ outFile.close()
 columns_of_dict = list(saveDict.keys())
 columns_to_remove = list()
 # added 1 to account for bash counting starting from 1
-columns_to_remove.append(columns_of_dict.index("Annotation_personal") + 1)
+# columns_to_remove.append(columns_of_dict.index("Annotation_personal") + 1)
 columns_to_remove.append(columns_of_dict.index("Susceptible_to_ABE") + 1)
 columns_to_remove.append(columns_of_dict.index("Susceptible_to_CBE") + 1)
 columns_to_remove.append(columns_of_dict.index("Susceptible_to_GBE") + 1)
 columns_to_remove.append(columns_of_dict.index("Susceptible_to_TBE") + 1)
 
 # check columns to keep
-if check_personal_existence:
-    columns_to_remove.remove(columns_of_dict.index("Annotation_personal") + 1)
+# if check_personal_existence:
+#     columns_to_remove.remove(columns_of_dict.index("Annotation_personal") + 1)
 
 if "none" not in base_set:
     for base in base_set.strip().split(","):
@@ -1067,7 +1084,7 @@ if "none" not in base_set:
 output = [str(x) for x in columns_to_remove]
 string_to_remove = ",".join(output)
 # call cut in terminal to remove unused columns
-os.system(f"cut -f{string_to_remove} --complement {outFile_name} > {outFile_name}.tmp")
+os.system(f"cut -f {string_to_remove} --complement {outFile_name} > {outFile_name}.tmp")
 os.system(f"mv {outFile_name}.tmp {outFile_name}")
 
 print("CHECKING MISSING RESULTS")

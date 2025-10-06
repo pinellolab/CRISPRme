@@ -11,12 +11,16 @@ path_best = sys.argv[1]
 path_guides = sys.argv[2]
 path_samplesID = sys.argv[3]
 mms = int(sys.argv[4])
-bulge = int(sys.argv[5])
-path_output = sys.argv[6]
+# bulge = int(sys.argv[5])
+# path_output = sys.argv[6]
+# name_job = os.path.basename(path_output)
+# genome_type = sys.argv[7]
+bulge = int(sys.argv[5]) + int(sys.argv[6])
+path_output = sys.argv[7]
 name_job = os.path.basename(path_output)
-genome_type = sys.argv[7]
+genome_type = sys.argv[8]
 # criteria to generate the plots (CFD,CRISTA,FEWEST)
-filter_criterion = sys.argv[8]
+filter_criterion = sys.argv[9]
 
 
 def init_summary_by_sample(path_samplesID):

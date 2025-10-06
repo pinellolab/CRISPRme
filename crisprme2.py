@@ -182,7 +182,8 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         default=[],
         help="BED files with genome annotations (e.g., regulatory elements, "
         "enhancers). The fourth column must contain the annotation name. The "
-        "flag accepts multiple input arguments (default: no annotations)",
+        "input BED files must be compressed using bgzip. The flag accepts "
+        "multiple input arguments (default: no annotations)",
     )
     parser_complete_search.add_argument(
         "--annotation-colnames",
@@ -207,7 +208,7 @@ def create_complete_search_parser(subparsers: _SubParsersAction) -> _SubParsersA
         "the nearest gene for each target (default: skip nearest gene search)",
     )
     parser_complete_search.add_argument(
-        "--samples-ids",
+        "--samplesID",
         type=str,
         dest="samples_ids",
         metavar="SAMPLESIDS-CONFIG-FILE",

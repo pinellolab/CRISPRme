@@ -799,18 +799,18 @@ mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
 # create result summaries for primary and alternative results
 cd $starting_dir
 if [ "$vcf_name" != "_" ]; then  # variants available
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "CFD"
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "fewest"
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "CRISTA"
 	if [ -s $logerror ]; then
 		printf "ERROR: summary processing failed (variants pipeline)\n" >&2
 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
 		exit 1
 	fi	
 else  # only reference search
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "CFD"
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "fewest"
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "CRISTA"
 	if [ -s $logerror ]; then
 		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
@@ -837,29 +837,27 @@ if [ "$vcf_name" != "_" ]; then  # variants available -> create population distr
 fi
 cd $starting_dir
 # generate radar charts
-# if [ "$vcf_name" != "_" ]; then
-# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CFD"
-# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
-# 	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "fewest"
-# 	if [ -s $logerror ]; then
-# 		printf  "ERROR: summary processing failed (variants pipeline)\n" >&2
-# 		rm -r "${output_folder}/imgs"
-# 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
-# 		exit 1
-# 	fi
-# else
-# 	echo -e "dummy_file" >dummy.txt
-# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CFD"
-# 	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
-# 	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "fewest"
-# 	rm dummy.txt
-# 	if [ -s $logerror ]; then
-# 		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
-# 		rm -r "${output_folder}/imgs"
-# 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
-# 		exit 1
-# 	fi
-# fi
+if [ "$vcf_name" != "_" ]; then
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $annotations $annotation_colnames "$output_folder" "CFD"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $annotations $annotation_colnames "$output_folder" "CRISTA"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $annotations $annotation_colnames "$output_folder" "fewest"
+	if [ -s $logerror ]; then
+		printf  "ERROR: summary processing failed (variants pipeline)\n" >&2
+		rm -r "${output_folder}/imgs"
+		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+		exit 1
+	fi
+else
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $annotations $annotation_colnames "$output_folder" "CFD"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $annotations $annotation_colnames "$output_folder" "CRISTA"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $annotations $annotation_colnames "$output_folder" "fewest"
+	if [ -s $logerror ]; then
+		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
+		rm -r "${output_folder}/imgs"
+		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
+		exit 1
+	fi
+fi
 echo -e 'Creating images\tEnd\t'$(date) >>$log
 # END STEP 7 - graphical reports
 
@@ -870,14 +868,13 @@ echo >>$guide_file
 if [ $gene_proximity != "_" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
-	echo $genome_version
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set $annotation_colnames
 	if [ -s $logerror ]; then
 		printf  "ERROR: targets integration failed on primary results\n" >&2
 		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
 		exit 1
 	fi
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set $annotation_colnames
 	if [ -s $logerror ]; then
 		printf  "ERROR: targets integration failed on primary results\n" >&2
 		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
