@@ -598,11 +598,35 @@ def validate_be_base(be_base: str, parser: CRISPRmeArgumentParser) -> str:
         parser.error("base editing bases appear to not be part of the DNA alphabet")
     return be_base
 
+def isgzipped(fname: str) -> bool:
+    try:
+        with open(fname, mode="rb") as infile:
+            magic = infile.read(2)  # read magic number
+            return magic == b'\x1f\x8b'
+    except (IOError, Exception) as e:
+        raise OSError(f"Failed opening file: {fname}") from e
+
+def _validate_annotation_file(annotation: str, flag: str, parser: CRISPRmeArgumentParser) -> str:
+    validate_file_exists(annotation, flag, parser)
+    if isgzipped(annotation):
+        code = subprocess.call(f"gunzip -f {annotation}", shell=True)
+        if code != 0:
+            raise subprocess.SubprocessError(f"Failed decompressing {annotation}")
+        annotation = os.path.abspath(os.path.splitext(annotation)[0])
+        assert os.path.isfile(annotation)
+    annotation_gz = f"{annotation}.gz"
+    code = subprocess.call(f"sort-bed {annotation} | bgzip -f > {annotation_gz}", shell=True)
+    if code != 0:
+        raise subprocess.SubprocessError(f"Failed sorting and indexing {annotation}")
+    assert os.path.isfile(annotation_gz)
+    return os.path.abspath(annotation_gz)
+
+
 def validate_annotation(annotation: List[str], parser: CRISPRmeArgumentParser) -> List[str]:
     if not annotation:  # no input annotation file, assign dummy file
         return ["empty.txt"]
     # validate each annotation file
-    return [validate_file_exists(fann, "--annotation", parser) for fann in annotation]  
+    return [_validate_annotation_file(fann, "--annotation", parser) for fann in annotation]  
 
 def validate_annotation_colnames(annotation_colnames: List[str], annotations: List[str], parser: CRISPRmeArgumentParser) -> List[str]:
     if len(annotations) == 1 and annotations[0] == "empty.txt":  # no annotation
@@ -617,7 +641,14 @@ def validate_gene_annotation(gene_annotation: str, parser: CRISPRmeArgumentParse
     if not gene_annotation:  # no input gene annotation file, assign dummy file
         return "empty.txt"
     # validate gene annotation file
-    return validate_file_exists(gene_annotation, "--gene-annotation", parser)
+    validate_file_exists(gene_annotation, "--gene-annotation", parser)
+    if isgzipped(gene_annotation):
+        code = subprocess.call(f"gunzip -f {gene_annotation}", shell=True)
+        if code != 0:
+            raise subprocess.SubprocessError(f"Failed decompressing {gene_annotation}")
+    gene_annotation = os.path.abspath(os.path.splitext(gene_annotation)[0])
+    assert os.path.isfile(gene_annotation)
+    return gene_annotation
 
 def validate_mismatches(mm: int, parser: CRISPRmeArgumentParser) -> int:
     if mm < 0:
@@ -889,12 +920,7 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
     )
     annotations = ",".join(annotations)
     annotation_colnames = ",".join(annotation_colnames)
-    script_path = establish_script_path_complete_search(args.debug_complete_search)
-    
-    # TODO: remove 
-    # annotations = os.path.join(script_path, "vuoto.txt")
-    # gene_annotation = os.path.join(script_path, "vuoto.txt")
-    
+    script_path = establish_script_path_complete_search(args.debug_complete_search)    
     # start search with set parameters
     with open(log_verbose, mode="w") as logv, open(log_error, mode="w") as loge:
             crisprme_run = (
@@ -908,8 +934,8 @@ def complete_search_crisprme(args: Namespace, parser: CRISPRmeArgumentParser) ->
             code = subprocess.call(crisprme_run, shell=True, stderr=loge, stdout=logv)
             if code != 0:
                 raise OSError(f"CRISPRme run failed! See {log_error} for details\n")
-    # subprocess.call(f"mv {guides_file} {outdir}/.guides.txt", shell=True)
-    # subprocess.call(f"mv {outdir}/Params.txt {outdir}/.Params.txt", shell=True)
+    subprocess.call(f"mv {guides_file} {outdir}/.guides.txt", shell=True)
+    subprocess.call(f"mv {outdir}/Params.txt {outdir}/.Params.txt", shell=True)
 
 
 def complete_test_crisprme(args: Namespace) -> None:

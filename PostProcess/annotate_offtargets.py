@@ -14,16 +14,16 @@ TBI = "tbi"
 
 def parse_commandline(args: List[str]) -> Tuple[str, List[str], List[str], str]:
     if len(args) != 4:  # check input arguments consistency
-        raise ValueError(f"Too many/few input arguments for annotation script")
+        raise ValueError("Too many/few input arguments for annotation script")
     offtargets_fname = args[0]  # offtargets table report
     if not os.path.isfile(offtargets_fname):
         raise FileNotFoundError(f"Cannot find off-targets file {offtargets_fname}")
-    annotation_fnames = [fname for fname in args[1].split(",")]  # annotation files
+    annotation_fnames = list(args[1].split(","))
     if annotation_fnames[0] != "empty.txt" and not all(os.path.isfile(fname) for fname in annotation_fnames):
         raise FileNotFoundError(
             f"Cannot find annotation files {' '.join(annotation_fnames)}"
         )
-    annotation_colnames = [colname for colname in args[2].split(",")]
+    annotation_colnames = list(args[2].split(","))
     if len(annotation_colnames) != len(annotation_fnames):
         raise ValueError(
             f"Mismatching number of annotation files ({len(annotation_fnames)}) and annotation column names ({annotation_colnames})"
@@ -40,14 +40,13 @@ def parse_commandline(args: List[str]) -> Tuple[str, List[str], List[str], str]:
 
 def load_annotation_bed(annotation_fnames: List[str]) -> List[TabixFile]:
     # check that tabix index is available for all annotation bed
-    for fname in annotation_fnames:
-        if not os.path.isfile(f"{fname}.{TBI}"):  # index bed with samtools
-            pysam.tabix_index(fname, force=True, preset="bed")
+    for fname in annotation_fnames:  # index bed with samtools
+        pysam.tabix_index(fname, force=True, preset="bed")
     try:  # return tabix indexes for each annotation bed
         return [pysam.TabixFile(fname) for fname in annotation_fnames]
     except (SamtoolsError, Exception) as e:
         raise SamtoolsError(
-            f"An error occurred while loading Annotation BED files"
+            "An error occurred while loading Annotation BED files"
         ) from e
 
 
@@ -89,18 +88,16 @@ def annotate_offtargets(
                 fields = offtarget.split()  # split offtarget individual fields
                 # annotate current off-target using input annotation datasets
                 fields[14] = (
-                    annotate_target(
+                    "n" if empty else annotate_target(
                         *compute_target_coords(fields),
                         annotations,
                         annotations_colnames,
                     )
-                    if not empty
-                    else "n"
                 )
                 offtarget_annotated = "\t".join(fields)
                 outfile.write(f"{offtarget_annotated}\n")  # write annotated offtarget
     except (IOError, Exception) as e:
-        raise OSError(f"Annotation failed on off-targets in {offtargets_fname}")
+        raise OSError(f"Annotation failed on off-targets in {offtargets_fname}") from e
 
 
 def main() -> None:
@@ -111,7 +108,7 @@ def main() -> None:
     start = time()  # track annotation time
     empty = len(annotations) == 1 and annotations[0] == "empty.txt"
     # load annotation bed files
-    annotations = load_annotation_bed(annotations) if not empty else []
+    annotations = [] if empty else load_annotation_bed(annotations)
     # annotate offtargets using input bed files
     annotate_offtargets(
         offtargets_fname, annotations, annotations_colnames, empty, offtargets_out_fname

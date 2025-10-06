@@ -33,7 +33,7 @@ LC_ALL=C sort -T $dir -k21,21rg -k35,35n $1 -o $1
 awk '{print $5"\t"$7"\t"$7+length($3)"\t"NR}' $1 >$1.bed
 sort-bed $1.bed >$1.bed.sort
 mv $1.bed.sort $1.bed
-sort-bed $2 >$2.bed.sort
+sort-bed $2 > $2.bed.sort
 mv $2.bed.sort $2
 echo 'Finding genecode annotation in range with targets'
 closest-features --closest --delim "\t" --dist $1.bed $2 >$1.found.bed
