@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # This script automates the search for guide RNA and PAM sequences in reference 
@@ -33,7 +34,7 @@ ref_folder=$(realpath $1)  # reference genome folder
 vcf_list=$(realpath $2)  # vcf folders list
 guide_file=$(realpath $3)  # guide 
 pam_file=$(realpath $4)  # pam
-annotation_file=$(realpath $5)  # annotation bed
+annotations=$5  # annotation bed files
 sampleID=$(realpath $6)  # sample ids 
 bMax=$7  # max number of bulges
 mm=$8  # mismatches
@@ -50,6 +51,22 @@ email=${17}  # email address (website only)
 echo -e "MAIL: $email"
 echo -e "CPU used: $ncpus"
 
+# compute annotation suffix
+IFS=',' read -ra ann_files <<< "$annotations"
+annotation_name=""
+for ann_file in "${ann_files[@]}"; do
+	ann_bname=$(basename "$ann_file" .bed)  # strip path and bed extension
+	if [[ -z "$annotation_name" ]]; then
+		annotation_name="$ann_bname"
+	else
+		annotation_name="${annotation_name}_$ann_bname"
+	fi
+done
+if [[ -z "$annotation_name" ]]; then
+	annotation_name="$ann_bname"
+fi
+# annotation_name=$(basename $5)
+
 #used to solve base editor check in resultintegration phase
 base_check_start=${18}
 base_check_end=${19}
@@ -58,6 +75,9 @@ base_check_set=${20}
 # sorting criteria while merging best targets
 sorting_criteria_scoring=${21}
 sorting_criteria=${22}
+
+# annotation column names
+annotation_colnames=${23}
 
 # log files
 log="$output_folder/log.txt"
@@ -92,7 +112,6 @@ while read vcf_f; do
 	# echo $vcf_name
 	guide_name=$(basename $3)
 	pam_name=$(basename $4)
-	annotation_name=$(basename $5)
 
 	echo -e $start_time >$log
 	# echo -e 'Job\tStart\t'$(date) > $log
@@ -461,7 +480,8 @@ while read vcf_f; do
 			touch "$final_res_alt"
 		fi
 		# TODO: snp analysis in parallel
-		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus
+		# ./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus
+		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotations $annotation_name $pam_file $dict_folder $final_res $final_res_alt $ncpus
 		if [ -s $logerror ]; then
 			printf "ERROR: off-targets post-analysis (snps) failed on variants in %s\n" "$vcf_name" >&2
 			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
@@ -498,7 +518,8 @@ while read vcf_f; do
 		if ! [ -f "$final_res_alt" ]; then  # mock required to avoid crashes 
 			touch "$final_res_alt"
 		fi
-		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
+		# ./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
+		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotations $annotation_name $pam_file "_" $final_res $final_res_alt $ncpus
 		if [ -s $logerror ]; then
 			printf "ERROR: off-targets post-analysis (reference) failed\n" >&2
 			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
@@ -535,7 +556,8 @@ while read vcf_f; do
 		echo -e 'Post-analysis INDELs\tStart\t'$(date) >>$log
 		#SKIP INDELS ANALYSIS IF NO RESULTS FOUND
 		if [ $(wc -l <"$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt") -gt 1 ]; then
-			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
+			# ./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
+			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotations $annotation_name $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
 			if [ -s $logerror ]; then
 				printf "ERROR: off-targets post-analysis (indels) failed on variants in %s\n" "$vcf_name" >&2
 				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
@@ -655,10 +677,14 @@ echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 
 # START STEP 6 - targets annotation
 echo -e 'Annotating results\tStart\t'$(date) >>$log
+
 # annotate primary targets 
-./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
-./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
-./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
+# ./annotate_final_results.py $final_res.bestCFD.txt $annotations $final_res.bestCFD.txt.annotated &
+# ./annotate_final_results.py $final_res.bestmmblg.txt $annotations $final_res.bestmmblg.txt.annotated &
+# ./annotate_final_results.py $final_res.bestCRISTA.txt $annotations $final_res.bestCRISTA.txt.annotated &
+python annotate_offtargets.py $final_res.bestCFD.txt $annotations $annotation_colnames $final_res.bestCFD.txt.annotated &
+python annotate_offtargets.py $final_res.bestmmblg.txt $annotations $annotation_colnames $final_res.bestmmblg.txt.annotated &
+python annotate_offtargets.py $final_res.bestCRISTA.txt $annotations $annotation_colnames $final_res.bestCRISTA.txt.annotated &
 wait
 mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
@@ -669,9 +695,12 @@ if [ -s $logerror ]; then
 	exit 1
 fi
 # annotate alternative targets
-./annotate_final_results.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
-./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
-./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
+# ./annotate_final_results.py $final_res_alt.bestCFD.txt $annotations $final_res_alt.bestCFD.txt.annotated &
+# ./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotations $final_res_alt.bestmmblg.txt.annotated &
+# ./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotations $final_res_alt.bestCRISTA.txt.annotated &
+python annotate_offtargets.py $final_res_alt.bestCFD.txt $annotations $annotation_colnames $final_res_alt.bestCFD.txt.annotated &
+python annotate_offtargets.py $final_res_alt.bestmmblg.txt $annotations $annotation_colnames $final_res_alt.bestmmblg.txt.annotated &
+python annotate_offtargets.py $final_res_alt.bestCRISTA.txt $annotations $annotation_colnames $final_res_alt.bestCRISTA.txt.annotated &
 wait
 mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
@@ -771,18 +800,18 @@ mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
 # create result summaries for primary and alternative results
 cd $starting_dir
 if [ "$vcf_name" != "_" ]; then  # variants available
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "CFD"
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "fewest"
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "CRISTA"
 	if [ -s $logerror ]; then
 		printf "ERROR: summary processing failed (variants pipeline)\n" >&2
 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
 		exit 1
 	fi	
 else  # only reference search
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "CFD"
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "fewest"
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "CRISTA"
 	if [ -s $logerror ]; then
 		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
@@ -810,9 +839,9 @@ fi
 cd $starting_dir
 # generate radar charts
 if [ "$vcf_name" != "_" ]; then
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $annotations $annotation_colnames "$output_folder" "CFD"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $annotations $annotation_colnames "$output_folder" "CRISTA"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $annotations $annotation_colnames "$output_folder" "fewest"
 	if [ -s $logerror ]; then
 		printf  "ERROR: summary processing failed (variants pipeline)\n" >&2
 		rm -r "${output_folder}/imgs"
@@ -820,11 +849,9 @@ if [ "$vcf_name" != "_" ]; then
 		exit 1
 	fi
 else
-	echo -e "dummy_file" >dummy.txt
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
-	rm dummy.txt
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $annotations $annotation_colnames "$output_folder" "CFD"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $annotations $annotation_colnames "$output_folder" "CRISTA"
+	python ./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $annotations $annotation_colnames "$output_folder" "fewest"
 	if [ -s $logerror ]; then
 		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
 		rm -r "${output_folder}/imgs"
@@ -842,14 +869,13 @@ echo >>$guide_file
 if [ $gene_proximity != "_" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
-	echo $genome_version
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set $annotation_colnames
 	if [ -s $logerror ]; then
 		printf  "ERROR: targets integration failed on primary results\n" >&2
 		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
 		exit 1
 	fi
-	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
+	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set $annotation_colnames
 	if [ -s $logerror ]; then
 		printf  "ERROR: targets integration failed on primary results\n" >&2
 		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
