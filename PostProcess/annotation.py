@@ -86,7 +86,7 @@ def main() -> None:
     # parse input command line arguments
     offtargets_fname, annotation, offtargets_out_fname = parse_commandline(sys.argv[1:])
     start = time()  # track annotation time
-    empty = annotation == "vuoto.txt"
+    empty = os.path.basename(annotation) == "vuoto.txt"
     # load annotation bed files
     annotation = None if empty else load_annotation_bed(annotation)
     # annotate offtargets using input bed files
