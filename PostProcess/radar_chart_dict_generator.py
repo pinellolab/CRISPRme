@@ -21,6 +21,7 @@ import time
 import random
 import multiprocessing
 import json
+import pysam
 
 warnings.filterwarnings("ignore")
 # matplotlib.use("TkAgg")
@@ -38,7 +39,8 @@ inFinalFile = open(sys.argv[2], "r")  # final result file from search
 inSamplesIDFile = open(sys.argv[3], "r").readlines()  # sampleID file
 inSamplesIDFile.pop(0)  # pop header from sampleID file
 # annotation file used during search
-inAnnotationsFile = open(sys.argv[4], "r")
+annotation_fname = sys.argv[4]
+inAnnotationsFile = None if annotation_fname == "vuoto.txt" else pysam.TabixFile(sys.argv[4], "r")
 outDir = sys.argv[5]  # directory to output the figures
 threads = int(sys.argv[6])  # number of concurrent execution of image creation
 max_mm = int(sys.argv[7])
@@ -148,15 +150,16 @@ annotationsSet = set()
 populationDict = dict()
 
 # read all the annotations
-for line in inAnnotationsFile:
-    if (
-        "vuoto.txt" in sys.argv[4]
-    ):  # se vuoto.txt usato come annotazione, skippa lettura
-        break
-    annotations_list = line.strip().split("\t")[3].split(",")
-    for annotation in annotations_list:
-        if "_personal" not in annotation:
-            annotationsSet.add(annotation.replace("_gencode", ""))
+if inAnnotationsFile is not None:
+    for line in inAnnotationsFile.fetch():
+        if (
+            "vuoto.txt" in sys.argv[4]
+        ):  # se vuoto.txt usato come annotazione, skippa lettura
+            break
+        annotations_list = line.strip().split("\t")[3].split(",")
+        for annotation in annotations_list:
+            if "_personal" not in annotation:
+                annotationsSet.add(annotation.replace("_gencode", ""))
 
 annotationsSet.add("CTCF-only")
 annotationsSet = sorted(annotationsSet)

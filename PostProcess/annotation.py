@@ -29,7 +29,8 @@ def parse_commandline(args: List[str]) -> Tuple[str, str, str]:
 
 def load_annotation_bed(annotation_fname: str) -> TabixFile:
     # check that tabix index is available for all annotation bed
-    pysam.tabix_index(annotation_fname, force=True, preset="bed")
+    if not os.path.isfile(f"{annotation_fname}.{TBI}"):
+        pysam.tabix_index(annotation_fname, force=True, preset="bed")
     try:  # return tabix indexes for each annotation bed
         return pysam.TabixFile(annotation_fname)
     except (SamtoolsError, Exception) as e:
