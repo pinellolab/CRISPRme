@@ -12,7 +12,7 @@ import os
 TBI = "tbi"
 
 def parse_commandline(args: List[str]) -> Tuple[str, str, str]:
-    if len(args) != 4:  # check input arguments consistency
+    if len(args) != 3:  # check input arguments consistency
         raise ValueError("Too many/few input arguments for annotation script")
     offtargets_fname = args[0]  # offtargets table report
     if not os.path.isfile(offtargets_fname):
@@ -22,7 +22,7 @@ def parse_commandline(args: List[str]) -> Tuple[str, str, str]:
         raise FileNotFoundError(
             f"Cannot find annotation files {annotation_fname}"
         )
-    offtargets_out_fname = args[3]  # annotated offtargets table report
+    offtargets_out_fname = args[2]  # annotated offtargets table report
     assert offtargets_out_fname
     return offtargets_fname, annotation_fname, offtargets_out_fname
 
