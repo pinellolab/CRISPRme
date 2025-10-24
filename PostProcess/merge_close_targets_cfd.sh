@@ -31,6 +31,4 @@ else
     criteria=$sorting_criteria
 fi
 
-# python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
 python remove_contiguous_samples.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_criteria $criteria
-# rm $fileIn.sorted

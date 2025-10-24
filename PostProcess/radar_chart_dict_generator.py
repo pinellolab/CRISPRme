@@ -113,6 +113,8 @@ def fillDict(guide, guideDict, motifDict):
                         guideDict[over][annotation.split(";")[0]] += 1
                     elif "_gencode" in annotation:
                         guideDict[over][annotation.replace("_gencode", "")] += 1
+            if "RNA,DNA" in split[0]:
+                continue
             # find motif in X and RNA/DNA targets
             if "DNA" not in split[0]:
                 for count, nucleotide in enumerate(alignedSequence):
