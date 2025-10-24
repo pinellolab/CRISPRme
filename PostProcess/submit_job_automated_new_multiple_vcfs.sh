@@ -656,9 +656,9 @@ echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 # START STEP 6 - targets annotation
 echo -e 'Annotating results\tStart\t'$(date) >>$log
 # annotate primary targets 
-./annotation.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
-./annotation.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
-./annotation.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
+python annotation.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
+python annotation.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
+python annotation.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
 wait
 mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
@@ -669,9 +669,9 @@ if [ -s $logerror ]; then
 	exit 1
 fi
 # annotate alternative targets
-./annotation.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
-./annotation.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
-./annotation.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
+python annotation.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
+python annotation.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
+python annotation.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
 wait
 mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
