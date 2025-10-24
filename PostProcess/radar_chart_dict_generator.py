@@ -40,7 +40,7 @@ inSamplesIDFile = open(sys.argv[3], "r").readlines()  # sampleID file
 inSamplesIDFile.pop(0)  # pop header from sampleID file
 # annotation file used during search
 annotation_fname = sys.argv[4]
-inAnnotationsFile = None if annotation_fname == "vuoto.txt" else pysam.TabixFile(sys.argv[4], "r")
+inAnnotationsFile = None if os.path.basename(annotation_fname) == "vuoto.txt" else pysam.TabixFile(sys.argv[4], "r")
 outDir = sys.argv[5]  # directory to output the figures
 threads = int(sys.argv[6])  # number of concurrent execution of image creation
 max_mm = int(sys.argv[7])
