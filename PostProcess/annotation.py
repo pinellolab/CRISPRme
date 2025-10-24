@@ -18,7 +18,7 @@ def parse_commandline(args: List[str]) -> Tuple[str, str, str]:
     if not os.path.isfile(offtargets_fname):
         raise FileNotFoundError(f"Cannot find off-targets file {offtargets_fname}")
     annotation_fname = args[1]
-    if annotation_fname != "vuoto.txt" and not os.path.isfile(annotation_fname):
+    if os.path.basename(annotation_fname) != "vuoto.txt" and not os.path.isfile(annotation_fname):
         raise FileNotFoundError(
             f"Cannot find annotation files {annotation_fname}"
         )
