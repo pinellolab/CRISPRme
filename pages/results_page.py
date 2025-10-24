@@ -83,6 +83,7 @@ import base64  # for decoding upload content
 import dash_table
 import sqlite3
 import flask
+import errno
 import re
 import os
 
@@ -3973,7 +3974,6 @@ def update_images_tabs(
         State("url", "search"),
     ],
 )
-# FUNCTION TO GENERATE SAMPLE CARD, UPDATE WITH FILTER DROPDOWN
 def generate_sample_card(
     n: int,
     filter_criterion: str,
@@ -4017,7 +4017,7 @@ def generate_sample_card(
         raise TypeError(
             f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
         )
-    if not filter_criterion in FILTERING_CRITERIA:
+    if filter_criterion not in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
     if not isinstance(sample, str):
         raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
@@ -4036,26 +4036,21 @@ def generate_sample_card(
             job_directory, f"{job_id}.summary_by_samples.{guide}_{filter_criterion}.txt"
         ),
         sep="\t",
-        skiprows=2,
-        index_col=0,
-        header=None,
-        na_filter=False,
+        skiprows=2,  # skip first two rows (guide + header)
+        index_col=0,  # use sample ids as index
+        header=None,  # header has been skipped
+        na_filter=False,  # keep nan values
     )
-    # try to cast sample to int
-    try:
-        sample_idx = int(sample)
-    except:
-        sample_idx = sample  # maybe already int?
-    personal = samples_summary.loc[sample_idx, 4]  # personal data in 4th col
-    pam_creation = samples_summary.loc[sample_idx, 7]  # pam in 7th col
-    integrated_fname = glob(os.path.join(job_directory, "*integrated*"))[0]
-    assert isinstance(integrated_fname, str)
-    # integrated file with personal targets
-    integrated_personal = os.path.join(
-        job_directory, f"{job_id}.{sample}.{guide}.personal_targets.txt"
+    # select the number of personal targets and pam creation events for sample
+    # these data are in the 4th and 7th column of the summary by sample files,
+    # respectively
+    targets_sample_num = samples_summary.loc[sample, 4]
+    pam_creation_sample_num = samples_summary.loc[sample, 7]
+    # output filenames to store personal and private targets for  sample
+    targets_personal_fname = os.path.join(
+        job_directory, f"{job_id}.{sample}.{guide}.personal_targets.tsv"
     )
-    # integrated file with private targets
-    integrated_private = os.path.join(
+    targets_private_fname = os.path.join(
         job_directory, f"{job_id}.{sample}.{guide}.private_targets.tsv"
     )
     # path to database
@@ -4098,33 +4093,135 @@ def generate_sample_card(
     os.system(
         f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
     )
-    os.system(
-        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
+    if os.path.isfile(targets_private_fname) and (
+        all(
+            os.path.isfile(plotfname.format(c, guide, sample, "personal"))
+            for c in FILTERING_CRITERIA
+        )
+        and all(
+            os.path.isfile(plotfname.format(c, guide, sample, "private"))
+            for c in FILTERING_CRITERIA
+        )
+    ):  # cached private targets for sample
+        targets_private = pd.read_csv(targets_private_fname, sep="\t")
+        # sort private targets according the filtering criterion
+        order = filter_criterion == FILTERING_CRITERIA[0]
+        criterion_cname = get_query_column(filter_criterion)["sort"]
+        targets_private = targets_private.sort_values(
+            [criterion_cname], ascending=order
+        )
+    else:  # first query for this sample
+        # sql database to be used for queries
+        db_path = os.path.join(job_directory, f".{job_id}.db")
+        if not os.path.isfile(db_path):
+            raise FileNotFoundError(f"Cannot locate database file {db_path}")
+        try:
+            conn = sqlite3.connect(db_path)  # connect to database
+            c = conn.cursor()  # sql database cursor to execute queries
+            query_cols = get_query_column(filter_criterion)  # get query columns
+            # recover colname for sample column and filtering/sorting criterion
+            samples_cname, criterion_cname = query_cols["samples"], query_cols["sort"]
+            # define and perform sql database to retrieve sample targets
+            sqlquery = (
+                f"SELECT * FROM final_table WHERE \"{GUIDE_COLUMN}\"='{guide}' "
+                f"AND \"{samples_cname}\" LIKE '%{sample}%'"
+            )
+            targets_personal = pd.read_sql_query(sqlquery, conn)  # perform query
+        except sqlite3.Error as e:
+            raise sqlite3.Error(f"Database error ({db_path})") from e
+        except KeyError as e:
+            raise KeyError(
+                "Key error - possibly missing column in query columns"
+            ) from e
+        except Exception as e:
+            # sourcery skip: raise-specific-error
+            raise Exception(
+                f"Unexpected error while querying {db_path} for sample {sample}"
+            ) from e
+        finally:
+            if "conn" in locals():  # close connection to database
+                conn.commit()
+                conn.close()
+        if targets_personal.shape[0] != targets_sample_num:
+            raise ValueError(
+                f"Mismatching sample targets number (expected: {targets_sample_num}, got: {targets_personal.shape[0]})"
+            )
+        # sort personal targets - sort in ascending order if fewest is the criterion
+        # top targets have less mm+bulges
+        order = filter_criterion == FILTERING_CRITERIA[0]
+        targets_personal = targets_personal.sort_values(
+            [criterion_cname], ascending=order
+        )
+        # retrieve sample private targets from personal targets
+        targets_private = targets_personal[targets_personal[samples_cname] == sample]
+        # plot images to be displayed in the personal risk card tab
+        try:
+            targets_personal.to_csv(targets_personal_fname, sep="\t", index=False)
+            targets_private.to_csv(targets_private_fname, sep="\t", index=False)
+        except FileNotFoundError as e:
+            raise FileNotFoundError(f"File path not found {e.filename}") from e
+        except PermissionError as e:
+            raise PermissionError(f"Permission denied: {e.filename}") from e
+        except OSError as e:
+            if e.errno == errno.ENOSPC:
+                raise OSError("No space left on device") from e
+            else:
+                raise OSError(f"Cannot write {e.filename}") from e
+        except Exception as e:
+            # sourcery skip: raise-specific-error
+            raise Exception(
+                "An unexpected error occurred while saving personal and integrated targets"
+            ) from e
+        # compute sample's personal and private targets with lolliplots
+        crisprme_plots_personal = (
+            f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py"
+        )
+        crisprme_plots_personal_cmd = (
+            f"{crisprme_plots_personal} {targets_personal_fname} {imgsdir}/"
+        )
+        code = subprocess.call(
+            f"{crisprme_plots_personal_cmd} {guide}.{sample}.personal", shell=True
+        )
+        if code != 0:
+            raise subprocess.SubprocessError(
+                f"Failed personal targets plot generation on sample {sample}"
+            )
+        code = subprocess.call(
+            f"{crisprme_plots_personal_cmd} {guide}.{sample}.private", shell=True
+        )
+        if code != 0:
+            raise subprocess.SubprocessError(
+                f"Failed private targets plot generation on sample {sample}"
+            )
+    # compress private targets file for download
+    targets_private_zip = os.path.join(
+        job_directory,
+        os.path.basename(f"{os.path.splitext(targets_private_fname)[0]}.zip"),
     )
-    cmd = f"rm -rf {integrated_personal}"
-    code = subprocess.call(cmd, shell=True)
-    if code != 0:
-        raise ValueError(f'An error occurred while running "{cmd}"')
-    # recover final results table
-    results_table = pd.DataFrame(
-        [[len(result_personal.index), pam_creation, len(result_private.index)]],
-        columns=["Personal", "PAM Creation", "Private"],
+    if not os.path.isfile(targets_private_zip):
+        code = subprocess.call(
+            f"zip -j {targets_private_zip} {targets_private_fname}", shell=True
+        )
+        if code != 0:
+            raise subprocess.SubprocessError(
+                f"Failed to compress {targets_private_fname}"
+            )
+    # compute targets stats for sample -> displayed on top of the page
+    sample_stats = pd.DataFrame(
+        {
+            "Personal": [targets_sample_num],
+            "PAM creation": [pam_creation_sample_num],
+            "Private": [targets_private.shape[0]],
+        }
     ).astype(str)
-    # read the private targets file, if not created, pass
-    try:
-        ans = result_private
-    except:
-        pass
-    # put images for personal and private in HTML
+    ans = targets_private  # load private targets for sample; targets are displayed
+    # put images for personal and private targets in HTML
     try:
         image_personal_top = "data:image/png;base64,{}".format(
             base64.b64encode(
                 open(
                     os.path.join(
-                        current_working_directory,
-                        RESULTS_DIR,
-                        job_id,
-                        IMGS_DIR,
+                        imgsdir,
                         f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.personal.png",
                     ),
                     mode="rb",
@@ -4135,10 +4232,7 @@ def generate_sample_card(
             base64.b64encode(
                 open(
                     os.path.join(
-                        current_working_directory,
-                        RESULTS_DIR,
-                        job_id,
-                        IMGS_DIR,
+                        imgsdir,
                         f"CRISPRme_{filter_criterion}_top_1000_log_for_main_text_{guide}.{sample}.private.png",
                     ),
                     mode="rb",
@@ -4146,7 +4240,7 @@ def generate_sample_card(
             ).decode()
         )
     except:
-        raise ValueError("Personal and Private Lollipop plots not generated")
+        raise ValueError("Personal and Private Lolliplots not found")
     # recover filtering criterion selected via drop-down bar
     filter_criterion = read_json(job_id)
     assert filter_criterion in FILTERING_CRITERIA
@@ -4187,8 +4281,8 @@ def generate_sample_card(
             dash_table.DataTable(
                 css=[{"selector": ".row", "rule": "margin: 0"}],
                 id="results-table",
-                columns=[{"name": i, "id": i} for i in results_table.columns],
-                data=results_table.to_dict("records"),
+                columns=[{"name": i, "id": i} for i in sample_stats.columns],
+                data=sample_stats.to_dict("records"),
                 style_cell_conditional=[
                     {
                         "if": {"column_id": "Variant_samples_(highest_CFD)"},
@@ -4219,10 +4313,7 @@ def generate_sample_card(
             dash_table.DataTable(
                 css=[{"selector": ".row", "rule": "margin: 0"}],
                 id="results-table-risk",
-                columns=[
-                    {"name": i, "id": i, "hideable": True}
-                    for count, i in enumerate(ans.columns)
-                ],
+                columns=[{"name": i, "id": i, "hideable": True} for i in ans.columns],
                 data=ans.to_dict("records"),
                 style_cell_conditional=[
                     {
@@ -4318,12 +4409,11 @@ def generate_sample_card(
                         "overflow": "hidden",
                     },
                 ],
-                columns=[{"name": i, "id": i} for i in results_table.columns],
-                data=results_table.to_dict("records"),
+                columns=[{"name": i, "id": i} for i in sample_stats.columns],
+                data=sample_stats.to_dict("records"),
             ),
             [],
         ]
-    assert isinstance(out_1, list)
     return out_1
 
 

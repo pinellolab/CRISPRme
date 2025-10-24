@@ -6,18 +6,18 @@ fileOut=$2
 
 STARTTIME=$(date +%s)
 
-chroms=($(cut -f 5 $fileIn | tail -n +2 | LC_ALL=C grep -v "_" | LC_ALL=C sort -T "$dir" | uniq))
+chroms=($(awk 'NR>1 && !/_/ {print $5}' $fileIn | LC_ALL=C sort -T "$dir" | uniq))
 
 head -1 $fileIn >$fileOut
 
 for chrom in ${chroms[@]}; do
 
     echo $chrom
-    #awk -v "key=$chrom" '$5 == key {print($0)}' $fileIn > $fileIn.$chrom.ref
+    # awk "/${chrom}\t/" test.targets.txt >$fileIn.$chrom.ref
     grep -F -w "$chrom" $fileIn >$fileIn.$chrom.ref
     cut -f 3 $fileIn.$chrom.ref | LC_ALL=C sort -T "$dir" | uniq >$fileIn.$chrom.ref.targets
-    LC_ALL=C grep -F "${chrom}_" $fileIn >$fileIn.$chrom.alt # | awk '$5 ~ "_" {print($0)}'
-    LC_ALL=C grep -v -F -f $fileIn.$chrom.ref.targets $fileIn.$chrom.alt >$fileIn.$chrom.merged
+    awk -v chrom="$chrom" '$0 ~ chrom"_" {print($0)}' $fileIn >$fileIn.$chrom.alt
+    awk 'NR==FNR{a[$0];next} !($0 in a)' $fileIn.$chrom.ref.targets $fileIn.$chrom.alt >$fileIn.$chrom.merged
     rm $fileIn.$chrom.ref.targets
     rm $fileIn.$chrom.alt
     cat $fileIn.$chrom.ref $fileIn.$chrom.merged >>$fileOut

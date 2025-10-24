@@ -52,7 +52,7 @@ def start_message() -> None:
     """
 
     sys.stderr.write("SERVER STARTED\n")
-    sys.stderr.write(f"GO TO {IPADDRESS} TO USE THE WEB APP\n\n")
+    sys.stderr.write(f"GO TO http://{IPADDRESS} TO USE THE WEB APP\n\n")
 
 
 # --> entry point <-- #

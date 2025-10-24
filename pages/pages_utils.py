@@ -437,18 +437,18 @@ def get_query_column(filter_criterion: str) -> Dict[str, str]:
         "sort": "",
         "samples": "",
     }
-    if filter_criterion == FILTERING_CRITERIA[0]:
-        for key in query_columns.keys():
+    if filter_criterion == FILTERING_CRITERIA[0]:  # fewest mm+bulges
+        for key in query_columns:
             query_columns[key] = "_".join([query_columns[key], f"({MMBULGES_FILTER})"])
             query_columns["sort"] = TOTAL_FEWEST_COLUMN
             query_columns["samples"] = SAMPLES_FEWEST_COLUMN
-    elif filter_criterion == FILTERING_CRITERIA[1]:
-        for key in query_columns.keys():
+    elif filter_criterion == FILTERING_CRITERIA[1]:  # cfd
+        for key in query_columns:
             query_columns[key] = "_".join([query_columns[key], f"({CFD_FILTER})"])
             query_columns["sort"] = CFD_COLUMN
             query_columns["samples"] = SAMPLES_COLUMN
-    elif filter_criterion == FILTERING_CRITERIA[2]:
-        for key in query_columns.keys():
+    elif filter_criterion == FILTERING_CRITERIA[2]:  # crista
+        for key in query_columns:
             query_columns[key] = "_".join([query_columns[key], f"({CRISTA_FILTER})"])
             query_columns["sort"] = CRISTA_COLUMN
             query_columns["samples"] = SAMPLES_CRISTA_COLUMN

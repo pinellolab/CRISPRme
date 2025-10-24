@@ -3,9 +3,9 @@
 fileIn=$1
 fileOut=$2
 thresh=$3 #threshold to use in order to merge near targets
-sort_criteria=$4
-sorting_criteria_scoring=$5
-sorting_criteria=$6
+sort_criteria=$4  # pivot column to use while sorting targets before merge
+sorting_criteria_scoring=$5  # other sorting criteria (score has highest priority)
+sorting_criteria=$6   # other sorting criteria
 
 ##########ADJUST THESE PARAMETERS BASED ON INPUT FILE##########
 #columns start from 1
@@ -30,6 +30,7 @@ if [[ "${sort_pivot}" == "score" ]]; then
 else
     criteria=$sorting_criteria
 fi
+
 # python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
 python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_criteria $criteria
 # rm $fileIn.sorted

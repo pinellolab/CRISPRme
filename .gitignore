@@ -7,12 +7,9 @@ VCFs/
 Gencode/
 Cache/
 *nohup*
-Annotations/
 PAMs/*
 samplesIDs/*
-guides/
 *.csv
 *.pkl
-*.txt
 *.zip
 PostProcess/dnaShape.pkl
