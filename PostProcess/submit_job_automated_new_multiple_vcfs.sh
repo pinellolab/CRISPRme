@@ -434,14 +434,14 @@ while read vcf_f; do
 	done
 	echo -e 'Search Reference\tEnd\t'$(date) >>$log
 	# move all targets into targets directory
-	if [ -z "$(ls -A "${output_folder}/crispritz_targets")" ]; then
+	if [ -d "${output_folder}/crispritz_targets" ]; then
 		mv $output_folder/*.targets.txt $output_folder/crispritz_targets
 	fi
 	# move profiles into profile folder
 	if ! [ -d "$output_folder/crispritz_prof" ]; then
 		mkdir $output_folder/crispritz_prof
 	fi
-	if [ -z "$(ls -A "${output_folder}/crispritz_prof")" ]; then
+	if [ -d "${output_folder}/crispritz_prof" ]; then
 		mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
 	fi
 	# END STEP 3 - off-targets search

@@ -65,6 +65,9 @@ VALID_CHARS = {
     "v",
 }
 
+def is_folder_empty(folder: str) -> bool:
+    return any(os.scandir(folder))
+
 
 # Input chr1:11,130,540-11,130,751
 def extractSequence(name, input_range, genome_selected):
@@ -683,7 +686,16 @@ def complete_search():
                 + "Results/"
                 + input_args[input_args.index("--output") + 1]
             )
-            if not os.path.exists(outputfolder):
+            if os.path.isdir(outputfolder):  # check whether the folder is present or not
+                if is_folder_empty(outputfolder):  # if present check if not empty
+                    sys.stdout.write(
+                        f"\nOutput folder {outputfolder} not empty!\nSelect another "
+                        "output folder for the current CRISPRme run.\nIf the previous "
+                        "run using the following folder threw an error, please delete "
+                        f"{outputfolder} before running a new CRISPRme search.\n\n"
+                    )
+                    sys.exit(1)
+            else:  # older doesn't exist, create it
                 os.makedirs(outputfolder)
             # outputfolder = os.path.abspath(
             #     input_args[input_args.index("--output")+1])
