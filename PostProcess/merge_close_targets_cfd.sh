@@ -3,9 +3,9 @@
 fileIn=$1
 fileOut=$2
 thresh=$3 #threshold to use in order to merge near targets
-sort_pivot=$4  # pivot column to use while sorting targets before merge
+sort_criteria=$4  # pivot column to use while sorting targets before merge
 sorting_criteria_scoring=$5  # other sorting criteria (score has highest priority)
-sorting_criteria=$6  # other sorting criteria
+sorting_criteria=$6   # other sorting criteria
 
 ##########ADJUST THESE PARAMETERS BASED ON INPUT FILE##########
 #columns start from 1
@@ -25,16 +25,12 @@ echo "Sorting done in $(($ENDTIME - $STARTTIME)) seconds"
 # echo -e $header | cat - $fileIn.sorted.tmp > $fileIn.sorted
 # rm $fileIn.sorted.tmp
 echo "Merging contiguous targets"
-
 if [[ "${sort_pivot}" == "score" ]]; then
     criteria=$sorting_criteria_scoring
 else
     criteria=$sorting_criteria
 fi
-python merge_contiguous_targets.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $criteria
+
 # python remove_contiguous_samples_cfd.py $fileIn.sorted $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd
-
-
-# python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot
-# python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_pivot $sorting_criteria_scoring $sorting_criteria
+python remove_contiguous_samples_cfd.py $fileIn $fileOut $thresh $chrom $position $total $true_guide $snp_info $cfd $sort_criteria $criteria
 # rm $fileIn.sorted

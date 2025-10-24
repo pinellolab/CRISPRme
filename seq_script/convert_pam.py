@@ -43,6 +43,8 @@ def getGuides(extracted_seq, pam, len_guide, pam_begin):
     for element in itertools.product(*list_prod):
         iupac_pam_reverse.append(''.join(element))
 
+    print(iupac_pam, iupac_pam_reverse)
+
     
     extracted_seq = extracted_seq.upper()
     len_sequence = len(extracted_seq)    
@@ -77,3 +79,6 @@ def getGuides(extracted_seq, pam, len_guide, pam_begin):
                     guides.append(str(Seq(extracted_seq[i + len_pam : i + len_guide + len_pam]).reverse_complement()))
     return guides
     #return guides for when adding to app.py
+
+if __name__ == "__main__":
+    print(getGuides("TAACAGTTGCTTTTATCACAGGA", "NGG", 10, False))

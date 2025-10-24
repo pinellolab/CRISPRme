@@ -7,7 +7,7 @@ import os
 
 
 path_best = sys.argv[1]
-#path_alt = sys.argv[2]
+# path_alt = sys.argv[2]
 path_guides = sys.argv[2]
 path_samplesID = sys.argv[3]
 mms = int(sys.argv[4])
@@ -28,8 +28,15 @@ def init_summary_by_sample(path_samplesID):
         sid.readline()
         for line in sid:
             splitted = line.strip().split("\t")
-            dict_samples[splitted[0]] = [splitted[3],
-                                         splitted[1], splitted[2], 0, 0, 0, 0]
+            dict_samples[splitted[0]] = [
+                splitted[3],
+                splitted[1],
+                splitted[2],
+                0,
+                0,
+                0,
+                0,
+            ]
             if splitted[1] not in dict_pop.keys():
                 dict_pop[splitted[1]] = 0
             if splitted[2] not in dict_superpop.keys():
@@ -37,8 +44,9 @@ def init_summary_by_sample(path_samplesID):
 
     return dict_samples, dict_pop, dict_superpop
 
-#os.system(f"cp {path_best} {path_best}.cumulative")
-#os.system(f"tail -n +2 {path_alt} >> {path_best}.cumulative")
+
+# os.system(f"cp {path_best} {path_best}.cumulative")
+# os.system(f"tail -n +2 {path_alt} >> {path_best}.cumulative")
 
 
 guides = []
@@ -50,38 +58,40 @@ with open(f"{path_guides}", "r") as guide_file:
             guides.append(stripped)
 
             general_table[stripped] = dict()
-            general_table[stripped]['ref'] = np.zeros(
-                (bulge+1, mms+1), dtype=int)
-            general_table[stripped]['var'] = np.zeros(
-                (bulge+1, mms+1), dtype=int)
+            general_table[stripped]["ref"] = np.zeros((bulge + 1, mms + 1), dtype=int)
+            general_table[stripped]["var"] = np.zeros((bulge + 1, mms + 1), dtype=int)
 
 add_to_general_table = {}
 count_superpop = {}
 # with open(path_output + '.general_target_count.txt', 'w+') as general_count:
-count_for = '(' + ' - '.join([str(tot)
-                              for tot in range(1, mms + bulge + 1)]) + ' Mismatches + Bulges)'
+count_for = (
+    "("
+    + " - ".join([str(tot) for tot in range(1, mms + bulge + 1)])
+    + " Mismatches + Bulges)"
+)
 # general_count.write('#Guide\tOn-Targets (Reference - Enriched)\tOff-Targets Reference ' +
 #                     count_for + '\tOff-Targets Enriched ' + count_for + '\n')
 
 for guide in guides:
     os.system(f"LC_ALL=C grep -F {guide} {path_best} > {path_best}.{guide}")
-    #os.system(f"LC_ALL=C grep -F {guide} {path_alt} >> {path_best}.{guide}")
+    # os.system(f"LC_ALL=C grep -F {guide} {path_alt} >> {path_best}.{guide}")
 
     sum_cfds = 0
     on_targets = []
 
     dict_summary_by_guide = {}
     add_to_general_table[guide] = {}
-    add_to_general_table[guide]['distributions'] = [
-        [0] * (bulge + 1) for x in range(10)]
+    add_to_general_table[guide]["distributions"] = [
+        [0] * (bulge + 1) for x in range(10)
+    ]
     if genome_type == "var":
-        dict_samples, dict_pop, dict_superpop = init_summary_by_sample(
-            path_samplesID)
+        dict_samples, dict_pop, dict_superpop = init_summary_by_sample(path_samplesID)
         count_superpop[guide] = {}
         for superpop in dict_superpop.keys():
             count_superpop[guide][superpop] = {}
-            count_superpop[guide][superpop]['distributions'] = [
-                [0] * (bulge + 1) for x in range(10)]
+            count_superpop[guide][superpop]["distributions"] = [
+                [0] * (bulge + 1) for x in range(10)
+            ]
 
     with open(f"{path_best}.{guide}", "r") as f:
         for line in f:
@@ -96,8 +106,7 @@ for guide in guides:
                 # REMOVED THE SELECTION OF COUNT CRITERIA, WHEN SCORING IS DISABLE, ACTIVATE CONTROL IN THE RESULT PAGE TO AVOID OPENING SCORED FILES
                 # if splitted[21] != '-1.0':
                 # count for mm and bul in scored target
-                general_table[guide]['ref'][int(
-                    splitted[9]), int(splitted[8])] += 1
+                general_table[guide]["ref"][int(splitted[9]), int(splitted[8])] += 1
                 # else:
                 #     # count for mm and bul in MM_BUL target
                 #     general_table[guide]['ref'][int(
@@ -105,8 +114,7 @@ for guide in guides:
             else:
                 # if splitted[21] != '-1.0':
                 # count for mm and bul in CFD target
-                general_table[guide]['var'][int(
-                    splitted[9]), int(splitted[8])] += 1
+                general_table[guide]["var"][int(splitted[9]), int(splitted[8])] += 1
                 # else:
                 # count for mm and bul in MM_BUL target
                 # general_table[guide]['var'][int(
@@ -132,7 +140,7 @@ for guide in guides:
                 seen_superpop = set()
                 seen_pop = set()
                 for sample in samples:
-                    if sample != "NO_SAMPLES" and sample != '' and sample != 'NA':
+                    if sample != "NO_SAMPLES" and sample != "" and sample != "NA":
                         dict_samples[sample][3] += 1
                         seen_pop.add(dict_samples[sample][1])
                         seen_superpop.add(dict_samples[sample][2])
@@ -140,13 +148,15 @@ for guide in guides:
                             dict_samples[sample][6] += 1
                 for superpop in seen_superpop:
                     dict_superpop[superpop] += 1
-                    count_superpop[guide][superpop]['distributions'][int(
-                        splitted[8]) + int(splitted[9])][int(splitted[9])] += 1
+                    count_superpop[guide][superpop]["distributions"][
+                        int(splitted[8]) + int(splitted[9])
+                    ][int(splitted[9])] += 1
                 for pop in seen_pop:
                     dict_pop[pop] += 1
             else:
-                add_to_general_table[guide]['distributions'][int(
-                    splitted[8]) + int(splitted[9])][int(splitted[9])] += 1
+                add_to_general_table[guide]["distributions"][
+                    int(splitted[8]) + int(splitted[9])
+                ][int(splitted[9])] += 1
 
             sum_cfds += float(splitted[20])
             if int(splitted[10]) == 0:
@@ -157,57 +167,105 @@ for guide in guides:
             dict_samples[sample][4] = dict_pop[dict_samples[sample][1]]
             dict_samples[sample][5] = dict_superpop[dict_samples[sample][2]]
 
-    with open(f"{path_output}/{name_job}.summary_by_guide.{guide}_{filter_criterion}.txt", "w") as summary_by_guide:
+    with open(
+        f"{path_output}/{name_job}.summary_by_guide.{guide}_{filter_criterion}.txt", "w"
+    ) as summary_by_guide:
         summary_by_guide.write(
-            "Bulge Type\tMismatches\tBulge Size\tReference\tVariant\tCombined\tPAM Creation\n")
+            "Bulge Type\tMismatches\tBulge Size\tReference\tVariant\tCombined\tPAM Creation\n"
+        )
         for key in dict_summary_by_guide.keys():
             entry = dict_summary_by_guide[key]
             summary_by_guide.write(
-                f"{key}\t{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[3]}\n")
+                f"{key}\t{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[3]}\n"
+            )
 
     if genome_type == "var":
-        with open(f"{path_output}/{name_job}.summary_by_samples.{guide}_{filter_criterion}.txt", "w") as summary_by_samples:
-            summary_by_samples.write(guide+"\n")
+        with open(
+            f"{path_output}/{name_job}.summary_by_samples.{guide}_{filter_criterion}.txt",
+            "w",
+        ) as summary_by_samples:
+            summary_by_samples.write(guide + "\n")
             summary_by_samples.write(
-                "Sample\tSex\tPopulation\tSuper Population\tTargets in Sample\tTargets in Population\tTargets in Super Population\tPAM Creation\n")
+                "Sample\tSex\tPopulation\tSuper Population\tTargets in Sample\tTargets in Population\tTargets in Super Population\tPAM Creation\n"
+            )
             for key in dict_samples.keys():
                 entry = dict_samples[key]
                 summary_by_samples.write(
-                    f"{key}\t{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[3]}\t{entry[4]}\t{entry[5]}\t{entry[6]}\n")  # \t{entry[3]}
+                    f"{key}\t{entry[0]}\t{entry[1]}\t{entry[2]}\t{entry[3]}\t{entry[4]}\t{entry[5]}\t{entry[6]}\n"
+                )  # \t{entry[3]}
 
     with open(f"{path_output}/.{name_job}.acfd_{filter_criterion}.txt", "a") as acfd:
         if sum_cfds == 0:
-            acfd.write(guide+"\t1\tNA\tNA\n")
+            acfd.write(guide + "\t1\tNA\tNA\n")
         else:
-            acfd.write(guide+"\t"+str(100/(100+sum_cfds))+"\tNA\tNA\n")
+            acfd.write(guide + "\t" + str(100 / (100 + sum_cfds)) + "\tNA\tNA\n")
 
-    df_general_count = pd.DataFrame(general_table[guide]['ref'])
+    df_general_count = pd.DataFrame(general_table[guide]["ref"])
     df_general_count = df_general_count.append(
-        pd.DataFrame(general_table[guide]['var']))
+        pd.DataFrame(general_table[guide]["var"])
+    )
     df_general_count.to_csv(
-        f"{path_output}/.{name_job}.general_target_count."+guide+"_"+filter_criterion+".txt", sep='\t', index=False)
+        f"{path_output}/.{name_job}.general_target_count."
+        + guide
+        + "_"
+        + filter_criterion
+        + ".txt",
+        sep="\t",
+        index=False,
+    )
     # general_count.write(guide + '\t' + str(general_table[guide]['ref'][0] + general_table[guide]['var'][0]) + ' (' + str(general_table[guide]['ref'][0]) + ' - ' + str(general_table[guide]['var'][0]) + ')\t' +
     #                    str(sum(general_table[guide]['ref'][1:])) + ' (' + ' - '.join([ str(x) for x in general_table[guide]['ref'][1:]]) + ')\t' +
-    #					str(sum(general_table[guide]['var'][1:])) + ' (' + ' - '.join([ str(x) for x in general_table[guide]['var'][1:]]) + ')\n'
-    #					)
+    # 					str(sum(general_table[guide]['var'][1:])) + ' (' + ' - '.join([ str(x) for x in general_table[guide]['var'][1:]]) + ')\n'
+    # 					)
 
     os.system(
-        f"sort -k2,2n -k3,3n {path_output}/{name_job}.summary_by_guide.{guide}_{filter_criterion}.txt -o {path_best}.summary_by_guide.{guide}_{filter_criterion}.sorted")
+        f"sort -k2,2n -k3,3n {path_output}/{name_job}.summary_by_guide.{guide}_{filter_criterion}.txt -o {path_best}.summary_by_guide.{guide}_{filter_criterion}.sorted"
+    )
     os.system(
-        f"mv {path_best}.summary_by_guide.{guide}_{filter_criterion}.sorted {path_output}/{name_job}.summary_by_guide.{guide}_{filter_criterion}.txt")
+        f"mv {path_best}.summary_by_guide.{guide}_{filter_criterion}.sorted {path_output}/{name_job}.summary_by_guide.{guide}_{filter_criterion}.txt"
+    )
     os.system(f"rm {path_best}.{guide}")
 
 
-with open(f'{path_output}/.{name_job}.PopulationDistribution_{filter_criterion}.txt', 'w+') as pop_distribution:
+with open(
+    f"{path_output}/.{name_job}.PopulationDistribution_{filter_criterion}.txt", "w+"
+) as pop_distribution:
     for g in guides:
-        pop_distribution.write('-Summary_' + g + '\n')
-        pop_distribution.write('REF' + '\t' + '\t'.join([','.join(
-            str(v) for v in t) for t in add_to_general_table[g]['distributions']]) + '\n')
+        pop_distribution.write("-Summary_" + g + "\n")
+        pop_distribution.write(
+            "REF"
+            + "\t"
+            + "\t".join(
+                [
+                    ",".join(str(v) for v in t)
+                    for t in add_to_general_table[g]["distributions"]
+                ]
+            )
+            + "\n"
+        )
         if genome_type == "var":
             for superpop in dict_superpop.keys():
                 try:
-                    pop_distribution.write(superpop + '\t' + '\t'.join([','.join(
-                        str(v) for v in t) for t in count_superpop[g][superpop]['distributions']]) + '\n')
+                    pop_distribution.write(
+                        superpop
+                        + "\t"
+                        + "\t".join(
+                            [
+                                ",".join(str(v) for v in t)
+                                for t in count_superpop[g][superpop]["distributions"]
+                            ]
+                        )
+                        + "\n"
+                    )
                 except:
-                    pop_distribution.write(superpop + '\t' + '\t'.join([','.join(
-                        str(v) for v in t) for t in [[0] * (bulge + 1) for x in range(10)]]) + '\n')
+                    pop_distribution.write(
+                        superpop
+                        + "\t"
+                        + "\t".join(
+                            [
+                                ",".join(str(v) for v in t)
+                                for t in [[0] * (bulge + 1) for x in range(10)]
+                            ]
+                        )
+                        + "\n"
+                    )

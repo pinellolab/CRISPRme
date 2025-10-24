@@ -15,7 +15,6 @@ Attributes:
     app.layout (html.Div): The layout structure of the Dash application.
 """
 
-
 from pages import (
     main_page,
     navbar_creation,
@@ -25,15 +24,7 @@ from pages import (
     help_page,
     contacts_page,
 )
-from app import (
-    URL,
-    IPADDRESS,
-    WEBADDRESS,
-    ONLINE,
-    app,
-    current_working_directory,
-    cache,
-)
+from app import URL, IPADDRESS, WEBADDRESS, ONLINE, current_working_directory, app, cache
 
 from dash.dependencies import Input, Output, State
 from typing import Tuple
@@ -59,19 +50,6 @@ CRISPRME_DIRS = [
     "samplesIDs",
 ]  # crisprme directory tree
 
-# initialize the webpage
-server = app.server  # start server
-navbar = navbar_creation.navbar()  # create navigation bar on top of the webpage
-# display multipage website
-app.layout = html.Div(
-    [
-        navbar,
-        dcc.Location(id="url", refresh=False),
-        html.Div(id="page-content"),
-        html.P(id="signal", style={"visibility": "hidden"}),
-    ]
-)
-
 
 def check_directories(basedir: str) -> None:
     """Check and create necessary directories in the specified base directory.
@@ -94,6 +72,20 @@ def check_directories(basedir: str) -> None:
     for d in CRISPRME_DIRS:
         if not os.path.exists(os.path.join(basedir, d)):
             os.makedirs(os.path.join(basedir, d))
+
+
+# initialize the webpage
+server = app.server  # start server
+navbar = navbar_creation.navbar()  # create navigation bar on top of the webpage
+# display multipage website
+app.layout = html.Div(
+    [
+        navbar,
+        dcc.Location(id="url", refresh=False),
+        html.Div(id="page-content"),
+        html.P(id="signal", style={"visibility": "hidden"}),
+    ]
+)
 
 
 # switch between the website pages
@@ -156,6 +148,7 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
                 os.path.join(URL, "load", search),
             )
         return results_page.result_page(job_id), os.path.join(URL, "load", search)
+
     if path == "/user-guide":  # display manual page
         return help_page.helpPage(), os.path.join(URL, "load", search)
     if path == "/contacts":  # display contacts page
@@ -183,22 +176,20 @@ def index():
         OSError: If there is an issue writing the mode file.
     """
 
-    # check CRISPRme directory tree consistency
-    check_directories(current_working_directory)
-    # TODO: replace using argparse in crisprme.py
+    check_directories(current_working_directory)  # check CRISPRme directory tree consistency
     debug = "--debug" in sys.argv[1:]  # check if debug mode is active
     website = "--website" in sys.argv[1:]  # check if local server or website
-    try:  # keep track of the running mode (debugging purposes)
+    try:  # keep track of running mode (debugging purposes)
         modefname = os.path.join(current_working_directory, MODEFILE)
         with open(modefname, mode="w") as outfile:
             mode = "server" if website else "local"
             outfile.write(mode)
-    except IOError as e:
-        raise OSError("Cannot write mode file") from e
+    except OSError as e:
+        raise IOError("Cannot write mode file") from e
     if website:  # online web-interface running
         app.run_server(
             host=HOST,
-            port=PORTWEB,  # type: ignore
+            port=PORTWEB,
             debug=debug,
             dev_tools_ui=debug,
             dev_tools_props_check=debug,
@@ -206,7 +197,7 @@ def index():
     else:  # local web-interface running
         app.run_server(
             host=HOST,
-            port=PORTLOCAL,  # type: ignore
+            port=PORTLOCAL,
             debug=debug,
             dev_tools_ui=debug,
             dev_tools_props_check=debug,

@@ -22,36 +22,53 @@ import sqlite3
 guide_column = "Spacer+PAM"
 
 
-def shold(target, n_clicks, page_current, page_size, radio_order, orderdrop, sholddrop, maxdrop, asc1, url_job, guide, current_working_directory):
+def shold(
+    target,
+    n_clicks,
+    page_current,
+    page_size,
+    radio_order,
+    orderdrop,
+    sholddrop,
+    maxdrop,
+    asc1,
+    url_job,
+    guide,
+    current_working_directory,
+):
     # query with threshold
     # print('entro shold')
     if asc1 == None:
-        asc1 = 'DESC'
+        asc1 = "DESC"
 
     url = url_job[5:]
 
-    path = current_working_directory+"/Results/"+url+"/."+url+".db"
+    path = current_working_directory + "/Results/" + url + "/." + url + ".db"
 
     conn = sqlite3.connect(path)
     c = conn.cursor()
-    param = [guide, page_size, page_current * page_size, ]
+    param = [
+        guide,
+        page_size,
+        page_current * page_size,
+    ]
 
-    if target == 'CFD':
-        radio_order = str(radio_order)+"_(highest_CFD)"
-        orderdrop = str(orderdrop)+"_(highest_CFD)"
-    elif target == 'fewest':
-        radio_order = str(radio_order)+"_(fewest_mm+b)"
-        orderdrop = str(orderdrop)+"_(fewest_mm+b)"
-    elif target == 'CRISTA':
-        if 'CFD' in radio_order:
-            radio_order = str(radio_order).replace('CFD', 'CRISTA')
+    if target == "CFD":
+        radio_order = str(radio_order) + "_(highest_CFD)"
+        orderdrop = str(orderdrop) + "_(highest_CFD)"
+    elif target == "fewest":
+        radio_order = str(radio_order) + "_(fewest_mm+b)"
+        orderdrop = str(orderdrop) + "_(fewest_mm+b)"
+    elif target == "CRISTA":
+        if "CFD" in radio_order:
+            radio_order = str(radio_order).replace("CFD", "CRISTA")
         try:
-            if 'CFD' in orderdrop:
-                orderdrop = str(orderdrop).replace('CFD', 'CRISTA')
+            if "CFD" in orderdrop:
+                orderdrop = str(orderdrop).replace("CFD", "CRISTA")
         except:
             pass
-        radio_order = str(radio_order)+"_(highest_CRISTA)"
-        orderdrop = str(orderdrop)+"_(highest_CRISTA)"
+        radio_order = str(radio_order) + "_(highest_CRISTA)"
+        orderdrop = str(orderdrop) + "_(highest_CRISTA)"
 
     # print(radio_order, orderdrop)
 
@@ -62,16 +79,33 @@ def shold(target, n_clicks, page_current, page_size, radio_order, orderdrop, sho
         #     df = pd.read_sql_query("SELECT * FROM final_table WHERE \"{}\"=? AND {}>={} ORDER BY \"{}\" {},\"{}\" {} LIMIT ? OFFSET ?".format(
         #         guide_column, radio_order, sholddrop, radio_order, asc1, orderdrop, asc1), conn, params=param)
         # else:  # min e max
-        df = pd.read_sql_query("SELECT * FROM final_table WHERE \"{}\"=? AND \"{}\" BETWEEN {} AND {} ORDER BY \"{}\" {},\"{}\" {}  LIMIT ? OFFSET ?".format(
-            guide_column, radio_order, sholddrop, maxdrop, radio_order, asc1, orderdrop, asc1), conn, params=param)
+        df = pd.read_sql_query(
+            'SELECT * FROM final_table WHERE "{}"=? AND "{}" BETWEEN {} AND {} ORDER BY "{}" {},"{}" {}  LIMIT ? OFFSET ?'.format(
+                guide_column,
+                radio_order,
+                sholddrop,
+                maxdrop,
+                radio_order,
+                asc1,
+                orderdrop,
+                asc1,
+            ),
+            conn,
+            params=param,
+        )
     else:  # ordinamento singolo
         if maxdrop == None:  # min
             maxdrop = 1000
             # df = pd.read_sql_query("SELECT * FROM final_table WHERE \"{}\"=? AND \"{}\">={} ORDER BY \"{}\" {} LIMIT ? OFFSET ?".format(
             #     guide_column, radio_order, sholddrop, radio_order, asc1), conn, params=param)  # ok
         # else:  # min e max
-        df = pd.read_sql_query("SELECT * FROM final_table WHERE \"{}\"=? AND \"{}\" BETWEEN {} AND {} ORDER BY \"{}\" {} LIMIT ? OFFSET ?".format(
-            guide_column, radio_order, sholddrop, maxdrop, radio_order, asc1), conn, params=param)  # ok
+        df = pd.read_sql_query(
+            'SELECT * FROM final_table WHERE "{}"=? AND "{}" BETWEEN {} AND {} ORDER BY "{}" {} LIMIT ? OFFSET ?'.format(
+                guide_column, radio_order, sholddrop, maxdrop, radio_order, asc1
+            ),
+            conn,
+            params=param,
+        )  # ok
 
     conn.commit()
     conn.close()
@@ -79,48 +113,73 @@ def shold(target, n_clicks, page_current, page_size, radio_order, orderdrop, sho
     return data
 
 
-def noshold(target, n_clicks, page_current, page_size, radio_order, orderdrop, asc1, url_job, guide, current_working_directory):
+def noshold(
+    target,
+    n_clicks,
+    page_current,
+    page_size,
+    radio_order,
+    orderdrop,
+    asc1,
+    url_job,
+    guide,
+    current_working_directory,
+):
     # print(asc1)
     # print('entro noshold')
     if asc1 == None:
-        asc1 = 'DESC'
+        asc1 = "DESC"
     url = url_job[5:]
-    path = current_working_directory+"/Results/"+url+"/."+url+".db"
+    path = current_working_directory + "/Results/" + url + "/." + url + ".db"
 
     conn = sqlite3.connect(path)
     c = conn.cursor()
-    param = [guide, page_size, page_current * page_size, ]
+    param = [
+        guide,
+        page_size,
+        page_current * page_size,
+    ]
     # print("noshold")
 
-    if target == 'CFD':
-        radio_order = str(radio_order)+"_(highest_CFD)"
-        orderdrop = str(orderdrop)+"_(highest_CFD)"
-    elif target == 'fewest':
-        radio_order = str(radio_order)+"_(fewest_mm+b)"
-        orderdrop = str(orderdrop)+"_(fewest_mm+b)"
-    elif target == 'CRISTA':
-        if 'CFD' in radio_order:
-            radio_order = str(radio_order).replace('CFD', 'CRISTA')
+    if target == "CFD":
+        radio_order = str(radio_order) + "_(highest_CFD)"
+        orderdrop = str(orderdrop) + "_(highest_CFD)"
+    elif target == "fewest":
+        radio_order = str(radio_order) + "_(fewest_mm+b)"
+        orderdrop = str(orderdrop) + "_(fewest_mm+b)"
+    elif target == "CRISTA":
+        if "CFD" in radio_order:
+            radio_order = str(radio_order).replace("CFD", "CRISTA")
         try:
-            if 'CFD' in orderdrop:
-                orderdrop = str(orderdrop).replace('CFD', 'CRISTA')
+            if "CFD" in orderdrop:
+                orderdrop = str(orderdrop).replace("CFD", "CRISTA")
         except:
             pass
-        radio_order = str(radio_order)+"_(highest_CRISTA)"
-        orderdrop = str(orderdrop)+"_(highest_CRISTA)"
+        radio_order = str(radio_order) + "_(highest_CRISTA)"
+        orderdrop = str(orderdrop) + "_(highest_CRISTA)"
 
     # print(radio_order, orderdrop)
 
     if orderdrop != "None_(highest_CFD)":
         # query con multiordinamento
-        #print('double ordering')
-        df = pd.read_sql_query("SELECT * FROM final_table WHERE \"{}\"=? ORDER BY \"{}\" {}, \"{}\" {} LIMIT ? OFFSET ?".format(
-            guide_column, radio_order, asc1, orderdrop, asc1), conn, params=param)
+        # print('double ordering')
+        df = pd.read_sql_query(
+            'SELECT * FROM final_table WHERE "{}"=? ORDER BY "{}" {}, "{}" {} LIMIT ? OFFSET ?'.format(
+                guide_column, radio_order, asc1, orderdrop, asc1
+            ),
+            conn,
+            params=param,
+        )
     else:
         # query con ordinamento singolo
-        #print('single ordering')
-        df = pd.read_sql_query("SELECT * FROM final_table WHERE \"{}\"=? ORDER BY \"{}\" {} LIMIT ? OFFSET ?".format(
-            guide_column, radio_order, asc1), conn, params=param)
+        # print('single ordering')
+        df = pd.read_sql_query(
+            'SELECT * FROM final_table WHERE "{}"=? ORDER BY "{}" {} LIMIT ? OFFSET ?'.format(
+                guide_column, radio_order, asc1
+            ),
+            conn,
+            params=param,
+        )
 
     # query senza soglia
     conn.commit()

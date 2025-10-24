@@ -4,8 +4,9 @@ import time
 from intervaltree import Interval, IntervalTree
 import sys
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings('ignore', category=UserWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 file_final_results = sys.argv[1]
 inAnnotationFile = sys.argv[2]
@@ -18,48 +19,58 @@ annotationDict = dict()
 # annotationsSet = set()
 # guidesSet = set()       #NOTE/BUG if guide finds 0 targets, it will not be annotated
 
-with open(inAnnotationFile, 'r') as annotations:
+with open(inAnnotationFile, "r") as annotations:
     for line in annotations:
-        x = line.split('\t')
-        if 'vuoto.txt' in inAnnotationFile:
+        x = line.split("\t")
+        if "vuoto.txt" in inAnnotationFile:
             break
         annotations_list = str(x[3]).strip()
         if str(x[0]) in annotationDict.keys():
-            annotationDict[str(x[0])][int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list
+            annotationDict[str(x[0])][int(x[1]) : int(x[2])] = (
+                str(x[0]) + "\t" + annotations_list
+            )
         else:
-            annotationDict[str(x[0])]=IntervalTree()
-            annotationDict[str(x[0])][int(x[1]):int(x[2])] = str(x[0])+'\t'+annotations_list
+            annotationDict[str(x[0])] = IntervalTree()
+            annotationDict[str(x[0])][int(x[1]) : int(x[2])] = (
+                str(x[0]) + "\t" + annotations_list
+            )
         # annotationsSet.add(annotations_list)
 
 
-with open(file_final_results, 'r') as f_in:
-    with open(file_annotated, 'w') as f_out:
+with open(file_final_results, "r") as f_in:
+    with open(file_annotated, "w") as f_out:
         header = f_in.readline()
         f_out.write(header)
         for line in f_in:
-            splitted = line.rstrip().split('\t')
-            guide_no_bulge = splitted[1].replace('-', '')
+            splitted = line.rstrip().split("\t")
+            guide_no_bulge = splitted[1].replace("-", "")
             # Calcolo annotazioni
             foundAnnotations = list()
             if str(splitted[4]) in annotationDict.keys():
-                foundAnnotations = list(annotationDict[str(splitted[4])][int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)])
+                foundAnnotations = list(
+                    annotationDict[str(splitted[4])][
+                        int(splitted[5]) : (
+                            int(splitted[5]) + int(len(guide_no_bulge)) + 1
+                        )
+                    ]
+                )
             # sorted(annotationsTree[int(splitted[5]):(int(splitted[5])+int(len(guide_no_bulge))+1)])
             string_annotation = list()
             found_bool = False
             for found in range(0, len(foundAnnotations)):
                 guide = foundAnnotations[found].data
-                guideSplit = guide.split('\t')
+                guideSplit = guide.split("\t")
                 # if(str(guideSplit[0]) == str(splitted[4])):
                 found_bool = True
                 string_annotation.append(str(guideSplit[1]))
             if not found_bool:
-                last_annotation = 'n'
+                last_annotation = "n"
             else:
-                last_annotation = ','.join(list(set(string_annotation)))
+                last_annotation = ",".join(list(set(string_annotation)))
             splitted[14] = last_annotation  # bestCFD
             # splitted[36] = last_annotation #fewestMM_BUL
             # splitted[58] = last_annotation #bestCRISTA
 
-            f_out.write('\t'.join(splitted)+'\n')
+            f_out.write("\t".join(splitted) + "\n")
 
 print(f"Annotation done in {time.time()-start_time}")

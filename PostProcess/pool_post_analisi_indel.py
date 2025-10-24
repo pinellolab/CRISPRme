@@ -17,22 +17,23 @@ pam_file = sys.argv[9]
 dict_folder = sys.argv[10]
 final_res = sys.argv[11]
 final_res_alt = sys.argv[12]
-ncpus=int(sys.argv[13])
+ncpus = int(sys.argv[13])
 # ncpus = 4
 
 
 def start_analysis(f):
-    splitted = f.split('.')
+    splitted = f.split(".")
     for elem in splitted:
         if "chr" in elem:
             chrom = elem
     os.system(
-        f"./post_analisi_indel.sh \"{output_folder}\" \"{ref_folder}\" \"{vcf_folder}\" \"{guide_file}\" \"{mm}\" \"{bDNA}\" \"{bRNA}\" {annotation_file} {pam_file} {dict_folder} {final_res} {final_res_alt} {chrom}")
+        f'./post_analisi_indel.sh "{output_folder}" "{ref_folder}" "{vcf_folder}" "{guide_file}" "{mm}" "{bDNA}" "{bRNA}" {annotation_file} {pam_file} {dict_folder} {final_res} {final_res_alt} {chrom}'
+    )
 
 
 chrs = []
 for f in os.listdir(vcf_folder):
-    if 'vcf.gz' in f:
+    if "vcf.gz" in f:
         chrs.append(f)
 
 # t = 6

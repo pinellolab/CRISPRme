@@ -31,11 +31,14 @@ import dash
 import sys
 import os
 
-WEBADDRESS = "http://crisprme.di.univr.it"
-IPADDRESS = "127.0.0.1:8080"
+
+WEBADDRESS = "http://crisprme.di.univr.it"  # webpage address
+IPADDRESS = "127.0.0.1:8080"  # server IP address (local server)
+URL = ""  # server URL
+current_working_directory = f"{os.getcwd()}/"  # current working directory
 
 
-def _start_message() -> None:
+def start_message() -> None:
     """Prints a startup message to the standard error stream.
 
     This function outputs a message indicating that the server has started and
@@ -52,7 +55,7 @@ def _start_message() -> None:
     sys.stderr.write(f"GO TO http://{IPADDRESS} TO USE THE WEB APP\n\n")
 
 
-URL = ""  # server URL
+# --> entry point <-- #
 external_stylesheets = [
     "https://codepen.io/chriddyp/pen/bWLwgP.css",
     dbc.themes.BOOTSTRAP,
@@ -62,12 +65,11 @@ app = dash.Dash(
     __name__,
     external_stylesheets=external_stylesheets,
     suppress_callback_exceptions=True,
-    server=server,  # type: ignore
+    server=server,
 )  # initialize server app
 app_directory = os.path.dirname(os.path.realpath(__file__))  # current location
-_start_message()  # print server start message
-current_working_directory = os.getcwd() + "/"  # This for files TODO: remove
-app.title = "CRISPRme"  # type: ignore - assign flask app name
+start_message()  # print server start message
+app.title = "CRISPRme"  # assign flask app name
 # necessary if update element in a callback generated in another callback
 # app.config['suppress_callback_exceptions'] = True
 app.css.config.serve_locally = True
@@ -89,7 +91,7 @@ if ONLINE:
     DISPLAY_OFFLINE = "none"
 else:
     DISPLAY_ONLINE = "none"
-# set to execute multiple jobs at time
+# set to execute multiple 2 jobs max at time
 pool_executor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
 # configure caching
 CACHE_CONFIG = {

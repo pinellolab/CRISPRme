@@ -2,7 +2,7 @@
 webpages.
 """
 
-from app import current_working_directory, operators
+from app import operators, current_working_directory
 
 from typing import Dict, List, Optional, Tuple
 from glob import glob
@@ -362,9 +362,7 @@ def write_json(dropdown_value: str, job_id: str) -> None:
     """
     if not isinstance(dropdown_value, str):
         raise TypeError(f"Expected {str.__name__}, got {type(dropdown_value).__name__}")
-    dropdown_json_file = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id, ".dropdown.json"
-    )
+    dropdown_json_file = os.path.join(current_working_directory, RESULTS_DIR, job_id, ".dropdown.json")
     try:
         handle = open(dropdown_json_file, mode="w")
         handle.write(f"{dropdown_value}")
@@ -390,9 +388,7 @@ def read_json(job_id: str) -> str:
     str
         Table filtering criterion
     """
-    dropdown_json_file = os.path.join(
-        current_working_directory, RESULTS_DIR, job_id, ".dropdown.json"
-    )
+    dropdown_json_file = os.path.join(current_working_directory, RESULTS_DIR, job_id, ".dropdown.json")
     if not os.path.isfile(dropdown_json_file):
         raise FileNotFoundError(f"Unable to locate {dropdown_json_file}")
     try:
@@ -1138,9 +1134,7 @@ def get_custom_annotations() -> List:
         User's annotation data
     """
 
-    annotation_data = glob(
-        os.path.join(current_working_directory, ANNOTATIONS_DIR, "*.bed")
-    )
+    annotation_data = glob(os.path.join(current_working_directory, ANNOTATIONS_DIR, "*.bed"))
     annotations = [
         {"label": ann.strip().split("/")[-1], "value": ann.strip().split("/")[-1]}
         for ann in annotation_data

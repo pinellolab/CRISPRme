@@ -199,7 +199,6 @@ def iupac_decomposition(split, guide_no_bulge, guide_no_pam, cluster_to_save):
     realTarget = split[2]
     replaceTarget = split[2].replace("-", "")
     refSeq = genomeStr[int(split[4]) : int(split[4]) + len(replaceTarget)].upper()
-    refseqlist = list(refSeq)
 
     revert = False
     if split[6] == "-":
@@ -215,16 +214,13 @@ def iupac_decomposition(split, guide_no_bulge, guide_no_pam, cluster_to_save):
         totalDict[1][0] = dict()
     countIUPAC = 0
     for pos_c, c in enumerate(replaceTarget):
-        if pos_c >= len(refseqlist) or pos_c < 0:  # should not be necessary
-            countIUPAC = 0
-            break
         if c in iupac_code:
             countIUPAC += 1
             snpToReplace, sampleSet, rsID, AF_var, snpInfo = retrieveFromDict(
                 pos_c + int(split[4])
             )
             for i, elem in enumerate(snpToReplace):
-                listReplaceTarget = [nt for nt in refseqlist]
+                listReplaceTarget = list(refSeq)
                 listReplaceTarget[pos_c] = elem
                 listInfo = [[rsID[i], AF_var[i], snpInfo[i]]]
                 if haplotype_check:

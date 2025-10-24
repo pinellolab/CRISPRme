@@ -31,7 +31,10 @@ def start_analysis(f):
     )
 
 
-chrs = [f for f in os.listdir(ref_folder) if ".fa" in f and ".fai" not in f]
+chrs = []
+for f in os.listdir(ref_folder):
+    if ".fa" in f and ".fai" not in f:
+        chrs.append(f)
 
 # t = 6
 # if ncpus < 6:

@@ -9,7 +9,7 @@ import os
 import re
 
 
-version = "2.1.6"  #  CRISPRme version; TODO: update when required
+version = "2.1.7"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +20,7 @@ origin_path = os.path.dirname(os.path.abspath(__file__))
 conda_path = "opt/crisprme/PostProcess/"
 # path corrected to use with conda
 corrected_origin_path = script_path[:-3] + conda_path
-corrected_web_path = f"{origin_path[:-3]}opt/crisprme/"
+corrected_web_path = f"{origin_path[:-3]}/opt/crisprme/"
 # corrected_web_path = os.getcwd()
 
 script_path = corrected_origin_path
@@ -1091,9 +1091,7 @@ def gnomAD_converter():
         except IndexError as e:
             raise ValueError("Missing or forbidden threads value") from e
     # run gnom AD converter
-    gnomad_converter_script = os.path.join(
-        script_path.replace("PostProcess", "src"), "convert_gnomAD_vcfs.py"
-    )
+    gnomad_converter_script = os.path.join(script_path, "convert_gnomAD_vcfs.py")
     cmd = (
         f"python {gnomad_converter_script} {gnomad_dir} {samples_ids} {joint} "
         f"{keep} {multiallelic} {threads}"
@@ -1264,9 +1262,7 @@ def complete_test_crisprme():
             sys.exit(1)
     debug = "--debug" in input_args  # run local or via conda/Docker
     # begin crisprme test
-    script_test = os.path.join(
-        script_path.replace("PostProcess", "src"), "complete_test.py"
-    )  # the script is located within src -- TODO: start migration to src
+    script_test = os.path.join(script_path, "complete_test.py")
     code = subprocess.call(
         f"python {script_test} {chrom} {vcf_dataset} {threads} {debug}", shell=True
     )

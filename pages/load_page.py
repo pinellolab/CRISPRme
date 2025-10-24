@@ -9,7 +9,6 @@ The analysis results are kept in storage for 3 days. After 3 days the results
 are automatically deleted and could not be accessed anymore.
 """
 
-
 from app import app, current_working_directory, URL
 from .pages_utils import RESULTS_DIR, GUIDES_FILE, LOG_FILE, PARAMS_FILE
 
@@ -439,14 +438,14 @@ def load_page() -> List:
     # button to view results
     view_results = dcc.Link(
         html.Button(
-            "View Results", 
+            "View Results",
             style={
-                "font-size": "large", 
-                "width": "700 px", 
+                "font-size": "large",
+                "width": "700 px",
                 "margin-top": "0.75rem",
                 "border-radius": "5px",
-                "border": "2px solid"
-            }
+                "border": "2px solid",
+            },
         ),
         style={"visibility": "hidden"},
         id="view-results",
@@ -541,11 +540,7 @@ def load_page() -> List:
     )
     # view results button
     final_list.append(
-        html.Div(
-            [view_results], 
-            style={"text-align": "center"}
-        ),
-        
+        html.Div([view_results], style={"text-align": "center"}),
     )
     final_list.append(html.P("", id="done"))
     final_list.append(dcc.Interval(id="load-page-check", interval=(3 * 1000)))
