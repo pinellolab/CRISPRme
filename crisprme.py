@@ -1086,8 +1086,8 @@ def _check_output(args: List[str]) -> str:
                 "run using the following folder threw an error, please delete "
                 f"{outputfolder} before running a new CRISPRme search.\n\n"
             )
-        else:  # old folder doesn't exist, create it
-            os.makedirs(outputfolder)    
+    else:  # old folder doesn't exist, create it
+        os.makedirs(outputfolder)    
     if not os.path.isdir(outputfolder):
         error("The folder specified for --output does not exist")
     return outputfolder
@@ -1147,7 +1147,7 @@ def complete_search() -> None:
     sorting_criteria = _check_sorting_criteria(args, "--sorting-criteria" in args)  # sorting criteria (mm+bulges) columns
     outputfolder = _check_output(args)  # output folder
     thread = _check_threads(args, "--thread" in args)  # number of threads
-    
+
     # extract pam seq from file
     pam_len = 0
     total_pam_len = 0
