@@ -647,9 +647,10 @@ def _rm_files(fnames: List[str]) -> None:
         SystemExit: If removing any file fails.
     """
     for fname in fnames:
-        code = subprocess.call(f"rm {fname}", shell=True)
-        if code != 0:
-            error("Failed removing file")
+        if os.path.isfile(fname):
+            code = subprocess.call(f"rm {fname}", shell=True)
+            if code != 0:
+                error("Failed removing file")
 
 
 def _sort_annotation(annotationfile: str) -> str:
@@ -777,7 +778,7 @@ def _process_personal_annotation(personal_annotationfile: str, annotationfile: s
     concat_annotationfile_sorted = f"{concat_annotationfile}.sorted.bed"
     concat_annotationfile_sorted = _sort_bed(concat_annotationfile, concat_annotationfile_sorted)
     concat_annotationfile_bgzip = _compress_file(concat_annotationfile_sorted)
-    _rm_files([concat_annotationfile, f"{concat_annotationfile_bgzip}.tbi"])
+    _rm_files([concat_annotationfile])
     assert os.path.isfile(concat_annotationfile_bgzip)
     return concat_annotationfile_bgzip
     
