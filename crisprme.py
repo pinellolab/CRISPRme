@@ -777,6 +777,7 @@ def _process_personal_annotation(personal_annotationfile: str, annotationfile: s
     concat_annotationfile_sorted = f"{concat_annotationfile}.sorted.bed"
     concat_annotationfile_sorted = _sort_bed(concat_annotationfile, concat_annotationfile_sorted)
     concat_annotationfile_bgzip = _compress_file(concat_annotationfile_sorted)
+    _rm_files([concat_annotationfile, f"{concat_annotationfile_bgzip}.tbi"])
     assert os.path.isfile(concat_annotationfile_bgzip)
     return concat_annotationfile_bgzip
     
@@ -1081,10 +1082,10 @@ def _check_output(args: List[str]) -> str:
     if os.path.isdir(outputfolder):  # check whether the folder is present or not
         if is_folder_empty(outputfolder):  # if present check if not empty
             error(
-                f"\nOutput folder {outputfolder} not empty!\nSelect another "
-                "output folder for the current CRISPRme run.\nIf the previous "
+                f"Output folder {outputfolder} not empty!Select another "
+                "output folder for the current CRISPRme run.If the previous "
                 "run using the following folder threw an error, please delete "
-                f"{outputfolder} before running a new CRISPRme search.\n\n"
+                f"{outputfolder} before running a new CRISPRme search."
             )
     else:  # old folder doesn't exist, create it
         os.makedirs(outputfolder)    
