@@ -21,6 +21,7 @@ import time
 import random
 import multiprocessing
 import json
+import pysam
 
 warnings.filterwarnings("ignore")
 # matplotlib.use("TkAgg")
@@ -38,7 +39,8 @@ inFinalFile = open(sys.argv[2], "r")  # final result file from search
 inSamplesIDFile = open(sys.argv[3], "r").readlines()  # sampleID file
 inSamplesIDFile.pop(0)  # pop header from sampleID file
 # annotation file used during search
-inAnnotationsFile = open(sys.argv[4], "r")
+annotation_fname = sys.argv[4]
+inAnnotationsFile = None if os.path.basename(annotation_fname) == "vuoto.txt" else pysam.TabixFile(sys.argv[4], "r")
 outDir = sys.argv[5]  # directory to output the figures
 threads = int(sys.argv[6])  # number of concurrent execution of image creation
 max_mm = int(sys.argv[7])
@@ -108,11 +110,15 @@ def fillDict(guide, guideDict, motifDict):
                 # to avoid duplicate categories
                 annotationsList = set(annotationsList)
                 for annotation in annotationsList:
+                    if "_personal" in annotation:
+                        continue
                     if "CTCF-bound" in annotation:
                         guideDict[over]["CTCF-only"] += 1
                         guideDict[over][annotation.split(";")[0]] += 1
                     elif "_gencode" in annotation:
                         guideDict[over][annotation.replace("_gencode", "")] += 1
+            if "RNA,DNA" in split[0]:
+                continue
             # find motif in X and RNA/DNA targets
             if "DNA" not in split[0]:
                 for count, nucleotide in enumerate(alignedSequence):
@@ -146,15 +152,12 @@ annotationsSet = set()
 populationDict = dict()
 
 # read all the annotations
-for line in inAnnotationsFile:
-    if (
-        "vuoto.txt" in sys.argv[4]
-    ):  # se vuoto.txt usato come annotazione, skippa lettura
-        break
-    annotations_list = line.strip().split("\t")[3].split(",")
-    for annotation in annotations_list:
-        if "_personal" not in annotation:
-            annotationsSet.add(annotation.replace("_gencode", ""))
+if inAnnotationsFile is not None:
+    for line in inAnnotationsFile.fetch():
+        annotations_list = line.strip().split("\t")[3].split(",")
+        for annotation in annotations_list:
+            if "_personal" not in annotation:
+                annotationsSet.add(annotation.replace("_gencode", ""))
 
 annotationsSet.add("CTCF-only")
 annotationsSet = sorted(annotationsSet)

@@ -434,14 +434,14 @@ while read vcf_f; do
 	done
 	echo -e 'Search Reference\tEnd\t'$(date) >>$log
 	# move all targets into targets directory
-	if [ -z "$(ls -A "${output_folder}/crispritz_targets")" ]; then
+	if [ -d "${output_folder}/crispritz_targets" ]; then
 		mv $output_folder/*.targets.txt $output_folder/crispritz_targets
 	fi
 	# move profiles into profile folder
 	if ! [ -d "$output_folder/crispritz_prof" ]; then
 		mkdir $output_folder/crispritz_prof
 	fi
-	if [ -z "$(ls -A "${output_folder}/crispritz_prof")" ]; then
+	if [ -d "${output_folder}/crispritz_prof" ]; then
 		mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
 	fi
 	# END STEP 3 - off-targets search
@@ -656,9 +656,9 @@ echo -e 'Merging Targets\tEnd\t'$(date) >>$log
 # START STEP 6 - targets annotation
 echo -e 'Annotating results\tStart\t'$(date) >>$log
 # annotate primary targets 
-./annotate_final_results.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
-./annotate_final_results.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
-./annotate_final_results.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
+python annotation.py $final_res.bestCFD.txt $annotation_file $final_res.bestCFD.txt.annotated &
+python annotation.py $final_res.bestmmblg.txt $annotation_file $final_res.bestmmblg.txt.annotated &
+python annotation.py $final_res.bestCRISTA.txt $annotation_file $final_res.bestCRISTA.txt.annotated &
 wait
 mv $final_res.bestCFD.txt.annotated $final_res.bestCFD.txt
 mv $final_res.bestmmblg.txt.annotated $final_res.bestmmblg.txt
@@ -669,9 +669,9 @@ if [ -s $logerror ]; then
 	exit 1
 fi
 # annotate alternative targets
-./annotate_final_results.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
-./annotate_final_results.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
-./annotate_final_results.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
+python annotation.py $final_res_alt.bestCFD.txt $annotation_file $final_res_alt.bestCFD.txt.annotated &
+python annotation.py $final_res_alt.bestmmblg.txt $annotation_file $final_res_alt.bestmmblg.txt.annotated &
+python annotation.py $final_res_alt.bestCRISTA.txt $annotation_file $final_res_alt.bestCRISTA.txt.annotated &
 wait
 mv $final_res_alt.bestCFD.txt.annotated $final_res_alt.bestCFD.txt
 mv $final_res_alt.bestmmblg.txt.annotated $final_res_alt.bestmmblg.txt
@@ -771,18 +771,18 @@ mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"
 # create result summaries for primary and alternative results
 cd $starting_dir
 if [ "$vcf_name" != "_" ]; then  # variants available
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "var" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "CFD"
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "fewest"
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "var" "CRISTA"
 	if [ -s $logerror ]; then
 		printf "ERROR: summary processing failed (variants pipeline)\n" >&2
 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
 		exit 1
 	fi	
 else  # only reference search
-	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CFD"
-	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "fewest"
-	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bMax "${output_folder}" "ref" "CRISTA"
+	./process_summaries.py $final_res.bestCFD.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "CFD"
+	./process_summaries.py $final_res.bestmmblg.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "fewest"
+	./process_summaries.py $final_res.bestCRISTA.txt $guide_file $sampleID $mm $bDNA $bRNA "${output_folder}" "ref" "CRISTA"
 	if [ -s $logerror ]; then
 		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2
 		rm -f $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt
@@ -836,13 +836,11 @@ echo -e 'Creating images\tEnd\t'$(date) >>$log
 # END STEP 7 - graphical reports
 
 # START STEP 8 - results integration
-echo $gene_proximity
 echo -e 'Integrating results\tStart\t'$(date) >>$log
 echo >>$guide_file
 if [ $gene_proximity != "_" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
-	echo $genome_version
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	if [ -s $logerror ]; then
 		printf  "ERROR: targets integration failed on primary results\n" >&2

@@ -692,4 +692,4 @@ with open(sys.argv[1], "r") as fileIn:
 
             get_best_targets(cluster, fileOut, fileOut_disc, cfd, snp_info)
 
-print("Mergin done in: " + str(time.time() - start))
+print("Merging done in: " + str(time.time() - start))
