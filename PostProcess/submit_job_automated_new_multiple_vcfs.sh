@@ -838,7 +838,7 @@ echo -e 'Creating images\tEnd\t'$(date) >>$log
 # START STEP 8 - results integration
 echo -e 'Integrating results\tStart\t'$(date) >>$log
 echo >>$guide_file
-if [ $gene_proximity != "_" ]; then
+if [ $(basename $gene_proximity) != "vuoto.txt" ]; then
 	touch "${output_folder}/dummy.txt"
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	echo $genome_version
