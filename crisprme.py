@@ -561,7 +561,7 @@ def _compress_file(fname: str) -> str:
     Raises:
         SystemExit: If compression fails.
     """
-    code = subprocess.call(f"bgzip {fname}", shell=True)
+    code = subprocess.call(f"bgzip -f {fname}", shell=True)
     if code != 0:
         error("Compressing and indexing file failed")
     assert os.path.isfile(f"{fname}.gz")
