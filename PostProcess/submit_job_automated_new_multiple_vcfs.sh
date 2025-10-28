@@ -836,7 +836,6 @@ echo -e 'Creating images\tEnd\t'$(date) >>$log
 # END STEP 7 - graphical reports
 
 # START STEP 8 - results integration
-echo $gene_proximity
 echo -e 'Integrating results\tStart\t'$(date) >>$log
 echo >>$guide_file
 if [ $gene_proximity != "_" ]; then

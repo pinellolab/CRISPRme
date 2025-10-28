@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from typing import List, NoReturn, Tuple
 from Bio.Seq import Seq
 
 import subprocess
@@ -64,6 +65,10 @@ VALID_CHARS = {
     "h",
     "v",
 }
+
+CRISPRMEDIRS = [
+    "Genomes", "Results", "Dictionaries", "VCFs", "Annotations", "PAMs", "samplesIDs",
+]
 
 def is_folder_empty(folder: str) -> bool:
     return any(os.scandir(folder))
@@ -220,492 +225,929 @@ def getGuides(extracted_seq, pam, len_guide, pam_begin):
     # return guides for when adding to app.py
 
 
-def directoryCheck():
-    # function to check the main directory status, if some directory is missing, create it
-    directoryList = [
-        "Genomes",
-        "Results",
-        "Dictionaries",
-        "VCFs",
-        "Annotations",
-        "PAMs",
-        "samplesIDs",
-    ]
-    for directory in directoryList:
-        if not os.path.exists(current_working_directory + directory):
-            os.makedirs(current_working_directory + directory)
+def check_crisprme_dirtree() -> None:
+    """Ensures that the working directory contains the required CRISPRme folder 
+    structure.
+    
+    Checks for the existence of each expected directory and creates any that are 
+    missing.
+    """
+    # check that working folder respect crisprme's directory tree structure
+    for directory in CRISPRMEDIRS:
+        if not os.path.exists(os.path.join(current_working_directory, directory)):
+            # expected folder not found, create it
+            crisprmedir = os.path.join(current_working_directory, directory)
+            os.makedirs(crisprmedir)
+
+def print_help_complete_search() -> None:
+    """Prints detailed help information for the complete-search functionality.
+
+    Outputs a description of the pipeline and lists all available command-line 
+    options to stderr, then exits the program.
+    """
+    # functionality description
+    sys.stderr.write(
+        "The complete-search functionality is an end-to-end automated pipeline "
+        "that takes raw input files and performs the full workflow up to "
+        "post-analysis. Starting from the user-provided genome, variants, guides, "
+        "PAM and annotation files, it identifies potential CRISPR off-targets "
+        "incorporating variant and haplotype information, and scores each "
+        "candidate guide. The pipeline performs genome-wide searches, integrates "
+        "annotation data, and generates comprehensive reports."
+    )
+    # options
+    sys.stderr.write(
+        "Options:\n"
+        "\t--genome, specify the reference genome folder [REQUIRED]\n"
+        "\t--vcf, specify a file listing VCF folders (one per line) [OPTIONAL]\n"
+        "\t--guide, specify a file containing guide RNAs [REQUIRED if --sequence "
+        "not provided]\n"
+        "\t--sequence, specify a file with DNA sequences or BED coordinates to "
+        "extract guides [REQUIRED if --guide not provided]\n"
+        "\t--pam, specify a file containing the PAM sequence [REQUIRED]\n"
+        "\t--be-window, specify the window to search for base editor "
+        "susceptibility (e.g., --be-window 4,8) [OPTIONAL]\n"
+        "\t--be-base, the base(s) for the chosen base editor (e.g., --be-base "
+        "A,C) [OPTIONAL]\n"
+        "\t--annotation, specify BED files with genome annotations (e.g., "
+        "regulatory elements, enhancers). The fourth column must contain the "
+        "annotation name. The input BED files must be compressed using bgzip "
+        "[OPTIONAL]\n"
+        "\t--personal_annotation, specify BED files with personal genomic "
+        "annotations. The fourth column must contain the annotation name. The "
+        "input BED files must be compressed using bgzip [OPTIONAL]\n"
+        "\t--samplesID, specify a file listing sample files (one per line) "
+        "present in samplesIDs folder [OPTIONAL]\n"
+        "\t--gene_annotation, specify gene annotation (e.g., GENCODE) to find "
+        "nearest gene for each target (must be bgzip-compressed) [OPTIONAL]\n"
+        "\t--mm, number of mismatches allowed in the search [REQUIRED]\n"
+        "\t--bDNA, number of DNA bulges allowed in the search [OPTIONAL]\n"
+        "\t--bRNA, number of RNA bulges allowed in the search [OPTIONAL]\n"
+        "\t--merge, window size (nucleotides) to merge candidate off-targets "
+        "using the highest scoring as pivot [default: 3]\n"
+        "\t--sorting-criteria-scoring, comma-separated list to sort targets by "
+        "scoring criteria: 'mm', 'bulges', or 'mm+bulges' [default: 'mm+bulges']\n"
+        "\t--sorting-criteria, comma-separated list to sort targets by 'mm', "
+        "'bulges', or 'mm+bulges' [default: 'mm+bulges,mm']\n"
+        "\t--output, specify the output folder name; results will be saved in "
+        "Results/<name> [REQUIRED]\n"
+        "\t--thread, set number of threads to use [default: 8]\n")
+    sys.exit(1)
 
 
-def complete_search():
-    variant = True
-    if "--help" in input_args:
-        print(
-            "This is the automated search process that goes from raw input up to the post-analysis of results."
-        )
-        print("These are the flags that must be used in order to run this function:")
-        print("\t--genome, used to specify the reference genome folder")
-        print(
-            "\t--vcf, used to specify the file containing a list of VCF folders (one per line) [OPTIONAL!]"
-        )
-        print(
-            "\t--guide, used to specify the file that contains guides used for the search [IF NOT --sequence]"
-        )
-        print(
-            "\t--sequence, used to specify the file containing DNA sequences or bed coordinates to extract guides [IF NOT --guide]"
-        )
-        print("\t--pam, used to specify the file that contains the pam")
-        print(
-            "\t--be-window, used to specify the window to search for susceptibilty to certain base editor (e.g., --be-window 4,8)"
-        )
-        print(
-            "\t--be-base, used to specify the base(s) to check for the choosen editor (e.g., --be-base A,C)"
-        )
-        print(
-            "\t--annotation, used to specify the file that contains annotations of the reference genome"
-        )
-        print(
-            "\t--personal_annotation, used to specify the file that contains personal annotations of the reference genome"
-        )
-        print(
-            "\t--samplesID, used to specify the file with a list of files (one per line) containing the information about samples present in VCF files [OPTIONAL!]"
-        )
-        print(
-            "\t--gene_annotation, used to specify a gencode or similar annotation to find nearest gene for each target found [OPTIONAL]"
-        )
-        print(
-            "\t--mm, used to specify the number of mismatches permitted in the search phase"
-        )
-        print(
-            "\t--bDNA, used to specify the number of DNA bulges permitted in the search phase [OPTIONAL!]"
-        )
-        print(
-            "\t--bRNA, used to specify the number of RNA bulges permitted in the search phase [OPTIONAL!]"
-        )
-        print(
-            "\t--merge, used to specify the window (# of nucleotides) within which to merge candidate off-targets, using the off-target with the highest score as the pivot [default 3]"
-        )
-        print(
-            "\t--sorting-criteria-scoring, specify target sorting criteria using a comma-separated list: 'mm' for mismatches, 'bulges' for bulges, or 'mm+bulges' for both (scoring has highest priority) [default 'mm+bulges']"
-        )
-        print(
-            "\t--sorting-criteria, specify target sorting criteria using a comma-separated list: 'mm' for mismatches, 'bulges' for bulges, or 'mm+bulges' for both [default 'mm+bulges,mm']"
-        )
-        print(
-            "\t--output, used to specify the output name for the results (these results will be saved into Results/<name>)"
-        )
-        print(
-            "\t--thread, used to set the number of thread used in the process [default 8]"
-        )
-        exit(0)
+def error(msg: str) -> NoReturn:
+    """Prints an error message to stderr and exits the program.
 
-    # check if all directories are found, if not, create them
-    directoryCheck()
+    This function is used to display error messages and terminate execution with 
+    a non-zero status.
+    
+    Args:
+        msg: The error message to display.
+    """
+    sys.stderr.write(f"Error: {msg}\n")
+    sys.exit(1)
 
-    # check for base and window in base editor
-    if "--be-window" in input_args and "--be-base" not in input_args:
-        print("Please input the base(s) editor to check in specified window")
+def _check_mandatory_args(args: List[str]) -> None:
+    if "--genome" not in args:
+        error("--genome is required")
+    if "--guide" not in args and "--sequence" not in args:
+        error("No input guide. One between --guide and --sequence must be specified")
+    if "--pam" not in args:
+        error("--pam is required")
+    if "--mm" not in args:
+        error("--mm is required")
+    if "--output" not in args:
+        error("--output is required")
+
+def _check_genome(args: List[str]) -> str:
+    """Retrieves and validates the reference genome directory from command-line 
+    arguments.
+
+    Ensures the --genome argument is provided and points to an existing directory. 
+    Raises an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+
+    Returns:
+        The absolute path to the reference genome directory.
+
+    Raises:
+        SystemExit: If the --genome argument is missing or the specified directory 
+            does not exist.
+    """
+    try:  # read genome input genome folder path
+        genomedir = os.path.abspath(args[args.index("--genome") + 1])
+    except IndexError:  # no argument for --genome
+        error("Missing input for --genome. Reference genome folder must be specified")
+    if not os.path.isdir(genomedir):
+        error("The folder specified for --genome does not exist")
+    return genomedir
+
+def _check_vcf(args: List[str], variant: bool) -> str:
+    """Retrieves and validates the VCF configuration file from command-line 
+    arguments.
+
+    Ensures the --vcf argument is provided and points to an existing file if 
+    variant-aware search is enabled. Raises an error if the argument is missing 
+    or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        variant: Boolean indicating if variant-aware search is enabled.
+
+    Returns:
+        The absolute path to the VCF configuration file, or "_" if variant is False.
+
+    Raises:
+        SystemExit: If the --vcf argument is missing or the specified file does 
+            not exist.
+    """
+    if not variant:
+        return "_"
+    try:
+        vcfdir = os.path.realpath(args[args.index("--vcf") + 1])
+    except IndexError:
+        error("Missing input for --vcf. VCF config file must be specified")
+    if not os.path.isfile(vcfdir):
+        error("The config file specified for --vcf does not exist")
+    return vcfdir
+
+def _check_guide(args: List[str], guide: bool) -> str:
+    """Retrieves and validates the guide file from command-line arguments.
+
+    Ensures the --guide argument is provided and points to an existing file, and 
+    checks for conflicting input flags. Raises an error if the argument is missing,
+    invalid, or in conflict.
+
+    Args:
+        args: List of command-line arguments.
+
+    Returns:
+        The absolute path to the guide file.
+
+    Raises:
+        SystemExit: If the --guide argument is missing, the specified file does 
+            not exist, or there is a conflict with --sequence.
+    """
+    if not guide:
+        return ""
+    if "--guide" in args and "--sequence" in args:
+        error("Error: Conflicting flags --guide and --sequence. Use only one")
+    try:
+        guidefile = os.path.abspath(args[args.index("--guide") + 1])
+    except IndexError:
+        error("Missing input for --guide. Guide file file must be specified")
+    if not os.path.isfile(guidefile):
+        error("The file specified for --guide does not exist")
+    return guidefile
+
+def _check_sequence(args: List[str], sequence: bool) -> str:
+    """Retrieves and validates the sequence file from command-line arguments.
+
+    Ensures the --sequence argument is provided and points to an existing file, 
+    and checks for conflicting input flags. Raises an error if the argument is 
+    missing, invalid, or in conflict.
+
+    Args:
+        args: List of command-line arguments.
+
+    Returns:
+        The absolute path to the sequence file.
+
+    Raises:
+        SystemExit: If the --sequence argument is missing, the specified file does 
+            not exist, or there is a conflict with --guide.
+    """
+    if not sequence:
+        return ""
+    if "--guide" in args and "--sequence" in args:
+        error("Error: Conflicting flags --guide and --sequence. Use only one")
+    try:
+        sequence_file = os.path.abspath(args[args.index("--sequence") + 1])
+    except IndexError:
+        error("Missing input for --sequence. Guide file file must be specified")
+    if not os.path.isfile(sequence_file):
+        error("The file specified for --sequence does not exist")
+    return sequence_file
+
+def _check_pam(args: List[str]) -> str:
+    """Retrieves and validates the PAM file from command-line arguments.
+
+    Ensures the --pam argument is provided and points to an existing file. Raises 
+    an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+
+    Returns:
+        The absolute path to the PAM file.
+
+    Raises:
+        SystemExit: If the --pam argument is missing or the specified file does 
+            not exist.
+    """
+    try:
+        pamfile = os.path.abspath(args[args.index("--pam") + 1])
+    except IndexError:
+        error("Missing input for --pam. PAM file file must be specified")
         exit(1)
-    if "--be-base" in input_args and "--be-window" not in input_args:
-        print("Please input the base window to check for the specified base")
-        exit(1)
+    if not os.path.isfile(pamfile):
+        error("The file specified for --pam does not exist")
+    return pamfile
 
-    # check guide and sequence existence
-    if "--guide" not in input_args and "--sequence" not in input_args:
-        print("Please input a guide file or a sequence file")
-        exit(1)
-    if "--guide" in input_args and "--sequence" in input_args:
-        print("Please select only ONE input type, either --guide or --sequence")
-        exit(1)
+def _check_be_window(args: List[str], be_window: bool) -> Tuple[int, int]:
+    """Retrieves and validates the base editing window from command-line arguments.
 
-    # base editor input check
-    base_start = 1
-    base_end = 0
-    base_set = "none"
-    if "--be-window" in input_args:
-        try:
-            base_window = input_args[input_args.index("--be-window") + 1]
-            try:
-                base_start = int(base_window.strip().split(",")[0])
-                base_end = int(base_window.strip().split(",")[1])
-            except:
-                print("Please input a valid set of numbers for flag --be-window")
-                exit(1)
-        except IndexError:
-            print("Please input some parameter for flag --be-window")
-            exit(1)
-    if "--be-base" in input_args:
-        try:
-            base_set = input_args[input_args.index("--be-base") + 1]
-            for base in base_set.strip().split(","):
-                if base not in VALID_CHARS:
-                    print("Please input a set of valid nucleotides (A,C,G,T)")
-                    exit(1)
-        except IndexError:
-            print("Please input some parameter for flag --be-base")
-            exit(1)
+    Ensures the --be-window argument is provided and correctly formatted, and 
+    checks for required dependencies. Raises an error if the argument is missing, 
+    invalid, or in conflict.
 
-    # guide input check
-    if "--guide" in input_args:
-        try:
-            guidefile = os.path.abspath(input_args[input_args.index("--guide") + 1])
-        except IndexError:
-            print("Please input some parameter for flag --guide")
-            exit(1)
-        if not os.path.isfile(guidefile):
-            print("The file specified for --guide does not exist")
-            exit(1)
+    Args:
+        args: List of command-line arguments.
 
-    # sequence input check
-    sequence_use = False
-    if "--sequence" in input_args:
-        try:
-            sequence_file = os.path.abspath(
-                input_args[input_args.index("--sequence") + 1]
-            )
-            sequence_use = True
-        except IndexError:
-            print("Please input some parameter for flag --sequence")
-            exit(1)
-        if not os.path.isfile(sequence_file):
-            print("The file specified for --sequence does not exist")
-            exit(1)
+    Returns:
+        A tuple containing the start and end positions of the base editing window.
 
-    # check input genome
-    if "--genome" not in input_args:
-        print("--genome must be contained in the input")
-        exit(1)
-    else:
-        try:
-            genomedir = os.path.abspath(input_args[input_args.index("--genome") + 1])
-        except IndexError:
-            print("Please input some parameter for flag --genome")
-            exit(1)
-        if not os.path.isdir(genomedir):
-            print("The folder specified for --genome does not exist")
-            exit(1)
-
-    # check input thread
-    if "--thread" not in input_args:
-        thread = 8  # set to avoid errors in following procedures
-    else:
-        try:
-            thread = input_args[input_args.index("--thread") + 1]
-        except IndexError:
-            print("Please input some parameter for flag --thread")
-            exit(1)
-        try:
-            thread = int(thread)
-        except:
-            print("Please input a number for flag --thread")
-            exit(1)
-        if thread <= 0:
-            print("thread is set to default (8) ")
-            thread = 8
-
-    # check input vcf
-    if "--vcf" not in input_args:
-        variant = False
-        vcfdir = "_"
-    else:
-        try:
-            vcfdir = os.path.realpath(input_args[input_args.index("--vcf") + 1])
-        except IndexError:
-            print("Please input some parameter for flag --vcf")
-            exit(1)
-        if not os.path.isfile(vcfdir):
-            print("The file specified for --vcf does not exist")
-            exit(1)
-
-    # check input gene-annotation
-    if "--gene_annotation" not in input_args:
-        gene_annotation = script_path + "vuoto.txt"
-    else:
-        try:
-            gene_annotation = os.path.abspath(
-                input_args[input_args.index("--gene_annotation") + 1]
-            )
-        except IndexError:
-            print("Please input some parameter for flag --gene_annotation")
-            exit(1)
-        if not os.path.isfile(gene_annotation):
-            print("The file specified for --gene_annotation does not exist")
-            exit(1)
-
-    # check input pam
-    if "--pam" not in input_args:
-        print("--pam must be contained in the input")
-        exit(1)
-    else:
-        try:
-            pamfile = os.path.abspath(input_args[input_args.index("--pam") + 1])
-        except IndexError:
-            print("Please input some parameter for flag --pam")
-            exit(1)
-        if not os.path.isfile(pamfile):
-            print("The file specified for --pam does not exist")
-            exit(1)
-
-    # check input functional annotation
-    if "--annotation" not in input_args:
-        print("--annotation not used")
-        annotationfile = script_path + "vuoto.txt"
-        # exit(1)
-    else:
-        try:
-            annotationfile = os.path.abspath(
-                input_args[input_args.index("--annotation") + 1]
-            )
-        except IndexError:
-            print("Please input some parameter for flag --annotation")
-            exit(1)
-        if not os.path.isfile(annotationfile):
-            print("The file specified for --annotation does not exist")
-            exit(1)
-        if "--personal_annotation" in input_args:
-            try:
-                personal_annotation_file = os.path.abspath(
-                    input_args[input_args.index("--personal_annotation") + 1]
-                )
-            except:
-                pass
-            if not os.path.isfile(personal_annotation_file):
-                print("The file specified for --personal_annotation does not exist")
-                exit(1)
-            os.system(
-                f'awk \'$4 = $4"_personal"\' {personal_annotation_file} | sed "s/ /\t/g" | sed "s/,/_personal,/g" > {personal_annotation_file}.tmp'
-            )
-            os.system(
-                f"cat {personal_annotation_file}.tmp {annotationfile} > {annotationfile}+personal.bed"
-            )
-            os.system(f"rm -f {personal_annotation_file}.tmp")
-            annotationfile = annotationfile + "+personal.bed"
-
-    # check input personal annotation
-    if "--personal_annotation" in input_args and "--annotation" not in input_args:
-        try:
-            personal_annotation_file = os.path.abspath(
-                input_args[input_args.index("--personal_annotation") + 1]
-            )
-        except:
-            pass
-        if not os.path.isfile(personal_annotation_file):
-            print("The file specified for --personal_annotation does not exist")
-            exit(1)
-        os.system(
-            f'awk \'$4 = $4"_personal"\' {personal_annotation_file} | sed "s/ /\t/g" | sed "s/,/_personal,/g" > {personal_annotation_file}.tmp'
+    Raises:
+        SystemExit: If the --be-window argument is missing, incorrectly formatted, 
+            or if --be-base is not provided when required.
+    """
+    if not be_window:
+        return 1, 0
+    if "--be-window" in args and "--be-base" not in args:
+        error(
+            "Missing --be-base argument. Please input the base editor to check "
+            "in the specified window"
         )
-        os.system(
-            f"cat {personal_annotation_file}.tmp {annotationfile} > {annotationfile}+personal.bed"
+    try:
+        base_window = args[args.index("--be-window") + 1]
+    except IndexError:
+        error("Missing input for --be-window. Base editing window file must be specified")
+    try:
+        base_start, base_end = base_window.strip().split(",")
+        base_start, base_end = int(base_start), int(base_end)
+    except Exception:
+        error("Invalid base editing window specified")
+    if base_end < base_start:
+        error("Invalid base editing window specified")
+    return base_start, base_end
+
+def _check_be_base(args: List[str], be_base: bool) -> str:
+    """Retrieves and validates the base editor set from command-line arguments.
+
+    Ensures the --be-base argument is provided and contains only valid nucleotide 
+    characters, and checks for required dependencies. Raises an error if the argument 
+    is missing, invalid, or in conflict.
+
+    Args:
+        args: List of command-line arguments.
+
+    Returns:
+        The base editor set as a string.
+
+    Raises:
+        SystemExit: If the --be-base argument is missing, contains invalid characters, 
+            or --be-window is not provided when required.
+    """
+    if not be_base:
+        return "none"
+    if "--be-base" in args and "--be-window" not in args:
+        error(
+            "Missing --be-window argument. Please input the base editing window "
+            "to check for the specified editor"
         )
-        os.system(f"rm -f {personal_annotation_file}.tmp")
-        annotationfile = annotationfile + "+personal.bed"
+    try:
+        base_set = args[args.index("--be-base") + 1]
+    except IndexError:
+        error("Missing input for --be-base. Base editor file must be specified")
+    if any(nt not in VALID_CHARS for nt in base_set.strip().split(",")):
+        error("Invalid editor specified")
+    return base_set 
 
-    # check input for variant search (existance of all necessary file)
-    samplefile = (
-        script_path + "vuoto.txt"
-    )  # use void file for samples if variant not used
-    if variant and "--samplesID" not in input_args:
-        print("--samplesID must be contained in the input to perform variant search")
+def _decompress_file(fname: str, outfname: str) -> str:
+    """Decompresses a bgzipped file to a specified output file.
+
+    Uses gunzip to decompress the input file and writes the result to the output 
+    file. Raises an error if decompression fails.
+
+    Args:
+        fname: Path to the gzipped input file.
+        outfname: Path where the decompressed file will be written.
+
+    Returns:
+        The path to the decompressed output file.
+
+    Raises:
+        SystemExit: If decompression fails.
+    """
+    code = subprocess.call(f"gunzip -k -c {fname} > {outfname}", shell=True)
+    if code != 0:
+        error("Decompressing file failed")
+    assert os.path.isfile(outfname)
+    return outfname
+
+def _compress_file(fname: str) -> str:
+    """Compresses a file using bgzip and returns the path to the compressed file.
+
+    Uses bgzip to compress the specified file. Raises an error if compression fails.
+
+    Args:
+        fname: Path to the file to be compressed.
+
+    Returns:
+        The path to the compressed file with a .gz extension.
+
+    Raises:
+        SystemExit: If compression fails.
+    """
+    code = subprocess.call(f"bgzip {fname}", shell=True)
+    if code != 0:
+        error("Compressing and indexing file failed")
+    assert os.path.isfile(f"{fname}.gz")
+    return f"{fname}.gz"
+
+def _sort_bed(fname: str, outfname: str) -> str:
+    """Sorts a BED file and writes the sorted output to a new file.
+
+    Uses sort-bed to sort the input BED file and saves the result to the specified 
+    output file. Raises an error if sorting fails.
+
+    Args:
+        fname: Path to the input BED file.
+        outfname: Path where the sorted BED file will be written.
+
+    Returns:
+        The path to the sorted BED file.
+
+    Raises:
+        SystemExit: If sorting fails.
+    """
+    code = subprocess.call(f"sort-bed {fname} > {outfname}", shell=True)
+    if code != 0:
+        error("Sorting BED file failed")
+    assert os.path.isfile(outfname)
+    return outfname
+
+def _cat_files(fname1: str, fname2: str, outfname: str) -> str:
+    """Concatenates two files and writes the result to a new file.
+
+    Uses the cat command to combine the contents of two files into a single output 
+    file. Raises an error if concatenation fails.
+
+    Args:
+        fname1: Path to the first input file.
+        fname2: Path to the second input file.
+        outfname: Path where the concatenated file will be written.
+
+    Returns:
+        The path to the concatenated output file.
+
+    Raises:
+        SystemExit: If concatenation fails.
+    """
+    code = subprocess.call(f"cat {fname1} {fname2} > {outfname}", shell=True)
+    if code != 0:
+        error("Concatenating files failed")
+    assert os.path.isfile(outfname)
+    return outfname
+
+def _mv_file(fname: str, outfname: str) -> str:
+    """Renames or moves a file to a new location.
+
+    Uses the mv command to move or rename the specified file. Raises an error if 
+    the operation fails.
+
+    Args:
+        fname: Path to the source file.
+        outfname: Path to the destination file.
+
+    Returns:
+        The path to the moved or renamed file.
+
+    Raises:
+        SystemExit: If the move or rename operation fails.
+    """
+    code = subprocess.call(f"mv {fname} {outfname}", shell=True)
+    if code != 0:
+        error("Renaming file failed")
+    assert os.path.isfile(outfname)
+    return outfname
+
+def _rm_files(fnames: List[str]) -> None:
+    """Removes a list of files from the filesystem.
+
+    Iterates over the provided list of file paths and deletes each file. Raises 
+    an error if any file cannot be removed.
+
+    Args:
+        fnames: List of file paths to remove.
+
+    Raises:
+        SystemExit: If removing any file fails.
+    """
+    for fname in fnames:
+        code = subprocess.call(f"rm {fname}", shell=True)
+        if code != 0:
+            error("Failed removing file")
+
+
+def _sort_annotation(annotationfile: str) -> str:
+    """Sorts, compresses, and replaces a BED annotation file for downstream 
+    analysis.
+
+    Decompresses the input annotation file, sorts it, compresses it with bgzip, 
+    and replaces the original file. Raises an error if any step fails.
+
+    Args:
+        annotationfile: Path to the input annotation file.
+
+    Returns:
+        The path to the sorted and compressed annotation file.
+
+    Raises:
+        SystemExit: If decompression, sorting, compression, or renaming fails.
+    """
+    annotationfile_decompressed = _decompress_file(annotationfile, f"{annotationfile}.tmp.bed")
+    annotationfile_sorted = _sort_bed(annotationfile_decompressed, f"{annotationfile}.tmp.sorted.bed")
+    annotationfile_sorted_bgzip = _compress_file(annotationfile_sorted)
+    annfile = _mv_file(annotationfile_sorted_bgzip, annotationfile)
+    _rm_files([annotationfile_decompressed])  # remove tmp files
+    return annfile
+
+
+def _check_annotation(args: List[str], annotation: bool) -> str:
+    """Retrieves and validates the annotation file from command-line arguments.
+
+    Ensures the --annotation argument is provided and points to an existing file, 
+    or returns a mock file if not specified. Raises an error if the argument is 
+    missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        annotation: Boolean indicating if annotation is required.
+
+    Returns:
+        The absolute path to the annotation file, or a mock file if annotation is 
+            not required.
+
+    Raises:
+        SystemExit: If the --annotation argument is required but missing, or the 
+            specified file does not exist.
+    """
+    if not annotation:
+        return os.path.join(script_path, "vuoto.txt")  # mock annotation file
+    try:
+        annotationfile = os.path.abspath(args[args.index("--annotation") + 1])
+    except IndexError:
+        error("Missing input for --annotation. Annotation file must be specified")
+    if not os.path.isfile(annotationfile):
+        error("The file specified for --annotation does not exist")
+    return _sort_annotation(annotationfile)  # sort input annotation file
+
+
+def _tag_personal_annotation(fname: str, outfname) -> str:
+    """Tags the fourth column of a BED file as personal and writes the result to 
+    a new file.
+
+    Modifies the annotation name in the fourth column by appending '_personal', 
+    replaces spaces with tabs, and updates commas in the annotation name. Raises 
+    an error if tagging fails.
+
+    Args:
+        fname: Path to the input BED file.
+        outfname: Path where the tagged BED file will be written.
+
+    Returns:
+        The path to the tagged BED file.
+
+    Raises:
+        SystemExit: If tagging fails.
+    """
+    code = subprocess.call(
+        f"awk '$4 = $4\"_personal\"' {fname} | sed \"s/ /\t/g\" | sed "
+        f"\"s/,/_personal,/g\" > {outfname}", 
+        shell=True,
+    )
+    if code != 0:
+        error("Tagging personal annotation file failed")
+    assert os.path.isfile(outfname)
+    return outfname
+
+def _process_personal_annotation(personal_annotationfile: str, annotationfile: str) -> str:
+    """Integrates personal and reference annotation files into a single sorted 
+    and compressed BED file.
+
+    Decompresses and tags the personal annotation file, merges it with the reference 
+    annotation file if present, sorts the combined file, compresses it, and returns 
+    the path to the final file. Raises an error if any step fails.
+
+    Args:
+        personal_annotationfile: Path to the personal annotation BED file.
+        annotationfile: Path to the reference annotation BED file.
+
+    Returns:
+        The path to the sorted and compressed combined annotation file.
+
+    Raises:
+        SystemExit: If decompression, tagging, concatenation, sorting, or 
+            compression fails.
+    """
+    pannotation_decompressed = _decompress_file(
+        personal_annotationfile, f"{personal_annotationfile}.tmp.bed"
+    )
+    pannotation_tag = f"{personal_annotationfile}.tmp.tag.bed"
+    pannotation_tag = _tag_personal_annotation(pannotation_decompressed, pannotation_tag)
+    _rm_files([pannotation_decompressed])  # remove tmp files
+    concat_annotationfile = os.path.join(
+        os.path.abspath(os.path.dirname(personal_annotationfile)),
+        "annotation+personal.bed"
+    )
+    if annotationfile == os.path.join(script_path, "vuoto.txt"):
+        concat_annotationfile = _mv_file(pannotation_tag, concat_annotationfile)
+    else:  # concatenate personal and annotation file
+        annotation_decompressed = _decompress_file(
+            annotationfile, f"{annotationfile}.tmp.bed"
+        )
+        concat_annotationfile = _cat_files(
+            annotation_decompressed, pannotation_tag, concat_annotationfile
+        )
+        _rm_files([annotation_decompressed, pannotation_tag])
+    # sort concatenated annotation files
+    concat_annotationfile_sorted = f"{concat_annotationfile}.sorted.bed"
+    concat_annotationfile_sorted = _sort_bed(concat_annotationfile, concat_annotationfile_sorted)
+    concat_annotationfile_bgzip = _compress_file(concat_annotationfile_sorted)
+    assert os.path.isfile(concat_annotationfile_bgzip)
+    return concat_annotationfile_bgzip
+    
+
+def _check_personal_annotation(args: List[str], annotationfile: str, personal_annotation: bool) -> str:
+    """Retrieves and processes the personal annotation file if specified.
+
+    Checks for the --personal_annotation argument, validates the file, and integrates 
+    it with the reference annotation file. Returns the processed annotation file path, 
+    or the original annotation file if no personal annotation is provided.
+
+    Args:
+        args: List of command-line arguments.
+        annotationfile: Path to the reference annotation file.
+        personal_annotation: Boolean indicating if personal annotation is required.
+
+    Returns:
+        The path to the processed annotation file.
+
+    Raises:
+        SystemExit: If the --personal_annotation argument is required but missing, 
+            or the specified file does not exist.
+    """
+    if not personal_annotation:
+        return annotationfile
+    try:
+        personal_annotationfile = os.path.abspath(args[args.index("--personal_annotation") + 1])
+    except IndexError:
+        error("Missing input for --personal_annotation. Annotation file must be specified")
+    if not os.path.isfile(personal_annotationfile):
+        error("The file specified for --personal_annotation does not exist")
+    return _process_personal_annotation(personal_annotationfile, annotationfile)
+
+def _check_samples_ids(args: List[str], variant: bool) -> str:
+    """Retrieves and validates the samples ID file from command-line arguments.
+
+    Ensures the --samplesID argument is provided and points to an existing file 
+    if variant-aware search is enabled. Returns a mock file if variant is not used. 
+    Raises an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        variant: Boolean indicating if variant-aware search is enabled.
+
+    Returns:
+        The absolute path to the samples ID file, or a mock file if variant is False.
+
+    Raises:
+        SystemExit: If the --samplesID argument is missing or the specified file 
+            does not exist.
+    """
+    if variant and "--samplesID" not in args:
+        error("Missing --samplesID argument for variant-aware offtargets search")
+    if not variant and "--samplesID" in args:
+        error("Missing --samplesID selected, but missing --vcf argument")
+    if not variant:  # use mock file for samples if variant not used
+        return os.path.join(script_path, "vuoto.txt")
+    try:
+        samplefile = os.path.abspath(args[args.index("--samplesID") + 1])
+    except IndexError:
+        error("Missing input for --samplesID. Samples file must be specified")
         exit(1)
-    elif not variant and "--samplesID" in input_args:
-        print("--samplesID was in the input but no VCF directory was specified")
-        exit(1)
-    elif "--samplesID" in input_args:
-        try:
-            samplefile = os.path.abspath(
-                input_args[input_args.index("--samplesID") + 1]
+    if not os.path.isfile(samplefile):
+        error("The file specified for --samplesID does not exist")
+    return samplefile
+
+def _check_gene_annotation(args: List[str], geneann: bool) -> str:
+    """Retrieves and validates the gene annotation file from command-line arguments.
+
+    Ensures the --gene_annotation argument is provided and points to an existing file, 
+    or returns a mock file if not specified. Raises an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        geneann: Boolean indicating if gene annotation is required.
+
+    Returns:
+        The absolute path to the gene annotation file, or a mock file if gene 
+            annotation is not required.
+
+    Raises:
+        SystemExit: If the --gene_annotation argument is required but missing, 
+            or the specified file does not exist.
+    """
+    if not geneann:
+        return os.path.join(script_path, "vuoto.txt")
+    try:
+        gene_annotation = os.path.abspath(args[args.index("--gene_annotation") + 1])
+    except IndexError:
+        error("Missing input for --gene_annotation. Gene annotation file must be specified")
+    if not os.path.isfile(gene_annotation):
+        error("The file specified for --gene_annotation does not exist")
+    return gene_annotation     
+
+def _check_mm(args: List[str]) -> int:
+    """Retrieves and validates the number of mismatches from command-line arguments.
+
+    Ensures the --mm argument is provided and is a non-negative integer. Raises 
+    an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+
+    Returns:
+        The number of mismatches as an integer.
+
+    Raises:
+        SystemExit: If the --mm argument is missing or the value is negative.
+    """
+    try:
+        mm = int(args[args.index("--mm") + 1])
+    except IndexError:
+        error("Missing input for --mm. Mismatches number must be specified")
+    if mm < 0:
+        error("Invalid number of mismatches specified")
+    return mm
+
+def _check_bdna(args: List[str], bdna: bool) -> int:
+    """Retrieves and validates the number of DNA bulges from command-line arguments.
+
+    Ensures the --bDNA argument is provided and is a non-negative integer. Raises 
+    an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        bdna: Boolean indicating if DNA bulges are required.
+
+    Returns:
+        The number of DNA bulges as an integer.
+
+    Raises:
+        SystemExit: If the --bDNA argument is missing or the value is negative.
+    """
+    if not bdna:
+        return 0
+    try:
+        bDNA = int(args[args.index("--bDNA") + 1])
+    except IndexError:
+        error("Missing input for --bDNA. DNA bulges number must be specified")
+    if bDNA < 0:
+        error("Invalid number of DNA bulges specified")
+    return bDNA
+
+def _check_brna(args: List[str], brna: bool) -> int:
+    """Retrieves and validates the number of RNA bulges from command-line arguments.
+
+    Ensures the --bRNA argument is provided and is a non-negative integer. Raises 
+    an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        brna: Boolean indicating if RNA bulges are required.
+
+    Returns:
+        The number of RNA bulges as an integer.
+
+    Raises:
+        SystemExit: If the --bRNA argument is missing or the value is negative.
+    """
+    if not brna:
+        return 0
+    try:
+        bRNA = int(args[args.index("--bRNA") + 1])
+    except IndexError:
+        error("Missing input for --bRNA. RNA bulges number must be specified")
+    if bRNA < 0:
+        error("Invalid number of RNA bulges specified")
+    return bRNA
+
+def _check_merge(args: List[str], merge: bool) -> int:
+    """Retrieves and validates the merge threshold from command-line arguments.
+
+    Ensures the --merge argument is provided and is a non-negative integer. 
+    Returns a default value if not specified. Raises an error if the argument is 
+    missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        merge: Boolean indicating if merge threshold is required.
+
+    Returns:
+        The merge threshold as an integer.
+
+    Raises:
+        SystemExit: If the --merge argument is missing or the value is negative.
+    """
+    if not merge:
+        return 3
+    try:
+        merge_t = int(args[args.index("--merge") + 1])
+    except IndexError:
+        error("Missing input for --merge. Merge threshold must be specified")
+    if merge_t < 0:
+        error("Invalid merge threshold specified")
+    return merge_t
+
+def _check_sorting_criteria_scoring(args: List[str], sorting_criteria: bool) -> str:
+    """Retrieves and validates the sorting criteria for scoring from command-line 
+    arguments.
+
+    Ensures the --sorting-criteria-scoring argument is provided, contains valid 
+    and non-repeated criteria, and does not exceed the allowed number of criteria. 
+    Raises an error if the argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        sorting_criteria: Boolean indicating if sorting criteria for scoring is 
+            required.
+
+    Returns:
+        The sorting criteria for scoring as a comma-separated string.
+
+    Raises:
+        SystemExit: If the --sorting-criteria-scoring argument is missing, contains 
+            forbidden or repeated criteria, or exceeds the allowed number of criteria.
+    """
+    if not sorting_criteria:
+        return "mm+bulges"
+    try:
+        sorting_criteria_scoring = args[args.index("--sorting-criteria-scoring") + 1]
+    except IndexError:
+        error(
+            "Missing input for --sorting-criteria-scoring. Sorting criteria "
+            "(scoring) must be specified"
+        )
+    if len(sorting_criteria_scoring.split(",")) > len(
+        set(sorting_criteria_scoring.split(","))
+    ):
+        error("Repeated sorting criteria (scoring)\n")
+    if len(sorting_criteria_scoring.split(",")) > 3:
+        error("Forbidden or repeated sorting criteria (scoring)\n")
+    if any(
+        c not in ["mm+bulges", "mm", "bulges"]
+        for c in sorting_criteria_scoring.split(",")
+    ):
+        error("Forbidden sorting criteria (scoring) selected\n")
+    return sorting_criteria_scoring
+
+def _check_sorting_criteria(args: List[str], sorting_criteria: bool) -> str:
+    """Retrieves and validates the sorting criteria from command-line arguments.
+
+    Ensures the --sorting-criteria argument is provided, contains valid and non-repeated 
+    criteria, and does not exceed the allowed number of criteria. Raises an error if the 
+    argument is missing or invalid.
+
+    Args:
+        args: List of command-line arguments.
+        sorting_criteria: Boolean indicating if sorting criteria is required.
+
+    Returns:
+        The sorting criteria as a comma-separated string.
+
+    Raises:
+        SystemExit: If the --sorting-criteria argument is missing, contains forbidden 
+            or repeated criteria, or exceeds the allowed number of criteria.
+    """
+    if not sorting_criteria:
+        return "mm+bulges"
+    try:
+        sorting_criteria_fewest = args[args.index("--sorting-criteria") + 1]
+    except IndexError:
+        error(
+            "Missing input for --sorting-criteria. Sorting criteria "
+            "must be specified"
+        )
+    if len(sorting_criteria_fewest.split(",")) > len(
+        set(sorting_criteria_fewest.split(","))
+    ):
+        error("Repeated sorting criteria\n")
+    if len(sorting_criteria_fewest.split(",")) > 3:
+        error("Forbidden or repeated sorting criteria\n")
+    if any(
+        c not in ["mm+bulges", "mm", "bulges"]
+        for c in sorting_criteria_fewest.split(",")
+    ):
+        error("Forbidden sorting criteria selected\n")
+    return sorting_criteria_fewest
+
+def _check_output(args: List[str]) -> str:
+    """Retrieves and validates the output folder from command-line arguments.
+
+    Ensures the --output argument is provided and points to a valid directory. 
+    Raises an error if the argument is missing, the folder does not exist, or is 
+    not empty.
+
+    Args:
+        args: List of command-line arguments.
+
+    Returns:
+        The absolute path to the output folder.
+
+    Raises:
+        SystemExit: If the --output argument is missing, the folder does not exist, 
+            or is not empty.
+    """
+    try:
+        outputfolder = os.path.join(
+            current_working_directory, CRISPRMEDIRS[1], args[args.index("--output") + 1]
+        )
+    except IndexError:
+        error("Missing input for --output. Output folder must be specified")
+    if os.path.isdir(outputfolder):  # check whether the folder is present or not
+        if is_folder_empty(outputfolder):  # if present check if not empty
+            error(
+                f"\nOutput folder {outputfolder} not empty!\nSelect another "
+                "output folder for the current CRISPRme run.\nIf the previous "
+                "run using the following folder threw an error, please delete "
+                f"{outputfolder} before running a new CRISPRme search.\n\n"
             )
-        except IndexError:
-            print("Please input some parameter for flag --samplesID")
-            exit(1)
-        if not os.path.isfile(samplefile):
-            print("The file specified for --samplesID does not exist")
-            exit(1)
+        else:  # old folder doesn't exist, create it
+            os.makedirs(outputfolder)    
+    if not os.path.isdir(outputfolder):
+        error("The folder specified for --output does not exist")
+    return outputfolder
 
-    # check input bMax
-    # if "--bMax" not in input_args:
-    #     print("--bMax must be contained in the input")
-    #     exit(1)
-    # else:
-    #     try:
-    #         bMax = input_args[input_args.index("--bMax")+1]
-    #     except IndexError:
-    #         print("Please input some parameter for flag --bMax")
-    #         exit(1)
-    #     try:
-    #         bMax = int(bMax)
-    #     except:
-    #         print("Please input a number for flag bMax")
-    #         exit(1)
-    #     # if bMax < 0 or bMax > 2:
-    #     #     print("The range for bMax is from 0 to 2")
-    #     #     exit(1)
+def _check_threads(args: List[str], threads: bool) -> int:
+    """Retrieves and validates the number of threads from command-line arguments.
 
-    # check input mm
-    if "--mm" not in input_args:
-        print("--mm must be contained in the input")
-        exit(1)
-    else:
-        try:
-            mm = input_args[input_args.index("--mm") + 1]
-        except IndexError:
-            print("Please input some parameter for flag --mm")
-            exit(1)
-        try:
-            mm = int(mm)
-        except:
-            print("Please input a number for flag mm")
-            exit(1)
+    Ensures the --thread argument is provided and is a positive integer. Returns 
+    a default value if not specified. Raises an error if the argument is missing 
+    or invalid.
 
-    # check input bDNA
-    if "--bDNA" not in input_args:
-        # print("--bDNA must be contained in the input")
-        # exit(1)
-        bDNA = 0
-    else:
-        try:
-            bDNA = input_args[input_args.index("--bDNA") + 1]
-        except IndexError:
-            print("Please input some parameter for flag --bDNA")
-            exit(1)
-        try:
-            bDNA = int(bDNA)
-        except:
-            print("Please input an integer number for flag --bDNA")
-            exit(1)
-        # if bDNA > bMax:
-        #     print("The number of bDNA must be equal or less than bMax")
-        #     exit(1)
-        # elif bDNA < 0 or bDNA > bMax:
-        #     print("The range for bDNA is from 0 to", bMax)
-        #     exit(1)
+    Args:
+        args: List of command-line arguments.
+        threads: Boolean indicating if the number of threads is specified.
 
-    # check input bRNA
-    if "--bRNA" not in input_args:
-        # print("--bRNA must be contained in the input")
-        # exit(1)
-        bRNA = 0
-    else:
-        try:
-            bRNA = input_args[input_args.index("--bRNA") + 1]
-        except IndexError:
-            print("Please input some parameter for flag --bRNA")
-            exit(1)
-        try:
-            bRNA = int(bRNA)
-        except:
-            print("Please input an integer number for flag --bRNA")
-            exit(1)
-        # if bRNA > bMax:
-        #     print("The number of bRNA must be equal or less than bMax")
-        #     exit(1)
-        # elif bRNA < 0 or bRNA > 2:
-        #     print("The range for bRNA is from 0 to", bMax)
-        #     exit(1)
+    Returns:
+        The number of threads as an integer.
 
-    # set bMAX to generate index as max value (bDNA,bRNA)
-    bMax = max(bDNA, bRNA)
+    Raises:
+        SystemExit: If the --thread argument is missing or the value is less than 1.
+    """
+    if not threads:
+        return 8  # default use 8 threads
+    try:
+        thread = int(args[args.index("--thread") + 1])
+    except IndexError:
+        error("Missing input for --thread. Number of threads must be specified")
+    if thread < 1:
+        error("Invalid number of threads specified")
+    return thread
 
-    # check input merge window
-    if "--merge" not in input_args:
-        merge_t = 3  # default merge is 3 nt
-    else:
-        try:
-            merge_t = input_args[input_args.index("--merge") + 1]
-        except IndexError:
-            print("Please input some parameter for flag --merge")
-            exit(1)
-        try:
-            merge_t = int(merge_t)
-        except:
-            print("Please input a number for flag merge")
-            exit(1)
-        if merge_t < 0:
-            print("Please specify a positive number for --merge")
-            exit(1)
-
-    # check sorting criteria while merging targets on score
-    if "--sorting-criteria-scoring" not in input_args:
-        sorting_criteria_scoring = "mm+bulges"
-    else:
-        try:
-            sorting_criteria_scoring = input_args[
-                input_args.index("--sorting-criteria-scoring") + 1
-            ]
-        except IndexError as e:
-            sys.stderr.write(
-                "Please input some parameter for flag --sorting-criteria-scoring\n"
-            )
-            exit(1)
-        if len(sorting_criteria_scoring.split(",")) > len(
-            set(sorting_criteria_scoring.split(","))
-        ):
-            sys.stderr.write("Repeated sorting criteria\n")
-            exit(1)
-        if len(sorting_criteria_scoring.split(",")) > 3:
-            sys.stderr.write("Forbidden or repeated sorting criteria\n")
-            exit(1)
-        if any(
-            c not in ["mm+bulges", "mm", "bulges"]
-            for c in sorting_criteria_scoring.split(",")
-        ):
-            sys.stderr.write("Forbidden sorting criteria selected\n")
-            exit(1)
-
-    # check sorting criteria while  merging targets (fewest mm+bulges)
-    if "--sorting-criteria" not in input_args:
-        sorting_criteria = "mm+bulges,mm"
-    else:
-        try:
-            sorting_criteria = input_args[input_args.index("--sorting-criteria") + 1]
-        except IndexError as e:
-            sys.stderr.write(
-                "Please input some parameter for flag --sorting-criteria\n"
-            )
-            exit(1)
-        if len(sorting_criteria.split(",")) > len(set(sorting_criteria.split(","))):
-            sys.stderr.write("Repeated sorting criteria\n")
-            exit(1)
-        if len(sorting_criteria.split(",")) > 3:
-            sys.stderr.write("Forbidden or repeated sorting criteria\n")
-            exit(1)
-        if any(
-            c not in ["mm+bulges", "mm", "bulges"] for c in sorting_criteria.split(",")
-        ):
-            sys.stderr.write("Forbidden sorting criteria selected\n")
-            exit(1)
-
-    # check input output directory
-    if "--output" not in input_args:
-        print("--output must be contained in the input")
-        exit(1)
-    else:
-        try:
-            outputfolder = (
-                current_working_directory
-                + "Results/"
-                + input_args[input_args.index("--output") + 1]
-            )
-            if os.path.isdir(outputfolder):  # check whether the folder is present or not
-                if is_folder_empty(outputfolder):  # if present check if not empty
-                    sys.stdout.write(
-                        f"\nOutput folder {outputfolder} not empty!\nSelect another "
-                        "output folder for the current CRISPRme run.\nIf the previous "
-                        "run using the following folder threw an error, please delete "
-                        f"{outputfolder} before running a new CRISPRme search.\n\n"
-                    )
-                    sys.exit(1)
-            else:  # older doesn't exist, create it
-                os.makedirs(outputfolder)
-            # outputfolder = os.path.abspath(
-            #     input_args[input_args.index("--output")+1])
-        except IndexError:
-            print("Please input some parameter for flag --output")
-            exit(1)
-        if not os.path.isdir(outputfolder):
-            print("The folder specified for --output does not exist")
-            exit(1)
-
+def complete_search() -> None:
+    args = input_args[2:]  # retrieve complete-search input arguments
+    if "--help" in args or not args:  # print help
+        print_help_complete_search()
+    check_crisprme_dirtree()  # check crisprme directory tree structure
+    _check_mandatory_args(args)  # check mandatory arguments
+    genomedir = _check_genome(args)  # input genome folder
+    variant = "--vcf" in args  # variant-aware search?
+    vcfdir = _check_vcf(args, variant)  # input variants dataset
+    guidefile = _check_guide(args, "--guide" in args)  # guide file
+    sequence_file = _check_sequence(args, "--sequence" in args)  # sequence
+    sequence_use = bool(sequence_file)  # use sequence file for guide
+    assert sum([bool(guidefile), bool(sequence_file)]) == 1
+    pamfile = _check_pam(args)  # pam file
+    base_start, base_end = _check_be_window(args, "--be-window" in args)  # base editing window
+    base_set = _check_be_base(args, "--be-base" in args)  # base editing bases
+    annotationfile = _check_annotation(args, "--annotation" in args)  # annotation file
+    annotationfile = _check_personal_annotation(args, annotationfile, "--personal_annotation" in args) # personal annotation file
+    samplefile = _check_samples_ids(args, variant)  # samples ids file
+    gene_annotation = _check_gene_annotation(args, "--gene_annotation" in args)  # gene annotation file
+    mm = _check_mm(args)  # mismatches
+    bDNA, bRNA = _check_bdna(args, "--bDNA" in args), _check_brna(args, "--bRNA" in args)  # bulges
+    bMax = max(bDNA, bRNA)  # maximum number of bulges
+    merge_t = _check_merge(args, "--merge" in args)  # merge threshold
+    sorting_criteria_scoring = _check_sorting_criteria_scoring(args, "--sorting-criteria-scoring" in args)  # sorting criteria score columns
+    sorting_criteria = _check_sorting_criteria(args, "--sorting-criteria" in args)  # sorting criteria (mm+bulges) columns
+    outputfolder = _check_output(args)  # output folder
+    thread = _check_threads(args, "--thread" in args)  # number of threads
+    
     # extract pam seq from file
     pam_len = 0
     total_pam_len = 0
@@ -1050,7 +1492,7 @@ def gnomAD_converter():
             conversion process.
     """
 
-    args = input_args[2:]  # reover gnomAD converter args
+    args = input_args[2:]  # recover gnomAD converter args
     if "--help" in args or not args:  # print help
         print_help_gnomad_converter()
         sys.exit(1)
@@ -1285,9 +1727,15 @@ def complete_test_crisprme():
 
 
 # HELP FUNCTION
-def callHelp():
-    # print general help, listing all available functions with a brief
-    # description of their purpose
+def crisprme_help() -> None:
+    """
+    Prints the general help information for CRISPRme, describing each available 
+    functionality.
+
+    Outputs usage instructions, requirements for input files, and a summary of 
+    all main commands to stderr, then exits the program.
+    """
+    # print crisprme help; describe each functionality
     sys.stderr.write(
         "Help:\n\n"
         "- ALL FASTA FILEs USED BY THE SOFTWARE MUST BE UNZIPPED AND SEPARATED BY CHROMOSOME\n"
@@ -1319,22 +1767,22 @@ def callHelp():
 
 
 if len(sys.argv) < 2:
-    directoryCheck()
-    callHelp()
-elif sys.argv[1] == "complete-search":
+    check_crisprme_dirtree()  # check crisprme directory tree structure
+    crisprme_help()  # no arg? print help
+elif sys.argv[1] == "complete-search":  # run complete search
     complete_search()
-elif sys.argv[1] == "complete-test":
+elif sys.argv[1] == "complete-test":  # run complete test
     complete_test_crisprme()
-elif sys.argv[1] == "targets-integration":
+elif sys.argv[1] == "targets-integration":  # run targets integration
     target_integration()
-elif sys.argv[1] == "gnomAD-converter":
+elif sys.argv[1] == "gnomAD-converter":  # run gnomad converter
     gnomAD_converter()
-elif sys.argv[1] == "generate-personal-card":
+elif sys.argv[1] == "generate-personal-card":  # run create personal card
     personal_card()
-elif sys.argv[1] == "web-interface":
+elif sys.argv[1] == "web-interface":  # run web interface
     web_interface()
-elif sys.argv[1] == "--version":
+elif sys.argv[1] == "--version":  # print version
     crisprme_version()
 else:
-    sys.stderr.write('ERROR! "' + sys.argv[1] + '" is not an allowed!\n\n')
-    callHelp()  # print help when wrong input command
+    sys.stderr.write(f"ERROR! {sys.argv[1]} is not an allowed!\n\n")
+    crisprme_help()  # print help if invalid command is given
