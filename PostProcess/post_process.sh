@@ -33,12 +33,14 @@ awk '{print $5"\t"$7"\t"$7+length($3)"\t"NR}' $1 >$1.bed
 sort-bed $1.bed >$1.bed.sort
 mv $1.bed.sort $1.bed
 if [ $(basename $2) != "vuoto.txt" ]; then
-    gunzip -k -c $2 > $2.tmp.bed  # decompress gene annotation 
-    sort-bed $2.tmp.bed > $2.tmp.sorted.bed  # sort bed features 
-    rm $2.tmp.bed
-    echo 'Finding genecode annotation in range with targets'
-    closest-features --closest --delim "\t" --dist $1.bed $2.tmp.sorted.bed > $1.found.bed
+    gunzip -k -c $2 > $2.tmp.bed  # decompress gene annotation
+else
+    cp $2 $2.tmp.bed
 fi
+sort-bed $2.tmp.bed > $2.tmp.sorted.bed  # sort bed features 
+rm $2.tmp.bed
+echo 'Finding genecode annotation in range with targets'
+closest-features --closest --delim "\t" --dist $1.bed $2.tmp.sorted.bed > $1.found.bed
 echo 'Sorting final annotation results using original NR to correspond with original results file'
 # LC_ALL=C sort -T $dir -k4,4rg $1.found.bed -o $1.found.bed
 LC_ALL=C sort -T $dir -k4,4n $1.found.bed -o $1.found.bed
