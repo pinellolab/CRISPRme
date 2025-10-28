@@ -110,6 +110,8 @@ def fillDict(guide, guideDict, motifDict):
                 # to avoid duplicate categories
                 annotationsList = set(annotationsList)
                 for annotation in annotationsList:
+                    if "_personal" in annotation:
+                        continue
                     if "CTCF-bound" in annotation:
                         guideDict[over]["CTCF-only"] += 1
                         guideDict[over][annotation.split(";")[0]] += 1
