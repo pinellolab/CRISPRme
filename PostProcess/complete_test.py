@@ -276,44 +276,69 @@ def download_annotation_data() -> Tuple[str, str]:
     annotation_dir = ensure_annotation_directory(os.getcwd())
     gencode = _retrieve_ann_data(
         annotation_dir,
-        "Annotations/gencode.protein_coding.bed.tar.gz",
+        "Annotations/gencode.protein_coding.bed.gz",
         "gencode.protein_coding.bed",
     )
     encode = _retrieve_ann_data(
         annotation_dir,
-        "Annotations/dhs+encode+gencode.hg38.bed.tar.gz",
+        "Annotations/dhs+encode+gencode.hg38.bed.gz",
         "dhs+encode+gencode.hg38.bed",
     )
     return gencode, encode
 
+def _bgzip_ann_data(ann_fname: str) -> str:
+    """
+    Compress an annotation file using bgzip and verify the output.
 
-def _retrieve_ann_data(annotation_dir: str, url: str, fname: str) -> str:
-    """Retrieve and validate annotation data from a specified URL.
-
-    This function downloads annotation data from a given URL, verifies the
-    integrity of the downloaded file using its MD5 checksum, and extracts the
-    relevant file to the specified annotation directory. It raises an error if
-    the checksum does not match.
+    This function calls the bgzip utility to compress the specified annotation file,
+    checks that the compressed file exists, and returns its path. It raises an error
+    if the compression fails.
 
     Args:
-        annotation_dir (str): The directory where the annotation data will be
-            stored.
-        url (str): The URL from which to download the annotation data.
-        fname (str): The name of the file to retrieve after extraction.
+        ann_fname (str): The path to the annotation file to be compressed.
 
     Returns:
-        str: The path to the extracted annotation file.
+        str: The path to the compressed annotation file.
 
     Raises:
-        ValueError: If the MD5 checksum of the downloaded file does not match
-            the expected value.
+        subprocess.SubprocessError: If bgzip compression fails.
+    """
+    
+    try: 
+        subprocess.call(f"bgzip {ann_fname}", shell=True)
+    except (subprocess.SubprocessError, Exception) as e:
+        raise subprocess.SubprocessError(f"Bgzip compression failed on {ann_fname}") from e
+    ann_fname_gz = f"{ann_fname}.gz"
+    assert os.path.isfile(ann_fname_gz)  # check that the bgzipped bed exists
+    return ann_fname_gz
+    
+
+
+def _retrieve_ann_data(annotation_dir: str, url: str, fname: str) -> str:
+    """
+    Download and extract an annotation file, then compress it with bgzip.
+
+    This function downloads an annotation archive, verifies its integrity, extracts 
+    the specified file, and compresses it using bgzip. It returns the path to the 
+    compressed annotation file.
+
+    Args:
+        annotation_dir (str): The directory to store the annotation data.
+        url (str): The URL of the annotation archive to download.
+        fname (str): The name of the file to extract and compress.
+
+    Returns:
+        str: The path to the compressed annotation file.
+
+    Raises:
+        ValueError: If the downloaded file fails the MD5 check.
     """
 
     # download gencode annotation
     annfile_tar = download(annotation_dir, http_url=os.path.join(TESTDATAURL, url))
     if MD5ANNOTATION[os.path.basename(annfile_tar)] != compute_md5(annfile_tar):
         raise ValueError(f"Download for {os.path.basename(annfile_tar)} failed")
-    return os.path.join(untar(annfile_tar, annotation_dir), fname)
+    return _bgzip_ann_data(os.path.join(untar(annfile_tar, annotation_dir), fname))
 
 
 def ensure_pams_directory(dest: str) -> str:
