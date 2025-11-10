@@ -305,7 +305,7 @@ def _bgzip_ann_data(ann_fname: str) -> str:
     """
     
     try: 
-        subprocess.call(f"bgzip {ann_fname}", shell=True)
+        subprocess.call(f"bgzip -f {ann_fname}", shell=True)
     except (subprocess.SubprocessError, Exception) as e:
         raise subprocess.SubprocessError(f"Bgzip compression failed on {ann_fname}") from e
     ann_fname_gz = f"{ann_fname}.gz"
