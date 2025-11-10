@@ -33,7 +33,7 @@ ref_folder=$(realpath $1)  # reference genome folder
 vcf_list=$(realpath $2)  # vcf folders list
 guide_file=$(realpath $3)  # guide 
 pam_file=$(realpath $4)  # pam
-annotation_file=$(realpath $5)  # annotation bed
+annotations=$5  # annotation bed files
 sampleID=$(realpath $6)  # sample ids 
 bMax=$7  # max number of bulges
 mm=$8  # mismatches
@@ -49,6 +49,21 @@ email=${17}  # email address (website only)
 
 echo -e "MAIL: $email"
 echo -e "CPU used: $ncpus"
+
+# compute annotation suffix
+IFS=',' read -ra ann_files <<< "$annotations"
+annotation_name=""
+for ann_file in "${ann_files[@]}"; do
+	ann_bname=$(basename "$ann_file" .bed)  # strip path and bed extension
+	if [[ -z "$annotation_name" ]]; then
+		annotation_name="$ann_bname"
+	else
+		annotation_name="${annotation_name}_$ann_bname"
+	fi
+done
+if [[ -z "$annotation_name" ]]; then
+	annotation_name="$ann_bname"
+fi
 
 #used to solve base editor check in resultintegration phase
 base_check_start=${18}
@@ -92,7 +107,6 @@ while read vcf_f; do
 	# echo $vcf_name
 	guide_name=$(basename $3)
 	pam_name=$(basename $4)
-	annotation_name=$(basename $5)
 
 	echo -e $start_time >$log
 	# echo -e 'Job\tStart\t'$(date) > $log
@@ -461,7 +475,7 @@ while read vcf_f; do
 			touch "$final_res_alt"
 		fi
 		# TODO: snp analysis in parallel
-		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus
+		./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotations $annotation_name $pam_file $dict_folder $final_res $final_res_alt $ncpus
 		if [ -s $logerror ]; then
 			printf "ERROR: off-targets post-analysis (snps) failed on variants in %s\n" "$vcf_name" >&2
 			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
@@ -498,7 +512,7 @@ while read vcf_f; do
 		if ! [ -f "$final_res_alt" ]; then  # mock required to avoid crashes 
 			touch "$final_res_alt"
 		fi
-		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
+		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotations $annotation_name $pam_file "_" $final_res $final_res_alt $ncpus
 		if [ -s $logerror ]; then
 			printf "ERROR: off-targets post-analysis (reference) failed\n" >&2
 			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
@@ -535,7 +549,7 @@ while read vcf_f; do
 		echo -e 'Post-analysis INDELs\tStart\t'$(date) >>$log
 		#SKIP INDELS ANALYSIS IF NO RESULTS FOUND
 		if [ $(wc -l <"$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt") -gt 1 ]; then
-			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
+			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotations $annotation_name $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
 			if [ -s $logerror ]; then
 				printf "ERROR: off-targets post-analysis (indels) failed on variants in %s\n" "$vcf_name" >&2
 				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
@@ -810,9 +824,9 @@ fi
 cd $starting_dir
 # generate radar charts
 if [ "$vcf_name" != "_" ]; then
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CFD"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt $sampleID $annotations "$output_folder" $ncpus $mm $bMax "fewest"
 	if [ -s $logerror ]; then
 		printf  "ERROR: summary processing failed (variants pipeline)\n" >&2
 		rm -r "${output_folder}/imgs"
@@ -821,9 +835,9 @@ if [ "$vcf_name" != "_" ]; then
 	fi
 else
 	echo -e "dummy_file" >dummy.txt
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CFD"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "CRISTA"
-	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotation_file "$output_folder" $ncpus $mm $bMax "fewest"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCFD.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CFD"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestCRISTA.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "CRISTA"
+	./radar_chart_dict_generator.py $guide_file $final_res.bestmmblg.txt dummy.txt $annotations "$output_folder" $ncpus $mm $bMax "fewest"
 	rm dummy.txt
 	if [ -s $logerror ]; then
 		printf  "ERROR: summary processing failed (reference genome pipeline)\n" >&2

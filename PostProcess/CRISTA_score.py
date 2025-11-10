@@ -57,14 +57,16 @@
 # python CRISTA.py -s CTCAGCTGAGGTTGCTGCTG -d GGCCTCAGCTGAGGTTGCTGCTGTGGAAG
 #########################################################################
 
-import argparse
+from typing import List
+
+import PA_limitedIndel as PA_script
+import numpy as np
+
+import warnings
 import pickle
 import random
 import re
-import numpy as np
-import PA_limitedIndel as PA_script
-import pandas as pd
-import warnings
+import os
 
 warnings.filterwarnings("ignore")
 
@@ -107,46 +109,99 @@ MMS_TYPE_REPLACEMENT = {
 }
 
 
-def agct2numerals(st):
-    new_st = ""
-    for x in st:
-        new_st += ACGT_REPLACEMENT[x]
-    return new_st
+def agct2numerals(st: str) -> str:
+    """
+    Convert a nucleotide sequence to its corresponding numeral representation.
+
+    This function replaces each nucleotide in the input string with its mapped numeral value
+    according to the ACGT_REPLACEMENT dictionary.
+
+    Args:
+        st (str): The nucleotide sequence to convert.
+
+    Returns:
+        str: The numeral representation of the nucleotide sequence.
+    """
+
+    return "".join(ACGT_REPLACEMENT[x] for x in st)
 
 
-def get_avg(l):
+def get_avg(l: List[float]) -> float:
+    """
+    Compute the average value of a list of numbers.
+
+    This function returns the arithmetic mean of the input list.
+
+    Args:
+        l (list): A list of numeric values.
+
+    Returns:
+        float: The average of the list.
+    """
+
     return sum(l) / float(len(l))
 
 
-def count_mismatches(aligned_seq1, aligned_seq2):
+def count_mismatches(aligned_seq1: str, aligned_seq2: str) -> int:
     """
-    :param seq1, aligned_seq2: aligned sgRNA and genomic target (seq+PAM)
-    :return:
-    """
-    cnt = 0
-    ending = len(aligned_seq1) - 3
+    Count the number of mismatches between two aligned sequences, excluding gaps.
 
-    for i in range(ending):
-        cnt += int(
+    This function compares two aligned sequences and returns the number of positions
+    where the characters differ and neither character is a gap, excluding the last three positions.
+
+    Args:
+        aligned_seq1 (str): The first aligned sequence.
+        aligned_seq2 (str): The second aligned sequence.
+
+    Returns:
+        int: The number of mismatches (excluding gaps and the last three positions).
+    """
+
+    ending = len(aligned_seq1) - 3
+    return sum(
+        int(
             aligned_seq1[i] != aligned_seq2[i]
             and aligned_seq1[i] != "-"
             and aligned_seq2[i] != "-"
         )
-    return cnt
+        for i in range(ending)
+    )
 
 
-def cnt_bulge(aligned_seq):
+def cnt_bulge(aligned_seq: str) -> int:
+    """
+    Count the number of bulges (gaps) in an aligned sequence.
+
+    This function returns the number of gap characters ('-') present in the input
+    sequence.
+
+    Args:
+        aligned_seq (str): The aligned sequence to analyze.
+
+    Returns:
+        int: The number of bulges (gaps) in the sequence.
+    """
+
     return aligned_seq.count("-")
 
 
-def count_consecutive_inconsistencies(aligned_seq1, aligned_seq2):
+def count_consecutive_inconsistencies(aligned_seq1: str, aligned_seq2: str) -> int:
     """
-    :param seq1, aligned_seq2: aligned sgRNA and genomic target (seq+PAM)
-    :return: number of concatenated-extended mismatches and bulges
+    Count the number of consecutive inconsistency runs between two aligned sequences.
+
+    This function returns the number of contiguous runs where the two sequences differ,
+    excluding the last three positions.
+
+    Args:
+        aligned_seq1 (str): The first aligned sequence.
+        aligned_seq2 (str): The second aligned sequence.
+
+    Returns:
+        int: The number of consecutive inconsistency runs.
     """
+
     cnt = 0
     current_cnt = 0
-
     for i in range(len(aligned_seq2) - 3):
         if aligned_seq2[i] != aligned_seq1[i]:
             current_cnt += 1
@@ -156,23 +211,28 @@ def count_consecutive_inconsistencies(aligned_seq1, aligned_seq2):
     return cnt
 
 
-def get_DNAshape_features(dna_seq):
+def get_DNAshape_features(dna_seq: str):
     """
-    :param dna_seq: sequence of nucleotides
-    :return: a dictionary with scores of rigidity for Major Groove Width (MGW), ProT (Propeller-Twist), Roll, and HelT (Helical-Twist).
-    The values are the scores for each pentamer/hexamer as computed by DNAshape (Zhou et al., doi:10.1093/nar/gkt437)
-    across the DNA sequence
+    Extract DNA shape features from a nucleotide sequence.
+
+    This function computes minor groove width (MGW), propeller twist (ProT), roll,
+    and helix twist (HelT) features for the input DNA sequence using a precomputed
+    dictionary of DNA shape values.
+
+    Args:
+        dna_seq (str): The DNA sequence for which to extract shape features.
+
+    Returns:
+        dict: A dictionary containing lists of MGW, ProT, Roll, and HelT values.
     """
 
     global DNASHAPE_DICT
     if DNASHAPE_DICT is None:
         DNASHAPE_DICT = pickle.load(open(DNASHAPE_DICT_FILE, "rb"))
-
     mgw = [None]
     roll = [None]
     prot = [None]
     helt = [None]
-
     for i in range(2, len(dna_seq) - 2):
         current_heptamer = dna_seq[i - 2 : i + 3]
         current_heptamer = re.sub(
@@ -185,12 +245,9 @@ def get_DNAshape_features(dna_seq):
         helt += current_nucleotide["HelT"]
 
     helt_modified = [helt[1]]
-    for i in range(2, len(helt), 2):
-        helt_modified.append(get_avg(helt[i : i + 2]))
+    helt_modified.extend(get_avg(helt[i : i + 2]) for i in range(2, len(helt), 2))
     roll_modified = [roll[1]]
-    for i in range(2, len(roll), 2):
-        roll_modified.append(get_avg(roll[i : i + 2]))
-
+    roll_modified.extend(get_avg(roll[i : i + 2]) for i in range(2, len(roll), 2))
     return {
         "MGW": mgw[1:],
         "ProT": prot[1:],
@@ -200,9 +257,6 @@ def get_DNAshape_features(dna_seq):
 
 
 def get_features(full_dna_seq, aligned_sgRNA, aligned_offtarget, pa_score):
-    """
-    compute CRISTA features
-    """
 
     # get alignment features
     mms_cnt = count_mismatches(aligned_sgRNA, aligned_offtarget)
@@ -245,23 +299,20 @@ def get_features(full_dna_seq, aligned_sgRNA, aligned_offtarget, pa_score):
             rna_base == "C" and dna_base == "T"
         ):  # other transversion
             mismatches[offset + i] = 4
-
     # total types mismatches
     wobble_total = mismatches.count(1)
     RR_total = mismatches.count(2)
     YY_total = mismatches.count(3)
     Tv_total = mismatches.count(4)
-
     # pairs of nucleotides in positions 1-5 upstream to PAM (1-2, 2-3, 3-4, 4-5)
     seed_couples = []
-    for i in range(4):
-        seed_couples.append(agct2numerals(gapless_dnaseq[-8 + i : -6 + i]))
-
+    seed_couples.extend(
+        agct2numerals(gapless_dnaseq[-8 + i : -6 + i]) for i in range(4)
+    )
     # PAM and 5'-end nucleotides
     PAM_2_first = agct2numerals(gapless_dnaseq[-2:])
     PAM_N_id = agct2numerals(gapless_dnaseq[-3])
     last_pos_nucleotide = agct2numerals(gapless_dnaseq[0])
-
     # mismatches and bulges - linked
     consecutive_inconsistencies_cnt = count_consecutive_inconsistencies(
         aligned_sgRNA, aligned_offtarget
@@ -271,39 +322,29 @@ def get_features(full_dna_seq, aligned_sgRNA, aligned_offtarget, pa_score):
         if consecutive_inconsistencies_cnt > 0
         else 0
     )
-
     # nucleotides occupancies in DNA target sequence
     nA = gapless_dnaseq.count("A")
     nC = gapless_dnaseq.count("C")
     nG = gapless_dnaseq.count("G")
     nT = gapless_dnaseq.count("T")
-
     # GC content
     extended_genomic_GC_content = (
         full_dna_seq.count("C") + full_dna_seq.count("G")
     ) / float(len(full_dna_seq))
-
     # five nucleotides downstream to PAM
     # the model feature for additional two nucleotides is disregarded (0) but still exists
     nucleotides_down_pam = [agct2numerals(c) for c in full_dna_seq[-3:]] + [0, 0]
-
     # geometry features: dna_enthalpy
     extended_dna_enthalpy = sum(
-        [
-            DNA_PAIRS_THERMODYNAMICS[full_dna_seq[i - 1 : i + 1]]
-            for i in range(1, len(full_dna_seq))
-        ]
+        DNA_PAIRS_THERMODYNAMICS[full_dna_seq[i - 1 : i + 1]]
+        for i in range(1, len(full_dna_seq))
     )
     dna_enthalpy = sum(
-        [
-            DNA_PAIRS_THERMODYNAMICS[gapless_dnaseq[i - 1 : i + 1]]
-            for i in range(1, len(gapless_dnaseq))
-        ]
+        DNA_PAIRS_THERMODYNAMICS[gapless_dnaseq[i - 1 : i + 1]]
+        for i in range(1, len(gapless_dnaseq))
     )
-
     # geometry features: DNA shape per pentamer
     dna_shape_features = get_DNAshape_features(full_dna_seq)
-
     features = (
         [
             pa_score,
@@ -380,7 +421,7 @@ def align_sequences(sgRNA, genomic_extended):
             gaps_allowed=MAX_ALLOWED_GAPS,
         )  # regular pa
 
-        if re.search("^\-", alnA) is None and score >= max_score:
+        if re.search("^\-", alnA) is None and score >= max_score:  # type: ignore
             # the target can begin a '-', it means that the last nt of the sg is not paired
             # the sg cannot begin with a '-' - in that case, a better alignment would be found (shorter DNA).
             #   However, if we first found this target and then another with a different score- we'd prefer the other
@@ -404,6 +445,10 @@ def predict_crista_score(features_lst):
     n_predictors = 5
 
     path = RF_PICKLE_PATH
+    if not os.path.isfile(path):  # check for existance of predictors file
+        raise FileNotFoundError(
+            f"Cannot find predictors file {path}, did you unzip it?"
+        )
     with open(path, "rb") as pklr:
         predictors = pickle.load(pklr)
 
@@ -415,49 +460,52 @@ def predict_crista_score(features_lst):
     return get_avg(predictions) / 8.22
 
 
-# def CRISTA_predict(sgseq_20nt, genomic_seq_29nt):
-#     crista_features = []
-#     for i in range(len(sgseq_20nt)):
-#         sgRNA_seq = sgseq_20nt[i]
-#         full_dna_seq = genomic_seq_29nt[i]
-# 		### validate input: sgrna, genomic
-#         try:
-#             sgRNA_seq_re = re.search("[acgtu]+", sgRNA_seq, re.IGNORECASE)
-#             assert sgRNA_seq_re is not None and len(sgRNA_seq_re.group())==20, "sgRNA sequence must be 20-nt long sequence of ACGTU nucleotides"
-#             full_dna_seq_re = re.search("[acgtu]+", full_dna_seq, re.IGNORECASE)
-#             assert full_dna_seq_re is not None and len(full_dna_seq_re.group())==29, "genomic sequence must be 29-nt long sequence of ACGTU nucleotides"
-#         except:
-#             print("Invalid arguments.")
-#             return 0
-#         sgRNA_seq = sgRNA_seq.upper() + "NGG"
-#         full_dna_seq = full_dna_seq.upper()
-#         aligned_sgRNA, aligned_offtarget, max_score = align_sequences(sgRNA=sgRNA_seq, genomic_extended=full_dna_seq)
-#         features = get_features(full_dna_seq=full_dna_seq, aligned_sgRNA=aligned_sgRNA, aligned_offtarget=aligned_offtarget, pa_score=max_score)
-#         crista_features.append(features[0])
-
-#     predictions = predict_crista_score(crista_features)
-#     return predictions
-
-
-def two_chars_score(C1, C2, match_score, mismatch_score, gap_score):
+def two_chars_score(
+    C1: str, C2: str, match_score: float, mismatch_score: float, gap_score: float
+) -> float:
     """
-    returns the score of 2 chars comparison
-    """
+    Compute the score for a pair of nucleotides based on match, mismatch, or gap.
 
-    if C1 == C2:
+    This function returns a score depending on whether the two characters match,
+    represent a gap, or are a mismatch.
+
+    Args:
+        C1 (str): The first character (nucleotide or gap).
+        C2 (str): The second character (nucleotide or gap).
+        match_score (float): The score for a match.
+        mismatch_score (float): The score for a mismatch.
+        gap_score (float): The score for a gap.
+
+    Returns:
+        float: The score for the character pair.
+    """
+    if C1 == C2:  # match
         return match_score
-    elif C1 == "-" or C2 == "-":
+    elif C1 == "-" or C2 == "-":  # dna/rna bulge
         return gap_score
-    else:
-        return mismatch_score
+    return mismatch_score  # mismatch
 
 
-def get_alignment_score(sgRNA, genomic_extended):
+def get_alignment_score(sgRNA: str, genomic_extended: str) -> float:
+    """
+    Calculate the alignment score between an sgRNA and a genomic target sequence.
+
+    This function compares each nucleotide of the sgRNA to the corresponding nucleotide
+    in the genomic target (excluding the last three bases), using match, mismatch,
+    and gap scores.
+
+    Args:
+        sgRNA (str): The sgRNA sequence.
+        genomic_extended (str): The genomic target sequence, including flanking bases.
+
+    Returns:
+        float: The total alignment score.
+    """
     offtarget_seq = genomic_extended[:-3]
     score = 0
-    for i in range(len(offtarget_seq)):
+    for i, nt in enumerate(offtarget_seq):
         score += two_chars_score(
-            sgRNA[i], offtarget_seq[i], MATCH_SCORE, MISMATCH_PENALTY, GAP_PENALTY
+            sgRNA[i], nt, MATCH_SCORE, MISMATCH_PENALTY, GAP_PENALTY
         )
     return score
 
@@ -470,21 +518,21 @@ def CRISTA_predict(sgseq_aligned, offseq_aligned, genomic_seq_29nt):
     # print(aligned_off_seq)
     # print(len(sgRNA_seq), len(aligned_off_seq), len(dna_seq_29nt))
     max_score = get_alignment_score(sgRNA_seq, aligned_off_seq)
-    # print(max_score)
-    crista_features = []
     features = get_features(
         full_dna_seq=dna_seq_29nt,
         aligned_sgRNA=sgRNA_seq,
         aligned_offtarget=aligned_off_seq,
         pa_score=max_score,
     )
-    crista_features.append(features[0])
-    predictions = predict_crista_score(crista_features)
-    # print(predictions)
-    return predictions
+    crista_features = [features[0]]
+    return predict_crista_score(crista_features)
 
 
-def CRISTA_predict_list(sgseq_aligned_list, offseq_aligned_list, genomic_seq_29nt_list):
+def CRISTA_predict_list(
+    sgseq_aligned_list: List[str],
+    offseq_aligned_list: List[str],
+    genomic_seq_29nt_list: List[str],
+) -> float:
     crista_features = []
     for i in range(len(sgseq_aligned_list)):
         sgRNA_seq = sgseq_aligned_list[i].upper()
@@ -498,40 +546,4 @@ def CRISTA_predict_list(sgseq_aligned_list, offseq_aligned_list, genomic_seq_29n
             pa_score=max_score,
         )
         crista_features.append(features[0])
-    predictions = predict_crista_score(crista_features)
-    return predictions
-
-
-# if __name__ == '__main__':
-# 	parser = argparse.ArgumentParser(description='CRISTA, a tool for CRISPR Target Assessment')
-# 	parser.add_argument('--sgseq', '-s', required=True, help="sgRNA seq of 20 bases (without PAM)")
-# 	parser.add_argument('--genomic_seq', '-d', required=True, help="DNA target sequence with 3 additional bases at each end (total of 29 nucleotides)")
-
-# 	args = parser.parse_args()
-# 	sgRNA_seq = args.sgseq
-# 	full_dna_seq = args.genomic_seq
-
-# 	### validate input: sgrna, genomic
-# 	try:
-# 		sgRNA_seq_re = re.search("[acgtu]+", sgRNA_seq, re.IGNORECASE)
-# 		assert sgRNA_seq_re is not None and len(sgRNA_seq_re.group())==20, "sgRNA sequence must be 20-nt long sequence of ACGTU nucleotides"
-# 		full_dna_seq_re = re.search("[acgtu]+", full_dna_seq, re.IGNORECASE)
-# 		assert full_dna_seq_re is not None and len(full_dna_seq_re.group())==29, "genomic sequence must be 29-nt long sequence of ACGTU nucleotides"
-# 	except:
-# 		print("Invalid arguments.")
-# 		print(parser.parse_args(['-h']))
-# 		exit()
-
-# 	sgRNA_seq = sgRNA_seq.upper() + "NGG"
-# 	full_dna_seq = full_dna_seq.upper()
-
-# 	print("Running CRISTA")
-# 	### align_sequences
-# 	aligned_sgRNA, aligned_offtarget, max_score = align_sequences(sgRNA=sgRNA_seq, genomic_extended=full_dna_seq)
-
-# 	### get features
-# 	features = get_features(full_dna_seq=full_dna_seq, aligned_sgRNA=aligned_sgRNA, aligned_offtarget=aligned_offtarget,
-# 							pa_score=max_score)
-# 	### predict
-# 	prediction = predict_crista_score(features)
-# 	print("CRISTA predicted score:", prediction[0])
+    return predict_crista_score(crista_features)

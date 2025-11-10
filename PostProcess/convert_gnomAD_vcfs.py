@@ -17,10 +17,10 @@ Key functions include:
 - `convert_vcf`: Converts a VCF file by updating its header and filtering variants.
 - `bcftools_merge`: Merges alleles in a VCF file using bcftools.
 - `run_conversion_pipeline`: Runs the conversion pipeline for a single VCF file.
-- `convert_gnomad_vcfs`: Main entry point for converting gnomAD VCF files based 
+- `convert_gnomad_vcfs`: Main entry point for converting gnomAD VCF files based
     on user parameters.
 
-This module is designed to facilitate the processing of genomic data for research 
+This module is designed to facilitate the processing of genomic data for research
 and analysis purposes.
 """
 
@@ -333,7 +333,7 @@ def run_conversion_pipeline(
     """
 
     # add genotypes to input VCF
-    vcf_genotypes = convert_vcf(vcf_fname, samples, joint, keep)  
+    vcf_genotypes = convert_vcf(vcf_fname, samples, joint, keep)
     # merge variants into mutlialleic/biallelic sites
     vcf_merged = bcftools_merge(vcf_genotypes, multiallelic)
     assert os.path.isfile(vcf_merged) and os.stat(vcf_merged).st_size > 0

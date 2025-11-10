@@ -1,34 +1,34 @@
 """
-This module provides functionality to execute the CRISPRme test workflow, including 
-downloading genomic and variant data, preparing input files, and running the CRISPRme 
-command-line tool. It includes functions for managing directories, downloading data 
+This module provides functionality to execute the CRISPRme test workflow, including
+downloading genomic and variant data, preparing input files, and running the CRISPRme
+command-line tool. It includes functions for managing directories, downloading data
 from various sources, and configuring test parameters.
 
 Key functions include:
-- `ensure_hg38_directory`: Ensures the existence of the 'hg38' directory within the 
+- `ensure_hg38_directory`: Ensures the existence of the 'hg38' directory within the
     specified destination.
-- `download_genome_data`: Downloads genome data for a specified chromosome to the 
+- `download_genome_data`: Downloads genome data for a specified chromosome to the
     destination directory.
-- `ensure_vcf_dataset_directory`: Ensures the existence of a directory for a specific 
+- `ensure_vcf_dataset_directory`: Ensures the existence of a directory for a specific
     VCF dataset.
 - `download_vcf_data`: Downloads VCF data for a specific chromosome and variant dataset.
 - `ensure_samplesids_directory`: Ensures the existence of the 'samplesIDs' directory.
 - `download_samples_ids_data`: Downloads samples IDs data for a specific variant dataset.
 - `ensure_annotation_directory`: Ensures the existence of the 'annotation' directory.
-- `download_annotation_data`: Downloads gencode and encode annotation data to the 
+- `download_annotation_data`: Downloads gencode and encode annotation data to the
     'annotation' directory.
 - `write_ngg_pamfile`: Writes a test PAM file containing the NGG sequence.
-- `write_sg1617_guidefile`: Writes a test guide file containing the sg1617 guide 
+- `write_sg1617_guidefile`: Writes a test guide file containing the sg1617 guide
     sequence.
 - `write_vcf_config`: Writes a test VCF list file for a specific variant dataset.
-- `write_samplesids_config`: Writes a test samples ID list file for a specific 
+- `write_samplesids_config`: Writes a test samples ID list file for a specific
     variant dataset.
-- `run_crisprme_test`: Executes the CRISPRme test workflow for a specified chromosome 
+- `run_crisprme_test`: Executes the CRISPRme test workflow for a specified chromosome
     and dataset.
 - `main`: The entry point of the module that orchestrates the test execution.
 
-This module is designed to facilitate the testing and validation of the CRISPRme 
-tool, ensuring that all necessary data and configurations are correctly handled 
+This module is designed to facilitate the testing and validation of the CRISPRme
+tool, ensuring that all necessary data and configurations are correctly handled
 before running the analysis.
 """
 
@@ -63,7 +63,9 @@ VCF1000GURL = (
 )
 VCFHGDPSERVER = "ngs.sanger.ac.uk"
 VCFHGDPURL = "/production/hgdp/hgdp_wgs.20190516/hgdp_wgs.20190516.full.{}.vcf.gz"
-TESTDATAURL = "https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/main/test/data/"
+TESTDATAURL = (
+    "https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/main/test/data/"
+)
 
 
 def ensure_hg38_directory(dest: str) -> str:
@@ -286,6 +288,7 @@ def download_annotation_data() -> Tuple[str, str]:
     )
     return gencode, encode
 
+
 def _bgzip_ann_data(ann_fname: str) -> str:
     """
     Compress an annotation file using bgzip and verify the output.
@@ -303,23 +306,24 @@ def _bgzip_ann_data(ann_fname: str) -> str:
     Raises:
         subprocess.SubprocessError: If bgzip compression fails.
     """
-    
-    try: 
+
+    try:
         subprocess.call(f"bgzip -f {ann_fname}", shell=True)
     except (subprocess.SubprocessError, Exception) as e:
-        raise subprocess.SubprocessError(f"Bgzip compression failed on {ann_fname}") from e
+        raise subprocess.SubprocessError(
+            f"Bgzip compression failed on {ann_fname}"
+        ) from e
     ann_fname_gz = f"{ann_fname}.gz"
     assert os.path.isfile(ann_fname_gz)  # check that the bgzipped bed exists
     return ann_fname_gz
-    
 
 
 def _retrieve_ann_data(annotation_dir: str, url: str, fname: str) -> str:
     """
     Download and extract an annotation file, then compress it with bgzip.
 
-    This function downloads an annotation archive, verifies its integrity, extracts 
-    the specified file, and compresses it using bgzip. It returns the path to the 
+    This function downloads an annotation archive, verifies its integrity, extracts
+    the specified file, and compresses it using bgzip. It returns the path to the
     compressed annotation file.
 
     Args:
