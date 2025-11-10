@@ -276,12 +276,12 @@ def download_annotation_data() -> Tuple[str, str]:
     annotation_dir = ensure_annotation_directory(os.getcwd())
     gencode = _retrieve_ann_data(
         annotation_dir,
-        "Annotations/gencode.protein_coding.bed.gz",
+        "Annotations/gencode.protein_coding.bed.tar.gz",
         "gencode.protein_coding.bed",
     )
     encode = _retrieve_ann_data(
         annotation_dir,
-        "Annotations/dhs+encode+gencode.hg38.bed.gz",
+        "Annotations/dhs+encode+gencode.hg38.bed.tar.gz",
         "dhs+encode+gencode.hg38.bed",
     )
     return gencode, encode
