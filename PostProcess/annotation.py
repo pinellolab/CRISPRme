@@ -102,6 +102,8 @@ def annotate_target(chrom: str, start: int, stop: int, annotation: TabixFile) ->
     Returns:
         Comma-separated string of annotation features for the target.
     """
+    if chrom not in annotation.contigs:
+        return "n"  # contig not in input annotation file 
     target_anns = {
         feature.split()[3]
         for feature in annotation.fetch(chrom, start, stop)

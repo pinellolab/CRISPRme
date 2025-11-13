@@ -50,7 +50,7 @@ email=${17}  # email address (website only)
 echo -e "MAIL: $email"
 echo -e "CPU used: $ncpus"
 
-#used to solve base editor check in resultintegration phase
+# used to solve base editor check in result-integration phase
 base_check_start=${18}
 base_check_end=${19}
 base_check_set=${20}
@@ -717,7 +717,7 @@ if [ -s $logerror ]; then
 	rm -f $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
 	exit 1
 fi
-# remove Ns and dots from rsID from primary targets files
+# remove Ns and dots from rsID from alternative targets files
 ./remove_n_and_dots.py $final_res_alt.bestCFD.txt &
 ./remove_n_and_dots.py $final_res_alt.bestmmblg.txt &
 ./remove_n_and_dots.py $final_res_alt.bestCRISTA.txt &
