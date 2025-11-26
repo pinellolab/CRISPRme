@@ -52,10 +52,9 @@ def polish_report(report_chunks: TextFileReader, report_fname: str) -> None:
     header = True  # only for first iteration
     for chunk in report_chunks:
         assert "rsID" in chunk.columns.tolist()
-        chunk: pd.DataFrame = chunk.replace("n", "NA")  # replace ns with NAs
-        chunk["rsID"] = chunk["rsID"].str.replace(
-            ".", "NA"
-        )  # replace . in rsids with NAs
+        chunk: pd.DataFrame = chunk.replace({"n": "NA"})  # replace ns with NAs
+        # replace . in rsids with NAs
+        chunk["rsID"] = chunk["rsID"].str.replace(".", "NA", regex=False)  
         chunk.to_csv(
             f"{report_fname}.tmp", header=header, mode="a", sep="\t", index=False
         )
@@ -79,7 +78,7 @@ def remove_n_dots() -> None:
     polish_report(read_report_chunks(report_fname), report_fname)
     if not os.path.isfile(f"{report_fname}.tmp"):
         raise FileNotFoundError(f"Polished report {report_fname}.tmp not created?")
-    code = subprocess.call(f"mv {report_fname}.tmp {report_fname}")
+    code = subprocess.call(f"mv {report_fname}.tmp {report_fname}", shell=True)
     if code != 0:
         raise subprocess.SubprocessError(f"Failed renaming {report_fname}.tmp")
 
