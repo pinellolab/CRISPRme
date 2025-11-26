@@ -82,7 +82,7 @@ def compute_risk_score(report_fname: str, report_outfname: str, alternative: boo
             fout.write("\t".join(header) + "\n")  # write header to out put report
             for line in fin:
                 score_diff, score_diff_abs = _compute_risk_score(line)
-                fout.write(f"{line}\t{score_diff}\t{score_diff_abs}\n")
+                fout.write(f"{line.strip()}\t{score_diff}\t{score_diff_abs}\n")
     except (IOError, Exception) as e:
         raise OSError(
             f"An error occurred while computing risk scores for {report_fname}"
