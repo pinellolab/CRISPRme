@@ -357,26 +357,32 @@ while read vcf_f; do
 
 	# START STEP 3 - off-targets search
 	cd "$output_folder"
-	echo $idx_ref
+	pids=()  # reset process ids
+	names=()
 	# TODO: ricerca ref lanciata in parallelo con ricerca alternative
+	echo -e 'Off-targets search\Start\t'$(date) >>$log
 	if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 		echo -e 'Search Reference\tStart\t'$(date) >>$log  # off-targets search on reference genome
 		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulges 
 			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
+			pid_search_ref=$!
+			pids+=("$pid_search_ref")  # add reference search pid
+			names+=("Reference")  # add pid identifier
 			if [ -s $logerror ]; then
 				printf "ERROR: off-targets search on reference genome failed\n" >&2
 				rm -f $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
 				exit 1
 			fi
-			pid_search_ref=$!
 		else  # consider dna/rna bulges (not combined)
 			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
+			pid_search_ref=$!
+			pids+=("$pid_search_ref")  # add reference search pid
+			names+=("Reference")  # add pid identifier
 			if [ -s $logerror ]; then
 				printf "ERROR: off-targets search (no bulges) on reference genome failed\n" >&2
 				rm -f $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
 				exit 1
 			fi
-			pid_search_ref=$!
 		fi
 	else
 		echo -e "Search for reference already done"
@@ -387,7 +393,10 @@ while read vcf_f; do
 		if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 			echo -e 'Search Variant\tStart\t'$(date) >>$log  # search off-targets on alternative genomes (snps only)
 			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulge
-				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var
+				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var &
+				pid_search_var=$!
+				pids+=("$pid_search_var")  # add variants search pid
+				names+=("Variant")  # add pid identifier
 				if [ -s $logerror ]; then
 					printf "ERROR: off-targets search on alternative genome failed on variants in %s\n" "$vcf_name" >&2
 					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
@@ -396,6 +405,9 @@ while read vcf_f; do
 				echo -e 'Search Variant\tEnd\t'$(date) >>$log
 			else  # consider bulges
 				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
+				pid_search_var=$!
+				pids+=("$pid_search_var")  # add variants search pid
+				names+=("Variant")  # add pid identifier
 				if [ -s $logerror ]; then
 					printf "ERROR: off-targets search (no bulges) on alternative genome failed on variants in %s\n" "$vcf_name" >&2
 					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
@@ -428,11 +440,18 @@ while read vcf_f; do
 	fi
 	
 	# wait for jobs completion
-	while kill "-0" $pid_search_ref &>/dev/null; do
-		echo -e "Waiting for search genome reference"
-		sleep 100
+	for i in "${!pids[@]}"; do
+		pid="${pids[$i]}"
+		name="${names[$i]}"
+
+		if wait "$pid"; then
+			echo -e "Search $name \End\t"$(date) >>$log  # off-targets search on reference/variant genome
+		else			
+			echo "ERROR: search $name failed" >&2
+			exit 1
+		fi
 	done
-	echo -e 'Search Reference\tEnd\t'$(date) >>$log
+	echo -e 'Off-targets search\tEnd\t'$(date) >>$log
 	# move all targets into targets directory
 	if [ -d "${output_folder}/crispritz_targets" ]; then
 		mv $output_folder/*.targets.txt $output_folder/crispritz_targets
