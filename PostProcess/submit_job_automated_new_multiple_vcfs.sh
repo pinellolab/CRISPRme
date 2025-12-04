@@ -250,100 +250,83 @@ while read vcf_f; do
 
 	# START STEP 2 - genome indexing
 	cd "$current_working_directory/"
-	if ! [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}" ]; then
-		if ! [ -d "$current_working_directory/genome_library/${true_pam}_2_${ref_name}" ]; then
-			if ! [ $bMax -gt 1 ]; then
-				if ! [ -d "$current_working_directory/genome_library/${true_pam}_1_${ref_name}" ]; then
-					echo -e 'Index-genome Reference\tStart\t'$(date) >>$log
-					echo -e "Indexing reference genome"
-					crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
-					if [ -s $logerror ]; then
-						printf "ERROR: reference genome indexing failed\n" >&2
-						if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}" ]; then
-							rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
-						fi
-						exit 1
-					fi
-					pid_index_ref=$!
-					echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-					idx_ref="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
-				else
-					echo -e "Reference Index already present"
-					idx_ref="$current_working_directory/genome_library/${true_pam}_1_${ref_name}"
-				fi
-			else
-				echo -e 'Index-genome Reference\tStart\t'$(date) >>$log
-				echo -e "Indexing reference genome"
-				crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
-				if [ -s $logerror ]; then
-					printf "ERROR: reference genome indexing failed\n" >&2
-					if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}" ]; then
-						rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
-					fi
-					exit 1
-				fi
-				pid_index_ref=$!
-				echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-				idx_ref="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
-			fi
-		else
-			echo -e "Reference Index already present"
-			echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-			idx_ref="$current_working_directory/genome_library/${true_pam}_2_${ref_name}"
-		fi
-	else
-		echo -e "Reference Index already present"
-		echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
-		idx_ref="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}"
-	fi
 
+	# START STEP 2.1 Reference genome indexing
+	# candidate index folders, ordered by priority
+	idx_folder1="${current_working_directory}/genome_library/${true_pam}_${bMax}_${ref_name}"  # index for requested number of bulges
+	bMax_=$((bMax+1))
+	idx_folder2="${current_working_directory}/genome_library/${true_pam}_${bMax_}_${ref_name}"  # index for requested number of bulges + 1 (superset for required index)
+	idx_folder3="${current_working_directory}/genome_library/${true_pam}_1_${ref_name}"  # index for number of bulges = 1 (used also for 0 bulges)
+
+	# try to use an existing index
+	if [ -d "$idx_folder1" ]; then
+		echo "Reference Index already present"
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
+		idx_ref="$idx_folder1"
+	elif [ -d "$idx_folder2"]; then
+		echo "Reference Index already present"
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
+		idx_ref="$idx_folder2"
+	elif [ $bMax -le 1 ] && [ -d "$idx_folder3" ]; then
+		echo "Reference Index already present"
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
+		idx_ref="$idx_folder3"
+	else
+		# no valid index found, compute it
+		echo -e 'Index-genome Reference\tStart\t'$(date) >>$log
+		echo -e "Indexing reference genome"
+		# index reference genome using crispritz
+		crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
+		if [ -s $logerror ]; then
+			printf "ERROR: reference genome indexing failed\n" >&2
+			[ -d "$idx_folder1" ] && rm -r "$idx_folder1"
+			exit 1
+		fi
+		pid_index_ref=$!
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
+		idx_ref="$idx_folder1"
+	fi
+	# END STEP 2.1 Reference genome indexing
+
+	# START STEP 2.2 Variant genome indexing
 	if [ "$vcf_name" != "_" ]; then  # index alternative genomes (snps only)
-		if ! [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}" ]; then
-			if ! [ -d "$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}" ]; then
-				if ! [ $bMax -gt 1 ]; then  # case with #bulges <= 1
-					if ! [ -d "$current_working_directory/genome_library/${true_pam}_1_${ref_name}+${vcf_name}" ]; then
-						echo -e 'Index-genome Variant\tStart\t'$(date) >>$log
-						echo -e "Indexing variant genome"
-						# use crispritz to index alternative genome
-						crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus #${ref_folder%/}+${vcf_name}/
-						if [ -s $logerror ]; then
-							printf "ERROR: alternative genome indexing failed on %s\n" "$vcf_name" >&2
-							if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}" ]; then
-								rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
-							fi
-							exit 1
-						fi
-						pid_index_var=$!
-						echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-						idx_var="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
-					else
-						echo -e "Variant Index already present"
-						idx_var="$current_working_directory/genome_library/${true_pam}_1_${ref_name}+${vcf_name}"
-					fi
-				else  # case with #bulges > 1
-					echo -e 'Index-genome Variant\tStart\t'$(date) >>$log
-					echo -e "Indexing variant genome"
-					crispritz.py index-genome "${ref_name}+${vcf_name}" "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" -bMax $bMax -th $ncpus
-					if [ -s $logerror ]; then
-						printf "ERROR: alternative genome indexing failed on %s (bulges > 1)\n" "$vcf_name" >&2
-						if [ -d "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}" ]; then
-							rm -r "$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
-						fi
-						exit 1
-					fi
-					pid_index_ref=$!
-					echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-					idx_var="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
-				fi
-			else
-				echo -e "Variant Index already present"
-				echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-				idx_var="$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}"
-			fi
+		# candidate index folders, ordered by priority
+		basedir="${current_working_directory}/genome_library"
+		idx_folder1="${basedir}/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
+		idx_folder2="${basedir}/${true_pam}_${bMax_}_${ref_name}+${vcf_name}"
+		idx_folder3="${basedir}/${true_pam}_1_${ref_name}+${vcf_name}"
+
+		# try existing indexes in priority order
+		if [ -d "$idx_folder1" ]; then
+			echo "Variant Index already present"
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder1"
+		elif [ -d "$idx_folder2" ]; then
+			echo "Variant Index already present"
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder2"
+		elif [ "$bMax" -le 1 ] && [ -d "$idx_folder3" ]; then
+			echo "Variant Index already present"
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder3"
 		else
-			echo -e "Variant Index already present"
-			echo -e 'Index-genome Variant\tEnd\t'$(date) >>$log
-			idx_var="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
+			# no index found, compute it
+			echo -e 'Index-genome Variant\tStart\t'$(date) >>$log
+			echo -e "Indexing variant genome"
+			# index alternative genome using crispritz
+			crispritz.py index-genome \
+				"${ref_name}+${vcf_name}" \
+				"$current_working_directory/Genomes/${ref_name}+${vcf_name}/" \
+				"$pam_file" \
+				-bMax $bMax -th $ncpus
+			if [ -s "$logerror" ]; then
+				printf "ERROR: alternative genome indexing failed on %s\n" "$vcf_name" >&2
+				[ -d "$idx_folder1" ] && rm -r "$idx_folder1"
+				exit 1
+			fi
+			pid_index_var=$!
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder1"
 		fi
 	fi
 	# END STEP 2 - genome indexing

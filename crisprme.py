@@ -1186,7 +1186,7 @@ def complete_search() -> None:
                     genome_idx_list.append(
                         pam_char
                         + "_"
-                        + str(bMax)
+                        + str(bMax + 1)  # for alignments starting with gaps
                         + "_"
                         + genome_ref
                         + "+"
@@ -1195,7 +1195,7 @@ def complete_search() -> None:
         genome_idx = ",".join(genome_idx_list)
         ref_comparison = True
     else:
-        genome_idx = pam_char + "_" + str(bMax) + "_" + genome_ref
+        genome_idx = pam_char + "_" + str(bMax + 1) + "_" + genome_ref
         ref_comparison = False
     # os.chdir(script_path)
     # write crisprme version to file
@@ -1297,7 +1297,7 @@ def complete_search() -> None:
             crisprme_run = (
                 f"{os.path.join(script_path, 'submit_job_automated_new_multiple_vcfs.sh')} "
                 f"{genomedir} {vcfdir} {os.path.join(outputfolder, 'guides.txt')} "
-                f"{pamfile} {annotationfile} {samplefile} {bMax} {mm} {bDNA} {bRNA} "
+                f"{pamfile} {annotationfile} {samplefile} {bMax + 1} {mm} {bDNA} {bRNA} "
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
                 f"{sorting_criteria_scoring} {sorting_criteria}"
