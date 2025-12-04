@@ -10,13 +10,14 @@ pam_file = sys.argv[2]
 true_pam = sys.argv[3]
 ref_name = sys.argv[4]
 vcf_name = sys.argv[5]
-ncpus = sys.argv[6]
+bMax = sys.argv[6]
+ncpus = sys.argv[7]
 
 
 def index_indels(chrom):
     print("Indexing INDELs in", chrom)
     os.system(
-        f"crispritz.py index-genome {ref_name}+{vcf_name}_INDELS/{true_pam}_2_fake{chrom} {indels_folder}/fake_{vcf_name}_{chrom} {pam_file} -bMax 2 -th 1  >/dev/null"
+        f"crispritz.py index-genome {ref_name}+{vcf_name}_INDELS/{true_pam}_{bMax}_fake{chrom} {indels_folder}/fake_{vcf_name}_{chrom} {pam_file} -bMax {bMax} -th 1  >/dev/null"
     )  # {indels_folder}/fake_{vcf_name}_{chrom}
     print("Indexing ended for INDELs in", chrom)
 
