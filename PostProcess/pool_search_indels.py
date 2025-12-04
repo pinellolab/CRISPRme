@@ -32,10 +32,9 @@ def search_indels(f):
     print("Searching for INDELs in", chrom)
     if bDNA != "0" or bRNA != "0":
         os.system(
-            f"crispritz.py search {current_working_directory}/genome_library/{true_pam}_2_{ref_name}+{vcf_name}_INDELS/{true_pam}_2_fake{chrom}/ {pam_file} {guide_file} fake{chrom}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -index -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -t -th 1 >/dev/null"
+            f"crispritz.py search {current_working_directory}/genome_library/{true_pam}_{bMax}_{ref_name}+{vcf_name}_INDELS/{true_pam}_{bMax}_fake{chrom}/ {pam_file} {guide_file} fake{chrom}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -index -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -t -th 1 >/dev/null"
         )
     else:
-        print("faccio ricerca brute")
         os.system(
             f"crispritz.py search {current_working_directory}/Genomes/{ref_name}+{vcf_name}_INDELS/fake_{vcf_name}_{chrom}/ {pam_file} {guide_file} fake{chrom}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -mm {mm} -t -th 1 >/dev/null"
         )

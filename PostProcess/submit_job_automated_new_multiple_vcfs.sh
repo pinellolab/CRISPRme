@@ -169,9 +169,8 @@ while read vcf_f; do
 		dict_folder="$current_working_directory/Dictionaries/dictionaries_${vcf_name}/"
 		indel_dict_folder="$current_working_directory/Dictionaries/log_indels_${vcf_name}/"
 		indels_out="$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS"
-		indels_index_dir="$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS"
 
-		if ![ -d "$enriched_folder" ]; then
+		if ! [ -d "$enriched_folder" ]; then
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
 			echo -e "Adding variants"
 			
@@ -181,70 +180,39 @@ while read vcf_f; do
 			if [ -s $logerror ]; then
 				printf "ERROR: Genome enrichment failed on %s\n" "$vcf_name" >&2
 				# since failure happened, force genome enrichment to be repeated
-				rm -r "$enriched_folder"* "$variants_tmp" || true
+				rm -r "$enriched_folder"* "$variants_tmp"
 				exit 1
 			fi
 
-			# move enriched snp genome
-			mv "$variants_tmp/SNPs_genome/${ref_name}_enriched/" "$enriched_dir/"
+			# create indels folder
+			mkdir -p $indels_out
+
+			# move enriched snp genome and indels
+			mv "$variants_tmp/SNPs_genome/${ref_name}_enriched/" "$enriched_folder/"
+			mv $variants_tmp/fake* $indels_out
 
 			# create dictionaries folders if needed
 			mkdir -p "$dict_folder" "$indel_dict_folder"
 
-			# move annotation files
-			mv "$variants_tmp/SNPs_genome/"*.json "$dict_folder"
-			mv "$variants_tmp/SNPs_genome/log"*.txt "$indel_dict_folder"
+			# move variant annotation files
+			mv $variants_tmp/SNPs_genome/*.json "$dict_folder"
+			mv $variants_tmp/SNPs_genome/log*.txt "$indel_dict_folder"
+
+			# remove temporary variant genome folder
+			rm -r "$variants_tmp"
 
 			echo -e 'Add-variants\tEnd\t'$(date) >>"$log"
-
-			# START STEP 1.1 - indels indexing
-			echo -e 'Indexing Indels\tStart\t'$(date) >>"$log"
-			"$starting_dir/pool_index_indels.py" \
-				"$variants_tmp/" \
-				"$pam_file" \
-				"$true_pam" \
-				"$ref_name" \
-				"$vcf_name" \
-				"$bMax" \
-				"$ncpus"
-
-			if [ -s "$logerror" ]; then
-				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
-				rm -r "$enriched_dir"* "$variants_tmp" || true
-				exit 1
-			fi
-			echo -e 'Indexing Indels\tEnd\t'$(date) >>"$log"
-
-			mkdir -p "$indels_out"
-			mv "$variants_tmp/fake"* "$indels_out"
-			rm -r "$variants_tmp"
-			# END STEP 1.1 - indels indexing
 		else
 			echo -e "Variants already added"
 		fi
 
-		# START STEP 1.1 - indels indexing
-		# indels indexing if skipped in previous block
-		if ! [ -d "$indels_index_dir" ]; then
-			echo -e 'Indexing Indels\tStart\t'$(date) >>"$log"
-			"$starting_dir/pool_index_indels.py" \
-				"$variants_tmp/" \
-				"$pam_file" \
-				"$true_pam" \
-				"$ref_name" \
-				"$vcf_name" \
-				"$bMax" \
-				"$ncpus"
-				
-			if [ -s "$logerror" ]; then
-				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
-				rm -rf "$enriched_dir"* "$variants_tmp" || true
-				exit 1
-			fi
-			echo -e 'Indexing Indels\tEnd\t'$(date) >>"$log"
-		fi
-		# END STEP 1.1 - indels indexing
+		cd $current_working_directory
+	fi
 
+	# check if anything odd happened during enrichment
+	if [ -s $logerror ]; then
+		printf "ERROR: Genome enrichment failed on %s\n" "$vcf_name" >&2
+		exit 1
 	fi
 	# END STEP 1 - Genome enrichment
 
@@ -266,7 +234,7 @@ while read vcf_f; do
 		echo "Reference Index already present"
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
 		idx_ref="$idx_folder1"
-	elif [ -d "$idx_folder2"]; then
+	elif [ -d "$idx_folder2" ]; then
 		echo "Reference Index already present"
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
 		idx_ref="$idx_folder2"
@@ -331,6 +299,38 @@ while read vcf_f; do
 			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
 			idx_var="$idx_folder1"
 		fi
+
+		# START STEP 2.3 - indels indexing
+		indels_index_dir="$current_working_directory/genome_library/${true_pam}_${bMax}_${ref_name}+${vcf_name}_INDELS"
+		indels_out="$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS"
+
+		if ! [ -d "$indels_index_dir" ]; then
+			echo -e 'Indexing Indels\tStart\t'$(date) >>"$log"
+			"$starting_dir/pool_index_indels.py" \
+				"$indels_out/" \
+				"$pam_file" \
+				"$true_pam" \
+				"$ref_name" \
+				"$vcf_name" \
+				"$bMax" \
+				"$ncpus"
+
+			if [ -s "$logerror" ]; then
+				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
+				[ -d "$indels_index_dir" ] && rm -r "$indels_index_dir"
+				exit 1
+			fi
+
+			echo -e 'Indexing Indels\tEnd\t'$(date) >>"$log"
+		else
+			echo "Indels Index already present"
+		fi
+		# END STEP 2.3 - indels indexing
+	fi
+
+	if [ -s $logerror ]; then
+		printf "ERROR: Genome indexing failed" >&2
+		exit 1
 	fi
 	# END STEP 2 - genome indexing
 
@@ -346,9 +346,9 @@ while read vcf_f; do
 	pids=()  # reset process ids
 	names=()
 	# TODO: ricerca ref lanciata in parallelo con ricerca alternative
-	echo -e 'Off-targets search\Start\t'$(date) >>$log
+	echo -e 'Off-targets search\tStart\t'$(date) >>$log
 	if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
-		echo -e 'Search Reference\tStart\t'$(date) >>$log  # off-targets search on reference genome
+		echo -e 'Search Reference Start'  # off-targets search on reference genome
 		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulges 
 			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
 			pid_search_ref=$!
@@ -370,6 +370,7 @@ while read vcf_f; do
 				exit 1
 			fi
 		fi
+		echo -e 'Search Reference completed'
 	else
 		echo -e "Search for reference already done"
 	fi
@@ -377,7 +378,7 @@ while read vcf_f; do
 	if [ "$vcf_name" != "_" ]; then
 		# TODO: search in parallel on ref and alt
 		if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
-			echo -e 'Search Variant\tStart\t'$(date) >>$log  # search off-targets on alternative genomes (snps only)
+			echo -e 'Search Variant Start'  # search off-targets on alternative genomes (snps only)
 			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulge
 				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var &
 				pid_search_var=$!
@@ -399,15 +400,14 @@ while read vcf_f; do
 					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
 					exit 1
 				fi
-				echo -e 'Search Variant\tEnd\t'$(date) >>$log
 			fi
 		else
 			echo -e "Search for variant already done"
 		fi
+		echo -e 'Search Variant completed'
 
 		if ! [ -f "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 			echo -e "Search INDELs Start"
-			echo -e 'Search INDELs\tStart\t'$(date) >>$log
 			cd $starting_dir
 			# TODO: REMOVE POOL SCRIPT FROM PROCESSING
 			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus"
@@ -418,8 +418,7 @@ while read vcf_f; do
 			fi
 			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp"
 			mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp" "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
-			echo -e "Search INDELs End"
-			echo -e 'Search INDELs\tEnd\t'$(date) >>$log
+			echo -e "Search INDELs completed"
 		else
 			echo -e "Search INDELs already done"
 		fi
