@@ -36,6 +36,7 @@ pam_file=$(realpath $4)  # pam
 annotation_file=$(realpath $5)  # annotation bed
 sampleID=$(realpath $6)  # sample ids 
 bMax=$7  # max number of bulges
+bMax_=$((bMax+1))  # superset of current maximum bulge number
 mm=$8  # mismatches
 bDNA=$9  # dna bulges
 bRNA=${10}  # rna bulges 
@@ -163,86 +164,89 @@ while read vcf_f; do
 
 	# START STEP 1 - Genome enrichment
 	if [ "$vcf_name" != "_" ]; then
-		cd "$current_working_directory/Genomes"
-		if ! [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
+		enriched_folder="$current_working_directory/Genomes/${ref_name}+${vcf_name}"
+		variants_tmp="$current_working_directory/Genomes/variants_genome"
+		dict_folder="$current_working_directory/Dictionaries/dictionaries_${vcf_name}/"
+		indel_dict_folder="$current_working_directory/Dictionaries/log_indels_${vcf_name}/"
+		indels_out="$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS"
+		indels_index_dir="$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS"
+
+		if ![ -d "$enriched_folder" ]; then
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
 			echo -e "Adding variants"
-			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true"  # use crispritz for enrichment
+			
+			# enrich genome using crispritz
+			cd "$current_working_directory/Genomes"
+			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true" 
 			if [ -s $logerror ]; then
 				printf "ERROR: Genome enrichment failed on %s\n" "$vcf_name" >&2
 				# since failure happened, force genome enrichment to be repeated
-				if [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
-					rm -r "$current_working_directory/Genomes/${ref_name}+${vcf_name}"*
-				fi
-				if [ -d "$current_working_directory/Genomes/variants_genome" ]; then
-					rm -r "$current_working_directory/Genomes/variants_genome"
-				fi
+				rm -r "$enriched_folder"* "$variants_tmp" || true
 				exit 1
 			fi
-			mv "$current_working_directory/Genomes/variants_genome/SNPs_genome/${ref_name}_enriched/" "./${ref_name}+${vcf_name}/"
-			if ! [ -d "$current_working_directory/Dictionaries/dictionaries_${vcf_name}/" ]; then
-				mkdir "$current_working_directory/Dictionaries/dictionaries_${vcf_name}/"
-			fi
-			if ! [ -d "$current_working_directory/Dictionaries/log_indels_${vcf_name}/" ]; then
-				mkdir "$current_working_directory/Dictionaries/log_indels_${vcf_name}/"
-			fi
-			mv $current_working_directory/Genomes/variants_genome/SNPs_genome/*.json $current_working_directory/Dictionaries/dictionaries_${vcf_name}/
-			mv $current_working_directory/Genomes/variants_genome/SNPs_genome/log*.txt $current_working_directory/Dictionaries/log_indels_${vcf_name}/
-			cd "$current_working_directory/"
-			if ! [ -d "genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS" ]; then
-				mkdir "genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS"
-			fi
-			echo -e 'Add-variants\tEnd\t'$(date) >>$log
-			# if [ -s $logerror ]; then
-			# 	msenrichment="$output_folder/.msenrichment"
-			# 	touch $msenrichment
-			# END STEP 1 - genome enrichment
-			
+
+			# move enriched snp genome
+			mv "$variants_tmp/SNPs_genome/${ref_name}_enriched/" "$enriched_dir/"
+
+			# create dictionaries folders if needed
+			mkdir -p "$dict_folder" "$indel_dict_folder"
+
+			# move annotation files
+			mv "$variants_tmp/SNPs_genome/"*.json "$dict_folder"
+			mv "$variants_tmp/SNPs_genome/log"*.txt "$indel_dict_folder"
+
+			echo -e 'Add-variants\tEnd\t'$(date) >>"$log"
+
 			# START STEP 1.1 - indels indexing
-			echo -e 'Indexing Indels\tStart\t'$(date) >>$log
-			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/variants_genome/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus
-			if [ -s $logerror ]; then
+			echo -e 'Indexing Indels\tStart\t'$(date) >>"$log"
+			"$starting_dir/pool_index_indels.py" \
+				"$variants_tmp/" \
+				"$pam_file" \
+				"$true_pam" \
+				"$ref_name" \
+				"$vcf_name" \
+				"$bMax" \
+				"$ncpus"
+
+			if [ -s "$logerror" ]; then
 				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
-				if [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
-					rm -r "$current_working_directory/Genomes/${ref_name}+${vcf_name}"*
-				fi
-				if [ -d "$current_working_directory/Genomes/variants_genome" ]; then
-					rm -r "$current_working_directory/Genomes/variants_genome"
-				fi
+				rm -r "$enriched_dir"* "$variants_tmp" || true
 				exit 1
 			fi
-			echo -e 'Indexing Indels\tEnd\t'$(date) >>$log
-			if ! [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS" ]; then
-				mkdir $current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS
-			fi
-			mv $current_working_directory/Genomes/variants_genome/fake* $current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS
-			rm -r "$current_working_directory/Genomes/variants_genome/"
-			dict_folder="$current_working_directory/Dictionaries/dictionaries_$vcf_name/"
+			echo -e 'Indexing Indels\tEnd\t'$(date) >>"$log"
+
+			mkdir -p "$indels_out"
+			mv "$variants_tmp/fake"* "$indels_out"
+			rm -r "$variants_tmp"
+			# END STEP 1.1 - indels indexing
 		else
 			echo -e "Variants already added"
-			dict_folder="$current_working_directory/Dictionaries/dictionaries_$vcf_name/"
 		fi
-	fi
 
-	cd "$current_working_directory/"
-	if [ "$vcf_name" != "_" ]; then
-		if ! [ -d "$current_working_directory/genome_library/${true_pam}_2_${ref_name}+${vcf_name}_INDELS" ]; then
-			echo -e 'Indexing Indels\tStart\t'$(date) >>$log
-			${starting_dir}/./pool_index_indels.py "$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS/" "$pam_file" $true_pam $ref_name $vcf_name $ncpus
-			if [ -s $logerror ]; then
+		# START STEP 1.1 - indels indexing
+		# indels indexing if skipped in previous block
+		if ! [ -d "$indels_index_dir" ]; then
+			echo -e 'Indexing Indels\tStart\t'$(date) >>"$log"
+			"$starting_dir/pool_index_indels.py" \
+				"$variants_tmp/" \
+				"$pam_file" \
+				"$true_pam" \
+				"$ref_name" \
+				"$vcf_name" \
+				"$bMax" \
+				"$ncpus"
+				
+			if [ -s "$logerror" ]; then
 				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
-				if [ -d "$current_working_directory/Genomes/${ref_name}+${vcf_name}" ]; then
-					rm -r "$current_working_directory/Genomes/${ref_name}+${vcf_name}"*
-				fi
-				if [ -d "$current_working_directory/Genomes/variants_genome" ]; then
-					rm -r "$current_working_directory/Genomes/variants_genome"
-				fi
+				rm -rf "$enriched_dir"* "$variants_tmp" || true
 				exit 1
 			fi
-			echo -e 'Indexing Indels\tEnd\t'$(date) >>$log
+			echo -e 'Indexing Indels\tEnd\t'$(date) >>"$log"
 		fi
+		# END STEP 1.1 - indels indexing
+
 	fi
-	# END STEP 1.1 - indels indexing
+	# END STEP 1 - Genome enrichment
 
 	if [ -d "$current_working_directory/Dictionaries/fake_chrom_$vcf_name" ]; then
 		rm -r "$current_working_directory/Dictionaries/fake_chrom_$vcf_name"
@@ -254,7 +258,6 @@ while read vcf_f; do
 	# START STEP 2.1 Reference genome indexing
 	# candidate index folders, ordered by priority
 	idx_folder1="${current_working_directory}/genome_library/${true_pam}_${bMax}_${ref_name}"  # index for requested number of bulges
-	bMax_=$((bMax+1))
 	idx_folder2="${current_working_directory}/genome_library/${true_pam}_${bMax_}_${ref_name}"  # index for requested number of bulges + 1 (superset for required index)
 	idx_folder3="${current_working_directory}/genome_library/${true_pam}_1_${ref_name}"  # index for number of bulges = 1 (used also for 0 bulges)
 
