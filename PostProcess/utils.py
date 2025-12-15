@@ -101,8 +101,8 @@ MD5HGDP = {
     "hgdp_wgs.20190516.full.chrY.vcf.gz": "54b3aba28600c8d0d8a695c8dcfdc4cd",
 }
 MD5ANNOTATION = {
-    "dhs+encode+gencode.hg38.bed.tar.gz": "4f5eb631af903d4091bb2f57558c7b46",
-    "gencode.protein_coding.bed.tar.gz": "04297ade436db70784733a5b13d42723",
+    "dhs+encode+gencode.hg38.bed.tar.gz": "d3325e347c731b7c24c579a91b447b1b",
+    "gencode.protein_coding.bed.tar.gz": "c6747bf2610ff144daafc8b02cef251d",
 }
 MD5SAMPLES = {
     "samplesIDs.1000G.txt": "720af666c9a938de74a2808033aa4509",
