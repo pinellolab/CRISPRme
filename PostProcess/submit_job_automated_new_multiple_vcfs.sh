@@ -439,7 +439,7 @@ while read vcf_f; do
 	echo -e 'Off-targets search\tEnd\t'$(date) >>$log
 	# move all targets into targets directory
 	if [ -d "${output_folder}/crispritz_targets" ]; then
-		mv $output_folder/*.targets.txt $output_folder/crispritz_targets
+		mv $output_folder/*.targets.txt $output_folder/crispritz_targets &>/dev/null
 	fi
 	# move profiles into profile folder
 	if ! [ -d "$output_folder/crispritz_prof" ]; then
