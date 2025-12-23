@@ -354,21 +354,11 @@ while read vcf_f; do
 			pid_search_ref=$!
 			pids+=("$pid_search_ref")  # add reference search pid
 			names+=("Reference")  # add pid identifier
-			if [ -s $logerror ]; then
-				printf "ERROR: off-targets search on reference genome failed\n" >&2
-				rm -f $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
-				exit 1
-			fi
 		else  # consider dna/rna bulges (not combined)
 			crispritz.py search "$current_working_directory/Genomes/${ref_name}/" "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
 			pid_search_ref=$!
 			pids+=("$pid_search_ref")  # add reference search pid
 			names+=("Reference")  # add pid identifier
-			if [ -s $logerror ]; then
-				printf "ERROR: off-targets search (no bulges) on reference genome failed\n" >&2
-				rm -f $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
-				exit 1
-			fi
 		fi
 		echo -e 'Search Reference completed'
 	else
@@ -384,22 +374,11 @@ while read vcf_f; do
 				pid_search_var=$!
 				pids+=("$pid_search_var")  # add variants search pid
 				names+=("Variant")  # add pid identifier
-				if [ -s $logerror ]; then
-					printf "ERROR: off-targets search on alternative genome failed on variants in %s\n" "$vcf_name" >&2
-					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
-					exit 1
-				fi
-				echo -e 'Search Variant\tEnd\t'$(date) >>$log
 			else  # consider bulges
 				crispritz.py search "$current_working_directory/Genomes/${ref_name}+${vcf_name}/" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -mm $mm -r -th $ceiling_result &
 				pid_search_var=$!
 				pids+=("$pid_search_var")  # add variants search pid
 				names+=("Variant")  # add pid identifier
-				if [ -s $logerror ]; then
-					printf "ERROR: off-targets search (no bulges) on alternative genome failed on variants in %s\n" "$vcf_name" >&2
-					rm -r $output_folder/*.targets.txt $output_folder/*profile*   # delete results folder
-					exit 1
-				fi
 			fi
 		else
 			echo -e "Search for variant already done"
@@ -411,17 +390,13 @@ while read vcf_f; do
 			cd $starting_dir
 			# TODO: REMOVE POOL SCRIPT FROM PROCESSING
 			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus"
-			if [ -s $logerror ]; then
-				printf "ERROR: off-targets search on indels failed on variants in %s\n" "$vcf_name" >&2
-				rm -r $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
-				exit 1
-			fi
 			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp"
 			mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp" "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
-			echo -e "Search INDELs completed"
 		else
 			echo -e "Search INDELs already done"
 		fi
+		echo -e "Search INDELs completed"
+
 	fi
 	
 	# wait for jobs completion
@@ -430,9 +405,14 @@ while read vcf_f; do
 		name="${names[$i]}"
 
 		if wait "$pid"; then
-			echo -e "Search $name \End\t"$(date) >>$log  # off-targets search on reference/variant genome
+			if [ -s $logerror ]; then
+				echo "ERROR: off-targets search ${name} failed\n" >&2
+				rm -f $output_folder/*.targets.txt $output_folder/*profile*  # delete results folder
+				exit 1
+			fi
+			echo -e "Off-targets search $name\tEnd\t"$(date) >>$log  # off-targets search on reference/variant genome
 		else			
-			echo "ERROR: search $name failed" >&2
+			echo "ERROR: Off-targets search $name failed" >&2
 			exit 1
 		fi
 	done
