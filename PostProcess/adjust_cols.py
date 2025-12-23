@@ -37,7 +37,7 @@ start = time.time()
 
 # read file to adjust in chunks
 chunksize_ = 100000
-chunks = pd.read_csv(inFile, sep="\t", chunksize=chunksize_)
+chunks = pd.read_csv(inFile, sep="\t", chunksize=chunksize_, low_memory=False)
 
 # write header the first time a chuck is processed
 header = True
