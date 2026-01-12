@@ -27,6 +27,7 @@ def start_analysis(chrom):
     code = subprocess.call(cmd, shell=True)
     if code != 0:
         raise OSError(f"Post-analysis SNP failed on chromsomes {chrom}")
+
         
 
 chroms = [

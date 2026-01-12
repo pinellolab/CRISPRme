@@ -35,6 +35,13 @@ if "--debug" in input_args:
     script_path = current_working_directory + "PostProcess/"
     corrected_web_path = current_working_directory
 
+cicd_test = False
+if "--ci-cd-test" in input_args:
+    if "--debug" not in input_args:
+        raise ValueError("CI/CD test can only be run in debug mode (--debug)")
+    sys.stderr.write("CI/CD test\n")
+    cicd_test = True
+
 VALID_CHARS = {
     "a",
     "A",
@@ -1301,7 +1308,7 @@ def complete_search() -> None:
                 f"{pamfile} {annotationfile} {samplefile} {bMax + 1} {mm} {bDNA} {bRNA} "
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
-                f"{sorting_criteria_scoring} {sorting_criteria}"
+                f"{sorting_criteria_scoring} {sorting_criteria} {cicd_test}"
             )
             code = subprocess.call(
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose

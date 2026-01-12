@@ -60,6 +60,9 @@ base_check_set=${20}
 sorting_criteria_scoring=${21}
 sorting_criteria=${22}
 
+# CI/CD test mode
+cicd_test=${23}
+
 # log files
 log="$output_folder/log.txt"
 touch $log
@@ -429,6 +432,10 @@ while read vcf_f; do
 		mv $output_folder/*profile* $output_folder/crispritz_prof/ &>/dev/null
 	fi
 	# END STEP 3 - off-targets search
+
+	if [[ "$cicd_test" == "True" ]]; then  # if CI/CD test stop execution here
+		exit 0
+	fi
 
 	# START STEP 4 - off-targets post-analysis
 	cd "$starting_dir"
