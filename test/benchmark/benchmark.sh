@@ -204,7 +204,7 @@ run_crisprme_test() {
     guide=$(echo "$guidefile")
         
     # Run CRISPRme
-    crisprme.py complete-search \
+    python crisprme.py complete-search \
         --genome "$GENOMES_DIR/hg38" \
         --thread 8 \
         --mm 4 \
@@ -224,3 +224,6 @@ run_crisprme_test() {
 
 # Run the test
 run_crisprme_test
+
+# Check sites 
+python test/benchmark/check_sites.py
