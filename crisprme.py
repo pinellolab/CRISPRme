@@ -1082,12 +1082,13 @@ def _check_output(args: List[str]) -> str:
         error("Missing input for --output. Output folder must be specified")
     if os.path.isdir(outputfolder):  # check whether the folder is present or not
         if is_folder_empty(outputfolder):  # if present check if not empty
-            error(
-                f"Output folder {outputfolder} not empty!Select another "
-                "output folder for the current CRISPRme run.If the previous "
-                "run using the following folder threw an error, please delete "
-                f"{outputfolder} before running a new CRISPRme search."
-            )
+            pass
+            # error(
+            #     f"Output folder {outputfolder} not empty!Select another "
+            #     "output folder for the current CRISPRme run.If the previous "
+            #     "run using the following folder threw an error, please delete "
+            #     f"{outputfolder} before running a new CRISPRme search."
+            # )
     else:  # old folder doesn't exist, create it
         os.makedirs(outputfolder)    
     if not os.path.isdir(outputfolder):

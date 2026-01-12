@@ -22,17 +22,40 @@ final_res_alt=${12}
 key=${13}
 
 echo "Processing SNPs for $key"
-awk -v key="$key" '{ if ($0 ~ key) print }' "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
-if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
-	cp "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key" "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
+
+# reference targets
+targets_tsv_ref="$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
+targets_tsv_ref_chrom="${targets_tsv_ref}.${key}"
+awk -v key="$key" '$0 ~ key {print}' "$targets_tsv_ref" > "$targets_tsv_ref_chrom"  # subset to chrom-specific targets
+# remove malformed lines, if any
+awk -F'\t' 'NF >= 10' "$targets_tsv_ref_chrom" > "${targets_tsv_ref_chrom}.tmp"
+mv "${targets_tsv_ref_chrom}.tmp" "$targets_tsv_ref_chrom"  
+
+# alternative targets
+targets_tsv_alt="$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
+targets_tsv_alt_chrom="${targets_tsv_alt}.${key}"
+if [[ ! -f "$targets_tsv_alt" ]]; then
+	cp "$targets_tsv_ref_chrom" "$targets_tsv_alt_chrom"  # to keep pipeline consistency
 else
-	awk -v key="$key" '$0 ~ key' "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
+	awk -v key="$key" '$0 ~ key {print}' "$targets_tsv_alt" > "$targets_tsv_alt_chrom"  # subset to chrom-specific targets
+	# remove malformed lines, if any
+	awk -F'\t' 'NF >= 10' "$targets_tsv_alt_chrom" > "${targets_tsv_alt_chrom}.tmp"
+    mv "${targets_tsv_alt_chrom}.tmp" "$targets_tsv_alt_chrom"
 fi
-./scriptAnalisiNNN_v3.sh "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${key}" "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${key}" "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key" "$annotation_file" "${dict_folder}/my_dict_${key}.json" "${ref_folder}/${key}.fa" $mm $bDNA $bRNA "$guide_file" "$pam_file" "$output_folder"
-rm "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
-rm "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$key"
-# header=$(head -1 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt")
-# tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt" >> "$final_res" #"$output_folder/${ref_name}+${vcf_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
-# tail -n +2 "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt" >> "$final_res_alt" #"$output_folder/${ref_name}+${vcf_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.altCFD.txt.tmp"
-# rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.bestMerge.txt"
-# rm "$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_$key.altMerge.txt"
+
+# perform targets analysis by chromosome (scores, annotation, etc.)
+targets_chrom_prefix="$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_${key}"
+./scriptAnalisiNNN_v3.sh \
+    "$targets_tsv_ref_chrom" \
+    "$targets_tsv_alt_chrom" \
+    "$targets_chrom_prefix" \
+    "$annotation_file" \
+    "${dict_folder}/my_dict_${key}.json" \
+    "${ref_folder}/${key}.fa" \
+    "$mm" "$bDNA" "$bRNA" \
+    "$guide_file" \
+    "$pam_file" \
+    "$output_folder"
+
+# remove chrom-specific targets tsv files
+# rm $targets_tsv_ref_chrom $targets_tsv_alt_chrom  
