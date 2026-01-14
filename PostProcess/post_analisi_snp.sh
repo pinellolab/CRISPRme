@@ -58,4 +58,4 @@ targets_chrom_prefix="$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide
     "$output_folder"
 
 # remove chrom-specific targets tsv files
-# rm $targets_tsv_ref_chrom $targets_tsv_alt_chrom  
+rm $targets_tsv_ref_chrom $targets_tsv_alt_chrom  
