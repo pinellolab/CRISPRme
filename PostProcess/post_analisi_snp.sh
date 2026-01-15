@@ -13,19 +13,16 @@ annotation_file=$8
 annotation_name=$(basename $8)
 pam_file=$9
 pam_name=$(basename $9)
-# sampleID=${10}
 dict_folder=${10}
-
 final_res=${11}
 final_res_alt=${12}
-
 key=${13}
 
 # reference and alternative crispritz targets files
 targets_tsv_ref="$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
 targets_tsv_alt="$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
 
-if ! [ -f "$targets_tsv_alt"]; then 
+if [[ ! -f "$targets_tsv_alt" ]]; then 
     touch "$targets_tsv_alt"  # keep consistency through following steps
 fi
 

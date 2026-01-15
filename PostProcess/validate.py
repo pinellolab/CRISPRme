@@ -2,7 +2,7 @@
 
 from .utils import compute_md5, BFTARGETSMD5
 
-from typing import List
+from typing import List, NoReturn
 
 import pandas as pd
 
@@ -14,6 +14,22 @@ TARGETSREPORT_1000G = "hg38+hg38_1000G_20bp-NGG-SpCas9.txt_guides.txt_4_1_1.targ
 BFDIR = "crisprme-test-out/benchmark/brute-force-1000G"
 BFTARGETS = "brute_force_1000G.tsv"
 CHROMS = ['chr1', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr2', 'chr20', 'chr21', 'chr22', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9']
+
+
+def check_crispritz_targets() -> None:
+    crispritz_targets = {
+        "reference": os.path.join(TARGETSDIR, TARGETSREPORT_REF),
+        "alternative (1000G)": os.path.join(TARGETSDIR, TARGETSREPORT_1000G),
+    }
+    missing_files = [f"{dataset_type}: {targets_path}" for dataset_type, targets_path in crispritz_targets.items() if not os.path.isfile(targets_path)]
+    if missing_files:
+        raise FileNotFoundError(
+            "Missing required CRISPRitz target report file(s) for validation:\n"
+            + "\n".join(f"  - {entry}" for entry in missing_files)
+            + "\n\nPlease ensure that `complete-test` was executed successfully "
+            "using 1000 Genomes variant data before running `validate-test`."
+        )
+
 
 def load_targets(fname: str, crisprme: bool = False) -> pd.DataFrame:
     df = pd.read_csv(fname, sep="\t")
@@ -34,6 +50,12 @@ def compute_sites(targets: pd.DataFrame, crisprme: bool = False) -> List[str]:
     return targets["site"].tolist()
 
 def main():
+
+
+
+
+
+
     # read crisprme and brute force targets
     crisprme_targets = pd.concat(
         [

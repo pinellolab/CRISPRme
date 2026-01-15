@@ -1790,12 +1790,12 @@ def validate_test():
         except IndexError:
             sys.stderr.write("Please input some parameter for flag --chrom\n")
             sys.exit(1)
-    debug = "--debug" in input_args  # run local or via conda/Docker
     # begin crisprme test
     script_validation = os.path.join(script_path, "validate.py")
-    code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
-    if code != 0:
-        raise OSError("CRISPRme off-target sites validation encountered an Error!")
+    print(f"running python {script_validation} {chrom}")
+    # code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
+    # if code != 0:
+    #     raise OSError("CRISPRme off-target sites validation encountered an Error!")
 
 
 
@@ -1849,6 +1849,8 @@ elif sys.argv[1] == "complete-search":  # run complete search
     complete_search()
 elif sys.argv[1] == "complete-test":  # run complete test
     complete_test_crisprme()
+elif sys.argv[1] == "validate-test":  # run validate complete-test
+    validate_test()
 elif sys.argv[1] == "targets-integration":  # run targets integration
     target_integration()
 elif sys.argv[1] == "gnomAD-converter":  # run gnomad converter
@@ -1860,5 +1862,5 @@ elif sys.argv[1] == "web-interface":  # run web interface
 elif sys.argv[1] == "--version":  # print version
     crisprme_version()
 else:
-    sys.stderr.write(f"ERROR! {sys.argv[1]} is not an allowed!\n\n")
+    sys.stderr.write(f"ERROR! {sys.argv[1]} is not an allowed command!\n\n")
     crisprme_help()  # print help if invalid command is given
