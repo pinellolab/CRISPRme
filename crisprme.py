@@ -1792,10 +1792,9 @@ def validate_test():
             sys.exit(1)
     # begin crisprme test
     script_validation = os.path.join(script_path, "validate.py")
-    print(f"running python {script_validation} {chrom}")
-    # code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
-    # if code != 0:
-    #     raise OSError("CRISPRme off-target sites validation encountered an Error!")
+    code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
+    if code != 0:
+        raise OSError("CRISPRme off-target sites validation encountered an Error!")
 
 
 
