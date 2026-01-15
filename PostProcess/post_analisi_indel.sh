@@ -22,27 +22,22 @@ final_res_alt=${12}
 
 key=${13}
 
-echo "Processing INDELs results for $key, starting post-analysis"
-
-# define chromosome keys
+# process indel targets on chromosome $key
 chrom=$key
 fakechrom="fake${chrom}"
 
-# reference targets
-targets_tsv_ref="${output_folder}/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
-targets_tsv_ref_chrom="${output_folder}/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${chrom}"
-awk -v fakechrom="$fakechrom" '$0 ~ fakechrom {print}' "$targets_tsv_ref" > "$targets_tsv_ref_chrom"  # subset to chrom-specific targets
-# remove malformed lines, if any
-awk -F'\t' 'NF >= 10' "$targets_tsv_ref_chrom" > "${targets_tsv_ref_chrom}.tmp"
-mv "${targets_tsv_ref_chrom}.tmp" "$targets_tsv_ref_chrom"
-
-# alternative targets
+# reference and alternative crispritz targets files
+targets_tsv_ref="$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
 targets_tsv_alt="${output_folder}/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
-targets_tsv_alt_chrom="${output_folder}/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.${chrom}"
-awk -v fakechrom="$fakechrom" '$0 ~ fakechrom {print}' "$targets_tsv_alt" > "$targets_tsv_alt_chrom"  # subset to chrom-specific targets
-# remove malformed lines, if any
-awk -F'\t' 'NF >= 10' "$targets_tsv_alt_chrom" > "${targets_tsv_alt_chrom}.tmp"
-mv "${targets_tsv_alt_chrom}.tmp" "$targets_tsv_alt_chrom"
+
+
+echo "Processing INDELs results for $key, starting post-analysis"
+
+# extract chrom-specific reference and alternative targets
+targets_tsv_ref_chrom="${targets_tsv_ref}.${chrom}"
+targets_tsv_alt_chrom="${targets_tsv_alt}.${chrom}"
+LC_ALL=C grep -F -w $chrom "$targets_tsv_ref" > "$targets_tsv_ref_chrom"
+LC_ALL=C grep -F -w $chrom "$targets_tsv_alt" > "$targets_tsv_alt_chrom"
 
 # adjust targets header
 header=$(head -1 "$targets_tsv_alt")

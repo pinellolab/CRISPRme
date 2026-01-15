@@ -433,10 +433,6 @@ while read vcf_f; do
 	fi
 	# END STEP 3 - off-targets search
 
-	if [[ "$cicd_test" == "True" ]]; then  # if CI/CD test stop execution here
-		exit 0
-	fi
-
 	# START STEP 4 - off-targets post-analysis
 	cd "$starting_dir"
 	echo -e "Start post-analysis"
@@ -755,7 +751,9 @@ echo -e "Cleaning directory"
 rm -f *.CFDGraph.txt
 rm -f indels.CFDGraph.txt
 rm -r "crispritz_prof"
-rm -r "crispritz_targets" # remove targets in online version to avoid memory saturation
+if [[ "$cicd_test" != "True" ]]; then  # if running complete-test do not rempve for validation
+	rm -r "crispritz_targets" # remove targets in online version to avoid memory saturation
+fi
 # change primary and alt filenames
 mv $final_res "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
 mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"

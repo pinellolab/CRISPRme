@@ -21,27 +21,23 @@ final_res_alt=${12}
 
 key=${13}
 
-echo "Processing SNPs for $key"
-
-# reference targets
+# reference and alternative crispritz targets files
 targets_tsv_ref="$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
-targets_tsv_ref_chrom="${targets_tsv_ref}.${key}"
-awk -v key="$key" '$0 ~ key {print}' "$targets_tsv_ref" > "$targets_tsv_ref_chrom"  # subset to chrom-specific targets
-# remove malformed lines, if any
-awk -F'\t' 'NF >= 10' "$targets_tsv_ref_chrom" > "${targets_tsv_ref_chrom}.tmp"
-mv "${targets_tsv_ref_chrom}.tmp" "$targets_tsv_ref_chrom"  
-
-# alternative targets
 targets_tsv_alt="$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
-targets_tsv_alt_chrom="${targets_tsv_alt}.${key}"
-if [[ ! -f "$targets_tsv_alt" ]]; then
-	cp "$targets_tsv_ref_chrom" "$targets_tsv_alt_chrom"  # to keep pipeline consistency
-else
-	awk -v key="$key" '$0 ~ key {print}' "$targets_tsv_alt" > "$targets_tsv_alt_chrom"  # subset to chrom-specific targets
-	# remove malformed lines, if any
-	awk -F'\t' 'NF >= 10' "$targets_tsv_alt_chrom" > "${targets_tsv_alt_chrom}.tmp"
-    mv "${targets_tsv_alt_chrom}.tmp" "$targets_tsv_alt_chrom"
+
+if ! [ -f "$targets_tsv_alt"]; then 
+    touch "$targets_tsv_alt"  # keep consistency through following steps
 fi
+
+# start chromosome data processing
+chrom=$key
+echo "Processing SNPs for ${chrom}"
+
+# extract chrom-specific reference and alternative targets
+targets_tsv_ref_chrom="${targets_tsv_ref}.${chrom}"
+targets_tsv_alt_chrom="${targets_tsv_alt}.${chrom}"
+LC_ALL=C grep -F -w $chrom "$targets_tsv_ref" > "$targets_tsv_ref_chrom"
+LC_ALL=C grep -F -w $chrom "$targets_tsv_alt" > "$targets_tsv_alt_chrom"
 
 # perform targets analysis by chromosome (scores, annotation, etc.)
 targets_chrom_prefix="$output_folder/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}_${key}"

@@ -1,24 +1,24 @@
 #!/bin/bash
 
 
-# Script per l'analisi dei targets della ricerca REF e ENR con PAM NNN
-# Il file dei targets della ricerca sul genoma reference si chiama $REFtargets  -> INPUT $1
-# Il file dei targets della ricerca sul genoma enriched si chiama $ENRtargets   -> INPUT $2
-# Output name dei file di intermezzo si chiama $jobid                           -> INPUT $3
-# Assicurarsi che il file della pam (pam.txt) e delle guide (guides.txt) siano
-# presenti all'interno della cartella contentente lo script
-# Il filde .bed delle annotazioni, variabile $annotationfile                    -> INPUT $4
-# Cartella dei dizionari, che contiene i file .json, variabile $dictionaries    -> INPUT $5
-# $mismatch indica il numero di mismatches usati per la ricerca, default 6,
-# $bulgesDNA e $bulgesRNA indicano il num di bulges usati nella ricerca, default 2
-# cartella del genoma reference, indicata con $referencegenome                  -> INPUT $6
-# Assicurarsi che il file con gli ID dei sample (samplesID.txt) sia nella cartella
-# dello script
+# Script for analyzing REF and ENR search targets with PAM NNN
+# The file containing the reference genome search targets is named $REFtargets          -> INPUT $1
+# The file containing the enriched genome search targets is named $ENRtargets           -> INPUT $2
+# The output prefix for intermediate files is specified by $jobid                       -> INPUT $3
+# Ensure that both pam.txt and guides.txt are present in the same directory as this script.
+# The .bed annotation file is provided via the variable $annotationfile                 -> INPUT $4
+# The dictionary folder, containing .json files, is specified by $dictionaries          -> INPUT $5
+# The $mismatch variable defines the number of mismatches used for the search (default: 6),
+# while $bulgesDNA and $bulgesRNA define the number of allowed DNA and RNA bulges (default: 2).
+# The reference genome folder is indicated by $referencegenome                          -> INPUT $6
+# Make sure that the file samplesID.txt (containing the sample IDs) is located in the same directory as this script.
+#
+# EXAMPLE USAGE:
+# ./scriptAnalisiNNN.sh reference.targets.txt enriched.targets.txt output_name hg38_annotations.bed dictionary_hg38/ hg38_ref/
+#
+# NOTE: If a file with the suffix .total.txt already exists, steps (1) and (2) can be skipped.
 
-#ESEMPIO CHIAMATA
-# ./scriptAnalisiNNN.sh reference.targets.txt enriched.targets.txt nome_output hg38_annotations.bed dictionary_hg38/ hg38_ref/
-
-#NOTA se è già presente un file con .total.txt si possono commentare gli step 1) e 2)
+# read input arguments
 
 REFtargets=$1
 ENRtargets=$2
