@@ -97,9 +97,9 @@ def check_output() -> None:
     if os.path.isdir(complete_test_res_dir):  # complete test already run
         sys.stderr.write(
             "Complete-test already run once. Please delete complete-test "
-            f"results folder before running it again: {complete_test_res_dir}"
+            f"results folder before running it again: {complete_test_res_dir}\n"
         )
-        sys.exit(1)  # avoid throwing complete-search error on output folder
+        sys.exit(0)  # avoid throwing complete-search error on output folder
 
 
 def ensure_hg38_directory(dest: str) -> str:
@@ -529,7 +529,7 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
         f"crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
         f"--thread 4 --bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
-        f"--gene_annotation {gencode} --output  --thread {threads} "
+        f"--gene_annotation {gencode} --output {COMPLETETESTRESDIR} --thread {threads} "
         f"{debug_arg} --ci-cd-test"
     )
     subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
