@@ -1,4 +1,6 @@
-""" Sites check """
+""" """
+
+from .utils import compute_md5, BFTARGETSMD5
 
 from typing import List
 
@@ -6,10 +8,10 @@ import pandas as pd
 
 import os
 
-TARGETSDIR = "Results/crisprme-ci-cd-test/crispritz_targets"
+TARGETSDIR = "Results/crisprme-test-out/crispritz_targets"
 TARGETSREPORT_REF = "hg38_20bp-NGG-SpCas9.txt_guides.txt_4_1_1.targets.txt"
 TARGETSREPORT_1000G = "hg38+hg38_1000G_20bp-NGG-SpCas9.txt_guides.txt_4_1_1.targets.txt"
-BFDIR = "test/benchmark/brute-force-1000G"
+BFDIR = "crisprme-test-out/benchmark/brute-force-1000G"
 BFTARGETS = "brute_force_1000G.tsv"
 CHROMS = ['chr1', 'chr10', 'chr11', 'chr12', 'chr13', 'chr14', 'chr15', 'chr16', 'chr17', 'chr18', 'chr19', 'chr2', 'chr20', 'chr21', 'chr22', 'chr3', 'chr4', 'chr5', 'chr6', 'chr7', 'chr8', 'chr9']
 

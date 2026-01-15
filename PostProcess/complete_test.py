@@ -491,7 +491,7 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
         f"--thread 4 --bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
         f"--gene_annotation {gencode} --output crisprme-test-out --thread {threads} "
-        f"{debug_arg}"
+        f"{debug_arg} --ci-cd-test"
     )
     subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
 

@@ -108,6 +108,7 @@ MD5SAMPLES = {
     "samplesIDs.1000G.txt": "720af666c9a938de74a2808033aa4509",
     "samplesIDs.HGDP.txt": "f92e14e5317221486f20597560ca3a31",
 }
+BFTARGETSMD5 = "2c1721f6c4586698bfd70b6ddbe34b8b"
 
 
 def check_crisprme_directory_tree(basedir: str) -> None:
