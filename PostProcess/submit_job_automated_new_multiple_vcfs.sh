@@ -60,6 +60,9 @@ base_check_set=${20}
 sorting_criteria_scoring=${21}
 sorting_criteria=${22}
 
+# CI/CD test mode
+cicd_test=${23}
+
 # log files
 log="$output_folder/log.txt"
 touch $log
@@ -522,7 +525,7 @@ while read vcf_f; do
 			./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
 			if [ -s $logerror ]; then
 				printf "ERROR: off-targets post-analysis (indels) failed on variants in %s\n" "$vcf_name" >&2
-				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+				rm -r $output_folder/*.bestCFD*.txt $output_folder/*.bestmmblg*.txt $output_folder/*.bestCRISTA*.txt  # delete results folder
 				exit 1
 			fi
 			#CONCATENATE INDELS RESULTS
@@ -748,7 +751,9 @@ echo -e "Cleaning directory"
 rm -f *.CFDGraph.txt
 rm -f indels.CFDGraph.txt
 rm -r "crispritz_prof"
-rm -r "crispritz_targets" # remove targets in online version to avoid memory saturation
+if [[ "$cicd_test" != "True" ]]; then  # if running complete-test do not rempve for validation
+	rm -r "crispritz_targets" # remove targets in online version to avoid memory saturation
+fi
 # change primary and alt filenames
 mv $final_res "${output_folder}/$(basename ${output_folder}).bestMerge.txt"
 mv $final_res_alt "${output_folder}/$(basename ${output_folder}).altMerge.txt"

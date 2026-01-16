@@ -22,15 +22,40 @@ final_res_alt=${12}
 
 key=${13}
 
+# process indel targets on chromosome $key
+chrom=$key
+fakechrom="fake${chrom}"
+
+# reference and alternative crispritz targets files
+targets_tsv_ref="$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
+targets_tsv_alt="${output_folder}/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
+
+
 echo "Processing INDELs results for $key, starting post-analysis"
-true_chr=$key
-fake_chr="fake$true_chr"
 
-awk -v fake_chr="$fake_chr" '$0 ~ fake_chr {print}' "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$true_chr"
-awk -v fake_chr="$fake_chr" '$0 ~ fake_chr {print}' "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$true_chr"
-header=$(head -1 $output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt)
-sed -i 1i"$header" "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$true_chr"
+# extract chrom-specific reference and alternative targets
+targets_tsv_ref_chrom="${targets_tsv_ref}.${chrom}"
+targets_tsv_alt_chrom="${targets_tsv_alt}.${chrom}"
+LC_ALL=C grep -F -w $chrom "$targets_tsv_ref" > "$targets_tsv_ref_chrom"
+LC_ALL=C grep -F -w $chrom "$targets_tsv_alt" > "$targets_tsv_alt_chrom"
 
-./analisi_indels_NNN.sh "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$true_chr" "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$true_chr" "$output_folder/${fake_chr}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}" "$annotation_file" "$dict_folder/log_indels_$vcf_name" "$ref_folder/$true_chr.fa" $mm $bDNA $bRNA "$guide_file" "$pam_file" "$output_folder" 
-rm "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$true_chr"
-rm "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.$true_chr"
+# adjust targets header
+header=$(head -1 "$targets_tsv_alt")
+sed -i 1i"$header" "$targets_tsv_alt_chrom"
+
+# perform targets analysis by chromosome (scores, annotation, etc.)
+targets_chrom_prefix="${output_folder}/${fakechrom}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}"
+./analisi_indels_NNN.sh \
+    "$targets_tsv_ref_chrom" \
+    "$targets_tsv_alt_chrom" \
+    "$targets_chrom_prefix" \
+    "$annotation_file" \
+    "${dict_folder}/log_indels_${vcf_name}" \
+    "${ref_folder}/${chrom}.fa" \
+    "$mm" "$bDNA" "$bRNA" \
+    "$guide_file" \
+    "$pam_file" \
+    "$output_folder"
+
+# remove chrom-specific targets tsv files
+rm $targets_tsv_ref_chrom $targets_tsv_alt_chrom

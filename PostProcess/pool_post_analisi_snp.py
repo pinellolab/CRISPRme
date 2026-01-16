@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
+from multiprocessing import Pool
+
+import subprocess
 import os
 import sys
-from multiprocessing import Pool
 
 output_folder = sys.argv[1]
 ref_folder = sys.argv[2]
@@ -20,24 +22,19 @@ final_res_alt = sys.argv[12]
 ncpus = int(sys.argv[13])
 
 
-def start_analysis(f):
-    # splitted = f.split('.')
-    chrom = str(f).replace(".fa", "")
-    # for elem in splitted:
-    # if "chr" in elem:
-    #     chrom = elem
-    os.system(
-        f'./post_analisi_snp.sh "{output_folder}" "{ref_folder}" "{vcf_name}" "{guide_file}" "{mm}" "{bDNA}" "{bRNA}" {annotation_file} {pam_file} {dict_folder} {final_res} {final_res_alt} {chrom}'
-    )
+def start_analysis(chrom):
+    cmd = f'./post_analisi_snp.sh "{output_folder}" "{ref_folder}" "{vcf_name}" "{guide_file}" "{mm}" "{bDNA}" "{bRNA}" {annotation_file} {pam_file} {dict_folder} {final_res} {final_res_alt} {chrom}'
+    code = subprocess.call(cmd, shell=True)
+    if code != 0:
+        raise OSError(f"Post-analysis SNP failed on chromsomes {chrom}")
 
+        
 
-chrs = []
-for f in os.listdir(ref_folder):
-    if ".fa" in f and ".fai" not in f:
-        chrs.append(f)
+chroms = [
+    os.path.splitext(os.path.basename(f))[0]
+    for f in os.listdir(ref_folder)
+    if f.endswith(".fa") and not f.endswith(".fai") 
+]
 
-# t = 6
-# if ncpus < 6:
-#     t = ncpus
 with Pool(processes=ncpus) as pool:
-    pool.map(start_analysis, chrs)
+    pool.map(start_analysis, chroms)
