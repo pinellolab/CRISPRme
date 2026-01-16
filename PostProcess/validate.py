@@ -70,6 +70,7 @@ def check_variant_dataset() -> None:
         )
     
 def download_brute_force_targets() -> str:
+    sys.stderr.write("Downloading brute-force targets\n")
     os.makedirs(BFDIR, exist_ok=True)  # create brute-force targets directory
     # construct download URL and download file
     bf_targets_url = f"{BFTARGETSURL.rstrip('/')}/{BFTARGETS}"
@@ -89,6 +90,7 @@ def download_brute_force_targets() -> str:
             f"Found:    {md5}\n"
             "The downloaded file may be corrupted or incomplete."
         )
+    sys.stderr.write(f"Brute-force targets successfully downloaded: {bf_targets_path}\n")
     return bf_targets_path
 
 def _load_targets(fname: str, chrom: str, crisprme: bool = False) -> pd.DataFrame:
@@ -133,6 +135,7 @@ def compute_sites(targets: pd.DataFrame, crisprme: bool = False) -> List[str]:
     return targets["site"].tolist()
 
 def validate(crisprme_targets: pd.DataFrame, bf_targets: pd.DataFrame) -> None:
+    sys.stderr.write("Running off-target sites validation\n")
     # compute off-target site identifiers
     crisprme_sites = set(compute_sites(crisprme_targets, crisprme=True))
     bf_sites = set(compute_sites(bf_targets))
