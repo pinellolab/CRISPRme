@@ -29,7 +29,7 @@ BFDIR = f"{CRISPRME_DIRS[1]}/{COMPLETETESTRESDIR}/benchmark/"
 
 # define brute-force targets url and report
 BFTARGETSURL = (
-    "https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/v2.1.9/"
+    "https://raw.githubusercontent.com/pinellolab/CRISPRme/refs/heads/main/"
     "test/benchmark/brute-force-1000G/"
 )
 BFTARGETS = "brute_force_1000G.tsv"
