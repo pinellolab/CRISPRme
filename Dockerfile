@@ -20,6 +20,6 @@ RUN apt update
 RUN apt upgrade -y
 
 # Install crispritz & crisprme packages
-RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.9 crispritz=$crispritz_version crisprme=$crisprme_version && micromamba clean --all --yes
+RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.8 crispritz=$crispritz_version crisprme=$crisprme_version && micromamba clean --all --yes
 # Start the base environment
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
