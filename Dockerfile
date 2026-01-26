@@ -5,8 +5,8 @@ FROM mambaorg/micromamba
 LABEL org.opencontainers.image.authors="ManuelTgn, lucapinello"
 
 # Set the variables for version control during installation
-ARG crispritz_version=2.6.6
-ARG crisprme_version=2.1.7
+ARG crispritz_version=2.7.0
+ARG crisprme_version=2.1.9
 
 # set the shell to bash
 ENV SHELL bash
