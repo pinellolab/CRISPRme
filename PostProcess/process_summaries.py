@@ -32,6 +32,8 @@ def init_summary_by_sample(path_samplesID):
         sid.readline()
         for line in sid:
             splitted = line.strip().split("\t")
+            if not splitted[0]:
+                continue
             dict_samples[splitted[0]] = [
                 splitted[3],
                 splitted[1],
