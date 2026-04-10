@@ -140,8 +140,9 @@ def createBedforMultiAlternative(variantList, samples):
     # e.g. 0|1 and 1|1 will return 0|1 that will be counted as 1 for that sample haplotype
     for snp in haplotypeDict:
         for count, sample in enumerate(haplotypeDict[snp]):
-            allele1_snp = sample.strip().split("|")[0]
-            allele2_snp = sample.strip().split("|")[1]
+            alleles = sample.strip().split("|")
+            allele1_snp = alleles[0]
+            allele2_snp = alleles[1] if len(alleles) > 1 else alleles[0]  # haploid guard
             allele1[count] = int(allele1[count]) and int(allele1_snp)
             allele2[count] = int(allele2[count]) and int(allele2_snp)
     # final sum to generete haplotype frequency of the specific target

@@ -39,6 +39,8 @@ with gzip.open(sys.argv[1], 'rb') as targets:
     list_chars = []
     
     hap = first_line[sample_header_pos].split('|')
+    if len(hap) == 1:
+        hap = hap * 2  # haploid GT: treat as homozygous for frequency counting
     for h in hap:   #NOTE posso avere anche 2|1 #TODO da finire
         if '0' == h:
             continue
