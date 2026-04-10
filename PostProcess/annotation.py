@@ -5,6 +5,7 @@ from pysam.utils import SamtoolsError
 from typing import List, Tuple, Optional
 from time import time
 
+import fcntl
 import pysam
 import sys
 import os
@@ -59,9 +60,15 @@ def load_annotation_bed(annotation_fname: str) -> TabixFile:
     Raises:
         SamtoolsError: If the annotation BED file cannot be loaded or indexed.
     """
-    # check that tabix index is available for all annotation bed
-    if not os.path.isfile(annotation_fname + ".tbi"):
-        pysam.tabix_index(annotation_fname, force=True, preset="bed")
+    # check that tabix index is available and up-to-date; use a lock file so
+    # that parallel annotation processes don't write the .tbi simultaneously
+    tbi_path = annotation_fname + ".tbi"
+    lock_path = annotation_fname + ".tbi.lock"
+    with open(lock_path, "w") as lock_fh:
+        fcntl.flock(lock_fh, fcntl.LOCK_EX)
+        if (not os.path.isfile(tbi_path)
+                or os.path.getmtime(tbi_path) < os.path.getmtime(annotation_fname)):
+            pysam.tabix_index(annotation_fname, force=True, preset="bed")
     try:  # return tabix indexes for each annotation bed
         return pysam.TabixFile(annotation_fname)
     except (SamtoolsError, Exception) as e:
