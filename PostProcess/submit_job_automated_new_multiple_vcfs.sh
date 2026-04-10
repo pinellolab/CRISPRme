@@ -190,31 +190,6 @@ while read vcf_f; do
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
 			echo -e "Adding variants"
 
-			# Rewrite accepted non-PASS FILTER values to PASS before genome enrichment.
-			# crispritz only includes records with FILTER=PASS; any other accepted value
-			# (e.g. ".") must be normalised here. The accepted list comes from
-			# --vcf-filter-pass-values (default "PASS,.").
-			for _vcf in "$vcf_folder"/*.vcf.gz; do
-				_tmp=$(mktemp --suffix=.vcf.gz)
-				_fname=$(basename "$_vcf")
-				zcat "$_vcf" | \
-					awk -v accept="$vcf_filter_pass_values" -v fname="$_fname" '
-						BEGIN {
-							FS="\t"; OFS="\t"; n=0
-							split(accept, _a, ",")
-							for (i in _a) ok[_a[i]] = 1
-						}
-						/^#/ { print; next }
-						$7 != "PASS" && ($7 in ok) { $7 = "PASS"; n++ }
-						{ print }
-						END {
-							if (n > 0)
-								printf "WARNING: %d non-PASS accepted FILTER record(s) in %s normalised to PASS for CRISPRme compatibility.\n", n, fname > "/dev/stderr"
-						}' | bgzip > "$_tmp"
-				mv "$_tmp" "$_vcf"
-				tabix -p vcf "$_vcf"
-			done
-
 			# enrich genome using crispritz (run from unique temp dir so crispritz's
 			# fixed-name variants_genome/ output does not collide with concurrent runs)
 			cd "$_run_tmp"
