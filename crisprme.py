@@ -1153,6 +1153,15 @@ def complete_search() -> None:
     sorting_criteria = _check_sorting_criteria(args, "--sorting-criteria" in args)  # sorting criteria (mm+bulges) columns
     outputfolder = _check_output(args)  # output folder
     thread = _check_threads(args, "--thread" in args)  # number of threads
+    # VCF FILTER values to treat as passing (default: "PASS,." per VCF spec §1.6.1)
+    vcf_filter_pass_values = "PASS,."
+    if "--vcf-filter-pass-values" in args:
+        try:
+            vcf_filter_pass_values = args[args.index("--vcf-filter-pass-values") + 1]
+            if vcf_filter_pass_values.startswith("--"):
+                raise ValueError("Please input a value for flag --vcf-filter-pass-values")
+        except IndexError as e:
+            raise ValueError("Missing input for --vcf-filter-pass-values") from e
 
     # extract pam seq from file
     pam_len = 0
@@ -1304,7 +1313,8 @@ def complete_search() -> None:
                 f"{pamfile} {annotationfile} {samplefile} {bMax + 1} {mm} {bDNA} {bRNA} "
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
-                f"{sorting_criteria_scoring} {sorting_criteria} {cicd_test}"
+                f"{sorting_criteria_scoring} {sorting_criteria} {cicd_test} "
+                f"{vcf_filter_pass_values}"
             )
             code = subprocess.call(
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
@@ -1550,11 +1560,20 @@ def gnomAD_converter():
                 raise ValueError(f"Forbidden number of threads ({threads})")
         except IndexError as e:
             raise ValueError("Missing or forbidden threads value") from e
+    # read vcf filter pass values arg
+    vcf_filter_pass_values = "PASS,."
+    if "--vcf-filter-pass-values" in args:
+        try:
+            vcf_filter_pass_values = args[args.index("--vcf-filter-pass-values") + 1]
+            if vcf_filter_pass_values.startswith("--"):
+                raise ValueError("Please input a value for flag --vcf-filter-pass-values")
+        except IndexError as e:
+            raise ValueError("Missing input for --vcf-filter-pass-values") from e
     # run gnom AD converter
     gnomad_converter_script = os.path.join(script_path, "convert_gnomAD_vcfs.py")
     cmd = (
         f"python {gnomad_converter_script} {gnomad_dir} {samples_ids} {joint} "
-        f"{keep} {multiallelic} {threads}"
+        f"{keep} {multiallelic} {threads} {vcf_filter_pass_values}"
     )
     code = subprocess.call(cmd, shell=True)
     if code != 0:

@@ -24,6 +24,13 @@
 #   ${15}: Current working directory path.
 #   ${16}: Gene proximity file path.
 #   ${17}: Email address for notifications.
+#   ${18}: Base check start (base editing window).
+#   ${19}: Base check end (base editing window).
+#   ${20}: Base check set (base editing bases).
+#   ${21}: Sorting criteria for scoring columns.
+#   ${22}: Sorting criteria (mm+bulges) columns.
+#   ${23}: CI/CD test mode flag.
+#   ${24}: Comma-separated VCF FILTER values to treat as passing (default "PASS,.").
 #
 # Returns:
 #   Generates various output files including target lists, merged results, and a database.
@@ -62,6 +69,9 @@ sorting_criteria=${22}
 
 # CI/CD test mode
 cicd_test=${23}
+
+# Comma-separated VCF FILTER values to treat as passing (default "PASS,.")
+vcf_filter_pass_values="${24:-PASS,.}"
 
 # log files
 log="$output_folder/log.txt"
@@ -176,10 +186,35 @@ while read vcf_f; do
 		if ! [ -d "$enriched_folder" ]; then
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
 			echo -e "Adding variants"
-			
+
+			# Rewrite accepted non-PASS FILTER values to PASS before genome enrichment.
+			# crispritz only includes records with FILTER=PASS; any other accepted value
+			# (e.g. ".") must be normalised here. The accepted list comes from
+			# --vcf-filter-pass-values (default "PASS,.").
+			for _vcf in "$vcf_folder"/*.vcf.gz; do
+				_tmp=$(mktemp --suffix=.vcf.gz)
+				_fname=$(basename "$_vcf")
+				zcat "$_vcf" | \
+					awk -v accept="$vcf_filter_pass_values" -v fname="$_fname" '
+						BEGIN {
+							FS="\t"; OFS="\t"; n=0
+							split(accept, _a, ",")
+							for (i in _a) ok[_a[i]] = 1
+						}
+						/^#/ { print; next }
+						$7 != "PASS" && ($7 in ok) { $7 = "PASS"; n++ }
+						{ print }
+						END {
+							if (n > 0)
+								printf "WARNING: %d non-PASS accepted FILTER record(s) in %s normalised to PASS for CRISPRme compatibility.\n", n, fname > "/dev/stderr"
+						}' | bgzip > "$_tmp"
+				mv "$_tmp" "$_vcf"
+				tabix -p vcf "$_vcf"
+			done
+
 			# enrich genome using crispritz
 			cd "$current_working_directory/Genomes"
-			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true" 
+			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true"
 			if [ -s $logerror ]; then
 				printf "ERROR: Genome enrichment failed on %s\n" "$vcf_name" >&2
 				# since failure happened, force genome enrichment to be repeated

@@ -33,6 +33,7 @@ from io import TextIOWrapper
 
 import multiprocessing
 import subprocess
+import itertools
 import pysam
 import gzip
 import time
@@ -44,7 +45,7 @@ GTLINE = '##FORMAT=<ID=GT,Number=1,Type=String,Description="Sample Collapsed Gen
 BCFTOOLSNORM = "bcftools norm"
 
 
-def parse_commandline(args: List[str]) -> Tuple[str, str, bool, bool, bool, int]:
+def parse_commandline(args: List[str]) -> Tuple[str, str, bool, bool, bool, int, frozenset]:
     """Parse and validate command line arguments for gnomAD VCF conversion.
 
     This function checks the provided arguments for correctness and extracts the
@@ -56,10 +57,11 @@ def parse_commandline(args: List[str]) -> Tuple[str, str, bool, bool, bool, int]
         args (List[str]): A list of command line arguments.
 
     Returns:
-        Tuple[str, str, bool, bool, bool, int]: A tuple containing the gnomAD
+        Tuple[str, str, bool, bool, bool, int, frozenset]: A tuple containing the gnomAD
             VCF directory, sample IDs, a flag indicating whether to use joint
             VCF processing, a flag indicating whether to keep files, a flag for
-            multiallelic processing, and the number of threads to use.
+            multiallelic processing, the number of threads to use, and a frozenset
+            of VCF FILTER values to treat as passing.
 
     Raises:
         ValueError: If the number of arguments is incorrect, if the specified
@@ -67,11 +69,12 @@ def parse_commandline(args: List[str]) -> Tuple[str, str, bool, bool, bool, int]
             allowed range.
     """
 
-    if len(args) != 6:
+    if len(args) not in (6, 7):
         raise ValueError(
             "Wrong number of input arguments, cannot proceed with gnomAD VCF conversion"
         )
-    gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads = args
+    gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads = args[:6]
+    filter_pass_values = frozenset(args[6].split(",")) if len(args) == 7 else frozenset({"PASS", "."})
     if not os.path.isdir(gnomad_vcfs_dir):
         raise ValueError(
             f"The specified gnomAD VCF directory is not a directory ({gnomad_vcfs_dir})"
@@ -82,7 +85,7 @@ def parse_commandline(args: List[str]) -> Tuple[str, str, bool, bool, bool, int]
     joint = joint == "True"
     keep = keep == "True"
     multiallelic = multiallelic == "True"
-    return gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads
+    return gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads, filter_pass_values
 
 
 def read_samples_ids(samples_ids: str):
@@ -226,7 +229,13 @@ def format_variant_record(variant: pysam.VariantRecord, genotypes: str) -> str:
     return "\t".join([f"{e}" if e is not None else "." for e in variant_format])
 
 
-def convert_vcf(vcf_fname: str, samples: List[str], joint: bool, keep: bool):
+def convert_vcf(
+    vcf_fname: str,
+    samples: List[str],
+    joint: bool,
+    keep: bool,
+    filter_pass_values: frozenset = frozenset({"PASS", "."}),
+):
     """
     Converts a VCF file by updating the header, filtering variants, and creating
     a new compressed VCF file.
@@ -236,6 +245,8 @@ def convert_vcf(vcf_fname: str, samples: List[str], joint: bool, keep: bool):
         samples (List[str]): List of sample names.
         keep (bool): Flag to determine whether to keep variants that do not pass
             the filter.
+        filter_pass_values (frozenset): Set of VCF FILTER values to treat as
+            passing. Default: frozenset({"PASS", "."}).
 
     Returns:
         str: Path to the converted and compressed VCF file.
@@ -250,6 +261,17 @@ def convert_vcf(vcf_fname: str, samples: List[str], joint: bool, keep: bool):
         vcf = load_vcf(vcf_fname)  # use pysam for optimized VCF loading
     except OSError as e:
         raise OSError(f"An error occurred while loading {vcf_fname}") from e
+    # Pre-flight: warn if no accepted FILTER records found in the first 10,000 rows.
+    # If every record has a hard-fail filter the output will be silently empty.
+    _sample = list(itertools.islice(vcf.fetch(), 10_000))
+    _n_ok = sum(1 for v in _sample if filter_pass_values & set(v.filter.keys()))
+    if not keep and _n_ok == 0 and _sample:
+        sys.stderr.write(
+            f"WARNING: {vcf_fname}: sampled {len(_sample)} records, none have "
+            f"FILTER in {filter_pass_values} — all variants will be skipped. "
+            f"Re-run with keep=True or adjust --vcf-filter-pass-values.\n"
+        )
+    vcf.reset()  # rewind before the main loop below
     samples_ac = [
         f"AC_joint_{sample}" if joint else f"AC_{sample}" for sample in samples
     ]  # recover allele count field for each input sample
@@ -258,7 +280,7 @@ def convert_vcf(vcf_fname: str, samples: List[str], joint: bool, keep: bool):
             # write the upated header to the converted vcf
             outfile.write(update_header(vcf.header.copy(), samples, joint))
             for variant in vcf:
-                if not keep and "PASS" not in variant.filter.keys():
+                if not keep and not (filter_pass_values & set(variant.filter.keys())):
                     continue
                 genotypes = "\t".join(
                     [
@@ -314,7 +336,12 @@ def bcftools_merge(vcf_fname: str, multiallelic: bool) -> str:
 
 
 def run_conversion_pipeline(
-    vcf_fname: str, samples: List[str], joint: bool, keep: bool, multiallelic: bool
+    vcf_fname: str,
+    samples: List[str],
+    joint: bool,
+    keep: bool,
+    multiallelic: bool,
+    filter_pass_values: frozenset = frozenset({"PASS", "."}),
 ) -> None:
     """
     Runs a conversion pipeline to process a VCF file by adding genotypes and merging
@@ -327,13 +354,14 @@ def run_conversion_pipeline(
             the filter.
         multiallelic (bool): Flag indicating whether to handle multiallelic variants
             during merging.
+        filter_pass_values (frozenset): Set of VCF FILTER values to treat as passing.
 
     Returns:
         None
     """
 
     # add genotypes to input VCF
-    vcf_genotypes = convert_vcf(vcf_fname, samples, joint, keep)  
+    vcf_genotypes = convert_vcf(vcf_fname, samples, joint, keep, filter_pass_values)
     # merge variants into mutlialleic/biallelic sites
     vcf_merged = bcftools_merge(vcf_genotypes, multiallelic)
     assert os.path.isfile(vcf_merged) and os.stat(vcf_merged).st_size > 0
@@ -354,7 +382,7 @@ def convert_gnomad_vcfs() -> None:
     """
 
     # read input arguments
-    gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads = (
+    gnomad_vcfs_dir, samples_ids, joint, keep, multiallelic, threads, filter_pass_values = (
         parse_commandline(sys.argv[1:])
     )
     start = time.time()
@@ -372,6 +400,7 @@ def convert_gnomad_vcfs() -> None:
             joint=joint,
             keep=keep,
             multiallelic=multiallelic,
+            filter_pass_values=filter_pass_values,
         )
         pool.map(partial_run_conversion_pipeline, gnomad_vcfs)
         pool.close()
