@@ -60,7 +60,8 @@ def load_annotation_bed(annotation_fname: str) -> TabixFile:
         SamtoolsError: If the annotation BED file cannot be loaded or indexed.
     """
     # check that tabix index is available for all annotation bed
-    pysam.tabix_index(annotation_fname, force=True, preset="bed")
+    if not os.path.isfile(annotation_fname + ".tbi"):
+        pysam.tabix_index(annotation_fname, force=True, preset="bed")
     try:  # return tabix indexes for each annotation bed
         return pysam.TabixFile(annotation_fname)
     except (SamtoolsError, Exception) as e:
