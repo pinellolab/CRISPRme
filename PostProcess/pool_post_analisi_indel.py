@@ -17,6 +17,14 @@ def _chrom_from_vcf(vcf_path: str) -> str:
                 return line.split("\t")[0]
     raise ValueError(f"No data lines found in VCF: {vcf_path}")
 
+
+def _normalize_chrom(chrom: str) -> str:
+    """Ensure chromosome name has chr prefix (e.g. '22' -> 'chr22').
+    Some VCF datasets (e.g. 1000G GRCh38) store chromosomes without the
+    prefix in the CHROM field, while the genome indices use 'chr'-prefixed names.
+    """
+    return chrom if chrom.startswith("chr") else "chr" + chrom
+
 # post-analysis script name
 POSTANALYSIS = "./post_analisi_indel.sh"
 
@@ -37,7 +45,7 @@ ncpus = int(sys.argv[13])
 
 
 def start_analysis(fname: str) -> None:
-    chrom = _chrom_from_vcf(os.path.join(vcf_folder, fname))
+    chrom = _normalize_chrom(_chrom_from_vcf(os.path.join(vcf_folder, fname)))
     code = subprocess.call(
         f"{POSTANALYSIS} {output_folder} {ref_folder} {vcf_folder} {guide_file} "
         f"{mm} {bDNA} {bRNA} {annotation_file} {pam_file} {dict_folder} "
