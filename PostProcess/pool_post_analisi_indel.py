@@ -59,6 +59,6 @@ def start_analysis(fname: str) -> None:
 
 
 # chromosome-wise vcfs list
-chrs = [f for f in os.listdir(vcf_folder) if "vcf.gz" in f]
+chrs = [f for f in os.listdir(vcf_folder) if f.endswith(".vcf.gz")]
 with Pool(processes=ncpus) as pool:  # run chrom-wise post-analysis in parallel
     pool.map(start_analysis, chrs)
