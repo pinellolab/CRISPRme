@@ -15,11 +15,6 @@ import json
 import time
 
 vcf_file = sys.argv[1]
-chr_name = vcf_file.split('.')
-for i in chr_name:
-    if 'chr' in i:
-        chr_name = i
-        break
 selected_sample = sys.argv[2]
 save_directory = sys.argv[3]
 
@@ -37,6 +32,7 @@ with gzip.open(sys.argv[1], 'rb') as targets:
             break
 
     first_line = next(targets).decode('ascii').strip().split('\t')
+    chr_name = first_line[0]   # authoritative chromosome from VCF data
     if 'chr' not in first_line[0]:
         add_to_name = 'chr'
     list_samples = []

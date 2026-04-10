@@ -1,9 +1,20 @@
 #!/usr/bin/env python
 
+import gzip
 import os
 import sys
 from multiprocessing import Pool
 from datetime import datetime
+
+
+def _chrom_from_vcf(vcf_path: str) -> str:
+    """Return the chromosome name from the first data line of a VCF (plain or gzipped)."""
+    open_fn = gzip.open if vcf_path.endswith(".gz") else open
+    with open_fn(vcf_path, "rt") as fh:
+        for line in fh:
+            if not line.startswith("#"):
+                return line.split("\t")[0]
+    raise ValueError(f"No data lines found in VCF: {vcf_path}")
 
 ref_folder = sys.argv[1]
 ref_name = os.path.basename(sys.argv[1])
@@ -24,11 +35,7 @@ threads = int(sys.argv[13])
 
 
 def search_indels(f):
-    # global use_thread
-    splitted = f.split(".")
-    for elem in splitted:
-        if "chr" in elem:
-            chrom = elem
+    chrom = _chrom_from_vcf(os.path.join(vcf_dir, f))
     print("Searching for INDELs in", chrom)
     if bDNA != "0" or bRNA != "0":
         os.system(
@@ -62,10 +69,7 @@ with Pool(processes=threads) as pool:
 
 
 for key in chrs:
-    splitted = key.split(".")
-    for elem in splitted:
-        if "chr" in elem:
-            chrom = elem
+    chrom = _chrom_from_vcf(os.path.join(vcf_dir, key))
     os.system(
         f"tail -n +2 {output_folder}/fake{chrom}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.txt >> {output_folder}/indels_{ref_name}+{vcf_name}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA}.targets.txt"
     )

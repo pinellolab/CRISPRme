@@ -2,9 +2,20 @@
 
 from multiprocessing import Pool
 
+import gzip
 import subprocess
 import sys
 import os
+
+
+def _chrom_from_vcf(vcf_path: str) -> str:
+    """Return the chromosome name from the first data line of a VCF (plain or gzipped)."""
+    open_fn = gzip.open if vcf_path.endswith(".gz") else open
+    with open_fn(vcf_path, "rt") as fh:
+        for line in fh:
+            if not line.startswith("#"):
+                return line.split("\t")[0]
+    raise ValueError(f"No data lines found in VCF: {vcf_path}")
 
 # post-analysis script name
 POSTANALYSIS = "./post_analisi_indel.sh"
@@ -26,8 +37,7 @@ ncpus = int(sys.argv[13])
 
 
 def start_analysis(fname: str) -> None:
-    chrom = next((e for e in fname.split(".") if e.startswith("chr")), None)
-    assert chrom
+    chrom = _chrom_from_vcf(os.path.join(vcf_folder, fname))
     code = subprocess.call(
         f"{POSTANALYSIS} {output_folder} {ref_folder} {vcf_folder} {guide_file} "
         f"{mm} {bDNA} {bRNA} {annotation_file} {pam_file} {dict_folder} "
