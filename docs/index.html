@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CRISPRme is a variant-aware CRISPR off-target nomination tool. The hosted web app is retired, but CRISPRme is fully open source: use the command line, or deploy the same web interface locally.">
+  <title>CRISPRme: variant-aware CRISPR off-target nomination</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>
+      <img src="crisprme-logo.png" alt="CRISPRme" class="logo">
+    </h1>
+    <p class="tagline">Variant-aware CRISPR off-target nomination</p>
+  </header>
+
+  <main>
+    <section class="notice" aria-labelledby="notice-heading">
+      <h2 id="notice-heading">Run CRISPRme on your own machine</h2>
+      <p>
+        CRISPRme is open source and actively maintained, and you can run the
+        web interface locally on your own machine with the same functionality
+        as before. The previous hosted application at
+        <strong>crisprme.di.univr.it</strong> is no longer available, because
+        institutional hosting at the University of Verona ended for this
+        service. All features remain available to you.
+      </p>
+      <p>
+        You have two easy paths to run CRISPRme on your own machine, both with
+        the same functionality as the previous hosted version:
+      </p>
+      <ul class="options">
+        <li>Use the <strong>command line</strong> version for scripted or batch analyses.</li>
+        <li>Deploy the <strong>web interface locally</strong> for the same point-and-click experience as the hosted app.</li>
+      </ul>
+      <p class="cta-row">
+        <a class="button" href="https://github.com/pinellolab/CRISPRme">View on GitHub</a>
+        <a class="secondary" href="https://github.com/pinellolab/CRISPRme#1-installation">Installation instructions &rarr;</a>
+      </p>
+    </section>
+
+    <section aria-labelledby="run-heading">
+      <h2 id="run-heading">Run CRISPRme on your machine</h2>
+      <p>
+        Pick whichever setup you prefer. Both give you the full command line
+        tool and let you launch the local web interface, which is equivalent
+        to the retired hosted version.
+      </p>
+
+      <h3>Option 1: Docker</h3>
+      <pre><code>docker pull pinellolab/crisprme
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py web-interface</code></pre>
+
+      <h3>Option 2: Conda / Mamba</h3>
+      <pre><code>mamba create -n crisprme python=3.9 crisprme -y
+mamba activate crisprme
+crisprme.py --version
+crisprme.py web-interface</code></pre>
+
+      <p class="note">Then open the URL printed in your terminal in a browser (Chrome, Firefox, or Safari).</p>
+    </section>
+
+    <section aria-labelledby="test-heading">
+      <h2 id="test-heading">Quick test</h2>
+      <p>Verify the installation with a small-scale test on chromosome 22 using the 1000 Genomes dataset:</p>
+      <pre><code>crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G</code></pre>
+    </section>
+
+    <section aria-labelledby="docs-heading">
+      <h2 id="docs-heading">Documentation</h2>
+      <ul class="links">
+        <li><a href="https://github.com/pinellolab/CRISPRme#1-installation">Installation</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#2-usage">Usage</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#227-web-interface">Web Interface</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#3-test">Testing</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#4-citation">Citation</a></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="cite-heading">
+      <h2 id="cite-heading">Citation</h2>
+      <p class="citation">
+        Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, Bombieri N,
+        Maitland SA, Ciuculescu MF, Katta V, Tsai SQ, Armant M, Wolfe SA,
+        Giugno R, Bauer DE, Pinello L. Human genetic diversity alters
+        off-target outcomes of therapeutic gene editing.
+        <em>Nat Genet</em>. 2023 Jan;55(1):34-43.
+        doi:
+        <a href="https://doi.org/10.1038/s41588-022-01257-y">10.1038/s41588-022-01257-y</a>.
+      </p>
+    </section>
+
+    <section aria-labelledby="contacts-heading">
+      <h2 id="contacts-heading">Contacts</h2>
+      <ul class="links">
+        <li>Luca Pinello: <a href="mailto:lpinello@mgh.harvard.edu">lpinello@mgh.harvard.edu</a></li>
+        <li>Rosalba Giugno: <a href="mailto:rosalba.giugno@univr.it">rosalba.giugno@univr.it</a></li>
+        <li>Daniel Bauer: <a href="mailto:bauer@bloodgroup.tch.harvard.edu">bauer@bloodgroup.tch.harvard.edu</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      CRISPRme is licensed under
+      <a href="https://github.com/pinellolab/CRISPRme/blob/main/LICENSE">AGPL-3.0</a>
+      for academic use. Commercial or for-profit use requires a separate
+      license; please contact
+      <a href="mailto:lpinello@mgh.harvard.edu">Luca Pinello</a>.
+    </p>
+  </footer>
+</body>
+</html>
