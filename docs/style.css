@@ -6,8 +6,9 @@
   --border: #d0d7de;
   --accent: #0969da;
   --accent-fg: #ffffff;
-  --notice-bg: #fff8c5;
-  --notice-border: #d4a72c;
+  --notice-bg: #dafbe1;
+  --notice-border: #2da44e;
+  --notice-heading: #116329;
   --code-bg: #f0f3f6;
 }
 
@@ -33,12 +34,21 @@ header, main, footer {
 
 header {
   margin-bottom: 1.5rem;
+  text-align: left;
 }
 
 h1 {
   margin: 0 0 0.25rem;
   font-size: 2rem;
   letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.logo {
+  display: block;
+  max-width: 280px;
+  width: 100%;
+  height: auto;
 }
 
 .tagline {
@@ -87,11 +97,20 @@ section {
 .notice {
   background: var(--notice-bg);
   border-color: var(--notice-border);
+  border-left-width: 4px;
 }
 
 .notice h2 {
+  color: var(--notice-heading);
   border-bottom-color: var(--notice-border);
 }
+
+.notice .options {
+  margin: 0.5rem 0 0.25rem;
+  padding-left: 1.25rem;
+}
+
+.notice .options li { margin: 0.2rem 0; }
 
 .cta-row {
   margin-top: 1rem;
@@ -156,11 +175,10 @@ footer {
   font-size: 0.9rem;
 }
 
-footer .copy { margin-top: 0.25rem; }
-
 @media (max-width: 480px) {
   body { padding: 1.25rem 0.75rem 2rem; }
   h1 { font-size: 1.6rem; }
+  .logo { max-width: 220px; }
   section { padding: 0.85rem 0.9rem; }
   .cta-row { flex-direction: column; align-items: flex-start; }
   .button { width: 100%; text-align: center; }
