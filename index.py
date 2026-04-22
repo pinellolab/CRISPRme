@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """Main module for the CRISPRme web application.
 
 This module initializes the web application, sets up the server, and defines the 
@@ -189,7 +190,7 @@ def index():
     if website:  # online web-interface running
         app.run_server(
             host=HOST,
-            port=PORTWEB,
+            port=PORTWEB, # type: ignore
             debug=debug,
             dev_tools_ui=debug,
             dev_tools_props_check=debug,
@@ -197,7 +198,7 @@ def index():
     else:  # local web-interface running
         app.run_server(
             host=HOST,
-            port=PORTLOCAL,
+            port=PORTLOCAL, # type: ignore
             debug=debug,
             dev_tools_ui=debug,
             dev_tools_props_check=debug,

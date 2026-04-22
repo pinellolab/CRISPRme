@@ -5,12 +5,13 @@ from Bio.Seq import Seq
 
 import subprocess
 import itertools
+import pathlib
 import sys
 import os
 import re
 
 
-version = "2.1.9"  #  CRISPRme version; TODO: update when required
+version = "2.1.10"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -1629,14 +1630,28 @@ def personal_card():
 
 def web_interface():
     if "--help" in input_args:
-        print(
-            "This function must be launched without input, it starts a local server to use the web interface."
+        sys.stdout.write(
+            "This function starts a local server to use the web interface.\n"
+            "Open your browser at http://127.0.0.1:8080\n"
         )
-        print(
-            "Open your web-browser and write 127.0.0.1:8080 in the search bar if you are executing locally, if you are executing on an external server write <yourserverip>:8080 in search bar"
+        sys.exit(0)
+    # resolve index.py relative to this script's location
+    # regardless of conda/source install layout
+    index_script = pathlib.Path(__file__).parent / "index.py"
+    if not index_script.is_file():
+        sys.stderr.write(
+            f"Error: Cannot find index.py at {index_script}\n"
+            "The web interface requires index.py to be co-located with crisprme.py.\n"
         )
-        exit(0)
-    subprocess.run(corrected_web_path + "/./index.py")
+        sys.exit(1)
+    try: 
+        subprocess.run([sys.executable, str(index_script)], check=True)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(f"Web interface exited with error code {e.returncode}\n")
+        sys.exit(e.returncode)
+    except FileNotFoundError:
+        sys.stderr.write(f"Error: Python interpreter not found at {sys.executable}\n")
+        sys.exit(1)
 
 
 def crisprme_version():
