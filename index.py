@@ -16,6 +16,7 @@ Attributes:
     app.layout (html.Div): The layout structure of the Dash application.
 """
 
+from app import URL, IPADDRESS, WEBADDRESS, ONLINE, current_working_directory, app, cache, pool_executor
 from pages import (
     main_page,
     navbar_creation,
@@ -25,9 +26,10 @@ from pages import (
     help_page,
     contacts_page,
 )
-from app import URL, IPADDRESS, WEBADDRESS, ONLINE, current_working_directory, app, cache
 
+from dash import Dash
 from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
 from typing import Tuple
 
 import dash_core_components as dcc
@@ -39,8 +41,8 @@ import os
 
 MODEFILE = ".mode_type.txt"  # running mode report file
 HOST = "0.0.0.0"  # server host
-PORTWEB = 80  # website port
-PORTLOCAL = 8080  # local server port
+PORTWEB = "80"  # website port
+PORTLOCAL = "8080"  # local server port
 CRISPRME_DIRS = [
     "Genomes",
     "Results",
@@ -62,17 +64,20 @@ def check_directories(basedir: str) -> None:
         basedir (str): The base directory to check and create subdirectories in.
 
     Raises:
-        TypeError: If basedir is not a string.
-        FileNotFoundError: If the base directory does not exist.
+        FileNotFoundError: If basedir does not exist.
+        OSError: If a subdirectory cannot be created (e.g., permission denied).
     """
-
-    if not isinstance(basedir, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(basedir).__name__}")
     if not os.path.exists(basedir):
         raise FileNotFoundError(f"Unable to locate {basedir}")
     for d in CRISPRME_DIRS:
-        if not os.path.exists(os.path.join(basedir, d)):
-            os.makedirs(os.path.join(basedir, d))
+        target = os.path.join(basedir, d)
+        if not os.path.exists(target):
+            try:
+                os.makedirs(target)
+            except OSError as e:
+                raise OSError(
+                    f"Cannot create required directory {target}: {e}"
+                ) from e
 
 
 # initialize the webpage
@@ -113,17 +118,12 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
             link.
 
     Raises:
-        TypeError: If any of the input parameters are not of type str.
+        PreventUpdate: If page's URL is None.
     """
-
-    if not isinstance(href, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(href).__name__}")
-    if not isinstance(path, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(path).__name__}")
-    if not isinstance(search, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
-    if not isinstance(hash_guide, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(hash_guide).__name__}")
+    if href is None: 
+        raise PreventUpdate
+    if hash_guide is None:  # dash can pass none for hash on initial load
+        hash_guide = ""
     if path == "/load":  # show loading page
         # define url to display on load page to check on job status
         # if online show the webaddress, show the ip address otherwise
@@ -159,6 +159,21 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
     return main_page.index_page(), "/index"  # display main page
 
 
+def run_server(app: Dash, host: str, port: str, debug: bool) -> None:
+    try:
+        app.run_server(
+            host=host,
+            port=port,
+            debug=debug,
+            dev_tools_ui=debug,
+            dev_tools_props_check=debug,
+        )
+    finally:
+        cache.clear()  # clear cache, once server is closed
+        pool_executor.shutdown(wait=False)
+
+
+
 def index():
     """Starts the CRISPRme web application server.
 
@@ -187,23 +202,9 @@ def index():
             outfile.write(mode)
     except OSError as e:
         raise IOError("Cannot write mode file") from e
-    if website:  # online web-interface running
-        app.run_server(
-            host=HOST,
-            port=PORTWEB, # type: ignore
-            debug=debug,
-            dev_tools_ui=debug,
-            dev_tools_props_check=debug,
-        )
-    else:  # local web-interface running
-        app.run_server(
-            host=HOST,
-            port=PORTLOCAL, # type: ignore
-            debug=debug,
-            dev_tools_ui=debug,
-            dev_tools_props_check=debug,
-        )
-    cache.clear()  # clear cache once server is closed
+    # assign webserver or local port
+    port = PORTWEB if website else PORTLOCAL
+    run_server(app, HOST, port, debug)
 
 
 if __name__ == "__main__":

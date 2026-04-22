@@ -1648,11 +1648,20 @@ def web_interface():
     try: 
         subprocess.run([sys.executable, index_script], check=True)
     except subprocess.CalledProcessError as e:
-        sys.stderr.write(f"Web interface exited with error code {e.returncode}\n")
+        sys.stderr.write(
+            f"\nWeb interface exited with error code {e.returncode}.\n"
+            "Check above for traceback. Common causes:\n"
+            "  - Missing dependencies: pip install dash flask flask-caching "
+            "dash-bootstrap-components\n"
+            "  - Port 8080 already in use: lsof -i :8080\n"
+        )
         sys.exit(e.returncode)
     except FileNotFoundError:
         sys.stderr.write(f"Error: Python interpreter not found at {sys.executable}\n")
         sys.exit(1)
+    except KeyboardInterrupt:
+        sys.stderr.write("\nWeb interface stopped\n")
+        sys.exit(0)
 
 
 def crisprme_version():
