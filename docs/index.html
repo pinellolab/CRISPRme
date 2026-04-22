@@ -47,10 +47,19 @@
         tool and let you launch the local web interface, which is equivalent
         to the retired hosted version.
       </p>
+      <p>
+        Note: the <code>web-interface</code> must be launched from within the
+        CRISPRme directory tree, just like the command line version, so that all
+        required resources and paths are correctly resolved. If you are unsure
+        about the expected project structure, please refer to the
+        <a href="https://github.com/pinellolab/CRISPRme/blob/main/README.md#21-directory-structure">
+          directory structure documentation.
+        </a>
+      </p>
 
       <h3>Option 1: Docker</h3>
       <pre><code>docker pull pinellolab/crisprme
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme crisprme.py web-interface</code></pre>
+docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 pinellolab/crisprme crisprme.py web-interface</code></pre>
 
       <h3>Option 2: Conda / Mamba</h3>
       <pre><code>mamba create -n crisprme python=3.9 crisprme -y
@@ -58,7 +67,7 @@ mamba activate crisprme
 crisprme.py --version
 crisprme.py web-interface</code></pre>
 
-      <p class="note">Then open the URL printed in your terminal in a browser (Chrome, Firefox, or Safari).</p>
+      <p class="note">Then open the following URL in a browser (Chrome, Firefox, or Safari): <code>http://127.0.0.1:8080</code>.</p>
     </section>
 
     <section aria-labelledby="test-heading">

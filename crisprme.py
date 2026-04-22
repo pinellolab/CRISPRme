@@ -1629,7 +1629,8 @@ def personal_card():
 
 
 def web_interface():
-    if "--help" in input_args:
+    args = input_args[2:]
+    if "--help" in args or len(input_args) < 2:
         sys.stdout.write(
             "This function starts a local server to use the web interface.\n"
             "Open your browser at http://127.0.0.1:8080\n"
@@ -1637,15 +1638,15 @@ def web_interface():
         sys.exit(0)
     # resolve index.py relative to this script's location
     # regardless of conda/source install layout
-    index_script = pathlib.Path(__file__).parent / "index.py"
-    if not index_script.is_file():
+    index_script = os.path.join(corrected_web_path, "index.py")
+    if not os.path.isfile(index_script):
         sys.stderr.write(
             f"Error: Cannot find index.py at {index_script}\n"
             "The web interface requires index.py to be co-located with crisprme.py.\n"
         )
         sys.exit(1)
     try: 
-        subprocess.run([sys.executable, str(index_script)], check=True)
+        subprocess.run([sys.executable, index_script], check=True)
     except subprocess.CalledProcessError as e:
         sys.stderr.write(f"Web interface exited with error code {e.returncode}\n")
         sys.exit(e.returncode)

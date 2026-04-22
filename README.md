@@ -1249,8 +1249,8 @@ Usage example for the Web Interface function:
 
 - **Via Docker**
   ```bash
-  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
-    crisprme.py web-interface  # Starts the local server and launches the web interface
+  docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 \
+    pinellolab/crisprme crisprme.py web-interface  # Starts the local server and launches the web interface
   ```
 
 ##### Input Arguments
