@@ -430,13 +430,6 @@ def change_url(
             raise ValueError(f"an error occurred while running {cmd}")
         annotation_name = f"{annotation_input}.tmp"
 
-    # if annotation requested, compress and index bed 
-    if annotation_name != "vuoto.txt":
-        annotation_name = sort_annotation(annotation_name)
-
-    if gencode_name != "vuoto.txt":
-        gencode_name = compress_file(gencode_name)
-
     if "EN" not in annotation_var:
         cmd = f"rm -rf {os.path.join(annotation_dir, 'vuoto.txt')}"
         code = subprocess.call(cmd, shell=True)
@@ -981,6 +974,14 @@ def change_url(
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
     assert isinstance(rna, int)
+
+    # if annotation requested, compress and index bed 
+    if annotation_name != "vuoto.txt":
+        annotation = sort_annotation(annotation)
+
+    if gencode_name != "vuoto.txt":
+        gencode = compress_file(gencode)
+
     cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} 1> {log_verbose} 2>{log_error}"
     # run job
     pool_executor.submit(subprocess.run, cmd, shell=True)
