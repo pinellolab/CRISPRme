@@ -1637,9 +1637,9 @@ def print_help_web_interface():
     sys.stderr.write(
         "Options:\n"
         "\t--setup, setup web interface data, downloading and creating data "
-        "\t\treplicating the content of the online web server\n"
+        "replicating the content of the online web server\n"
         "\t--chrom, download data for the specified chromsome only "
-        "\t\t(e.g., chr22) [default all]\n"
+        "(e.g., chr22) [default all]\n"
     )
     sys.exit(1)
 

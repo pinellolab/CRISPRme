@@ -29,6 +29,8 @@ from .pages_utils import (
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
+    sort_annotation,
+    compress_file,
 )
 from app import (
     URL,
@@ -384,7 +386,7 @@ def change_url(
     # ---- Set search parameters
     # ANNOTATION CHECK
     gencode_name = "gencode.protein_coding.bed"
-    annotation_name = ".dummy.bed"  # to proceed without annotation file
+    annotation_name = "vuoto.txt"  # to proceed without annotation file
     if "EN" in annotation_var:
         annotation_name = "dhs+encode+gencode.hg38.bed"  # use dhs annotation file
         if "MA" in annotation_var:
@@ -427,16 +429,24 @@ def change_url(
         if code != 0:
             raise ValueError(f"an error occurred while running {cmd}")
         annotation_name = f"{annotation_input}.tmp"
+
+    # if annotation requested, compress and index bed 
+    if annotation_name != "vuoto.txt":
+        annotation_name = sort_annotation(annotation_name)
+
+    if gencode_name != "vuoto.txt":
+        gencode_name = compress_file(gencode_name)
+
     if "EN" not in annotation_var:
-        cmd = f"rm -rf {os.path.join(annotation_dir, '.dummy.bed')}"
+        cmd = f"rm -rf {os.path.join(annotation_dir, 'vuoto.txt')}"
         code = subprocess.call(cmd, shell=True)
         if code != 0:
             raise ValueError(f"An error occurred while running {cmd}")
-        cmd = f"touch {os.path.join(annotation_dir, '.dummy.bed')}"
+        cmd = f"touch {os.path.join(annotation_dir, 'vuoto.txt')}"
         code = subprocess.call(cmd, shell=True)
         if code != 0:
             raise ValueError(f"An error occurred while running {cmd}")
-        gencode_name = ".dummy.bed"
+        gencode_name = "vuoto.txt"
     # GENOME TYPE CHECK
     ref_comparison = False
     genome_type = "ref"  # search is 'ref' or 'both'
