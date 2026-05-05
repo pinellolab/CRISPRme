@@ -514,8 +514,7 @@ def _retrieve_annotation_file(
     archive_path = download(str(annotation_dir), http_url=url)
     _verify_md5(archive_path, MD5ANNOTATION)
     extract_dir = untar(archive_path, str(annotation_dir))
-    bed_path = Path(extract_dir) / inner_fname
-    return _bgzip_file(bed_path)
+    return Path(extract_dir) / inner_fname
 
 
 
