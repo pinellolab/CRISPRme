@@ -1627,15 +1627,43 @@ def personal_card():
         + script_path
     )
 
+def print_help_web_interface():
+    # functionality description
+    sys.stderr.write(
+        "This function starts a local server to use the web interface.\n"
+        "Open your browser at http://127.0.0.1:8080\n"
+    )
+    # options
+    sys.stderr.write(
+        "Options:\n"
+        "\t--setup, setup web interface data, downloading and creating data "
+        "\t\treplicating the content of the online web server\n"
+        "\t--chrom, download data for the specified chromsome only "
+        "\t\t(e.g., chr22) [default all]\n"
+    )
+    sys.exit(1)
+
 
 def web_interface():
     args = input_args[2:]
-    if "--help" in args or len(input_args) < 2:
-        sys.stdout.write(
-            "This function starts a local server to use the web interface.\n"
-            "Open your browser at http://127.0.0.1:8080\n"
-        )
-        sys.exit(0)
+    if "--help" in args or len(input_args) < 2:  # print help and exit
+        print_help_web_interface()
+    if "--setup" in args:  # setup data environment like original website
+        chrom = "all"
+        try:  # requested one single chromosome
+            chrom = args[args.index("--chrom") + 1]
+            if chrom.startswith("--"):
+                raise ValueError
+        except (IndexError, ValueError):
+            sys.stderr.write("Please provide a value for --chrom (e.g. chr22 or all)\n")
+            sys.exit(1)
+        setup_script = os.path.join(script_path, "web_interface_setup.py")
+        try:
+            subprocess.run(["python", setup_script, chrom], check=True)
+        except subprocess.CalledProcessError as e:
+            sys.stderr.write(
+                f"Web interface data setup exited with error code {e.returncode}"
+            )
     # resolve index.py relative to this script's location
     # regardless of conda/source install layout
     index_script = os.path.join(corrected_web_path, "index.py")
