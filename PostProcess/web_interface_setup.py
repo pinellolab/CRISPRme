@@ -222,7 +222,10 @@ def _download_samples_ids_data(base_dir: Path) -> None:
             http_url=f"{TEST_DATA_BASE_URL}/samplesIDs/{fname}",
         )
         _verify_md5(local_path, MD5SAMPLES)
-        rename(fname, f"hg38_{ds_label}.samplesID.txt")
+        rename(
+            os.path.join(samplesids_dir, fname), 
+            os.path.join(samplesids_dir, f"hg38_{ds_label}.samplesID.txt"),
+        )
 
 
 def _write_vcf_config(base_dir: Path) -> Path:
