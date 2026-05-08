@@ -266,7 +266,9 @@ def _write_samplesids_config(base_dir: Path) -> Path:
         IOError: If the file cannot be written.
     """
     samples_config_path = base_dir / "samplesIDs.config.txt"
-    fname_map = {"1000G": "samplesIDs.1000G.txt", "HGDP": "samplesIDs.HGDP.txt"}
+    fname_map = {
+        "1000G": "hg38_1000G.samplesID.txt", "HGDP": "hg38_HGDP.samplesID.txt"
+    }
     try:
         lines = [f"{fname_map[ds]}\n" for ds in "1000G+HGDP".split("+")]
         samples_config_path.write_text("".join(lines), encoding="utf-8")

@@ -1936,7 +1936,7 @@ def crisprme_help() -> None:
         "crisprme.py setup\n"
         "\tInitializes the legacy database by downloading all reference "
         "genomes, variant datasets, PAM definition files, and associated "
-        "resources\n"
+        "resources\n\n"
         "crisprme.py web-interface\n"
         "\tActivates CRISPRme's web interface for local browser use\n\n"
         "crisprme.py --version\n"
