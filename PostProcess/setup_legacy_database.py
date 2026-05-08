@@ -396,8 +396,7 @@ def _write_all_pam_files(base_dir: Path) -> Dict[str, Path]:
 # public entry point
 # ==============================================================================
 
-def run_web_interface_setup(chrom: str = "all") -> None:
-    base_dir = Path.cwd()
+def run_legacy_database_setup(chrom: str, base_dir: Path) -> None:
     _validate_chrom(chrom)
     check_crisprme_directory_tree(str(base_dir))
     # begin data download
@@ -424,7 +423,8 @@ def main(argv: Optional[List[str]] = None) -> None:
             When ``None``, ``sys.argv[1:]`` is used.
     """
     args: List[str] = argv if argv is not None else sys.argv[1:]
-    run_web_interface_setup(args[0])
+    chrom, base_dir = args
+    run_legacy_database_setup(chrom, Path(base_dir))
 
 
 # ==============================================================================
@@ -468,33 +468,6 @@ def _vcf_sources(ds_label: str) -> Tuple[str, str, Dict[str, str]]:
     return VCF_HGDP_SERVER, VCF_HGDP_URL_TEMPLATE, MD5HGDP  # hgdp
 
 
-def _bgzip_file(file_path: Path) -> Path:
-    """Compress *file_path* in-place with bgzip and return the ``.gz`` path.
-
-    Args:
-        file_path: Path to the uncompressed file.
-
-    Returns:
-        Path to the bgzip-compressed file (``<file_path>.gz``).
-
-    Raises:
-        subprocess.SubprocessError: If bgzip exits with a non-zero code.
-        FileNotFoundError: If the compressed file is not found afterwards.
-    """
-    code = subprocess.call(f"bgzip -f {file_path}", shell=True)
-    if code != 0:
-        raise subprocess.SubprocessError(
-            f"bgzip compression failed for {file_path}"
-        )
-    gz_path = Path(f"{file_path}.gz")
-    if not gz_path.is_file():
-        raise FileNotFoundError(
-            f"bgzip output not found after compression: {gz_path}"
-        )
-    return gz_path
-
-
-
 def _retrieve_annotation_file(
     annotation_dir: Path,
     url: str,
@@ -518,7 +491,6 @@ def _retrieve_annotation_file(
     _verify_md5(archive_path, MD5ANNOTATION)
     extract_dir = untar(archive_path, str(annotation_dir))
     return Path(extract_dir) / inner_fname
-
 
 
 # ==============================================================================

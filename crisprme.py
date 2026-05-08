@@ -1636,10 +1636,7 @@ def print_help_web_interface():
     # options
     sys.stderr.write(
         "Options:\n"
-        "\t--setup, setup web interface data, downloading and creating data "
-        "replicating the content of the online web server\n"
-        "\t--chrom, download data for the specified chromsome only "
-        "(e.g., chr22) [default all]\n"
+        "\t--debug, debug mode\n"
     )
     sys.exit(1)
 
@@ -1648,22 +1645,6 @@ def web_interface():
     args = input_args[2:]
     if "--help" in args or len(input_args) < 2:  # print help and exit
         print_help_web_interface()
-    if "--setup" in args:  # setup data environment like original website
-        chrom = "all"
-        try:  # requested one single chromosome
-            chrom = args[args.index("--chrom") + 1]
-            if chrom.startswith("--"):
-                raise ValueError
-        except (IndexError, ValueError):
-            sys.stderr.write("Please provide a value for --chrom (e.g. chr22 or all)\n")
-            sys.exit(1)
-        setup_script = os.path.join(script_path, "web_interface_setup.py")
-        try:
-            subprocess.run(["python", setup_script, chrom], check=True)
-        except subprocess.CalledProcessError as e:
-            sys.stderr.write(
-                f"Web interface data setup exited with error code {e.returncode}"
-            )
     # resolve index.py relative to this script's location
     # regardless of conda/source install layout
     index_script = os.path.join(corrected_web_path, "index.py")
@@ -1848,7 +1829,75 @@ def validate_test():
     code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
     if code != 0:
         raise OSError("CRISPRme off-target sites validation encountered an Error!")
+    
 
+def print_help_setup_database_test() -> None:
+    # write intro message to stderr
+    sys.stderr.write(
+        "This command initializes the CRISPRme legacy database by downloading "
+        "all reference genomes, variant datasets, PAM definition files, and "
+        "associated resources originally distributed through the CRISPRme web "
+        "server.\n\n"
+        "The downloaded resources can then be reused across analyses without "
+        "requiring additional downloads\n\n"
+    )
+    # list functionality options
+    sys.stderr.write(
+        "Options:\n"
+        "\t--path, Path to the directory where the legacy database and "
+        "associated resources will be installed "
+        "[default: current working directory]\n"
+        "\t--chrom, download data for the specified chromsome only "
+        "(e.g., chr22) [default all]\n"
+        "\t--debug, debug mode\n"
+    )
+    sys.exit(1)
+    
+
+def setup_database():
+    """
+    Setup CRISPRme legacy dataset downloading all genome, variant datasets, PAM
+    files originally available in the CRISPRme website.
+
+    Runs an external download script to retrieve the data and build the legacy 
+    database.
+
+    Raises:
+        OSError: If the download script returns a non-zero exit code,
+            indicating that an error occurred while setting up the legacy
+            database.
+    """
+    if "--help" in input_args or len(input_args) < 2:
+        print_help_setup_database_test()
+        sys.exit(1)
+    working_dir = os.path.abspath(os.getcwd())
+    if "--path" in input_args:
+        try:
+            working_dir = os.path.abspath(input_args[input_args.index("--path") + 1])
+            if working_dir.startswith("--"):
+                raise ValueError
+        except (IndexError, ValueError):
+            sys.stderr.write(
+                "Please provide a value for --path (e.g., /path/to/my/folder)"
+            )
+            sys.exit(1)
+    chrom = "all"
+    if "--chrom" in input_args:  # individual chrom to test
+        try:
+            chrom = input_args[input_args.index("--chrom") + 1]
+            if chrom.startswith("--"):
+                raise ValueError
+        except (IndexError, ValueError):
+            sys.stderr.write("Please provide a value for --chrom (e.g. chr22 or all)\n")
+            sys.exit(1)
+    # begin crisprme test
+    script_setup = os.path.join(script_path, "setup_legacy_database.py")
+    try:
+        subprocess.run(["python", script_setup, chrom, working_dir], check=True)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(
+                f"Legacy database setup exited with error code {e.returncode}"
+            )
 
 
 # HELP FUNCTION
@@ -1884,6 +1933,10 @@ def crisprme_help() -> None:
         "crisprme.py generate-personal-card\n"
         "\tGenerates a personal card for specific samples by extracting all "
         "private targets\n\n"
+        "crisprme.py setup\n"
+        "\tInitializes the legacy database by downloading all reference "
+        "genomes, variant datasets, PAM definition files, and associated "
+        "resources\n"
         "crisprme.py web-interface\n"
         "\tActivates CRISPRme's web interface for local browser use\n\n"
         "crisprme.py --version\n"
@@ -1909,6 +1962,8 @@ elif sys.argv[1] == "gnomAD-converter":  # run gnomad converter
     gnomAD_converter()
 elif sys.argv[1] == "generate-personal-card":  # run create personal card
     personal_card()
+elif sys.argv[1] == "setup":  # run legacy database setup
+    setup_database()
 elif sys.argv[1] == "web-interface":  # run web interface
     web_interface()
 elif sys.argv[1] == "--version":  # print version
