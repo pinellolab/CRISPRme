@@ -332,7 +332,7 @@ def _download_samples_ids_data(base_dir: Path, force: bool) -> None:
         )
         renamed_target = samplesids_dir / f"hg38_{ds_label}.samplesID.txt"
         if not force and _file_is_valid(renamed_target):
-            sys.stderr.write(f"Sample IDs already valid, skipping: {renamed_target}")
+            sys.stderr.write(f"Sample IDs already valid, skipping: {renamed_target}\n")
             continue
         local_path = download(
             str(samplesids_dir),
@@ -417,18 +417,18 @@ def _download_annotation_data(base_dir: Path, force: bool) -> None:
 
     """
     annotation_dir = _ensure_annotation_directory(base_dir)
-    genocode_ann = Path(annotation_dir) / "gencode.protein_coding.bed"
+    genocode_ann = Path(annotation_dir) / "gencode.protein_coding.bed.gz"
     if force or not _file_is_valid(genocode_ann):
         sys.stdout.write(f"Downloading functional annotation data\n")
-        gencode_bgz = _retrieve_annotation_file(
+        _retrieve_annotation_file(
             annotation_dir,
             url=f"{TEST_DATA_BASE_URL}/Annotations/gencode.protein_coding.bed.tar.gz",
             inner_fname="gencode.protein_coding.bed",
         )
-    encode_ann = Path(annotation_dir) / "dhs+encode+gencode.hg38.bed"
+    encode_ann = Path(annotation_dir) / "dhs+encode+gencode.hg38.bed.gz"
     if force or not _file_is_valid(encode_ann):
         sys.stdout.write(f"Downloading gene annotation data\n")
-        encode_bgz = _retrieve_annotation_file(
+        _retrieve_annotation_file(
             annotation_dir,
             url=f"{TEST_DATA_BASE_URL}/Annotations/dhs+encode+gencode.hg38.bed.tar.gz",
             inner_fname="dhs+encode+gencode.hg38.bed",
@@ -588,20 +588,45 @@ def _vcf_sources(ds_label: str) -> Tuple[str, str, Dict[str, str]]:
     return VCF_HGDP_SERVER, VCF_HGDP_URL_TEMPLATE, MD5HGDP  # hgdp
 
 
+def _bgzip_ann_data(ann_fname: Path) -> None:
+    """
+    Compress an annotation file using bgzip and verify the output.
+
+    This function calls the bgzip utility to compress the specified annotation file,
+    checks that the compressed file exists, and returns its path. It raises an error
+    if the compression fails.
+
+    Args:
+        ann_fname (Path): The path to the annotation file to be compressed.
+
+    Returns:
+        str: The path to the compressed annotation file.
+
+    Raises:
+        subprocess.SubprocessError: If bgzip compression fails.
+    """
+
+    try:
+        subprocess.call(f"bgzip -f {ann_fname}", shell=True)
+    except (subprocess.SubprocessError, Exception) as e:
+        raise subprocess.SubprocessError(
+            f"Bgzip compression failed on {ann_fname}"
+        ) from e
+    ann_fname_gz = f"{ann_fname}.gz"
+    assert os.path.isfile(ann_fname_gz)  # check that the bgzipped bed exists
+
+
 def _retrieve_annotation_file(
     annotation_dir: Path,
     url: str,
     inner_fname: str,
-) -> Path:
+) -> None:
     """Download an annotation archive, extract, and bgzip-compress it.
 
     Args:
         annotation_dir: Directory where the annotation file will be stored.
         url: HTTP URL of the ``.tar.gz`` annotation archive.
         inner_fname: Filename of the BED file inside the archive.
-
-    Returns:
-        Path to the bgzip-compressed BED file.
 
     Raises:
         ValueError: If the MD5 check fails.
@@ -610,7 +635,7 @@ def _retrieve_annotation_file(
     archive_path = download(str(annotation_dir), http_url=url)
     _verify_md5(archive_path, MD5ANNOTATION)
     extract_dir = untar(archive_path, str(annotation_dir))
-    return Path(extract_dir) / inner_fname
+    _bgzip_ann_data(Path(extract_dir) / inner_fname)
 
 
 # ==============================================================================
