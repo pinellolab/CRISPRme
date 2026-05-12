@@ -207,8 +207,8 @@ def _download_full_genome_data(genomes_dir: Path, force: bool) -> None:
 
 
 def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
-    hg38_dir = _ensure_hg38_directory(genomes_dir)
-    fa_path = hg38_dir / f"{chrom}.fa"
+    chrom_dir = _ensure_directory(genomes_dir, chrom)
+    fa_path = chrom_dir / f"{chrom}.fa"
     archive_basename = f"{chrom}.fa.gz"
     if not force and _file_is_valid(fa_path):
         sys.stderr.write(f"Genome FASTA already valid, skipping: {fa_path}\n")
@@ -219,7 +219,7 @@ def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> N
     )
     fa_path = gunzip(
         gz_path,
-        str(hg38_dir / f"{Path(gz_path).stem}"),
+        str(chrom_dir / f"{Path(gz_path).stem}"),
     )
     if not Path(fa_path).is_file():
         raise RuntimeError(f"FASTA extraction failed for {chrom}")
