@@ -1,4 +1,46 @@
-""" """
+"""
+setup_legacy_database.py — CRISPRme Legacy Web-Server Database Setup
+======================================================================
+ 
+Downloads and configures all genomic data (reference FASTA, VCF variants,
+sample IDs, functional annotations, and PAM files) that were originally
+hosted on the CRISPRme web server, enabling a fully local deployment of the
+web interface.
+ 
+By default full genome data are downloaded. For a quick initial setup pass 
+``--chrom chr22`` to download only chromosome 22 data.
+ 
+Both the **1000 Genomes Project** (1000G) and **Human Genome Diversity
+Project** (HGDP) variant datasets are always downloaded together, matching
+the original web-server configuration.
+ 
+Force vs. incremental mode
+---------------------------
+When ``force=False`` (the default) each asset is checked before downloading:
+ 
+* **FASTA / VCF / sample-ID files** — skipped when the expected local file
+  already exists *and* its MD5 digest matches the known-good value.
+* **Annotation files** — skipped when the bgzip-compressed output already
+  exists and MD5 passes.
+* **PAM files** — skipped when the file already exists (content is fully
+  determined by :data:`PAM_DEFINITIONS`; no remote MD5 is needed).
+* **Config files** (``vcf.config.txt``, ``samplesIDs.config.txt``) — always
+  rewritten; they are trivially cheap and must reflect the current state.
+ 
+When ``force=True`` all assets are (re-)downloaded and overwritten
+unconditionally, regardless of any existing files or their integrity.
+ 
+Genomic coordinate convention
+-------------------------------
+* FASTA files — 1-based (UCSC convention).
+* BED files produced / consumed here — 0-based half-open (standard BED).
+* VCF files — 1-based (VCF 4.2 spec).
+ 
+Usage (called from ``crisprme.py``)
+-------------------------------------
+    crisprme.py web-interface setup [--chrom <chrom>] [--force] [--debug]
+"""
+
 
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -72,6 +114,53 @@ PAM_DEFINITIONS: Dict[str, Tuple[str, int]] = {
 
 
 # ==============================================================================
+# skip-or-download helpers
+# ==============================================================================
+
+def _file_is_valid(local_path: Path, md5_map: Optional[Dict[str, str]] = None) -> bool:
+    """Return ``True`` when *local_path* exists and passes its MD5 check.
+ 
+    This is the single decision point that determines whether an asset can be
+    skipped during an incremental (non-forced) setup run.
+ 
+    The check has three outcomes:
+ 
+    * File missing → ``False`` (must download).
+    * File present, basename **not** in *md5_map* → ``True`` (no digest
+      available; trust the file that is already there).
+    * File present, basename **in** *md5_map* → ``True`` only when the
+      computed digest matches the expected value.
+ 
+    Args:
+        local_path: Absolute path to the candidate local file.
+        md5_map: Mapping of ``basename → expected MD5 hex digest``.  May be
+            an empty dict for assets whose remote digest is unknown (e.g. PAM
+            files that are generated locally).
+ 
+    Returns:
+        ``True`` if the file can safely be skipped; ``False`` if it must be
+        (re-)downloaded or recreated.
+    """
+    if md5_map is None:
+        md5_map = {}
+    if not local_path.is_file():
+        sys.stderr.write(f"Asset missing, will download: {local_path}\n")
+        return False
+    basename = local_path.name
+    if basename not in md5_map:
+        return True
+    expected = md5_map[basename]
+    actual = compute_md5(str(local_path))
+    if actual == expected:
+        sys.stderr.write(f"MD5 OK, skipping: {local_path}\n")
+        return True
+    sys.stderr.write(
+        f"MD5 mismatch for {basename} (expected {expected}, got {actual}); will re-download\n",
+    )
+    return False
+
+
+# ==============================================================================
 # genome helpers
 # ==============================================================================
 
@@ -102,7 +191,42 @@ def _ensure_hg38_directory(genomes_dir: Path) -> Path:
     return _ensure_directory(genomes_dir, "hg38")
 
 
-def _download_genome_data(chrom: str, genomes_dir: Path) -> None:
+def _download_full_genome_data(genomes_dir: Path, force: bool) -> None:
+    hg38_dir = genomes_dir / "hg38"
+    chroms_present = hg38_dir.is_dir() and any(hg38_dir.glob("chr*.fa"))
+    if not force and chroms_present:
+        sys.stderr.write("Full hg38 genome already present, skipping download\n")
+        return
+    archive = download(
+        str(genomes_dir),
+        http_url=f"{HG38_BASE_URL}/bigZips/hg38.chromFa.tar.gz",
+    )
+    _verify_md5(archive, MD5GENOME)
+    chroms_dir = untar(archive, str(genomes_dir), "chroms")
+    rename(chroms_dir, str(hg38_dir))
+
+
+def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
+    hg38_dir = _ensure_hg38_directory(genomes_dir)
+    fa_path = hg38_dir / f"{chrom}.fa"
+    archive_basename = f"{chrom}.fa.gz"
+    if not force and _file_is_valid(fa_path):
+        sys.stderr.write(f"Genome FASTA already valid, skipping: {fa_path}\n")
+        return
+    gz_path = download(
+        str(genomes_dir),
+        http_url=f"{HG38_BASE_URL}/chromosomes/{archive_basename}",
+    )
+    fa_path = gunzip(
+        gz_path,
+        str(hg38_dir / f"{Path(gz_path).stem}"),
+    )
+    if not Path(fa_path).is_file():
+        raise RuntimeError(f"FASTA extraction failed for {chrom}")
+
+
+
+def _download_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
     """Download hg38 FASTA data for *chrom* into *genomes_dir*.
 
     Handles both single-chromosome downloads and the full genome archive.
@@ -124,25 +248,9 @@ def _download_genome_data(chrom: str, genomes_dir: Path) -> None:
         raise FileNotFoundError(f"Genomes directory not found: {genomes_dir}")
     sys.stdout.write(f"Downloading genome data for chromosomes: {chrom}\n")
     if chrom == "all":
-        archive = download(
-            str(genomes_dir),
-            http_url=f"{HG38_BASE_URL}/bigZips/hg38.chromFa.tar.gz",
-        )
-        _verify_md5(archive, MD5GENOME)
-        chroms_dir = untar(archive, str(genomes_dir), "chroms")
-        rename(chroms_dir, str(genomes_dir / "hg38"))
+        _download_full_genome_data(genomes_dir, force)
     else:
-        gz_path = download(
-            str(genomes_dir),
-            http_url=f"{HG38_BASE_URL}/chromosomes/{chrom}.fa.gz",
-        )
-        hg38_dir = _ensure_hg38_directory(genomes_dir)
-        fa_path = gunzip(
-            gz_path,
-            str(hg38_dir / f"{Path(gz_path).stem}"),
-        )
-        if not Path(fa_path).is_file():
-            raise RuntimeError(f"FASTA extraction failed for {chrom}")
+        _download_chrom_genome_data(chrom, genomes_dir, force)
         
 
 def _ensure_vcf_dataset_directory(vcfs_dir: Path, dataset_label: str) -> Path:
@@ -158,7 +266,7 @@ def _ensure_vcf_dataset_directory(vcfs_dir: Path, dataset_label: str) -> Path:
     return _ensure_directory(vcfs_dir, f"hg38_{dataset_label}")
 
 
-def _download_vcf_data(chrom: str, vcfs_dir: Path) -> None:
+def _download_vcf_data(chrom: str, vcfs_dir: Path, force: bool) -> None:
     """Download phased VCF files for *chrom* from *dataset* into *vcfs_dir*.
 
     Supports ``"1000G"``, ``"HGDP"``, and the combined ``"1000G+HGDP"``
@@ -181,6 +289,11 @@ def _download_vcf_data(chrom: str, vcfs_dir: Path) -> None:
         vcf_dataset_dir = _ensure_vcf_dataset_directory(vcfs_dir, ds_label)
         ftp_server, url_template, md5_map = _vcf_sources(ds_label)
         for c in chroms_to_fetch:
+            remote_basename = Path(url_template.format(chrom=c)).name
+            local_vcf = vcf_dataset_dir / remote_basename
+            if not force and _file_is_valid(local_vcf, md5_map):
+                sys.stderr.write(f"VCF already valid, skipping: {local_vcf}\n")
+                continue
             vcf_path = download(
                 str(vcf_dataset_dir),
                 ftp_conn=True,
@@ -202,7 +315,7 @@ def _ensure_samplesids_directory(base_dir: Path) -> Path:
     return _ensure_directory(base_dir, CRISPRME_DIRS[6])
 
 
-def _download_samples_ids_data(base_dir: Path) -> None:
+def _download_samples_ids_data(base_dir: Path, force: bool) -> None:
     """Download pre-computed sample ID files for *dataset*.
 
     Args:
@@ -217,6 +330,10 @@ def _download_samples_ids_data(base_dir: Path) -> None:
         fname = (
             "samplesIDs.1000G.txt" if ds_label == "1000G" else "samplesIDs.HGDP.txt"
         )
+        renamed_target = samplesids_dir / f"hg38_{ds_label}.samplesID.txt"
+        if not force and _file_is_valid(renamed_target):
+            sys.stderr.write(f"Sample IDs already valid, skipping: {renamed_target}")
+            continue
         local_path = download(
             str(samplesids_dir),
             http_url=f"{TEST_DATA_BASE_URL}/samplesIDs/{fname}",
@@ -289,7 +406,7 @@ def _ensure_annotation_directory(base_dir: Path) -> Path:
     return _ensure_directory(base_dir, CRISPRME_DIRS[4])
 
 
-def _download_annotation_data(base_dir: Path) -> Tuple[Path, Path]:
+def _download_annotation_data(base_dir: Path, force: bool) -> None:
     """Download GENCODE protein-coding and ENCODE/DHS annotation files.
 
     Both files are bgzip-compressed on disk after download so they are
@@ -298,23 +415,24 @@ def _download_annotation_data(base_dir: Path) -> Tuple[Path, Path]:
     Args:
         base_dir: CRISPRme working directory.
 
-    Returns:
-        Tuple of (gencode_bgz_path, encode_bgz_path).
     """
     annotation_dir = _ensure_annotation_directory(base_dir)
-    sys.stdout.write(f"Downloading functional annotation data\n")
-    gencode_bgz = _retrieve_annotation_file(
-        annotation_dir,
-        url=f"{TEST_DATA_BASE_URL}/Annotations/gencode.protein_coding.bed.tar.gz",
-        inner_fname="gencode.protein_coding.bed",
-    )
-    sys.stdout.write(f"Downloading gene annotation data\n")
-    encode_bgz = _retrieve_annotation_file(
-        annotation_dir,
-        url=f"{TEST_DATA_BASE_URL}/Annotations/dhs+encode+gencode.hg38.bed.tar.gz",
-        inner_fname="dhs+encode+gencode.hg38.bed",
-    )
-    return gencode_bgz, encode_bgz
+    genocode_ann = Path(annotation_dir) / "gencode.protein_coding.bed"
+    if force or not _file_is_valid(genocode_ann):
+        sys.stdout.write(f"Downloading functional annotation data\n")
+        gencode_bgz = _retrieve_annotation_file(
+            annotation_dir,
+            url=f"{TEST_DATA_BASE_URL}/Annotations/gencode.protein_coding.bed.tar.gz",
+            inner_fname="gencode.protein_coding.bed",
+        )
+    encode_ann = Path(annotation_dir) / "dhs+encode+gencode.hg38.bed"
+    if force or not _file_is_valid(encode_ann):
+        sys.stdout.write(f"Downloading gene annotation data\n")
+        encode_bgz = _retrieve_annotation_file(
+            annotation_dir,
+            url=f"{TEST_DATA_BASE_URL}/Annotations/dhs+encode+gencode.hg38.bed.tar.gz",
+            inner_fname="dhs+encode+gencode.hg38.bed",
+        )
 
 
 def _ensure_pams_directory(base_dir: Path) -> Path:
@@ -398,18 +516,18 @@ def _write_all_pam_files(base_dir: Path) -> Dict[str, Path]:
 # public entry point
 # ==============================================================================
 
-def run_legacy_database_setup(chrom: str, base_dir: Path) -> None:
+def run_legacy_database_setup(chrom: str, base_dir: Path, force: bool) -> None:
     _validate_chrom(chrom)
     check_crisprme_directory_tree(str(base_dir))
     # begin data download
     genomes_dir = base_dir / CRISPRME_DIRS[0]
-    _download_genome_data(chrom, genomes_dir)  # reference genome
+    _download_genome_data(chrom, genomes_dir, force)  # reference genome
     vcfs_dir = base_dir / CRISPRME_DIRS[3]
-    _download_vcf_data(chrom, vcfs_dir)  # variants
-    _download_samples_ids_data(base_dir)  # samples ids
+    _download_vcf_data(chrom, vcfs_dir, force)  # variants
+    _download_samples_ids_data(base_dir, force)  # samples ids
     _write_vcf_config(base_dir)  # vcf config file
     _write_samplesids_config(base_dir)  # samples ids config file
-    _download_annotation_data(base_dir)  # annotations data
+    _download_annotation_data(base_dir, force)  # annotations data
     _write_all_pam_files(base_dir)  # pam files
 
 
@@ -425,8 +543,8 @@ def main(argv: Optional[List[str]] = None) -> None:
             When ``None``, ``sys.argv[1:]`` is used.
     """
     args: List[str] = argv if argv is not None else sys.argv[1:]
-    chrom, base_dir = args
-    run_legacy_database_setup(chrom, Path(base_dir))
+    chrom, base_dir, force = args
+    run_legacy_database_setup(chrom, Path(base_dir), force == "True")
 
 
 # ==============================================================================

@@ -1848,7 +1848,9 @@ def print_help_setup_database_test() -> None:
         "associated resources will be installed "
         "[default: current working directory]\n"
         "\t--chrom, download data for the specified chromsome only "
-        "(e.g., chr22) [default all]\n"
+        "(e.g., chr22) [default: all]\n"
+        "\t--force, force data download even if the database is already present "
+        "[default: do not force]\n"
         "\t--debug, debug mode\n"
     )
     sys.exit(1)
@@ -1890,10 +1892,11 @@ def setup_database():
         except (IndexError, ValueError):
             sys.stderr.write("Please provide a value for --chrom (e.g. chr22 or all)\n")
             sys.exit(1)
+    force = "--force" in input_args
     # begin crisprme test
     script_setup = os.path.join(script_path, "setup_legacy_database.py")
     try:
-        subprocess.run(["python", script_setup, chrom, working_dir], check=True)
+        subprocess.run(["python", script_setup, chrom, working_dir, str(force)], check=True)
     except subprocess.CalledProcessError as e:
         sys.stderr.write(
                 f"Legacy database setup exited with error code {e.returncode}"
