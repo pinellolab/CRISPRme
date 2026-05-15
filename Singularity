@@ -19,9 +19,9 @@ From: mambaorg/micromamba
 
     echo "Installing CRISPRitz and CRISPRme..."
     micromamba install -y -n base -c conda-forge -c bioconda \
-        python=3.9 \
-        crispritz=2.6.6 \
-        crisprme=2.1.7 && \
+        python=3.8 \
+        crispritz=2.7.0 \
+        crisprme=2.1.9 && \
     micromamba clean --all --yes
 
 
