@@ -147,7 +147,7 @@ you prefer `Conda`, you can replace `mamba` with `conda` in all the commands bel
 Open a terminal and execute the following command:  
 
 ```bash
-mamba create -n crisprme python=3.9 crisprme -y  # Install CRISPRme and its dependencies
+mamba create -n crisprme python=3.8 crisprme -y  # Install CRISPRme and its dependencies
 ```  
 
 This command sets up a dedicated `conda` environment named `crisprme`, installing 
