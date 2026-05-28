@@ -899,11 +899,11 @@ fi
 
 # restore unzipped annotation files
 if [ "$annotation_file" != "vuoto.txt" ]; then
-    gunzip "$annotation_file"
+    gunzip -f "$annotation_file"
 fi
 
 if [ "$gene_proximity" != "vuoto.txt" ]; then
-	gunzip "$gene_proximity"
+	gunzip -f "$gene_proximity"
 fi
 
 # keep log_error but no block visualization
