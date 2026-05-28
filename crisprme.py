@@ -662,7 +662,7 @@ def _sort_annotation(annotationfile: str) -> str:
     """Sorts, compresses, and replaces a BED annotation file for downstream 
     analysis.
 
-    Decompresses the input annotation file, sorts it, compresses it with bgzip, 
+    Sorts the input annotation file, compresses it with bgzip, 
     and replaces the original file. Raises an error if any step fails.
 
     Args:
@@ -674,12 +674,9 @@ def _sort_annotation(annotationfile: str) -> str:
     Raises:
         SystemExit: If decompression, sorting, compression, or renaming fails.
     """
-    annotationfile_decompressed = _decompress_file(annotationfile, f"{annotationfile}.tmp.bed")
-    annotationfile_sorted = _sort_bed(annotationfile_decompressed, f"{annotationfile}.tmp.sorted.bed")
+    annotationfile_sorted = _sort_bed(annotationfile, f"{annotationfile}.tmp.sorted.bed")
     annotationfile_sorted_bgzip = _compress_file(annotationfile_sorted)
-    annfile = _mv_file(annotationfile_sorted_bgzip, annotationfile)
-    _rm_files([annotationfile_decompressed])  # remove tmp files
-    return annfile
+    return _mv_file(annotationfile_sorted_bgzip, annotationfile)
 
 
 def _check_annotation(args: List[str], annotation: bool) -> str:
@@ -759,12 +756,8 @@ def _process_personal_annotation(personal_annotationfile: str, annotationfile: s
         SystemExit: If decompression, tagging, concatenation, sorting, or 
             compression fails.
     """
-    pannotation_decompressed = _decompress_file(
-        personal_annotationfile, f"{personal_annotationfile}.tmp.bed"
-    )
     pannotation_tag = f"{personal_annotationfile}.tmp.tag.bed"
-    pannotation_tag = _tag_personal_annotation(pannotation_decompressed, pannotation_tag)
-    _rm_files([pannotation_decompressed])  # remove tmp files
+    pannotation_tag = _tag_personal_annotation(personal_annotationfile, pannotation_tag)
     concat_annotationfile = os.path.join(
         os.path.abspath(os.path.dirname(personal_annotationfile)),
         "annotation+personal.bed"
@@ -772,13 +765,10 @@ def _process_personal_annotation(personal_annotationfile: str, annotationfile: s
     if annotationfile == os.path.join(script_path, "vuoto.txt"):
         concat_annotationfile = _mv_file(pannotation_tag, concat_annotationfile)
     else:  # concatenate personal and annotation file
-        annotation_decompressed = _decompress_file(
-            annotationfile, f"{annotationfile}.tmp.bed"
-        )
         concat_annotationfile = _cat_files(
-            annotation_decompressed, pannotation_tag, concat_annotationfile
+            annotationfile, pannotation_tag, concat_annotationfile
         )
-        _rm_files([annotation_decompressed, pannotation_tag])
+        _rm_files([pannotation_tag])
     # sort concatenated annotation files
     concat_annotationfile_sorted = f"{concat_annotationfile}.sorted.bed"
     concat_annotationfile_sorted = _sort_bed(concat_annotationfile, concat_annotationfile_sorted)
@@ -876,7 +866,7 @@ def _check_gene_annotation(args: List[str], geneann: bool) -> str:
         error("Missing input for --gene_annotation. Gene annotation file must be specified")
     if not os.path.isfile(gene_annotation):
         error("The file specified for --gene_annotation does not exist")
-    return gene_annotation     
+    return _compress_file(gene_annotation)
 
 def _check_mm(args: List[str]) -> int:
     """Retrieves and validates the number of mismatches from command-line arguments.

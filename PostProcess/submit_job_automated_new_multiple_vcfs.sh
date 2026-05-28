@@ -897,6 +897,15 @@ if [ "$email" != "_" ]; then
 	python $starting_dir/../pages/send_mail.py $output_folder
 fi
 
+# restore unzipped annotation files
+if [ "$annotation_file" != "vuoto.txt" ]; then
+    gunzip "$annotation_file"
+fi
+
+if [ "$gene_proximity" != "vuoto.txt" ]; then
+	gunzip "$gene_proximity"
+fi
+
 # keep log_error but no block visualization
 mv $output_folder/log_error.txt $output_folder/log_error_no_check.txt
 # removing single best files after use and clean merged file to save space

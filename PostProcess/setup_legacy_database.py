@@ -42,6 +42,7 @@ Usage (called from ``crisprme.py``)
 """
 
 
+from glob import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -193,7 +194,7 @@ def _ensure_hg38_directory(genomes_dir: Path) -> Path:
 
 def _download_full_genome_data(genomes_dir: Path, force: bool) -> None:
     hg38_dir = genomes_dir / "hg38"
-    chroms_present = hg38_dir.is_dir() and any(hg38_dir.glob("chr*.fa"))
+    chroms_present = hg38_dir.is_dir() and len(glob(os.path.join(hg38_dir, "chr*.fa"))) == 455
     if not force and chroms_present:
         sys.stderr.write("Full hg38 genome already present, skipping download\n")
         return
@@ -207,7 +208,7 @@ def _download_full_genome_data(genomes_dir: Path, force: bool) -> None:
 
 
 def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
-    chrom_dir = _ensure_directory(genomes_dir, chrom)
+    chrom_dir = genomes_dir / "hg38"
     fa_path = chrom_dir / f"{chrom}.fa"
     archive_basename = f"{chrom}.fa.gz"
     if not force and _file_is_valid(fa_path):
@@ -634,8 +635,7 @@ def _retrieve_annotation_file(
     """
     archive_path = download(str(annotation_dir), http_url=url)
     _verify_md5(archive_path, MD5ANNOTATION)
-    extract_dir = untar(archive_path, str(annotation_dir))
-    _bgzip_ann_data(Path(extract_dir) / inner_fname)
+    untar(archive_path, str(annotation_dir))
 
 
 # ==============================================================================
