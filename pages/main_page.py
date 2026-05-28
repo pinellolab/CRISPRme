@@ -387,6 +387,7 @@ def change_url(
     # ANNOTATION CHECK
     gencode_name = "gencode.protein_coding.bed"
     annotation_name = "vuoto.txt"  # to proceed without annotation file
+    annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
     if "EN" in annotation_var:
         annotation_name = "dhs+encode+gencode.hg38.bed"  # use dhs annotation file
         if "MA" in annotation_var:
@@ -397,7 +398,6 @@ def change_url(
                     ".bed",
                 ]
             )
-            annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
             annotation_tmp = os.path.join(annotation_dir, f"ann_tmp_{job_id}.bed")
             cmd = f"cp {os.path.join(annotation_dir, annotation_name)} {annotation_tmp}"
             code = subprocess.call(cmd, shell=True)
@@ -431,14 +431,7 @@ def change_url(
         annotation_name = f"{annotation_input}.tmp"
 
     if "EN" not in annotation_var:
-        cmd = f"rm -rf {os.path.join(annotation_dir, 'vuoto.txt')}"
-        code = subprocess.call(cmd, shell=True)
-        if code != 0:
-            raise ValueError(f"An error occurred while running {cmd}")
-        cmd = f"touch {os.path.join(annotation_dir, 'vuoto.txt')}"
-        code = subprocess.call(cmd, shell=True)
-        if code != 0:
-            raise ValueError(f"An error occurred while running {cmd}")
+        annotation_name = "vuoto.txt"
         gencode_name = "vuoto.txt"
     # GENOME TYPE CHECK
     ref_comparison = False
@@ -978,9 +971,15 @@ def change_url(
     # if annotation requested, compress and index bed 
     if annotation_name != "vuoto.txt":
         annotation = sort_annotation(annotation)
+    else:
+        if not os.path.isfile(annotation):
+            code = subprocess.call(f"touch {annotation}", shell=True)
 
     if gencode_name != "vuoto.txt":
         gencode = compress_file(gencode)
+    else:
+        if not os.path.isfile(gencode):
+            code = subprocess.call(f"touch {gencode}", shell=True)
 
     cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} 1> {log_verbose} 2>{log_error}"
     # run job
