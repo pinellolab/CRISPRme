@@ -218,6 +218,8 @@ def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> N
         str(genomes_dir),
         http_url=f"{HG38_BASE_URL}/chromosomes/{archive_basename}",
     )
+    if not chrom_dir.is_dir():
+        os.makedirs(chrom_dir)
     fa_path = gunzip(
         gz_path,
         str(chrom_dir / f"{Path(gz_path).stem}"),
