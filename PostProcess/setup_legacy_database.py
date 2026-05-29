@@ -1,23 +1,23 @@
 """
 setup_legacy_database.py — CRISPRme Legacy Web-Server Database Setup
 ======================================================================
- 
+
 Downloads and configures all genomic data (reference FASTA, VCF variants,
 sample IDs, functional annotations, and PAM files) that were originally
 hosted on the CRISPRme web server, enabling a fully local deployment of the
 web interface.
- 
-By default full genome data are downloaded. For a quick initial setup pass 
+
+By default full genome data are downloaded. For a quick initial setup pass
 ``--chrom chr22`` to download only chromosome 22 data.
- 
+
 Both the **1000 Genomes Project** (1000G) and **Human Genome Diversity
 Project** (HGDP) variant datasets are always downloaded together, matching
 the original web-server configuration.
- 
+
 Force vs. incremental mode
 ---------------------------
 When ``force=False`` (the default) each asset is checked before downloading:
- 
+
 * **FASTA / VCF / sample-ID files** — skipped when the expected local file
   already exists *and* its MD5 digest matches the known-good value.
 * **Annotation files** — skipped when the bgzip-compressed output already
@@ -26,21 +26,20 @@ When ``force=False`` (the default) each asset is checked before downloading:
   determined by :data:`PAM_DEFINITIONS`; no remote MD5 is needed).
 * **Config files** (``vcf.config.txt``, ``samplesIDs.config.txt``) — always
   rewritten; they are trivially cheap and must reflect the current state.
- 
+
 When ``force=True`` all assets are (re-)downloaded and overwritten
 unconditionally, regardless of any existing files or their integrity.
- 
+
 Genomic coordinate convention
 -------------------------------
 * FASTA files — 1-based (UCSC convention).
 * BED files produced / consumed here — 0-based half-open (standard BED).
 * VCF files — 1-based (VCF 4.2 spec).
- 
+
 Usage (called from ``crisprme.py``)
 -------------------------------------
     crisprme.py web-interface setup [--chrom <chrom>] [--force] [--debug]
 """
-
 
 from glob import glob
 from pathlib import Path
@@ -50,7 +49,21 @@ import os
 import subprocess
 import sys
 
-from utils import CHROMS, CRISPRME_DIRS, MD51000G, MD5ANNOTATION, MD5GENOME, MD5HGDP, MD5SAMPLES, check_crisprme_directory_tree, compute_md5, download, gunzip, rename, untar
+from utils import (
+    CHROMS,
+    CRISPRME_DIRS,
+    MD51000G,
+    MD5ANNOTATION,
+    MD5GENOME,
+    MD5HGDP,
+    MD5SAMPLES,
+    check_crisprme_directory_tree,
+    compute_md5,
+    download,
+    gunzip,
+    rename,
+    untar,
+)
 
 
 # ==============================================================================
@@ -89,28 +102,31 @@ TEST_DATA_BASE_URL: str = (
 
 PAM_DEFINITIONS: Dict[str, Tuple[str, int]] = {
     # ---- SpCas9 variants
-    "20bp-NGG-SpCas9.txt":      ("NNNNNNNNNNNNNNNNNNNNNGG", 3),
-    "20bp-NGC-SpCas9.txt":      ("NNNNNNNNNNNNNNNNNNNNNGC", 3),
-    "20bp-NGK-SpCas9.txt":      ("NNNNNNNNNNNNNNNNNNNNNGNK", 3),        # K = G/T
-    "20bp-NRG-SpCas9.txt":      ("NNNNNNNNNNNNNNNNNNNNNRG", 3),         # R = A/G (VQR variant)
-    "20bp-NRCH-SpCas9.txt":     ("NNNNNNNNNNNNNNNNNNNNNRCH", 4),        # NRCH (xCas9)
-    "20bp-NNGT-SpCas9.txt":     ("NNNNNNNNNNNNNNNNNNNNNNNGT", 4),       # NNGT (SpCas9-NG)
-    # ---- iSpyMacCas9 
+    "20bp-NGG-SpCas9.txt": ("NNNNNNNNNNNNNNNNNNNNNGG", 3),
+    "20bp-NGC-SpCas9.txt": ("NNNNNNNNNNNNNNNNNNNNNGC", 3),
+    "20bp-NGK-SpCas9.txt": ("NNNNNNNNNNNNNNNNNNNNNGNK", 3),  # K = G/T
+    "20bp-NRG-SpCas9.txt": ("NNNNNNNNNNNNNNNNNNNNNRG", 3),  # R = A/G (VQR variant)
+    "20bp-NRCH-SpCas9.txt": ("NNNNNNNNNNNNNNNNNNNNNRCH", 4),  # NRCH (xCas9)
+    "20bp-NNGT-SpCas9.txt": ("NNNNNNNNNNNNNNNNNNNNNNNGT", 4),  # NNGT (SpCas9-NG)
+    # ---- iSpyMacCas9
     "20bp-NAA-iSpyMacCas9.txt": ("NNNNNNNNNNNNNNNNNNNNNAA", 3),
-    # ---- SaCas9 
-    "22bp-NNGRRN-SaCas9.txt":   ("NNNNNNNNNNNNNNNNNNNNNNNNNGRRN", 6),   # 22 nt guide + NNGRRN
-    # ---- CasX 
-    "TTCN-20bp-CasX.txt":       ("TTCNNNNNNNNNNNNNNNNNNNNNN", -4),      # 5′ PAM (TTCN)
-    # ---- Cas12a (Cpf1) variants 
-    "TTTV-20bp-Cas12a.txt":     ("TTTV" + "N" * 20, -4),                # 5′ PAM (TTTV)
-    "TTTV-21bp-Cas12a.txt":     ("TTTV" + "N" * 21, -4),
-    "TTTV-23bp-Cas12a.txt":     ("TTTV" + "N" * 23, -4),
-    "TTTV-25bp-AsCas12a.txt":   ("TTTV" + "N" * 25, -4),
-    # ---- No-PAM / generic 
-    "18bp-NNN-NO_PAM.txt":      ("N" * 21, 3),                          # 18 nt guide + NNN placeholder
-    "20bp-NNN-NO_PAM.txt":      ("N" * 23, 3),
-    "21bp-NNN-NO_PAM.txt":      ("N" * 24, 3),
-    "23bp-NNN-NO_PAM.txt":      ("N" * 26, 3),
+    # ---- SaCas9
+    "22bp-NNGRRN-SaCas9.txt": (
+        "NNNNNNNNNNNNNNNNNNNNNNNNNGRRN",
+        6,
+    ),  # 22 nt guide + NNGRRN
+    # ---- CasX
+    "TTCN-20bp-CasX.txt": ("TTCNNNNNNNNNNNNNNNNNNNNNN", -4),  # 5′ PAM (TTCN)
+    # ---- Cas12a (Cpf1) variants
+    "TTTV-20bp-Cas12a.txt": ("TTTV" + "N" * 20, -4),  # 5′ PAM (TTTV)
+    "TTTV-21bp-Cas12a.txt": ("TTTV" + "N" * 21, -4),
+    "TTTV-23bp-Cas12a.txt": ("TTTV" + "N" * 23, -4),
+    "TTTV-25bp-AsCas12a.txt": ("TTTV" + "N" * 25, -4),
+    # ---- No-PAM / generic
+    "18bp-NNN-NO_PAM.txt": ("N" * 21, 3),  # 18 nt guide + NNN placeholder
+    "20bp-NNN-NO_PAM.txt": ("N" * 23, 3),
+    "21bp-NNN-NO_PAM.txt": ("N" * 24, 3),
+    "23bp-NNN-NO_PAM.txt": ("N" * 26, 3),
 }
 
 
@@ -118,26 +134,27 @@ PAM_DEFINITIONS: Dict[str, Tuple[str, int]] = {
 # skip-or-download helpers
 # ==============================================================================
 
+
 def _file_is_valid(local_path: Path, md5_map: Optional[Dict[str, str]] = None) -> bool:
     """Return ``True`` when *local_path* exists and passes its MD5 check.
- 
+
     This is the single decision point that determines whether an asset can be
     skipped during an incremental (non-forced) setup run.
- 
+
     The check has three outcomes:
- 
+
     * File missing → ``False`` (must download).
     * File present, basename **not** in *md5_map* → ``True`` (no digest
       available; trust the file that is already there).
     * File present, basename **in** *md5_map* → ``True`` only when the
       computed digest matches the expected value.
- 
+
     Args:
         local_path: Absolute path to the candidate local file.
         md5_map: Mapping of ``basename → expected MD5 hex digest``.  May be
             an empty dict for assets whose remote digest is unknown (e.g. PAM
             files that are generated locally).
- 
+
     Returns:
         ``True`` if the file can safely be skipped; ``False`` if it must be
         (re-)downloaded or recreated.
@@ -165,13 +182,14 @@ def _file_is_valid(local_path: Path, md5_map: Optional[Dict[str, str]] = None) -
 # genome helpers
 # ==============================================================================
 
+
 def _ensure_directory(parent: Path, name: str) -> Path:
     """Return *parent/name*, creating it if absent.
- 
+
     Args:
         parent: Parent directory path.
         name: Sub-directory name to ensure.
- 
+
     Returns:
         Absolute path to the (possibly newly created) sub-directory.
     """
@@ -194,7 +212,9 @@ def _ensure_hg38_directory(genomes_dir: Path) -> Path:
 
 def _download_full_genome_data(genomes_dir: Path, force: bool) -> None:
     hg38_dir = genomes_dir / "hg38"
-    chroms_present = hg38_dir.is_dir() and len(glob(os.path.join(hg38_dir, "chr*.fa"))) == 455
+    chroms_present = (
+        hg38_dir.is_dir() and len(glob(os.path.join(hg38_dir, "chr*.fa"))) == 455
+    )
     if not force and chroms_present:
         sys.stderr.write("Full hg38 genome already present, skipping download\n")
         return
@@ -228,7 +248,6 @@ def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> N
         raise RuntimeError(f"FASTA extraction failed for {chrom}")
 
 
-
 def _download_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
     """Download hg38 FASTA data for *chrom* into *genomes_dir*.
 
@@ -254,7 +273,7 @@ def _download_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
         _download_full_genome_data(genomes_dir, force)
     else:
         _download_chrom_genome_data(chrom, genomes_dir, force)
-        
+
 
 def _ensure_vcf_dataset_directory(vcfs_dir: Path, dataset_label: str) -> Path:
     """Ensure ``VCFs/hg38_<dataset_label>`` exists and return its path.
@@ -330,9 +349,7 @@ def _download_samples_ids_data(base_dir: Path, force: bool) -> None:
     samplesids_dir = _ensure_samplesids_directory(base_dir)
     for ds_label in "1000G+HGDP".split("+"):
         sys.stdout.write(f"Downloading samples ids data for dataset {ds_label}\n")
-        fname = (
-            "samplesIDs.1000G.txt" if ds_label == "1000G" else "samplesIDs.HGDP.txt"
-        )
+        fname = "samplesIDs.1000G.txt" if ds_label == "1000G" else "samplesIDs.HGDP.txt"
         renamed_target = samplesids_dir / f"hg38_{ds_label}.samplesID.txt"
         if not force and _file_is_valid(renamed_target):
             sys.stderr.write(f"Sample IDs already valid, skipping: {renamed_target}\n")
@@ -343,7 +360,7 @@ def _download_samples_ids_data(base_dir: Path, force: bool) -> None:
         )
         _verify_md5(local_path, MD5SAMPLES)
         rename(
-            os.path.join(samplesids_dir, fname), 
+            os.path.join(samplesids_dir, fname),
             os.path.join(samplesids_dir, f"hg38_{ds_label}.samplesID.txt"),
         )
 
@@ -386,14 +403,14 @@ def _write_samplesids_config(base_dir: Path) -> Path:
         IOError: If the file cannot be written.
     """
     samples_config_path = base_dir / "samplesIDs.config.txt"
-    fname_map = {
-        "1000G": "hg38_1000G.samplesID.txt", "HGDP": "hg38_HGDP.samplesID.txt"
-    }
+    fname_map = {"1000G": "hg38_1000G.samplesID.txt", "HGDP": "hg38_HGDP.samplesID.txt"}
     try:
         lines = [f"{fname_map[ds]}\n" for ds in "1000G+HGDP".split("+")]
         samples_config_path.write_text("".join(lines), encoding="utf-8")
     except IOError as exc:
-        raise IOError(f"Failed to write samplesIDs config: {samples_config_path}") from exc
+        raise IOError(
+            f"Failed to write samplesIDs config: {samples_config_path}"
+        ) from exc
     return samples_config_path
 
 
@@ -450,7 +467,6 @@ def _ensure_pams_directory(base_dir: Path) -> Path:
     return _ensure_directory(base_dir, CRISPRME_DIRS[5])
 
 
-
 def _write_pam_file(
     pam_filename: str,
     pam_sequence: str,
@@ -492,7 +508,6 @@ def _write_pam_file(
     return pam_path
 
 
-
 def _write_all_pam_files(base_dir: Path) -> Dict[str, Path]:
     """Write every PAM definition listed in :data:`PAM_DEFINITIONS`.
 
@@ -519,6 +534,7 @@ def _write_all_pam_files(base_dir: Path) -> Dict[str, Path]:
 # public entry point
 # ==============================================================================
 
+
 def run_legacy_database_setup(chrom: str, base_dir: Path, force: bool) -> None:
     _validate_chrom(chrom)
     check_crisprme_directory_tree(str(base_dir))
@@ -538,9 +554,10 @@ def run_legacy_database_setup(chrom: str, base_dir: Path, force: bool) -> None:
 # CLI entry point (when invoked directly from crisprme.py)
 # ==============================================================================
 
+
 def main(argv: Optional[List[str]] = None) -> None:
     """Parse arguments forwarded from ``crisprme.py`` and run the setup.
- 
+
     Args:
         argv: Argument list (excluding the subcommand token itself).
             When ``None``, ``sys.argv[1:]`` is used.
@@ -554,6 +571,7 @@ def main(argv: Optional[List[str]] = None) -> None:
 # private helpers
 # ==============================================================================
 
+
 def _validate_chrom(chrom: str) -> None:
     """Raise ValueError if *chrom* is not a valid chromosome identifier."""
     if chrom not in CHROMS + ["all"]:
@@ -561,7 +579,7 @@ def _validate_chrom(chrom: str) -> None:
             f"Unrecognised chromosome: {chrom!r}. "
             f"Expected one of {CHROMS + ['all']}"
         )
-    
+
 
 def _verify_md5(local_path: str, md5_map: Dict[str, str]) -> None:
     """Verify a downloaded file against a known MD5 digest.
@@ -580,13 +598,12 @@ def _verify_md5(local_path: str, md5_map: Dict[str, str]) -> None:
     actual = compute_md5(local_path)
     if actual != expected:
         raise ValueError(
-            f"MD5 mismatch for {basename}: "
-            f"expected {expected!r}, got {actual!r}"
+            f"MD5 mismatch for {basename}: " f"expected {expected!r}, got {actual!r}"
         )
 
 
 def _vcf_sources(ds_label: str) -> Tuple[str, str, Dict[str, str]]:
-    if ds_label == "1000G":  # 1000 genomes 
+    if ds_label == "1000G":  # 1000 genomes
         return VCF_1000G_SERVER, VCF_1000G_URL_TEMPLATE, MD51000G
     return VCF_HGDP_SERVER, VCF_HGDP_URL_TEMPLATE, MD5HGDP  # hgdp
 
@@ -646,4 +663,3 @@ def _retrieve_annotation_file(
 
 if __name__ == "__main__":
     main()
-
