@@ -21,21 +21,37 @@ Attributes:
     cache (Cache): Cache instance for the application.
 """
 
-from flask_caching import Cache
-
-import dash_bootstrap_components as dbc
-
 import concurrent.futures
-import flask
-import dash
 import sys
 import os
 
+try:
+    from flask_caching import Cache
 
-WEBADDRESS = "http://crisprme.di.univr.it"  # webpage address
-IPADDRESS = "127.0.0.1:8080"  # server IP address (local server)
-URL = ""  # server URL
-current_working_directory = f"{os.getcwd()}/"  # current working directory
+    import dash_bootstrap_components as dbc
+
+    import dash
+    import flask
+except ImportError as e:
+    sys.stderr.write(
+        f"Error: Web interface dependencies not installed: {e}\n"
+        "Install them with: pip install crisprme[web]\n"
+        "or: pip install dash flask flask-caching dash-bootstrap-components\n"
+    )
+    sys.exit(1)
+
+
+# define website address -> DEPRECATED <-
+WEBADDRESS = "http://crisprme.di.univr.it"
+
+# define server IP address (local deployment)
+IPADDRESS = "127.0.0.1:8080"
+
+# define server URL
+URL = ""
+
+# define current working directory
+current_working_directory = f"{os.getcwd()}/"
 
 
 def start_message() -> None:
@@ -65,7 +81,7 @@ app = dash.Dash(
     __name__,
     external_stylesheets=external_stylesheets,
     suppress_callback_exceptions=True,
-    server=server,
+    server=server, # type: ignore
 )  # initialize server app
 app_directory = os.path.dirname(os.path.realpath(__file__))  # current location
 start_message()  # print server start message

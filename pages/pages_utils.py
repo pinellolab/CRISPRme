@@ -10,7 +10,9 @@ from glob import glob
 import dash_html_components as html
 import pandas as pd
 
+import subprocess
 import base64
+import sys
 import os
 
 
@@ -1146,3 +1148,90 @@ def get_custom_annotations() -> List:
         )
     ]
     return annotations
+
+
+def _sort_bed(fname: str, outfname: str) -> str:
+    """Sorts a BED file and writes the sorted output to a new file.
+
+    Uses sort-bed to sort the input BED file and saves the result to the specified 
+    output file. Raises an error if sorting fails.
+
+    Args:
+        fname: Path to the input BED file.
+        outfname: Path where the sorted BED file will be written.
+
+    Returns:
+        The path to the sorted BED file.
+
+    Raises:
+        SystemExit: If sorting fails.
+    """
+    code = subprocess.call(f"sort-bed {fname} > {outfname}", shell=True)
+    if code != 0:
+        raise subprocess.SubprocessError("Sorting BED file failed")
+    assert os.path.isfile(outfname)
+    return outfname
+
+def compress_file(fname: str) -> str:
+    """Compresses a file using bgzip and returns the path to the compressed file.
+
+    Uses bgzip to compress the specified file. Raises an error if compression fails.
+
+    Args:
+        fname: Path to the file to be compressed.
+
+    Returns:
+        The path to the compressed file with a .gz extension.
+
+    Raises:
+        SystemExit: If compression fails.
+    """
+    code = subprocess.call(f"bgzip -f {fname}", shell=True)
+    if code != 0:
+        raise subprocess.SubprocessError("Compressing and indexing file failed")
+    assert os.path.isfile(f"{fname}.gz")
+    return f"{fname}.gz"
+
+
+def _mv_file(fname: str, outfname: str) -> str:
+    """Renames or moves a file to a new location.
+
+    Uses the mv command to move or rename the specified file. Raises an error if 
+    the operation fails.
+
+    Args:
+        fname: Path to the source file.
+        outfname: Path to the destination file.
+
+    Returns:
+        The path to the moved or renamed file.
+
+    Raises:
+        SystemExit: If the move or rename operation fails.
+    """
+    code = subprocess.call(f"mv {fname} {outfname}", shell=True)
+    if code != 0:
+        raise subprocess.SubprocessError("Renaming file failed")
+    assert os.path.isfile(outfname)
+    return outfname
+
+
+def sort_annotation(annotationfile: str) -> str:
+    """Sorts, compresses, and replaces a BED annotation file for downstream 
+    analysis.
+
+    Decompresses the input annotation file, sorts it, compresses it with bgzip, 
+    and replaces the original file. Raises an error if any step fails.
+
+    Args:
+        annotationfile: Path to the input annotation file.
+
+    Returns:
+        The path to the sorted and compressed annotation file.
+
+    Raises:
+        SystemExit: If decompression, sorting, compression, or renaming fails.
+    """
+    annotationfile_sorted = _sort_bed(annotationfile, f"{annotationfile}.tmp.sorted.bed")
+    annotationfile_sorted_bgzip = compress_file(annotationfile_sorted)
+    return _mv_file(annotationfile_sorted_bgzip, f"{annotationfile}.gz")

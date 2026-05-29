@@ -5,12 +5,13 @@ from Bio.Seq import Seq
 
 import subprocess
 import itertools
+import pathlib
 import sys
 import os
 import re
 
 
-version = "2.1.9"  #  CRISPRme version; TODO: update when required
+version = "2.1.10"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -661,7 +662,7 @@ def _sort_annotation(annotationfile: str) -> str:
     """Sorts, compresses, and replaces a BED annotation file for downstream 
     analysis.
 
-    Decompresses the input annotation file, sorts it, compresses it with bgzip, 
+    Sorts the input annotation file, compresses it with bgzip, 
     and replaces the original file. Raises an error if any step fails.
 
     Args:
@@ -673,12 +674,9 @@ def _sort_annotation(annotationfile: str) -> str:
     Raises:
         SystemExit: If decompression, sorting, compression, or renaming fails.
     """
-    annotationfile_decompressed = _decompress_file(annotationfile, f"{annotationfile}.tmp.bed")
-    annotationfile_sorted = _sort_bed(annotationfile_decompressed, f"{annotationfile}.tmp.sorted.bed")
+    annotationfile_sorted = _sort_bed(annotationfile, f"{annotationfile}.tmp.sorted.bed")
     annotationfile_sorted_bgzip = _compress_file(annotationfile_sorted)
-    annfile = _mv_file(annotationfile_sorted_bgzip, annotationfile)
-    _rm_files([annotationfile_decompressed])  # remove tmp files
-    return annfile
+    return _mv_file(annotationfile_sorted_bgzip, annotationfile)
 
 
 def _check_annotation(args: List[str], annotation: bool) -> str:
@@ -758,12 +756,8 @@ def _process_personal_annotation(personal_annotationfile: str, annotationfile: s
         SystemExit: If decompression, tagging, concatenation, sorting, or 
             compression fails.
     """
-    pannotation_decompressed = _decompress_file(
-        personal_annotationfile, f"{personal_annotationfile}.tmp.bed"
-    )
     pannotation_tag = f"{personal_annotationfile}.tmp.tag.bed"
-    pannotation_tag = _tag_personal_annotation(pannotation_decompressed, pannotation_tag)
-    _rm_files([pannotation_decompressed])  # remove tmp files
+    pannotation_tag = _tag_personal_annotation(personal_annotationfile, pannotation_tag)
     concat_annotationfile = os.path.join(
         os.path.abspath(os.path.dirname(personal_annotationfile)),
         "annotation+personal.bed"
@@ -771,13 +765,10 @@ def _process_personal_annotation(personal_annotationfile: str, annotationfile: s
     if annotationfile == os.path.join(script_path, "vuoto.txt"):
         concat_annotationfile = _mv_file(pannotation_tag, concat_annotationfile)
     else:  # concatenate personal and annotation file
-        annotation_decompressed = _decompress_file(
-            annotationfile, f"{annotationfile}.tmp.bed"
-        )
         concat_annotationfile = _cat_files(
-            annotation_decompressed, pannotation_tag, concat_annotationfile
+            annotationfile, pannotation_tag, concat_annotationfile
         )
-        _rm_files([annotation_decompressed, pannotation_tag])
+        _rm_files([pannotation_tag])
     # sort concatenated annotation files
     concat_annotationfile_sorted = f"{concat_annotationfile}.sorted.bed"
     concat_annotationfile_sorted = _sort_bed(concat_annotationfile, concat_annotationfile_sorted)
@@ -875,7 +866,7 @@ def _check_gene_annotation(args: List[str], geneann: bool) -> str:
         error("Missing input for --gene_annotation. Gene annotation file must be specified")
     if not os.path.isfile(gene_annotation):
         error("The file specified for --gene_annotation does not exist")
-    return gene_annotation     
+    return _compress_file(gene_annotation)
 
 def _check_mm(args: List[str]) -> int:
     """Retrieves and validates the number of mismatches from command-line arguments.
@@ -1626,17 +1617,50 @@ def personal_card():
         + script_path
     )
 
+def print_help_web_interface():
+    # functionality description
+    sys.stderr.write(
+        "This function starts a local server to use the web interface.\n"
+        "Open your browser at http://127.0.0.1:8080\n"
+    )
+    # options
+    sys.stderr.write(
+        "Options:\n"
+        "\t--debug, debug mode\n"
+    )
+    sys.exit(1)
+
 
 def web_interface():
-    if "--help" in input_args:
-        print(
-            "This function must be launched without input, it starts a local server to use the web interface."
+    args = input_args[2:]
+    if "--help" in args or len(input_args) < 2:  # print help and exit
+        print_help_web_interface()
+    # resolve index.py relative to this script's location
+    # regardless of conda/source install layout
+    index_script = os.path.join(corrected_web_path, "index.py")
+    if not os.path.isfile(index_script):
+        sys.stderr.write(
+            f"Error: Cannot find index.py at {index_script}\n"
+            "The web interface requires index.py to be co-located with crisprme.py.\n"
         )
-        print(
-            "Open your web-browser and write 127.0.0.1:8080 in the search bar if you are executing locally, if you are executing on an external server write <yourserverip>:8080 in search bar"
+        sys.exit(1)
+    try: 
+        subprocess.run([sys.executable, index_script], check=True)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(
+            f"\nWeb interface exited with error code {e.returncode}.\n"
+            "Check above for traceback. Common causes:\n"
+            "  - Missing dependencies: pip install dash flask flask-caching "
+            "dash-bootstrap-components\n"
+            "  - Port 8080 already in use: lsof -i :8080\n"
         )
-        exit(0)
-    subprocess.run(corrected_web_path + "/./index.py")
+        sys.exit(e.returncode)
+    except FileNotFoundError:
+        sys.stderr.write(f"Error: Python interpreter not found at {sys.executable}\n")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        sys.stderr.write("\nWeb interface stopped\n")
+        sys.exit(0)
 
 
 def crisprme_version():
@@ -1795,7 +1819,78 @@ def validate_test():
     code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
     if code != 0:
         raise OSError("CRISPRme off-target sites validation encountered an Error!")
+    
 
+def print_help_setup_database_test() -> None:
+    # write intro message to stderr
+    sys.stderr.write(
+        "This command initializes the CRISPRme legacy database by downloading "
+        "all reference genomes, variant datasets, PAM definition files, and "
+        "associated resources originally distributed through the CRISPRme web "
+        "server.\n\n"
+        "The downloaded resources can then be reused across analyses without "
+        "requiring additional downloads\n\n"
+    )
+    # list functionality options
+    sys.stderr.write(
+        "Options:\n"
+        "\t--path, Path to the directory where the legacy database and "
+        "associated resources will be installed "
+        "[default: current working directory]\n"
+        "\t--chrom, download data for the specified chromsome only "
+        "(e.g., chr22) [default: all]\n"
+        "\t--force, force data download even if the database is already present "
+        "[default: do not force]\n"
+        "\t--debug, debug mode\n"
+    )
+    sys.exit(1)
+    
+
+def setup_database():
+    """
+    Setup CRISPRme legacy dataset downloading all genome, variant datasets, PAM
+    files originally available in the CRISPRme website.
+
+    Runs an external download script to retrieve the data and build the legacy 
+    database.
+
+    Raises:
+        OSError: If the download script returns a non-zero exit code,
+            indicating that an error occurred while setting up the legacy
+            database.
+    """
+    if "--help" in input_args or len(input_args) < 2:
+        print_help_setup_database_test()
+        sys.exit(1)
+    working_dir = os.path.abspath(os.getcwd())
+    if "--path" in input_args:
+        try:
+            working_dir = os.path.abspath(input_args[input_args.index("--path") + 1])
+            if working_dir.startswith("--"):
+                raise ValueError
+        except (IndexError, ValueError):
+            sys.stderr.write(
+                "Please provide a value for --path (e.g., /path/to/my/folder)"
+            )
+            sys.exit(1)
+    chrom = "all"
+    if "--chrom" in input_args:  # individual chrom to test
+        try:
+            chrom = input_args[input_args.index("--chrom") + 1]
+            if chrom.startswith("--"):
+                raise ValueError
+        except (IndexError, ValueError):
+            sys.stderr.write("Please provide a value for --chrom (e.g. chr22 or all)\n")
+            sys.exit(1)
+    force = "--force" in input_args
+    # begin crisprme test
+    script_setup = os.path.join(script_path, "setup_legacy_database.py")
+    try:
+        subprocess.run(["python", script_setup, chrom, working_dir, str(force)], check=True)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(
+                f"Legacy database setup exited with error code {e.returncode}"
+            )
 
 
 # HELP FUNCTION
@@ -1831,6 +1926,10 @@ def crisprme_help() -> None:
         "crisprme.py generate-personal-card\n"
         "\tGenerates a personal card for specific samples by extracting all "
         "private targets\n\n"
+        "crisprme.py setup\n"
+        "\tInitializes the legacy database by downloading all reference "
+        "genomes, variant datasets, PAM definition files, and associated "
+        "resources\n\n"
         "crisprme.py web-interface\n"
         "\tActivates CRISPRme's web interface for local browser use\n\n"
         "crisprme.py --version\n"
@@ -1856,6 +1955,8 @@ elif sys.argv[1] == "gnomAD-converter":  # run gnomad converter
     gnomAD_converter()
 elif sys.argv[1] == "generate-personal-card":  # run create personal card
     personal_card()
+elif sys.argv[1] == "setup":  # run legacy database setup
+    setup_database()
 elif sys.argv[1] == "web-interface":  # run web interface
     web_interface()
 elif sys.argv[1] == "--version":  # print version

@@ -181,3 +181,4 @@ samplesIDs/*
 *.pkl
 *.zip
 PostProcess/dnaShape.pkl
+.mode_type.txt

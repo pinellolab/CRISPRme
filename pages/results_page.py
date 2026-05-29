@@ -2860,15 +2860,12 @@ def update_table_general_profile(
         data_guides["Guide"] = g
         data_guides["Nuclease"] = nuclease
         data_general_count_copy = data_general_count.copy()
-        count_bulges = []
-        origin_ref = []
-        origin_var = []
-        for the_bulge in range(max_bulges + 1):
-            origin_ref.append("REF")
-            origin_var.append("VAR")
-            count_bulges.append(the_bulge)
-        count_bulges_concat = count_bulges + count_bulges
-        origin_concat = origin_ref + origin_var
+
+        n_rows = len(data_general_count_copy)
+        half = n_rows // 2
+        origin_concat = ["REF"] * half + ["VAR"] * (n_rows - half)
+        count_bulges_concat = list(range(half)) + list(range(n_rows - half))
+
         data_general_count_copy.insert(0, "Genome", origin_concat, True)
         data_general_count_copy.insert(1, "Bulges", count_bulges_concat, True)
         if "NO SCORES" not in all_scores:
