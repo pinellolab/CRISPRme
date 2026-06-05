@@ -56,25 +56,113 @@
           directory structure documentation.
         </a>
       </p>
+      <p>
+        Before launching the web interface, install CRISPRme and download the
+        legacy reference datasets. This setup only needs to be completed once.
+      </p>
 
-      <h3>Option 1: Docker</h3>
+      <h3>Download the Legacy Reference Database</h3>
+
+      <p>The setup command automatically downloads and configures:</p>
+      <ul>
+        <li>hg38 reference genome</li>
+        <li>1000 Genomes Project Phase 3 dataset</li>
+        <li>HGDP variant dataset</li>
+        <li>Sample metadata files</li>
+        <li>Default annotations and PAM definitions</li>
+      </ul>
+
+      <pre><code># Choose a working directory
+CRISPRME_DIR="$HOME/my_crisprme_run"
+
+# Download and configure all reference data
+crisprme.py setup --path "$CRISPRME_DIR"</code></pre>
+
+      <p>
+        <strong>Optional:</strong> If you want to test the installation before
+        downloading the complete dataset (~410 GB), perform a chromosome-specific
+        setup first:
+      </p>
+
+      <pre><code>crisprme.py setup --chrom chr22 --path "$CRISPRME_DIR"</code></pre>
+
+      <p>
+        The setup process is resumable. If a download is interrupted, simply
+        rerun the same command and CRISPRme will continue from the last completed step.
+      </p>
+
+      <h3>Launching the local web-interface</h3>
+
+      <h4> Option 1: Docker</h4>
       <pre><code>docker pull pinellolab/crisprme
 docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 pinellolab/crisprme crisprme.py web-interface</code></pre>
 
-      <h3>Option 2: Conda / Mamba</h3>
+      <h4>Option 2: Conda / Mamba</h4>
       <pre><code>mamba create -n crisprme python=3.9 crisprme -y
 mamba activate crisprme
 crisprme.py --version
 crisprme.py web-interface</code></pre>
 
-      <p class="note">Then open the following URL in a browser (Chrome, Firefox, or Safari): <code>http://127.0.0.1:8080</code>.</p>
+      <p>
+        After the server starts, open your browser and navigate to:
+      </p>
+
+      <pre><code>http://127.0.0.1:8080</code></pre>
+
+      <p>
+        Supported browsers include Chrome, Firefox, and Safari.
+      </p>
+      
+      <div class="note">
+        <strong>Important:</strong> Start the web interface from a valid CRISPRme
+        working directory containing the expected folders
+        (<code>Genomes/</code>, <code>VCFs/</code>, <code>PAMs/</code>,
+        <code>Annotations/</code>, etc.), otherwise datasets and configuration
+        files will not be detected.
+      </div>
     </section>
 
-    <section aria-labelledby="test-heading">
-      <h2 id="test-heading">Quick test</h2>
-      <p>Verify the installation with a small-scale test on chromosome 22 using the 1000 Genomes dataset:</p>
-      <pre><code>crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G</code></pre>
-    </section>
+    <section aria-labelledby="resources-heading">
+      <h2 id="resources-heading">Advanced Resources &amp; Documentation</h2>
+
+      <p>
+        The quick-start guide above is sufficient to get the local web interface
+        running. For detailed usage instructions, advanced configuration options,
+        and complete workflow documentation, consult the guides below.
+      </p>
+
+      <div class="resource-grid">
+
+        <div class="resource-card">
+          <h3>Web Interface User Guide</h3>
+          <p>
+            Learn how to configure analyses, monitor jobs, explore results,
+            generate personal risk cards, and use all visualization and reporting
+            features available through the graphical interface.
+          </p>
+          <p>
+            <a href="crisprme_web_interface_user_guide.md">
+              Open Detailed User Guide
+            </a>
+          </p>
+        </div>
+
+      <div class="resource-card">
+        <h3>CLI Setup &amp; Usage Guide</h3>
+        <p>
+          Complete documentation for installation, dataset management,
+          command-line workflows, custom VCF integration, PAM definition,
+          automation, and large-scale analyses.
+        </p>
+        <p>
+          <a href="crisprme_data_setup_051826.md">
+            Open CLI Guide
+          </a>
+        </p>
+      </div>
+
+    </div>
+  </section>
 
     <section aria-labelledby="docs-heading">
       <h2 id="docs-heading">Documentation</h2>
