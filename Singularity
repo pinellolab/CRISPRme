@@ -21,7 +21,7 @@ From: mambaorg/micromamba
     micromamba install -y -n base -c conda-forge -c bioconda \
         python=3.8 \
         crispritz=2.7.0 \
-        crisprme=2.1.9 && \
+        crisprme=2.1.10 && \
     micromamba clean --all --yes
 
 
