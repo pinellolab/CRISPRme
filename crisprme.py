@@ -676,7 +676,7 @@ def _sort_annotation(annotationfile: str) -> str:
     """
     annotationfile_sorted = _sort_bed(annotationfile, f"{annotationfile}.tmp.sorted.bed")
     annotationfile_sorted_bgzip = _compress_file(annotationfile_sorted)
-    return _mv_file(annotationfile_sorted_bgzip, annotationfile)
+    return _mv_file(annotationfile_sorted_bgzip, f"{annotationfile}.gz")
 
 
 def _check_annotation(args: List[str], annotation: bool) -> str:
@@ -773,9 +773,10 @@ def _process_personal_annotation(personal_annotationfile: str, annotationfile: s
     concat_annotationfile_sorted = f"{concat_annotationfile}.sorted.bed"
     concat_annotationfile_sorted = _sort_bed(concat_annotationfile, concat_annotationfile_sorted)
     concat_annotationfile_bgzip = _compress_file(concat_annotationfile_sorted)
-    _rm_files([concat_annotationfile])
-    assert os.path.isfile(concat_annotationfile_bgzip)
-    return concat_annotationfile_bgzip
+    concat_annotationfile = _mv_file(concat_annotationfile_bgzip, f"{concat_annotationfile}.gz")
+    _rm_files([concat_annotationfile_bgzip])
+    assert os.path.isfile(concat_annotationfile)
+    return concat_annotationfile
     
 
 def _check_personal_annotation(args: List[str], annotationfile: str, personal_annotation: bool) -> str:
@@ -805,6 +806,8 @@ def _check_personal_annotation(args: List[str], annotationfile: str, personal_an
         error("Missing input for --personal_annotation. Annotation file must be specified")
     if not os.path.isfile(personal_annotationfile):
         error("The file specified for --personal_annotation does not exist")
+    if annotationfile.endswith(".gz"):
+        annotationfile = annotationfile[:-3]
     return _process_personal_annotation(personal_annotationfile, annotationfile)
 
 def _check_samples_ids(args: List[str], variant: bool) -> str:

@@ -376,7 +376,7 @@ def _retrieve_ann_data(annotation_dir: str, url: str, fname: str) -> str:
     annfile_tar = download(annotation_dir, http_url=os.path.join(TESTDATAURL, url))
     if MD5ANNOTATION[os.path.basename(annfile_tar)] != compute_md5(annfile_tar):
         raise ValueError(f"Download for {os.path.basename(annfile_tar)} failed")
-    return _bgzip_ann_data(os.path.join(untar(annfile_tar, annotation_dir), fname))
+    return os.path.join(untar(annfile_tar, annotation_dir), fname)
 
 
 def ensure_pams_directory(dest: str) -> str:
@@ -514,10 +514,10 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
 
     check_crisprme_directory_tree(os.getcwd())  # check crisprme directory tree
     check_output()  # check complete-test output folder
-    download_genome_data(chrom, CRISPRME_DIRS[0])  # download genome data
+    # download_genome_data(chrom, CRISPRME_DIRS[0])  # download genome data
     download_vcf_data(chrom, CRISPRME_DIRS[3], dataset)  # download vcf data
     vcf = write_vcf_config(dataset)  # write test vcf list
-    download_samples_ids_data(dataset)  # download vcf dataset samples ids
+    # download_samples_ids_data(dataset)  # download vcf dataset samples ids
     samplesids = write_samplesids_config(dataset)  # write test samples ids list
     # download gencode and encode annotation data
     gencode, encode = download_annotation_data()
