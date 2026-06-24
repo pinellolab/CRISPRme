@@ -277,7 +277,7 @@ def download_samples_ids_data(dataset: str) -> None:
         )
         if MD5SAMPLES[os.path.basename(samplesids)] != compute_md5(samplesids):
             raise ValueError(f"Download for {os.path.basename(samplesids)} failed")
-
+        rename(samplesids, os.path.join(samplesids_dir, f"hg38_{ds}.samplesID.txt"))
 
 def ensure_annotation_directory(dest: str) -> str:
     """
@@ -483,13 +483,11 @@ def write_samplesids_config(dataset: str) -> str:
     # configure sample ids list
     sys.stderr.write(f"Creating samples config file for dataset(s) {dataset}\n")
     samples_config = "samplesIDs.config.test.txt"
+    fname_map = {"1000G": "hg38_1000G.samplesID.txt", "HGDP": "hg38_HGDP.samplesID.txt"}
     try:
         with open(samples_config, mode="w") as outfile:
             for ds in dataset.split("+"):
-                samplesidslist = (
-                    "samplesIDs.1000G.txt" if ds == "1000G" else "samplesIDs.HGDP.txt"
-                )
-                outfile.write(f"{samplesidslist}\n")
+                outfile.write(f"{fname_map[ds]}\n")
     except IOError as e:
         raise IOError("An error occurred while writing the test VCF list") from e
     return samples_config
@@ -517,7 +515,7 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
     # download_genome_data(chrom, CRISPRME_DIRS[0])  # download genome data
     download_vcf_data(chrom, CRISPRME_DIRS[3], dataset)  # download vcf data
     vcf = write_vcf_config(dataset)  # write test vcf list
-    # download_samples_ids_data(dataset)  # download vcf dataset samples ids
+    download_samples_ids_data(dataset)  # download vcf dataset samples ids
     samplesids = write_samplesids_config(dataset)  # write test samples ids list
     # download gencode and encode annotation data
     gencode, encode = download_annotation_data()
@@ -526,7 +524,7 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
     debug_arg = "--debug" if debug else ""
     # TODO: replace call to local crisprme
     crisprme_cmd = (
-        f"crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
+        f"python crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
         f"--thread 4 --bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
         f"--gene_annotation {gencode} --output {COMPLETETESTRESDIR} --thread {threads} "

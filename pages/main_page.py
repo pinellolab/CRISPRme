@@ -45,7 +45,7 @@ from app import (
 
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -125,7 +125,7 @@ def split_filter_part(filter_part: str) -> Tuple:
     ],
     [Input("load-example-button", "n_clicks")],
 )
-def load_example_data(load_button_click: int) -> List[str]:
+def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     """Load data for CRISPRme example run.
 
     ...
