@@ -228,7 +228,7 @@ def _download_full_genome_data(genomes_dir: Path, force: bool) -> None:
 
 
 def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
-    chrom_dir = genomes_dir / "hg38"
+    chrom_dir = genomes_dir / f"hg38_{chrom}"
     fa_path = chrom_dir / f"{chrom}.fa"
     archive_basename = f"{chrom}.fa.gz"
     if not force and _file_is_valid(fa_path):
