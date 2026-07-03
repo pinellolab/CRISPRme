@@ -228,7 +228,7 @@ def _download_full_genome_data(genomes_dir: Path, force: bool) -> None:
 
 
 def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> None:
-    chrom_dir = genomes_dir / "hg38"
+    chrom_dir = genomes_dir / f"hg38_{chrom}"
     fa_path = chrom_dir / f"{chrom}.fa"
     archive_basename = f"{chrom}.fa.gz"
     if not force and _file_is_valid(fa_path):
@@ -530,6 +530,16 @@ def _write_all_pam_files(base_dir: Path) -> Dict[str, Path]:
     return written
 
 
+def _write_sg1617_file(base_dir: Path) -> None:
+    sys.stdout.write(f"Creating sg1617 data\n")
+    sg1617_filename = "sg1617.txt"
+    sg1617_path = base_dir / sg1617_filename
+    try:
+        sg1617_path.write_text(f"CTAACAGTTGCTTTTATCACNNN\n", encoding="utf-8")
+    except IOError as exc:
+        raise IOError(f"Failed to write sg1617 file {sg1617_path}") from exc
+
+
 # ==============================================================================
 # public entry point
 # ==============================================================================
@@ -548,6 +558,7 @@ def run_legacy_database_setup(chrom: str, base_dir: Path, force: bool) -> None:
     _write_samplesids_config(base_dir)  # samples ids config file
     _download_annotation_data(base_dir, force)  # annotations data
     _write_all_pam_files(base_dir)  # pam files
+    _write_sg1617_file(base_dir)  # sg1617 guide file
 
 
 # ==============================================================================

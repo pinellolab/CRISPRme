@@ -45,7 +45,7 @@ from app import (
 
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -125,7 +125,7 @@ def split_filter_part(filter_part: str) -> Tuple:
     ],
     [Input("load-example-button", "n_clicks")],
 )
-def load_example_data(load_button_click: int) -> List[str]:
+def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     """Load data for CRISPRme example run.
 
     ...
@@ -147,9 +147,9 @@ def load_example_data(load_button_click: int) -> List[str]:
         "20bp-NGG-SpCas9",  # Editor to use
         "hg38",  # ref genome to use
         ["1000G"],  # VCF to use
-        "6",  # MM
-        "2",  # DNA bulges
-        "2",  # RNA bulges
+        "4",  # MM
+        "1",  # DNA bulges
+        "1",  # RNA bulges
         "4",  # start window in base editor
         "8",  # stop window in base editor
         "A",  # nt to check in base editor

@@ -5,8 +5,8 @@ command-line tool. It includes functions for managing directories, downloading d
 from various sources, and configuring test parameters.
 
 Key functions include:
-- `ensure_hg38_directory`: Ensures the existence of the 'hg38' directory within the
-    specified destination.
+- `_assign_genome_directory_name`: Resolves the genome subdirectory name for the 
+    requested chromosome selection.
 - `download_genome_data`: Downloads genome data for a specified chromosome to the
     destination directory.
 - `ensure_vcf_dataset_directory`: Ensures the existence of a directory for a specific
@@ -48,7 +48,7 @@ from utils import (
     MD5ANNOTATION,
 )
 
-from typing import Tuple, NoReturn
+from typing import Tuple
 
 import subprocess
 import sys
@@ -102,64 +102,72 @@ def check_output() -> None:
         sys.exit(0)  # avoid throwing complete-search error on output folder
 
 
-def ensure_hg38_directory(dest: str) -> str:
-    """
-    Ensure the existence of the 'hg38' directory within the specified destination
-    directory.
+def _assign_genome_directory_name(chrom: str) -> str:
+    """Return the genome subdirectory name for a chromosome selection.
+
+    The whole-genome build (``chrom == "all"``) lives in ``hg38``; a
+    single-chromosome build lives in ``hg38_<chrom>`` so per-chromosome test
+    assets stay isolated from a full build.
 
     Args:
-        dest (str): The destination directory where the 'hg38' directory should
-            be created.
+        chrom (str): Chromosome in UCSC format (e.g. "chr22"), or "all".
 
     Returns:
-        str: The path to the 'hg38' directory.
+        str: Genome subdirectory name (e.g. "hg38" or "hg38_chr22").
     """
-
-    hg38_dir = os.path.join(dest, "hg38")
-    if not os.path.exists(hg38_dir):  # create hg38 directory within Genomes
-        os.mkdir(hg38_dir)
-    return hg38_dir
+    return "hg38" if chrom == "all" else f"hg38_{chrom}"
 
 
-def download_genome_data(chrom: str, dest: str) -> None:
+def download_genome_data(chrom: str, dest: str) -> str:
     """
-    Download genome data for a specified chromosome to the destination directory.
+    Download genome data for the requested chromosome selection and return the
+    directory containing the resulting FASTA file(s).
+
+    The whole-genome build (``chrom == "all"``) is stored in ``<dest>/hg38``.
+    A single-chromosome build is stored in ``<dest>/hg38_<chrom>``.
+
+    Note on coordinates: this function only handles file placement; the FASTA
+    payload is UCSC hg38 (1-based, closed genomic coordinates) and is not
+    modified here.
 
     Args:
-        chrom (str): The chromosome identifier in UCSC format.
-        dest (str): The destination directory to save the downloaded genome data.
+        chrom (str): Chromosome in UCSC format (e.g. "chr22"), or "all".
+        dest (str): The CRISPRme "Genomes" directory in which to create the
+            genome directory.
 
     Returns:
-        None
+        str: Absolute path to the genome directory to pass to
+            ``crisprme.py complete-search --genome``.
 
     Raises:
-        ValueError: If the input chromosome is not valid.
+        ValueError: If the chromosome is invalid or an MD5 check fails.
         FileExistsError: If the destination directory does not exist.
     """
-
     # assume chromosomes given in UCSC format (chr1, chr2, etc.)
     if chrom not in CHROMS + ["all"]:
         raise ValueError(f"Forbidden input chromosome ({chrom})")
     if not os.path.isdir(dest):  # check dest directory existence
         raise FileExistsError(f"Unable to locate {dest}")
     sys.stderr.write(f"Downloading fasta file for chromosome(s) {chrom}\n")
+    genome_dir = os.path.join(dest, _assign_genome_directory_name(chrom))
     if chrom == "all":
         chromstar = download(dest, http_url=f"{HG38URL}/bigZips/hg38.chromFa.tar.gz")
         # check genome md5
         if MD5GENOME[os.path.basename(chromstar)] != compute_md5(chromstar):
             raise ValueError(f"Download for {os.path.basename(chromstar)} failed")
         chromsdir = untar(chromstar, dest, "chroms")  # decompress archive
-        # rename chroms dir to hg38
-        chromsdir = rename(chromsdir, os.path.join(os.path.dirname(chromsdir), "hg38"))
-        assert os.path.isdir(chromsdir)
+        # rename extracted chroms dir -> Genomes/hg38
+        genome_dir = rename(chromsdir, genome_dir)
+        assert os.path.isdir(genome_dir)  # was asserting the pre-rename path
     else:
         chromgz = download(dest, http_url=f"{HG38URL}/chromosomes/{chrom}.fa.gz")
-        dest = ensure_hg38_directory(dest)  # create hg38 directory
+        os.makedirs(genome_dir, exist_ok=True)  # create Genomes/hg38_{chrom}
         chromfa = gunzip(
             chromgz,
-            os.path.join(dest, f"{os.path.splitext(os.path.basename(chromgz))[0]}"),
+            os.path.join(genome_dir, os.path.splitext(os.path.basename(chromgz))[0]),
         )  # decompress chrom FASTA
         assert os.path.isfile(chromfa)
+    return os.path.abspath(genome_dir)
 
 
 def ensure_vcf_dataset_directory(dest: str, dataset: str) -> str:
@@ -277,7 +285,7 @@ def download_samples_ids_data(dataset: str) -> None:
         )
         if MD5SAMPLES[os.path.basename(samplesids)] != compute_md5(samplesids):
             raise ValueError(f"Download for {os.path.basename(samplesids)} failed")
-
+        rename(samplesids, os.path.join(samplesids_dir, f"hg38_{ds}.samplesID.txt"))
 
 def ensure_annotation_directory(dest: str) -> str:
     """
@@ -323,35 +331,6 @@ def download_annotation_data() -> Tuple[str, str]:
     return gencode, encode
 
 
-def _bgzip_ann_data(ann_fname: str) -> str:
-    """
-    Compress an annotation file using bgzip and verify the output.
-
-    This function calls the bgzip utility to compress the specified annotation file,
-    checks that the compressed file exists, and returns its path. It raises an error
-    if the compression fails.
-
-    Args:
-        ann_fname (str): The path to the annotation file to be compressed.
-
-    Returns:
-        str: The path to the compressed annotation file.
-
-    Raises:
-        subprocess.SubprocessError: If bgzip compression fails.
-    """
-
-    try:
-        subprocess.call(f"bgzip -f {ann_fname}", shell=True)
-    except (subprocess.SubprocessError, Exception) as e:
-        raise subprocess.SubprocessError(
-            f"Bgzip compression failed on {ann_fname}"
-        ) from e
-    ann_fname_gz = f"{ann_fname}.gz"
-    assert os.path.isfile(ann_fname_gz)  # check that the bgzipped bed exists
-    return ann_fname_gz
-
-
 def _retrieve_ann_data(annotation_dir: str, url: str, fname: str) -> str:
     """
     Download and extract an annotation file, then compress it with bgzip.
@@ -376,7 +355,7 @@ def _retrieve_ann_data(annotation_dir: str, url: str, fname: str) -> str:
     annfile_tar = download(annotation_dir, http_url=os.path.join(TESTDATAURL, url))
     if MD5ANNOTATION[os.path.basename(annfile_tar)] != compute_md5(annfile_tar):
         raise ValueError(f"Download for {os.path.basename(annfile_tar)} failed")
-    return _bgzip_ann_data(os.path.join(untar(annfile_tar, annotation_dir), fname))
+    return os.path.join(untar(annfile_tar, annotation_dir), fname)
 
 
 def ensure_pams_directory(dest: str) -> str:
@@ -483,13 +462,11 @@ def write_samplesids_config(dataset: str) -> str:
     # configure sample ids list
     sys.stderr.write(f"Creating samples config file for dataset(s) {dataset}\n")
     samples_config = "samplesIDs.config.test.txt"
+    fname_map = {"1000G": "hg38_1000G.samplesID.txt", "HGDP": "hg38_HGDP.samplesID.txt"}
     try:
         with open(samples_config, mode="w") as outfile:
             for ds in dataset.split("+"):
-                samplesidslist = (
-                    "samplesIDs.1000G.txt" if ds == "1000G" else "samplesIDs.HGDP.txt"
-                )
-                outfile.write(f"{samplesidslist}\n")
+                outfile.write(f"{fname_map[ds]}\n")
     except IOError as e:
         raise IOError("An error occurred while writing the test VCF list") from e
     return samples_config
@@ -514,7 +491,7 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
 
     check_crisprme_directory_tree(os.getcwd())  # check crisprme directory tree
     check_output()  # check complete-test output folder
-    download_genome_data(chrom, CRISPRME_DIRS[0])  # download genome data
+    genome_dir = download_genome_data(chrom, CRISPRME_DIRS[0])  # download genome data
     download_vcf_data(chrom, CRISPRME_DIRS[3], dataset)  # download vcf data
     vcf = write_vcf_config(dataset)  # write test vcf list
     download_samples_ids_data(dataset)  # download vcf dataset samples ids
@@ -526,8 +503,8 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
     debug_arg = "--debug" if debug else ""
     # TODO: replace call to local crisprme
     crisprme_cmd = (
-        f"crisprme.py complete-search --genome {CRISPRME_DIRS[0]}/hg38 "
-        f"--thread 4 --bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
+        f"crisprme.py complete-search --genome {genome_dir} "
+        f"--bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
         f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
         f"--gene_annotation {gencode} --output {COMPLETETESTRESDIR} --thread {threads} "
         f"{debug_arg} --ci-cd-test"
