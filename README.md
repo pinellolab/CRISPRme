@@ -195,9 +195,9 @@ desired version number:
 mamba install crisprme=<latest_version>  # Update CRISPRme to the specified version
 ```
 
-For example, to update CRISPRme to version `2.1.6`, execute:
+For example, to update CRISPRme to version `2.1.11`, execute:
 ```bash
-mamba install crisprme=2.1.6
+mamba install crisprme=2.1.11
 ```
 If you're using `Conda`, replace `mamba` with `conda` in the commands above.
 
