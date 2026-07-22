@@ -24,6 +24,13 @@
 #   ${15}: Current working directory path.
 #   ${16}: Gene proximity file path.
 #   ${17}: Email address for notifications.
+#   ${18}: Base check start (base editing window).
+#   ${19}: Base check end (base editing window).
+#   ${20}: Base check set (base editing bases).
+#   ${21}: Sorting criteria for scoring columns.
+#   ${22}: Sorting criteria (mm+bulges) columns.
+#   ${23}: CI/CD test mode flag.
+#   ${24}: Comma-separated VCF FILTER values to treat as passing (default "PASS,.").
 #
 # Returns:
 #   Generates various output files including target lists, merged results, and a database.
@@ -62,6 +69,9 @@ sorting_criteria=${22}
 
 # CI/CD test mode
 cicd_test=${23}
+
+# Comma-separated VCF FILTER values to treat as passing (default "PASS,.")
+vcf_filter_pass_values="${24:-PASS,.}"
 
 # log files
 log="$output_folder/log.txt"
@@ -168,22 +178,26 @@ while read vcf_f; do
 	# START STEP 1 - Genome enrichment
 	if [ "$vcf_name" != "_" ]; then
 		enriched_folder="$current_working_directory/Genomes/${ref_name}+${vcf_name}"
-		variants_tmp="$current_working_directory/Genomes/variants_genome"
+		_run_tmp=$(mktemp -d "$current_working_directory/Genomes/run_XXXXXX")
+		variants_tmp="$_run_tmp/variants_genome"
 		dict_folder="$current_working_directory/Dictionaries/dictionaries_${vcf_name}/"
 		indel_dict_folder="$current_working_directory/Dictionaries/log_indels_${vcf_name}/"
 		indels_out="$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS"
 
-		if ! [ -d "$enriched_folder" ]; then
+		_lock="$enriched_folder.lock"
+		if ! [ -d "$enriched_folder" ] && mkdir "$_lock" 2>/dev/null; then
+			# only one process enters here; mkdir is atomic
 			echo -e 'Add-variants\tStart\t'$(date) >>$log
 			echo -e "Adding variants"
-			
-			# enrich genome using crispritz
-			cd "$current_working_directory/Genomes"
-			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true" 
+
+			# enrich genome using crispritz (run from unique temp dir so crispritz's
+			# fixed-name variants_genome/ output does not collide with concurrent runs)
+			cd "$_run_tmp"
+			crispritz.py add-variants "$vcf_folder/" "$ref_folder/" "true"
 			if [ -s $logerror ]; then
 				printf "ERROR: Genome enrichment failed on %s\n" "$vcf_name" >&2
-				# since failure happened, force genome enrichment to be repeated
-				rm -r "$enriched_folder"* "$variants_tmp"
+				rm -rf "$_run_tmp"
+				rmdir "$_lock"
 				exit 1
 			fi
 
@@ -201,12 +215,18 @@ while read vcf_f; do
 			mv $variants_tmp/SNPs_genome/*.json "$dict_folder"
 			mv $variants_tmp/SNPs_genome/log*.txt "$indel_dict_folder"
 
-			# remove temporary variant genome folder
-			rm -r "$variants_tmp"
+			# remove unique temp dir (variants_genome lives inside it)
+			rm -rf "$_run_tmp"
 
+			rmdir "$_lock"
 			echo -e 'Add-variants\tEnd\t'$(date) >>"$log"
+		elif [ -d "$_lock" ]; then
+			echo "Another run is building $enriched_folder — waiting..."
+			while [ -d "$_lock" ]; do sleep 5; done
+			rm -rf "$_run_tmp"
 		else
 			echo -e "Variants already added"
+			rm -rf "$_run_tmp"
 		fi
 
 		cd $current_working_directory
@@ -246,17 +266,24 @@ while read vcf_f; do
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
 		idx_ref="$idx_folder3"
 	else
-		# no valid index found, compute it
-		echo -e 'Index-genome Reference\tStart\t'$(date) >>$log
-		echo -e "Indexing reference genome"
-		# index reference genome using crispritz
-		crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
-		if [ -s $logerror ]; then
-			printf "ERROR: reference genome indexing failed\n" >&2
-			[ -d "$idx_folder1" ] && rm -r "$idx_folder1"
-			exit 1
+		# no valid index found, compute it; use mkdir lock to prevent concurrent builds
+		_lock="${idx_folder1}.lock"
+		if mkdir "$_lock" 2>/dev/null; then
+			echo -e 'Index-genome Reference\tStart\t'$(date) >>$log
+			echo -e "Indexing reference genome"
+			# index reference genome using crispritz
+			crispritz.py index-genome "$ref_name" "$ref_folder/" "$pam_file" -bMax $bMax -th $ncpus
+			if [ -s $logerror ]; then
+				printf "ERROR: reference genome indexing failed\n" >&2
+				[ -d "$idx_folder1" ] && rm -r "$idx_folder1"
+				rmdir "$_lock"
+				exit 1
+			fi
+			rmdir "$_lock"
+		elif [ -d "$_lock" ]; then
+			echo "Another run is indexing $idx_folder1 — waiting..."
+			while [ -d "$_lock" ]; do sleep 5; done
 		fi
-		pid_index_ref=$!
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>$log
 		idx_ref="$idx_folder1"
 	fi
@@ -284,21 +311,28 @@ while read vcf_f; do
 			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
 			idx_var="$idx_folder3"
 		else
-			# no index found, compute it
-			echo -e 'Index-genome Variant\tStart\t'$(date) >>$log
-			echo -e "Indexing variant genome"
-			# index alternative genome using crispritz
-			crispritz.py index-genome \
-				"${ref_name}+${vcf_name}" \
-				"$current_working_directory/Genomes/${ref_name}+${vcf_name}/" \
-				"$pam_file" \
-				-bMax $bMax -th $ncpus
-			if [ -s "$logerror" ]; then
-				printf "ERROR: alternative genome indexing failed on %s\n" "$vcf_name" >&2
-				[ -d "$idx_folder1" ] && rm -r "$idx_folder1"
-				exit 1
+			# no index found, compute it; use mkdir lock to prevent concurrent builds
+			_lock="${idx_folder1}.lock"
+			if mkdir "$_lock" 2>/dev/null; then
+				echo -e 'Index-genome Variant\tStart\t'$(date) >>$log
+				echo -e "Indexing variant genome"
+				# index alternative genome using crispritz
+				crispritz.py index-genome \
+					"${ref_name}+${vcf_name}" \
+					"$current_working_directory/Genomes/${ref_name}+${vcf_name}/" \
+					"$pam_file" \
+					-bMax $bMax -th $ncpus
+				if [ -s "$logerror" ]; then
+					printf "ERROR: alternative genome indexing failed on %s\n" "$vcf_name" >&2
+					[ -d "$idx_folder1" ] && rm -r "$idx_folder1"
+					rmdir "$_lock"
+					exit 1
+				fi
+				rmdir "$_lock"
+			elif [ -d "$_lock" ]; then
+				echo "Another run is indexing $idx_folder1 — waiting..."
+				while [ -d "$_lock" ]; do sleep 5; done
 			fi
-			pid_index_var=$!
 			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
 			idx_var="$idx_folder1"
 		fi
@@ -308,23 +342,32 @@ while read vcf_f; do
 		indels_out="$current_working_directory/Genomes/${ref_name}+${vcf_name}_INDELS"
 
 		if ! [ -d "$indels_index_dir" ]; then
-			echo -e 'Indexing Indels\tStart\t'$(date) >>"$log"
-			"$starting_dir/pool_index_indels.py" \
-				"$indels_out/" \
-				"$pam_file" \
-				"$true_pam" \
-				"$ref_name" \
-				"$vcf_name" \
-				"$bMax" \
-				"$ncpus"
+			# use mkdir lock to prevent concurrent builds
+			_lock="${indels_index_dir}.lock"
+			if mkdir "$_lock" 2>/dev/null; then
+				echo -e 'Indexing Indels\tStart\t'$(date) >>"$log"
+				"$starting_dir/pool_index_indels.py" \
+					"$indels_out/" \
+					"$pam_file" \
+					"$true_pam" \
+					"$ref_name" \
+					"$vcf_name" \
+					"$bMax" \
+					"$ncpus"
 
-			if [ -s "$logerror" ]; then
-				printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
-				[ -d "$indels_index_dir" ] && rm -r "$indels_index_dir"
-				exit 1
+				if [ -s "$logerror" ]; then
+					printf "ERROR: indels indexing failed on %s\n" "$vcf_name" >&2
+					[ -d "$indels_index_dir" ] && rm -r "$indels_index_dir"
+					rmdir "$_lock"
+					exit 1
+				fi
+
+				rmdir "$_lock"
+				echo -e 'Indexing Indels\tEnd\t'$(date) >>"$log"
+			elif [ -d "$_lock" ]; then
+				echo "Another run is indexing $indels_index_dir — waiting..."
+				while [ -d "$_lock" ]; do sleep 5; done
 			fi
-
-			echo -e 'Indexing Indels\tEnd\t'$(date) >>"$log"
 		else
 			echo "Indels Index already present"
 		fi
