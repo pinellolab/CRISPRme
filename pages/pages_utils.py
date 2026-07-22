@@ -1232,6 +1232,31 @@ def sort_annotation(annotationfile: str) -> str:
     Raises:
         SystemExit: If decompression, sorting, compression, or renaming fails.
     """
-    annotationfile_sorted = _sort_bed(annotationfile, f"{annotationfile}.tmp.sorted.bed")
+    if annotationfile.endswith(".gz"):
+        gz_path, plain_path = annotationfile, annotationfile[:-3]
+    else:
+        gz_path, plain_path = f"{annotationfile}.gz", annotationfile
+    decompressed_here = False
+    if not os.path.isfile(plain_path):
+        if os.path.isfile(gz_path):
+            _decompress_file(gz_path, plain_path)
+            decompressed_here = True
+        else:
+            raise subprocess.SubprocessError(
+                f"Annotation file not found: {annotationfile}"
+            )
+    annotationfile_sorted = _sort_bed(plain_path, f"{plain_path}.tmp.sorted.bed")
     annotationfile_sorted_bgzip = compress_file(annotationfile_sorted)
-    return _mv_file(annotationfile_sorted_bgzip, f"{annotationfile}.gz")
+    result = _mv_file(annotationfile_sorted_bgzip, gz_path)
+    if decompressed_here and os.path.isfile(plain_path):
+        subprocess.call(f"rm {plain_path}", shell=True)
+    return result
+
+
+def _decompress_file(fname: str, outfname: str) -> str:
+    """Decompresses a bgzipped file to a specified output file."""
+    code = subprocess.call(f"gunzip -k -c {fname} > {outfname}", shell=True)
+    if code != 0:
+        raise subprocess.SubprocessError("Decompressing annotation file failed")
+    assert os.path.isfile(outfname)
+    return outfname

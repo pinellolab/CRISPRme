@@ -509,7 +509,13 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
         f"--gene_annotation {gencode} --output {COMPLETETESTRESDIR} --thread {threads} "
         f"{debug_arg} --ci-cd-test"
     )
-    subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
+    returncode = subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
+    if returncode != 0:
+        sys.stderr.write(
+            "ERROR: complete-test failed during complete-search "
+            f"(exit code {returncode}). See the log output above.\n"
+        )
+        sys.exit(returncode)
 
 
 def main():
