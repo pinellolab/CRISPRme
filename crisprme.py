@@ -36,6 +36,9 @@ if "--debug" in input_args:
     script_path = current_working_directory + "PostProcess/"
     corrected_web_path = current_working_directory
 
+sys.path.insert(0, script_path)
+from validate_inputs import run_lightweight, run_full, resolve_vcf_dataset_dirs  # noqa: E402
+
 cicd_test = False
 if "--ci-cd-test" in input_args:
     cicd_test = True
@@ -296,7 +299,11 @@ def print_help_complete_search() -> None:
         "'bulges', or 'mm+bulges' [default: 'mm+bulges,mm']\n"
         "\t--output, specify the output folder name; results will be saved in "
         "Results/<name> [REQUIRED]\n"
-        "\t--thread, set number of threads to use [default: 8]\n")
+        "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--full_input_validate, also run a full per-VCF-record scan (chromosome "
+        "coverage, AF/FILTER consistency, POS bounds, multiallelic/breakend/"
+        "duplicate/phasing survey) before launching the search; slower than the "
+        "default lightweight checks, so opt-in [OPTIONAL]\n")
     sys.exit(1)
 
 
@@ -1156,6 +1163,7 @@ def complete_search() -> None:
                 raise ValueError("Please input a value for flag --vcf-filter-pass-values")
         except IndexError as e:
             raise ValueError("Missing input for --vcf-filter-pass-values") from e
+    full_input_validate = "--full_input_validate" in args
 
     # extract pam seq from file
     pam_len = 0
@@ -1295,6 +1303,36 @@ def complete_search() -> None:
     void_mail = "_"
     if sequence_use == False:
         os.system(f"cp {guidefile} {outputfolder}/guides.txt")
+
+    # pre-flight input validation (lightweight tier, always on): catches
+    # misconfigurations that would otherwise only surface deep into the run
+    vcf_dataset_dirs = (
+        resolve_vcf_dataset_dirs(vcfdir, current_working_directory) if variant else []
+    )
+    validation_report = run_lightweight(
+        genomedir,
+        vcf_dataset_dirs,
+        os.path.join(outputfolder, "guides.txt"),
+        pamfile,
+        annotationfile,
+        gene_annotation,
+        samplefile,
+        vcfdir if variant else None,
+    )
+    sys.stderr.write(validation_report.render())
+
+    # opt-in full-file scan (--full_input_validate): slower, so only runs on
+    # request; still checked before the pipeline subprocess launches
+    full_validation_report = None
+    if full_input_validate and variant:
+        full_validation_report = run_full(genomedir, vcf_dataset_dirs)
+        sys.stderr.write(full_validation_report.render())
+
+    if validation_report.has_errors() or (
+        full_validation_report is not None and full_validation_report.has_errors()
+    ):
+        sys.exit(1)
+
     print(
         f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt"
     )
