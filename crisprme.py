@@ -1319,14 +1319,14 @@ def complete_search() -> None:
         samplefile,
         vcfdir if variant else None,
     )
-    sys.stderr.write(validation_report.render())
+    validation_report.write()
 
     # opt-in full-file scan (--full_input_validate): slower, so only runs on
     # request; still checked before the pipeline subprocess launches
     full_validation_report = None
     if full_input_validate and variant:
         full_validation_report = run_full(genomedir, vcf_dataset_dirs)
-        sys.stderr.write(full_validation_report.render())
+        full_validation_report.write()
 
     if validation_report.has_errors() or (
         full_validation_report is not None and full_validation_report.has_errors()

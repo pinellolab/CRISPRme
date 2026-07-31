@@ -17,7 +17,9 @@ check). Fixtures are built on the fly under ``tempfile.TemporaryDirectory()``
 so the suite is fully self-contained and leaves nothing behind.
 """
 
+import contextlib
 import gzip
+import io
 import os
 import sys
 import tempfile
@@ -156,6 +158,35 @@ class TestValidationReport(unittest.TestCase):
         text = report.render()
         self.assertIn("FAILED", text)
         self.assertNotIn("PASSED", text)
+
+    def test_write_clean_report_goes_to_stdout_not_stderr(self):
+        report = vi.ValidationReport("T")
+        report.ok("fine")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            report.write()
+        self.assertIn("Result: PASSED", out.getvalue())
+        self.assertEqual(err.getvalue(), "")
+
+    def test_write_warn_only_report_goes_to_stdout_not_stderr(self):
+        # WARN is non-fatal — must not land on stderr, which the rest of the
+        # pipeline treats as a fatal signal regardless of content (issue #94).
+        report = vi.ValidationReport("T")
+        report.add([vi.Issue(vi.WARN, "w1")])
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            report.write()
+        self.assertIn("[WARN] w1", out.getvalue())
+        self.assertEqual(err.getvalue(), "")
+
+    def test_write_error_report_goes_to_stderr_not_stdout(self):
+        report = vi.ValidationReport("T")
+        report.add([vi.Issue(vi.ERROR, "e1")])
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            report.write()
+        self.assertIn("[ERROR] e1", err.getvalue())
+        self.assertEqual(out.getvalue(), "")
 
 
 # ===========================================================================

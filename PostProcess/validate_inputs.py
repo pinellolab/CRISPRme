@@ -21,6 +21,7 @@ from typing import Dict, List, NamedTuple, Optional, Tuple
 
 import gzip
 import os
+import sys
 
 ERROR = "ERROR"
 WARN = "WARN"
@@ -104,6 +105,18 @@ class ValidationReport:
 
     def has_errors(self) -> bool:
         return self._error_count > 0
+
+    def write(self) -> None:
+        """Writes the rendered report to the appropriate stream.
+
+        Goes to stderr only when the report contains an error (the run is
+        about to abort); otherwise goes to stdout, since a clean or
+        warning-only report doesn't block anything and shouldn't be mistaken
+        for a failure signal by callers that treat stderr output as fatal
+        (see issue #94).
+        """
+        stream = sys.stderr if self.has_errors() else sys.stdout
+        stream.write(self.render())
 
     def render(self) -> str:
         """Renders the accumulated lines into the final report text."""
@@ -1154,10 +1167,10 @@ if __name__ == "__main__":
         ns.samplesID,
         ns.vcf,
     )
-    print(result.render())
+    result.write()
     has_errors = result.has_errors()
     if ns.full_input_validate:
         full_result = run_full(ns.genome, vcf_dirs)
-        print(full_result.render())
+        full_result.write()
         has_errors = has_errors or full_result.has_errors()
     raise SystemExit(1 if has_errors else 0)
