@@ -208,6 +208,26 @@ class TestAfField(unittest.TestCase):
         self.assertEqual(vi._af_field("DP=10;AC=2"), (None, None))
 
 
+class TestAfValueParsesAsNumeric(unittest.TestCase):
+    def test_simple_numeric_value(self):
+        self.assertTrue(vi._af_value_parses_as_numeric("AF=0.1;DP=10", 0))
+
+    def test_multiallelic_comma_separated_values(self):
+        self.assertTrue(vi._af_value_parses_as_numeric("AF=0.1,0.05", 0))
+
+    def test_missing_value_dot(self):
+        self.assertFalse(vi._af_value_parses_as_numeric("AF=.", 0))
+
+    def test_empty_value(self):
+        self.assertFalse(vi._af_value_parses_as_numeric("AF=", 0))
+
+    def test_no_equals_sign(self):
+        self.assertFalse(vi._af_value_parses_as_numeric("AF", 0))
+
+    def test_one_bad_value_among_multiallelic_fails(self):
+        self.assertFalse(vi._af_value_parses_as_numeric("AF=0.1,.", 0))
+
+
 # ===========================================================================
 # check_genome_fasta
 # ===========================================================================
@@ -286,15 +306,30 @@ class TestCheckVcfChromMatchesGenome(unittest.TestCase):
         )
         self.assertEqual(issues, [])
 
-    def test_mismatched_chr_prefix_bug(self):
-        # the AoU-style bug: VCF token "1" vs. genome chromosome "chr1"
+    def test_mismatched_chr_prefix_bug_warns(self):
+        # the AoU-style bug: VCF token "1" vs. genome chromosome "chr1" --
+        # WARN, not ERROR (changed 2026-07-31): a single mismatched
+        # chromosome shouldn't block the whole multi-dataset run
         issues = vi.check_vcf_chrom_matches_genome(
             {"1.vcf.gz": "1"}, ["chr1", "chr2"]
         )
         self.assertEqual(len(issues), 1)
-        self.assertEqual(issues[0].severity, vi.ERROR)
-        self.assertIn("chromosome token '1'", issues[0].message)
+        self.assertEqual(issues[0].severity, vi.WARN)
+        self.assertIn("1 of 1", issues[0].message)
+        self.assertIn("1.vcf.gz", issues[0].message)
         self.assertIn("reference-only", issues[0].message)
+
+    def test_multiple_mismatches_aggregated_into_one_warning(self):
+        # a handful of legitimately-absent chromosomes (e.g. no chrY/chrM in
+        # the genome build) shouldn't produce a separate issue per file --
+        # one aggregated WARN with a count is the point of the 2026-07-31 change
+        issues = vi.check_vcf_chrom_matches_genome(
+            {"chr1.vcf.gz": "chr1", "chrY.vcf.gz": "chrY", "chrM.vcf.gz": "chrM"},
+            ["chr1"],
+        )
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].severity, vi.WARN)
+        self.assertIn("2 of 3", issues[0].message)
 
     def test_empty_chrom_token_is_skipped(self):
         # a missing chromosome token ("") is already reported by
@@ -353,14 +388,37 @@ class TestCheckVcfContent(unittest.TestCase):
             self.assertEqual(issues[0].severity, vi.ERROR)
             self.assertIn("no AF-prefixed entry", issues[0].message)
 
-    def test_af_field_present_but_not_exact_key_warns(self):
+    def test_af_field_present_but_not_exact_key_errors(self):
+        # traced end-to-end: enricher.py's fixed 3-character slice garbles
+        # the value for any non-exact key, which crashes pd.to_numeric() in
+        # CRISPRme_plots.py at the end of the run -- a real crash risk, not
+        # just a differently-sourced (but valid) number
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "chr1.vcf.gz")
             make_vcf_gz(path, [vcf_record(info="AF_afr=0.2;AF=0.1")])
             issues = vi.check_vcf_content(path)
             self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0].severity, vi.WARN)
+            self.assertEqual(issues[0].severity, vi.ERROR)
             self.assertIn("AF_afr=", issues[0].message)
+
+    def test_af_value_non_numeric_errors(self):
+        # exact "AF" key, but a missing/non-numeric value -- same downstream
+        # pd.to_numeric() crash, different root cause than the wrong-key case
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "chr1.vcf.gz")
+            make_vcf_gz(path, [vcf_record(info="AF=.")])
+            issues = vi.check_vcf_content(path)
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.ERROR)
+            self.assertIn("non-numeric or missing", issues[0].message)
+
+    def test_af_value_multiallelic_numeric_passes(self):
+        # comma-separated multi-allelic AF values are legitimate, not an error
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "chr1.vcf.gz")
+            make_vcf_gz(path, [vcf_record(info="AF=0.1,0.05")])
+            issues = vi.check_vcf_content(path)
+            self.assertEqual(issues, [])
 
     def test_malformed_short_first_record(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -480,49 +538,26 @@ class TestCheckGuideFile(unittest.TestCase):
 
 
 # ===========================================================================
-# check_bgzip
+# check_gzip_compressed
 # ===========================================================================
 
 
-class TestCheckBgzip(unittest.TestCase):
+class TestCheckGzipCompressed(unittest.TestCase):
     def test_gzip_magic_passes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "annotation.bed.gz")
+            path = os.path.join(tmp, "gene_annotation.bed.gz")
             write_gzip_text(path, "chr1\t0\t100\tfeature\n")
-            self.assertEqual(vi.check_bgzip(path, "annotation file"), [])
+            self.assertEqual(vi.check_gzip_compressed(path, "gene annotation file"), [])
 
     def test_plain_text_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "annotation.bed.gz")
+            path = os.path.join(tmp, "gene_annotation.bed.gz")
             write_text(path, "chr1\t0\t100\tfeature\n")
-            issues = vi.check_bgzip(path, "annotation file")
+            issues = vi.check_gzip_compressed(path, "gene annotation file")
             self.assertEqual(len(issues), 1)
             self.assertEqual(issues[0].severity, vi.ERROR)
-            self.assertIn("not bgzip-compressed", issues[0].message)
-            self.assertIn("annotation file", issues[0].message)
-
-
-# ===========================================================================
-# check_vcf_config_line_endings
-# ===========================================================================
-
-
-class TestCheckVcfConfigLineEndings(unittest.TestCase):
-    def test_crlf_warns(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "vcf_config.txt")
-            with open(path, "wb") as fh:
-                fh.write(b"datasetA\r\ndatasetB\r\n")
-            issues = vi.check_vcf_config_line_endings(path)
-            self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0].severity, vi.WARN)
-            self.assertIn("CRLF", issues[0].message)
-
-    def test_unix_line_endings_clean(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "vcf_config.txt")
-            write_text(path, "datasetA\ndatasetB\n")
-            self.assertEqual(vi.check_vcf_config_line_endings(path), [])
+            self.assertIn("not gzip-compressed", issues[0].message)
+            self.assertIn("gene annotation file", issues[0].message)
 
 
 # ===========================================================================
@@ -624,7 +659,9 @@ class TestRunLightweightEndToEnd(unittest.TestCase):
             report = vi.run_lightweight(genomedir, vcf_dirs, guidefile, pamfile)
             self.assertFalse(report.has_errors(), report.render())
 
-    def test_genome_vcf_chrom_mismatch_has_errors(self):
+    def test_genome_vcf_chrom_mismatch_warns_not_errors(self):
+        # changed 2026-07-31: a single mismatched chromosome is now WARN,
+        # not a run-blocking ERROR (see check_vcf_chrom_matches_genome)
         with tempfile.TemporaryDirectory() as tmp:
             genomedir, vcf_dirs, guidefile, pamfile = self._build_clean_fixture(tmp)
             # rename the vcf so its chrom token (chr3) has no matching genome FASTA
@@ -634,7 +671,7 @@ class TestRunLightweightEndToEnd(unittest.TestCase):
                 os.path.join(vcf_dir, "chr3.vcf.gz"),
             )
             report = vi.run_lightweight(genomedir, vcf_dirs, guidefile, pamfile)
-            self.assertTrue(report.has_errors())
+            self.assertFalse(report.has_errors())
             self.assertIn("reference-only", report.render())
 
 
@@ -727,7 +764,9 @@ class TestCheckVcfFullScan(unittest.TestCase):
             self.assertEqual(issues[0].severity, vi.WARN)
             self.assertIn("AF field position varies", issues[0].message)
 
-    def test_zero_pass_rate_warns(self):
+    def test_zero_pass_rate_errors(self):
+        # unlike the partial <10% case below, 0% is a total, guaranteed
+        # void of the whole dataset's contribution to enrichment
         with tempfile.TemporaryDirectory() as tmp:
             records = [
                 vcf_record(pos=100, filt="FAIL"),
@@ -735,7 +774,7 @@ class TestCheckVcfFullScan(unittest.TestCase):
             ]
             issues = self._scan(tmp, records)
             self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0].severity, vi.WARN)
+            self.assertEqual(issues[0].severity, vi.ERROR)
             self.assertIn("0 of 2 variants", issues[0].message)
 
     def test_low_pass_rate_below_threshold_warns(self):
@@ -754,6 +793,23 @@ class TestCheckVcfFullScan(unittest.TestCase):
                        for i in range(10)]
             issues = self._scan(tmp, records)
             self.assertEqual(issues, [])
+
+    def test_dot_filter_not_treated_as_passing(self):
+        # the officially-released crispritz enricher.py only ever hardcodes
+        # 'PASS' (verified against GitHub pinellolab/CRISPRitz master); '.'
+        # is accepted only by an unsubmitted local patch in one developer's
+        # own conda env for HPRC testing, not any shipped crispritz release,
+        # so the validator must not treat '.' as passing today
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [
+                vcf_record(pos=100, filt="."),
+                vcf_record(pos=200, filt="."),
+            ]
+            issues = self._scan(tmp, records)
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.ERROR)
+            self.assertIn("0 of 2 variants", issues[0].message)
+            self.assertIn("FILTER == 'PASS'", issues[0].message)
 
     def test_pos_out_of_bounds_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -801,7 +857,19 @@ class TestCheckVcfFullScan(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             records = [vcf_record(pos=1000, ref="A", alt="<DEL>")]
             issues = self._scan(tmp, records)
-            self.assertEqual(issues, [])
+            self.assertEqual(len(issues), 1)
+            self.assertNotIn("breakend", issues[0].message)
+
+    def test_symbolic_alt_warns(self):
+        # different failure mode than breakend: silently excluded from the
+        # search entirely, not corrupted -- WARN, not ERROR
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="A", alt="<DEL>")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.WARN)
+            self.assertIn("symbolic ALT notation", issues[0].message)
+            self.assertIn("never searched", issues[0].message)
 
     def test_duplicate_chr_pos_warns(self):
         with tempfile.TemporaryDirectory() as tmp:

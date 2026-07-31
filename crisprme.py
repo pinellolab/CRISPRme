@@ -1314,10 +1314,8 @@ def complete_search() -> None:
         vcf_dataset_dirs,
         os.path.join(outputfolder, "guides.txt"),
         pamfile,
-        annotationfile,
         gene_annotation,
         samplefile,
-        vcfdir if variant else None,
     )
     validation_report.write()
 

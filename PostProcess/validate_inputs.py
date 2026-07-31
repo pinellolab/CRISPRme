@@ -34,10 +34,17 @@ GZIP_MAGIC = b"\x1f\x8b"
 MIN_VCF_HEADER_FIELDS = 10
 # #CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO
 MIN_VCF_DATA_FIELDS = 8
-# FILTER values the currently-installed crispritz enricher.py hardcodes as
-# "passing" (enricher.py:365), regardless of --vcf-filter-pass-values; that
-# flag is not wired through to crispritz today (see validate_inputs_plan.md)
-ENRICHER_PASS_VALUES = ("PASS", ".")
+# FILTER value the officially-released crispritz enricher.py hardcodes as
+# "passing" (enricher.py:363: `if line[6] != 'PASS': continue`) — verified
+# against GitHub pinellolab/CRISPRitz master. CRISPRme's own
+# --vcf-filter-pass-values defaults to "PASS,." (intending to also accept
+# '.', e.g. HPRC vcfwave output), but that flag isn't actually wired through
+# to crispritz's add-variants call (see validate_inputs_plan.md's "Known
+# separate bug" section), so today only literal 'PASS' passes regardless of
+# the flag. (A local, not-yet-submitted CRISPRitz patch accepting '.' exists
+# only in one developer's own conda env for HPRC testing — not part of any
+# officially shipped crispritz release, so not assumed here.)
+ENRICHER_PASS_VALUES = ("PASS",)
 STRUCTURAL_VARIANT_LEN = 50
 # enricher.py:302 builds indel context as genomeStr[pos-26 : pos+26+len(ref)];
 # a negative start silently wraps via Python slicing instead of erroring
@@ -155,6 +162,47 @@ def _af_field(info_field: str) -> Tuple[Optional[int], Optional[str]]:
     return None, None
 
 
+def _af_value_parses_as_numeric(info_field: str, af_pos: int) -> bool:
+    """Checks whether the AF field's value parses as one or more floats.
+
+    Traced end-to-end (not assumed): `enricher.py:225` extracts this value
+    with `line[7].split(";")[pos_AF][3:]` -- a hardcoded 3-character slice
+    that only works correctly for an exact `AF=` key (see the ERROR case
+    this check's caller already raises for a non-exact key). Even when the
+    key *is* exactly `AF`, the value itself (e.g. `.`, empty, or otherwise
+    non-numeric) is carried completely unvalidated: `enricher.py`'s dict
+    entry -> `new_simple_analysis.py`'s `retrieveFromDict()`
+    (`AF_list.append(split_entry[3].strip())`, no parsing) -> straight into
+    the results file's `AF` column. `CRISPRme_plots.py` then does
+    `pd.to_numeric(df["AF"])` with no `errors=` argument (defaults to
+    `errors="raise"`) and no surrounding try/except -- a non-numeric value
+    reaching that line crashes plot generation, near the very end of a
+    multi-hour run.
+
+    Args:
+        info_field: The raw INFO column string.
+        af_pos: Position of the AF entry within `info_field.split(";")`
+            (from `_af_field`); only meaningful when that call's key was
+            exactly `"AF"`.
+
+    Returns:
+        True if every comma-separated value (multi-allelic sites list one
+        per ALT allele) parses as a float.
+    """
+    raw = info_field.split(";")[af_pos]
+    if "=" not in raw:
+        return False
+    value_str = raw.split("=", 1)[1]
+    if not value_str:
+        return False
+    for v in value_str.split(","):
+        try:
+            float(v)
+        except ValueError:
+            return False
+    return True
+
+
 def check_genome_fasta(genomedir: str) -> Tuple[List[Issue], List[str]]:
     """Checks that genome FASTA files are well-formed and collects chromosome
     identifiers.
@@ -253,29 +301,42 @@ def check_vcf_chrom_matches_genome(
     `chr_wihtout_vcf` computation, lines ~625-634). This is the AoU
     `chr`-prefix bug in its general form.
 
+    One aggregated `WARN` per dataset, not one `ERROR` per mismatched file
+    (changed 2026-07-31): the historical bug this guards against was a
+    systematic, whole-dataset naming mismatch, but a single legitimately-
+    absent chromosome (e.g. no `chrY.fa` in the genome build, while the VCF
+    dataset happens to include a `chrY.vcf.gz`) shouldn't block an entire
+    multi-dataset run. Informing the user which chromosomes will be
+    silently reference-only is the actual goal, not blocking on it.
+
     Args:
         chrom_by_file: Mapping produced by `check_vcf_filename_chrom`.
         genome_chroms: Chromosome identifiers from the genome directory
             (from `check_genome_fasta`).
 
     Returns:
-        A list of issues; empty if every VCF's chromosome token matches a
-        genome chromosome.
+        A single WARN issue listing the count and example mismatched
+        files/chromosomes, or an empty list if every VCF's chromosome token
+        matches a genome chromosome.
     """
-    issues: List[Issue] = []
     genome_chrom_set = set(genome_chroms)
-    for fname, chrom in chrom_by_file.items():
-        if chrom and chrom not in genome_chrom_set:
-            issues.append(
-                Issue(
-                    ERROR,
-                    f"{fname}: chromosome token '{chrom}' has no matching FASTA "
-                    f"in the genome directory ({', '.join(sorted(genome_chrom_set)) or 'none found'})"
-                    " — this dataset will be silently treated as reference-only "
-                    "for this chromosome",
-                )
-            )
-    return issues
+    mismatches = [
+        (fname, chrom)
+        for fname, chrom in chrom_by_file.items()
+        if chrom and chrom not in genome_chrom_set
+    ]
+    if not mismatches:
+        return []
+    examples = ", ".join(f"{fname} ('{chrom}')" for fname, chrom in mismatches[:5])
+    return [
+        Issue(
+            WARN,
+            f"{len(mismatches)} of {len(chrom_by_file)} VCF file(s) have a "
+            f"chromosome token with no matching genome FASTA ({examples}"
+            f"{', ...' if len(mismatches) > 5 else ''}) — these will be "
+            "silently treated as reference-only for that chromosome",
+        )
+    ]
 
 
 def check_vcf_content(vcf_path: str) -> List[Issue]:
@@ -366,21 +427,42 @@ def check_vcf_content(vcf_path: str) -> List[Issue]:
                     Issue(
                         ERROR,
                         f"{fname}: first data record's INFO field has no "
-                        "AF-prefixed entry (e.g. 'AF=0.1') — required for "
-                        "haplotype/indel reconstruction",
+                        "AF-prefixed entry (e.g. 'AF=0.1') — enricher.py "
+                        "locates the AF field's position exactly once, from "
+                        "this same first record; if nothing matches, that "
+                        "position is never assigned, and the SNP/indel "
+                        "dictionary-creation step crashes immediately with a "
+                        "NameError on the first PASS record, before any "
+                        "genome enrichment happens",
                     )
                 )
             elif af_key != "AF":
                 issues.append(
                     Issue(
-                        WARN,
+                        ERROR,
                         f"{fname}: first data record's INFO field matches on "
                         f"'{af_key}=', not an exact 'AF=' — crispritz locates "
-                        "the AF field by prefix, not exact key, so it will "
-                        f"silently treat '{af_key}' as the site's total AF for "
-                        "every record in this file. Common with raw gnomAD-style "
-                        "VCFs where a population-specific field (e.g. AF_afr) "
-                        "appears before the true AF field",
+                        "the AF field by prefix, not exact key, and extracts "
+                        "its value with a fixed 3-character slice that only "
+                        "works for a true 'AF=' key. For any longer key like "
+                        f"'{af_key}', this produces a garbled, non-numeric "
+                        "value for every record in this file, which crashes "
+                        "CRISPRme_plots.py's pd.to_numeric() at the very end "
+                        "of the run. Common with raw gnomAD-style VCFs where "
+                        "a population-specific field (e.g. AF_afr) appears "
+                        "before the true AF field",
+                    )
+                )
+            elif not _af_value_parses_as_numeric(info_field, af_pos):
+                issues.append(
+                    Issue(
+                        ERROR,
+                        f"{fname}: first data record's AF field has a "
+                        "non-numeric or missing value (e.g. '.', empty) — "
+                        "this value is carried through with no validation "
+                        "anywhere in the pipeline and crashes "
+                        "CRISPRme_plots.py's pd.to_numeric() at the very end "
+                        "of the run",
                     )
                 )
     except OSError as e:
@@ -504,18 +586,20 @@ def check_guide_file(guidefile: str) -> List[Issue]:
     return []
 
 
-def check_bgzip(fname_path: str, label: str) -> List[Issue]:
-    """Checks that an annotation-style file is gzip/bgzip-compressed.
+def check_gzip_compressed(fname_path: str, label: str) -> List[Issue]:
+    """Checks that a file is gzip-compressed.
 
-    No upfront check exists today; a non-bgzip annotation file fails much
-    later inside `_decompress_file` with a confusing error. This only checks
-    the gzip magic bytes (sufficient to catch an uncompressed file); it does
-    not validate full BGZF block structure.
+    Only applies to `--gene_annotation`: `post_process.sh` unconditionally
+    runs `gunzip -k -c` on it (no fallback for an already-plain-text file,
+    unlike `--annotation`'s `_sort_annotation`, which now handles either).
+    `gunzip` decompresses true BGZF and plain gzip identically, so checking
+    for gzip specifically -- not full BGZF block structure -- is the
+    complete, correct requirement here, not an approximation of one.
 
     Args:
         fname_path: Path to the file to check.
-        label: Human-readable label for error messages (e.g. "annotation
-            file").
+        label: Human-readable label for error messages (e.g. "gene
+            annotation file").
 
     Returns:
         A list of issues; empty if the file passes.
@@ -530,7 +614,7 @@ def check_bgzip(fname_path: str, label: str) -> List[Issue]:
         return [
             Issue(
                 ERROR,
-                f"{label} {fname}: not bgzip-compressed — compress with "
+                f"{label} {fname}: not gzip-compressed — compress with "
                 f"'bgzip {fname}' before running",
             )
         ]
@@ -601,53 +685,24 @@ def check_samples_in_vcf_header(vcf_path: str, sample_ids: List[str]) -> List[Is
     ]
 
 
-def check_vcf_config_line_endings(vcf_config_path: str) -> List[Issue]:
-    """Warns if the `--vcf` config file has Windows (CRLF) line endings.
-
-    `crisprme.py:1193` strips a trailing slash from each dataset-name line via
-    `if line[-2] == "/"`. On a CRLF file, `line[-2]` is `\\r`, not `/`, so a
-    trailing slash is silently never stripped and the dataset token can end up
-    mangled downstream. `resolve_vcf_dataset_dirs` mirrors the same parsing
-    intentionally, so it shares this limitation rather than working around it.
-
-    Args:
-        vcf_config_path: Path to the `--vcf` config file.
-
-    Returns:
-        A single warning `Issue`, or an empty list.
-    """
-    try:
-        with open(vcf_config_path, "rb") as fin:
-            content = fin.read()
-    except OSError:
-        return []
-    if b"\r\n" in content:
-        return [
-            Issue(
-                WARN,
-                f"{os.path.basename(vcf_config_path)}: Windows (CRLF) line "
-                "endings detected — a trailing slash after a dataset name "
-                "won't be stripped correctly; re-save with Unix line endings",
-            )
-        ]
-    return []
-
-
 def run_lightweight(
     genomedir: str,
     vcf_dataset_dirs: List[str],
     guidefile: str,
     pamfile: str,
-    annotationfile: Optional[str] = None,
     gene_annotation_file: Optional[str] = None,
     samplesfile: Optional[str] = None,
-    vcf_config_path: Optional[str] = None,
 ) -> ValidationReport:
     """Runs all lightweight (always-on) input checks and returns the report.
 
     Reads only file headers / first few records — bounded and cheap enough to
     run unconditionally on every `complete-search` invocation, before the
     pipeline subprocess launches.
+
+    `--annotation` is not checked here -- see the comment above the
+    `gene_annotation_file` check for why (in short: `_sort_annotation` now
+    accepts either compressed or plain input, so there's nothing to validate
+    upfront without risking a false error).
 
     Args:
         genomedir: Path to the reference genome directory.
@@ -658,15 +713,10 @@ def run_lightweight(
             search is not variant-aware.
         guidefile: Path to the guide RNA file.
         pamfile: Path to the PAM file.
-        annotationfile: Path to the annotation BED file, or the `vuoto.txt`
-            mock path if not used.
         gene_annotation_file: Path to the gene annotation file, or the
             `vuoto.txt` mock path if not used.
         samplesfile: Path to the `--samplesID` file, or the `vuoto.txt` mock
             path / `None` if not used.
-        vcf_config_path: Path to the raw `--vcf` config file (before
-            resolving to dataset directories), for the CRLF line-ending
-            check. `None` if not variant-aware.
 
     Returns:
         A `ValidationReport` with every check's outcome recorded. Call
@@ -683,9 +733,6 @@ def run_lightweight(
 
     has_samplesfile = bool(samplesfile) and os.path.basename(samplesfile) != MOCK_FILENAME
     sample_ids = _read_samples_file(samplesfile) if has_samplesfile else []
-
-    if vcf_config_path:
-        report.add(check_vcf_config_line_endings(vcf_config_path))
 
     for vcf_dir in vcf_dataset_dirs:
         if not os.path.isdir(vcf_dir):
@@ -728,15 +775,16 @@ def run_lightweight(
     report.add(
         check_guide_file(guidefile), ok_message=f"Guide file: {os.path.basename(guidefile)}"
     )
-    if annotationfile and os.path.basename(annotationfile) != MOCK_FILENAME:
-        report.add(
-            check_bgzip(annotationfile, "annotation file"),
-            ok_message=f"Annotation file is bgzip-compressed: {os.path.basename(annotationfile)}",
-        )
+    # --annotation is not checked here: _sort_annotation (crisprme.py) treats
+    # a file not ending in .gz as already-plain-text, no decompression
+    # attempted -- so an uncompressed --annotation file is valid input, and a
+    # gzip-required check would produce a false error on it. --gene_annotation
+    # has no such fallback (post_process.sh always runs gunzip on it), so it
+    # still needs this check.
     if gene_annotation_file and os.path.basename(gene_annotation_file) != MOCK_FILENAME:
         report.add(
-            check_bgzip(gene_annotation_file, "gene annotation file"),
-            ok_message=f"Gene annotation file is bgzip-compressed: {os.path.basename(gene_annotation_file)}",
+            check_gzip_compressed(gene_annotation_file, "gene annotation file"),
+            ok_message=f"Gene annotation file is gzip-compressed: {os.path.basename(gene_annotation_file)}",
         )
     return report
 
@@ -817,6 +865,11 @@ def check_vcf_full_scan(
     - Breakend/SV notation in ALT (`]`/`[` without a leading `<`): only
       `<DEL>`-style symbolic ALT is filtered out; breakend text is spliced as
       literal sequence into the enriched genome.
+    - Symbolic ALT notation (`<DEL>`, `<DUP>`, etc.): a different, milder
+      failure mode than breakend -- `enricher.py` correctly filters these
+      out of the indel/SV path, but does so silently, so these records are
+      never searched at all with zero signal to the user (not corrupted,
+      just invisibly omitted).
     - Duplicate CHR+POS records: the per-variant dict is keyed by
       `(chrom, pos)` only, so a duplicate record silently overwrites the
       first with no warning.
@@ -850,6 +903,7 @@ def check_vcf_full_scan(
     total_count = 0
     multiallelic_count = 0
     breakend_count = 0
+    symbolic_alt_count = 0
     seen_positions: Dict[Tuple[str, str], int] = {}
     duplicate_examples: List[str] = []
     phased_seen = False
@@ -891,6 +945,8 @@ def check_vcf_full_scan(
                 )
                 if is_breakend:
                     breakend_count += 1
+                if any(a.startswith("<") for a in alt_alleles):
+                    symbolic_alt_count += 1
                 if len(ref) > STRUCTURAL_VARIANT_LEN or any(
                     len(a) > STRUCTURAL_VARIANT_LEN for a in alt_alleles
                 ):
@@ -960,12 +1016,16 @@ def check_vcf_full_scan(
             )
         )
     if pass_count == 0:
+        # unlike the <10% case below (a subset excluded), 0% means this
+        # whole dataset silently contributes nothing to enrichment -- a
+        # total, guaranteed void, same severity class as the sites-only-VCF
+        # lightweight check, not a partial-impact WARN
         issues.append(
             Issue(
-                WARN,
-                f"{fname}: 0 of {total_count} variants have FILTER in "
-                f"{ENRICHER_PASS_VALUES} — every variant will be excluded "
-                "from enrichment",
+                ERROR,
+                f"{fname}: 0 of {total_count} variants have FILTER == "
+                f"'{ENRICHER_PASS_VALUES[0]}' — every variant will be "
+                "excluded from enrichment",
             )
         )
     elif pass_count / total_count < FILTER_PASS_WARN_RATIO:
@@ -974,8 +1034,8 @@ def check_vcf_full_scan(
                 WARN,
                 f"{fname}: only {pass_count}/{total_count} "
                 f"({100 * pass_count / total_count:.1f}%) variants have "
-                f"FILTER in {ENRICHER_PASS_VALUES} — most variants will be "
-                "excluded from enrichment",
+                f"FILTER == '{ENRICHER_PASS_VALUES[0]}' — most variants "
+                "will be excluded from enrichment",
             )
         )
     if out_of_bounds_count:
@@ -1007,6 +1067,17 @@ def check_vcf_full_scan(
                 "the enriched genome, corrupting it",
             )
         )
+    if symbolic_alt_count:
+        issues.append(
+            Issue(
+                WARN,
+                f"{fname}: {symbolic_alt_count} record(s) use symbolic ALT "
+                "notation (e.g. '<DEL>', '<DUP>') — enricher.py silently "
+                "excludes these from the search entirely (not corrupted, "
+                "just never searched), with no other signal that they were "
+                "dropped",
+            )
+        )
     if duplicate_examples:
         dup_count = sum(1 for n in seen_positions.values() if n > 1)
         issues.append(
@@ -1023,10 +1094,12 @@ def check_vcf_full_scan(
             Issue(
                 WARN,
                 f"{fname}: both phased ('|') and unphased ('/') genotypes "
-                "found — new_simple_analysis.py decides phasing for the whole "
-                "chromosome from a single arbitrary record, so this file risks "
-                "silently wrong haplotype/sample attribution for whichever "
-                "convention isn't picked",
+                "found — new_simple_analysis.py decides haplotype-mode "
+                "processing for the whole chromosome from whichever record "
+                "it scans first. If that locks in phased mode, unphased "
+                "samples are then incorrectly counted as variant carriers "
+                "on both haplotypes regardless of their actual genotype "
+                "(including homozygous-reference samples)",
             )
         )
     if indel_near_start_count:
@@ -1146,7 +1219,6 @@ if __name__ == "__main__":
     parser.add_argument("--cwd", default=os.getcwd(), help="current working directory (for resolving VCFs/)")
     parser.add_argument("--guide", required=True)
     parser.add_argument("--pam", required=True)
-    parser.add_argument("--annotation")
     parser.add_argument("--gene_annotation")
     parser.add_argument("--samplesID")
     parser.add_argument(
@@ -1162,10 +1234,8 @@ if __name__ == "__main__":
         vcf_dirs,
         ns.guide,
         ns.pam,
-        ns.annotation,
         ns.gene_annotation,
         ns.samplesID,
-        ns.vcf,
     )
     result.write()
     has_errors = result.has_errors()
