@@ -129,10 +129,25 @@ if "orderChr" in sys.argv[:]:
             )
         current_chr_pos_dir_g = ""
         current_cluster = []
+        malformed_rows = 0  # count of skipped malformed/truncated target rows
         for line in targets:
             if "#" in line:  # Skip header
                 continue
             line = line.strip().split("\t")
+            # Guard against blank/truncated rows: the cluster key uses line[14]
+            # (Real Guide) and the sort key uses line[9]/line[7], so a row with
+            # fewer than 15 columns would raise IndexError and abort the entire
+            # (often multi-hour) run. Skip it instead and keep going. Logged to
+            # STDOUT, not STDERR, because the pipeline treats any stderr output
+            # as fatal (see issue #94). See issues #106/#107/#108.
+            if len(line) < 15:
+                malformed_rows += 1
+                if malformed_rows <= 5:
+                    print(
+                        "WARNING: skipping malformed target row "
+                        f"({len(line)} columns, expected >= 15): {line[:6]}"
+                    )
+                continue
             if (
                 line[3] + line[5] + line[6] + line[14] != current_chr_pos_dir_g
             ):  # NEW CLUSTER FOUND
@@ -157,6 +172,14 @@ if "orderChr" in sys.argv[:]:
         )
         for t in current_cluster:
             result.write("\t".join(t) + "\n")
+
+        if malformed_rows:
+            print(
+                f"WARNING: skipped {malformed_rows} malformed/truncated target "
+                "row(s) during clustering; the intermediate target file may be "
+                "truncated (e.g. an interrupted or out-of-space write). See "
+                "issues #106/#107/#108."
+            )
 
         # Remove tmp sort
         os.remove(result_name + ".tmp_sort.txt")
