@@ -37,7 +37,7 @@ if "--debug" in input_args:
     corrected_web_path = current_working_directory
 
 sys.path.insert(0, script_path)
-from assembly_reconcile import reconcile_haplotypes, find_results_prefix  # noqa: E402
+from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete  # noqa: E402
 
 cicd_test = False
 if "--ci-cd-test" in input_args:
@@ -1425,7 +1425,13 @@ def _run_haplotype_search(
     called twice in-process with different `--genome` values. Uses the exact
     interpreter and script path running right now (rather than relying on a
     bare `crisprme.py` being on PATH, as `complete_test.py` does) since this
-    is a new, not-yet-installed subcommand.
+    is a new, not-yet-installed subcommand. Output streams straight to the
+    terminal rather than being captured, also matching
+    `complete_test_crisprme()` -- the real per-step pipeline logs are
+    written to `Results/<output_name>/log_verbose.txt`/`log_error.txt`
+    regardless of how this outer process's own stdout/stderr are handled, so
+    capturing them here bought no real diagnostic value while hiding all
+    progress output during what can be a multi-hour run.
 
     Returns:
         The absolute path to the haplotype's `complete-search` output folder.
@@ -1438,15 +1444,14 @@ def _run_haplotype_search(
         f"--guide {guidefile} --pam {pamfile} --mm {mm} --bDNA {bDNA} --bRNA {bRNA} "
         f"--merge {merge_t} --output {output_name} --thread {thread} {debug_flag}"
     )
-    result = subprocess.run(
-        cmd, shell=True, capture_output=True, text=True, cwd=current_working_directory
-    )
-    if result.returncode != 0:
+    output_folder = os.path.join(current_working_directory, CRISPRMEDIRS[1], output_name)
+    code = subprocess.call(cmd, shell=True, cwd=current_working_directory)
+    if code != 0:
         raise OSError(
-            f"\nHaplotype search failed for --output {output_name}\n"
-            f"stdout:\n{result.stdout[-4000:]}\nstderr:\n{result.stderr[-4000:]}\n"
+            f"\nHaplotype search failed for --output {output_name}! See "
+            f"{os.path.join(output_folder, 'log_error.txt')} for details\n"
         )
-    return os.path.join(current_working_directory, CRISPRMEDIRS[1], output_name)
+    return output_folder
 
 
 def assembly_search() -> None:
@@ -1465,6 +1470,7 @@ def assembly_search() -> None:
         print_help_assembly_search()
     check_crisprme_dirtree()
     _check_mandatory_args_assembly_search(args)
+    check_liftover_available()
 
     genome_paternal = _check_named_dir(args, "--genome-paternal", "Paternal genome folder")
     genome_maternal = _check_named_dir(args, "--genome-maternal", "Maternal genome folder")
@@ -1487,25 +1493,45 @@ def assembly_search() -> None:
         error("Missing input for --output. Output base name must be specified")
 
     combined_output = os.path.join(current_working_directory, CRISPRMEDIRS[1], f"{output_base}_combined")
-    if os.path.isdir(combined_output):
-        if is_folder_empty(combined_output):
-            error(
-                f"Output folder {combined_output} not empty! Select another "
-                "output name for the current assembly-search run."
-            )
-    else:
-        os.makedirs(combined_output)
+    combined_tsv = os.path.join(combined_output, f"{output_base}_combined_hg38.tsv")
+    # only guard against clobbering a previously *completed* run -- leftover
+    # reconciliation intermediates (BED files) from a prior failed attempt
+    # are fine to overwrite and are regenerated fresh below regardless
+    if os.path.isfile(combined_tsv):
+        error(
+            f"{combined_tsv} already exists from a previously completed "
+            "assembly-search run! Select another --output name, or delete "
+            "it to re-run reconciliation."
+        )
+    os.makedirs(combined_output, exist_ok=True)
 
-    print(f"Running paternal haplotype search -> Results/{output_base}_paternal")
-    paternal_results = _run_haplotype_search(
-        genome_paternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
-        f"{output_base}_paternal", thread, debug,
-    )
-    print(f"Running maternal haplotype search -> Results/{output_base}_maternal")
-    maternal_results = _run_haplotype_search(
-        genome_maternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
-        f"{output_base}_maternal", thread, debug,
-    )
+    paternal_output_name = f"{output_base}_paternal"
+    maternal_output_name = f"{output_base}_maternal"
+    paternal_output_dir = os.path.join(current_working_directory, CRISPRMEDIRS[1], paternal_output_name)
+    maternal_output_dir = os.path.join(current_working_directory, CRISPRMEDIRS[1], maternal_output_name)
+
+    # avoid re-running a multi-hour haplotype search if it already completed
+    # successfully -- e.g. a retry after a failure that only affected
+    # reconciliation (a chromAlias/liftOver issue, say), not the searches
+    if haplotype_search_complete(paternal_output_dir):
+        print(f"Found existing completed paternal search results at Results/{paternal_output_name}, reusing (not re-running)")
+        paternal_results = paternal_output_dir
+    else:
+        print(f"Running paternal haplotype search -> Results/{paternal_output_name}")
+        paternal_results = _run_haplotype_search(
+            genome_paternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
+            paternal_output_name, thread, debug,
+        )
+
+    if haplotype_search_complete(maternal_output_dir):
+        print(f"Found existing completed maternal search results at Results/{maternal_output_name}, reusing (not re-running)")
+        maternal_results = maternal_output_dir
+    else:
+        print(f"Running maternal haplotype search -> Results/{maternal_output_name}")
+        maternal_results = _run_haplotype_search(
+            genome_maternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
+            maternal_output_name, thread, debug,
+        )
 
     print("Reconciling paternal and maternal predictions against hg38...")
     haplotypes = {
@@ -1521,8 +1547,6 @@ def assembly_search() -> None:
         },
     }
     combined, summary = reconcile_haplotypes(haplotypes, combined_output, merge_bp=merge_t)
-
-    combined_tsv = os.path.join(combined_output, f"{output_base}_combined_hg38.tsv")
     combined.to_csv(combined_tsv, sep="\t", index=False)
 
     print(f"Reconciliation complete. Wrote {combined_tsv}")

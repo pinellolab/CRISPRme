@@ -134,6 +134,30 @@ class TestFindResultsPrefix(unittest.TestCase):
                 ar.find_results_prefix(d)
 
 
+class TestHaplotypeSearchComplete(unittest.TestCase):
+    def test_false_when_directory_missing(self):
+        self.assertFalse(ar.haplotype_search_complete("/no/such/dir"))
+
+    def test_false_when_no_integrated_results(self):
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, ar.LOG_ERROR_NO_CHECK_FILENAME), "w").close()
+            self.assertFalse(ar.haplotype_search_complete(d))
+
+    def test_false_when_integrated_results_exist_but_no_completion_rename(self):
+        # a run that crashed after writing results but before the pipeline's
+        # final log_error.txt -> log_error_no_check.txt rename must not be
+        # mistaken for a genuinely finished run
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, "guideX_PAM_genome_mm4_bMax2_integrated_results.tsv"), "w").close()
+            self.assertFalse(ar.haplotype_search_complete(d))
+
+    def test_true_when_both_present(self):
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, "guideX_PAM_genome_mm4_bMax2_integrated_results.tsv"), "w").close()
+            open(os.path.join(d, ar.LOG_ERROR_NO_CHECK_FILENAME), "w").close()
+            self.assertTrue(ar.haplotype_search_complete(d))
+
+
 class TestLoadChromAlias(unittest.TestCase):
     def test_parses_assembly_ucsc_genbank_columns(self):
         with tempfile.TemporaryDirectory() as d:
@@ -166,6 +190,82 @@ class TestBuildOfftargetBed(unittest.TestCase):
             self.assertEqual(int(start), 999)
             self.assertEqual(int(end), 1000)
             self.assertEqual(oid, "0")
+
+    def test_returns_dropped_ids_for_unmapped_chrom(self):
+        # the dropped-chrom row must be surfaced, not just silently excluded
+        # from the BED -- reconcile_haplotypes folds these into non_mappable
+        preds = pd.DataFrame({
+            "Chromosome": ["chr1", "chrUn_unknown", "chrUn_other"],
+            "Start_coordinate_(fewest_mm+b)": [1000, 2000, 3000],
+            "off_target_id": ["0", "1", "2"],
+        })
+        ucsc_to_genbank = {"chr1": "CM000001.1"}
+        with tempfile.TemporaryDirectory() as d:
+            bed_path = os.path.join(d, "out.bed")
+            _, dropped_ids = ar.build_offtarget_bed(preds, ucsc_to_genbank, bed_path)
+            self.assertEqual(dropped_ids, {"1", "2"})
+
+    def test_no_dropped_ids_when_all_chroms_known(self):
+        preds = pd.DataFrame({
+            "Chromosome": ["chr1"],
+            "Start_coordinate_(fewest_mm+b)": [1000],
+            "off_target_id": ["0"],
+        })
+        ucsc_to_genbank = {"chr1": "CM000001.1"}
+        with tempfile.TemporaryDirectory() as d:
+            bed_path = os.path.join(d, "out.bed")
+            _, dropped_ids = ar.build_offtarget_bed(preds, ucsc_to_genbank, bed_path)
+            self.assertEqual(dropped_ids, set())
+
+
+class TestCheckChromAliasCoverage(unittest.TestCase):
+    def test_passes_when_all_chroms_known(self):
+        preds = pd.DataFrame({"Chromosome": ["chr1", "chr1", "chr2"]})
+        ar.check_chrom_alias_coverage(preds, {"chr1": "x", "chr2": "y"}, "paternal")
+
+    def test_passes_when_a_minority_of_chroms_are_unknown(self):
+        # a handful of unmapped decoy/unplaced contigs is expected biology,
+        # not a naming mismatch -- must not raise
+        preds = pd.DataFrame({"Chromosome": ["chr1"] * 9 + ["chrUn_decoy"]})
+        ar.check_chrom_alias_coverage(preds, {"chr1": "x"}, "paternal")
+
+    def test_raises_when_majority_of_chroms_are_unknown(self):
+        # a systematic mismatch (wrong alias file, wrong naming convention)
+        # must be a clear, immediate error, not a silent near-total drop
+        preds = pd.DataFrame({"Chromosome": ["chrom1", "chrom1", "chrom2"]})
+        with self.assertRaises(ValueError) as ctx:
+            ar.check_chrom_alias_coverage(preds, {"chr1": "x"}, "paternal")
+        self.assertIn("paternal", str(ctx.exception))
+        self.assertIn("chromAlias", str(ctx.exception))
+
+    def test_empty_predictions_do_not_raise(self):
+        preds = pd.DataFrame({"Chromosome": []})
+        ar.check_chrom_alias_coverage(preds, {"chr1": "x"}, "paternal")
+
+
+class TestCheckLiftoverAvailable(unittest.TestCase):
+    def test_raises_when_not_on_path(self):
+        with patch.object(ar.shutil, "which", return_value=None):
+            with self.assertRaises(RuntimeError) as ctx:
+                ar.check_liftover_available()
+        self.assertIn("liftOver", str(ctx.exception))
+
+    def test_passes_when_on_path(self):
+        with patch.object(ar.shutil, "which", return_value="/usr/bin/liftOver"):
+            ar.check_liftover_available()  # must not raise
+
+
+class TestRunLiftover(unittest.TestCase):
+    def test_calls_liftover_directly_without_mamba_env_wrapper(self):
+        # regression guard: this used to hardcode `mamba run -n liftover_env`,
+        # an undocumented dependency not part of crisprme's own environment
+        with patch.object(ar.subprocess, "run") as mock_run:
+            mock_run.return_value.returncode = 0
+            ar.run_liftover("in.bed", "chain.file", "mapped.bed", "unmapped.bed")
+        cmd = mock_run.call_args[0][0]
+        self.assertNotIn("mamba", cmd)
+        self.assertNotIn("liftover_env", cmd)
+        self.assertTrue(cmd.startswith("liftOver "))
 
 
 class TestLoadLiftedBed(unittest.TestCase):
@@ -320,6 +420,154 @@ class TestReconcileHaplotypes(unittest.TestCase):
             self.assertEqual(summary["maternal_only"], 0)
             self.assertEqual(summary["paternal_non_mappable"], 0)
             self.assertEqual(summary["maternal_non_mappable"], 1)
+
+    def test_chrom_alias_missing_contig_folded_into_non_mappable(self):
+        # a prediction whose chromosome has no chromAlias mapping never even
+        # reaches liftOver (build_offtarget_bed drops it beforehand) -- must
+        # still be counted as non_mappable, not silently vanish from summary
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paternal_dir = self._make_haplotype_results(
+                tmpdir, "paternal", [self._pred_row("chr1", 1000, 0.9)],
+            )
+            maternal_dir = self._make_haplotype_results(
+                tmpdir, "maternal",
+                [self._pred_row("chr1", 1000, 0.9), self._pred_row("chrUn_weird", 2000, 0.8)],
+            )
+            haplotypes = {
+                "paternal": {
+                    "chrom_alias_file": self._make_chrom_alias(tmpdir, "paternal"),
+                    "chain_file": "unused.chain",
+                    "results_dir": paternal_dir,
+                },
+                "maternal": {
+                    "chrom_alias_file": self._make_chrom_alias(tmpdir, "maternal"),
+                    "chain_file": "unused.chain",
+                    "results_dir": maternal_dir,
+                },
+            }
+
+            def fake_run_liftover(bed_path, chain_file, mapped_path, unmapped_path):
+                bed = pd.read_csv(bed_path, sep="\t", header=None,
+                                   names=["chrom", "start", "end", "off_target_id"])
+                with open(mapped_path, "w") as mf, open(unmapped_path, "w") as uf:
+                    for _, r in bed.iterrows():
+                        mf.write(f"chr1\t49999\t50000\t{r['off_target_id']}\n")
+                return mapped_path, unmapped_path
+
+            with patch.object(ar, "run_liftover", side_effect=fake_run_liftover):
+                combined, summary = ar.reconcile_haplotypes(haplotypes, workdir=tmpdir, merge_bp=3)
+
+            self.assertEqual(summary["both"], 1)
+            self.assertEqual(summary["paternal_non_mappable"], 0)
+            self.assertEqual(summary["maternal_non_mappable"], 1)
+
+    def test_raises_on_systematic_chrom_alias_mismatch(self):
+        # end-to-end: a haplotype whose predictions are on a totally
+        # different naming convention than its chromAlias file should fail
+        # clearly, not silently report near-total non-mappability
+        with tempfile.TemporaryDirectory() as tmpdir:
+            paternal_dir = self._make_haplotype_results(
+                tmpdir, "paternal", [self._pred_row("chr1", 1000, 0.9)],
+            )
+            maternal_dir = self._make_haplotype_results(
+                tmpdir, "maternal",
+                [self._pred_row("chrom1", 1000, 0.9), self._pred_row("chrom1", 2000, 0.8)],
+            )
+            haplotypes = {
+                "paternal": {
+                    "chrom_alias_file": self._make_chrom_alias(tmpdir, "paternal"),
+                    "chain_file": "unused.chain",
+                    "results_dir": paternal_dir,
+                },
+                "maternal": {
+                    "chrom_alias_file": self._make_chrom_alias(tmpdir, "maternal"),
+                    "chain_file": "unused.chain",
+                    "results_dir": maternal_dir,
+                },
+            }
+            def fake_run_liftover(bed_path, chain_file, mapped_path, unmapped_path):
+                # only needs to get paternal through cleanly -- maternal's
+                # coverage check should raise before its own liftOver call
+                bed = pd.read_csv(bed_path, sep="\t", header=None,
+                                   names=["chrom", "start", "end", "off_target_id"])
+                with open(mapped_path, "w") as mf, open(unmapped_path, "w") as uf:
+                    for _, r in bed.iterrows():
+                        mf.write(f"chr1\t49999\t50000\t{r['off_target_id']}\n")
+                return mapped_path, unmapped_path
+
+            with patch.object(ar, "run_liftover", side_effect=fake_run_liftover):
+                with self.assertRaises(ValueError) as ctx:
+                    ar.reconcile_haplotypes(haplotypes, workdir=tmpdir, merge_bp=3)
+            self.assertIn("maternal", str(ctx.exception))
+
+            # failure must be recorded in log_error.txt, the same filename
+            # complete-search/complete-test write to on failure
+            log_error_path = os.path.join(tmpdir, ar.LOG_ERROR_FILENAME)
+            with open(log_error_path) as f:
+                error_log = f.read()
+            self.assertIn("maternal", error_log)
+
+    def _reconcile_simple_success(self, tmpdir):
+        """Minimal always-succeeds fixture, for testing the log files
+        themselves rather than the reconciliation categories."""
+        paternal_dir = self._make_haplotype_results(
+            tmpdir, "paternal", [self._pred_row("chr1", 1000, 0.9)],
+        )
+        maternal_dir = self._make_haplotype_results(
+            tmpdir, "maternal", [self._pred_row("chr1", 1000, 0.9)],
+        )
+        haplotypes = {
+            "paternal": {
+                "chrom_alias_file": self._make_chrom_alias(tmpdir, "paternal"),
+                "chain_file": "unused.chain",
+                "results_dir": paternal_dir,
+            },
+            "maternal": {
+                "chrom_alias_file": self._make_chrom_alias(tmpdir, "maternal"),
+                "chain_file": "unused.chain",
+                "results_dir": maternal_dir,
+            },
+        }
+
+        def fake_run_liftover(bed_path, chain_file, mapped_path, unmapped_path):
+            bed = pd.read_csv(bed_path, sep="\t", header=None,
+                               names=["chrom", "start", "end", "off_target_id"])
+            with open(mapped_path, "w") as mf, open(unmapped_path, "w") as uf:
+                for _, r in bed.iterrows():
+                    mf.write(f"chr1\t49999\t50000\t{r['off_target_id']}\n")
+            return mapped_path, unmapped_path
+
+        with patch.object(ar, "run_liftover", side_effect=fake_run_liftover):
+            return ar.reconcile_haplotypes(haplotypes, workdir=tmpdir, merge_bp=3)
+
+    def test_writes_log_verbose_and_empty_log_error_on_success(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._reconcile_simple_success(tmpdir)
+
+            with open(os.path.join(tmpdir, ar.LOG_VERBOSE_FILENAME)) as f:
+                verbose_log = f.read()
+            self.assertIn("Reconciliation complete", verbose_log)
+            self.assertIn("both: 1", verbose_log)
+
+            with open(os.path.join(tmpdir, ar.LOG_ERROR_FILENAME)) as f:
+                error_log = f.read()
+            self.assertEqual(error_log, "")
+
+    def test_log_files_truncate_fresh_on_each_call_not_appended(self):
+        # matches complete_search()'s own open(..., "w") convention -- a
+        # retry into the same workdir must not accumulate log content
+        # across attempts
+        with tempfile.TemporaryDirectory() as tmpdir:
+            self._reconcile_simple_success(tmpdir)
+            with open(os.path.join(tmpdir, ar.LOG_VERBOSE_FILENAME)) as f:
+                first_call_log = f.read()
+            self.assertNotEqual(first_call_log, "")
+
+            self._reconcile_simple_success(tmpdir)
+            with open(os.path.join(tmpdir, ar.LOG_VERBOSE_FILENAME)) as f:
+                second_call_log = f.read()
+
+            self.assertEqual(second_call_log, first_call_log)  # not doubled
 
 
 if __name__ == "__main__":
