@@ -177,8 +177,7 @@ if "orderChr" in sys.argv[:]:
             print(
                 f"WARNING: skipped {malformed_rows} malformed/truncated target "
                 "row(s) during clustering; the intermediate target file may be "
-                "truncated (e.g. an interrupted or out-of-space write). See "
-                "issues #106/#107/#108."
+                "truncated (e.g. an interrupted or out-of-space write)"
             )
 
         # Remove tmp sort
