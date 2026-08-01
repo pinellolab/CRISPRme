@@ -1894,7 +1894,7 @@ def index_page() -> html.Div:
                 id="checklist-mail",
                 value=[],
             ),
-            dbc.FormGroup(
+            html.Div(
                 dbc.Input(
                     type="email",
                     id="example-email",
@@ -1916,7 +1916,7 @@ def index_page() -> html.Div:
                 id="checklist-job-name",
                 value=[],
             ),
-            dbc.FormGroup(
+            html.Div(
                 dbc.Input(
                     type="text",
                     id="job-name",
