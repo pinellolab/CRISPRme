@@ -7,8 +7,10 @@ name: validate-test benchmarks (chr22)
 # set does not match.
 #
 # The published image installs a *released* CRISPRme from bioconda, so we pull it
-# and mount this branch's code over the installed package to exercise the PR's
-# changes (crisprme.py, the PostProcess drivers, and the benchmark registry/data).
+# and COPY this branch's code over the installed package to exercise the PR's
+# changes (crisprme.py, the whole PostProcess/ pipeline, and the benchmark data).
+# We copy (merge) rather than bind-mount the directory so install-generated data
+# not in the repo is preserved (e.g. CRISTA_predictors.pkl, unzipped at install).
 
 on:
   pull_request:
@@ -33,24 +35,30 @@ jobs:
       - name: Pull CRISPRme image
         run: docker pull "$IMG"
 
-      - name: Compose branch-code mounts
+      - name: Prepare branch-code overlay
         run: |
-          B="${GITHUB_WORKSPACE}"
-          # Mount the branch's crisprme.py and the WHOLE PostProcess/ directory
-          # over the installed package, so PRs that add or change any PostProcess
-          # module (e.g. a new validate_inputs.py / assembly_reconcile.py imported
-          # by crisprme.py) are actually exercised. Mounting only a few named files
-          # would leave new modules missing (ModuleNotFoundError) and silently test
-          # the image's code instead of the PR's. PostProcess/ is pure Python/shell
-          # plus data files identical to the image, so a read-only overlay is safe.
-          echo "MOUNTS=-v ${B}/crisprme.py:/opt/conda/bin/crisprme.py:ro -v ${B}/PostProcess:/opt/conda/opt/crisprme/PostProcess:ro -v ${B}/test:/opt/conda/opt/crisprme/test:ro" >> "$GITHUB_ENV"
+          # Mount the whole branch repo read-only at /branch; each container step
+          # then COPIES the branch's crisprme.py + PostProcess/ + test/ over the
+          # installed package. Copying MERGES (PR files overwrite their installed
+          # twins) while preserving install-generated data absent from the repo,
+          # e.g. CRISTA_predictors.pkl (unzipped from CRISTA_predictors.zip at
+          # install). Bind-mounting PostProcess/ over the dir hid that .pkl and
+          # broke CRISTA scoring. The copy also brings in PR-added modules
+          # (validate_inputs.py, assembly_reconcile.py) so they import + run.
+          echo "BRANCH_MOUNT=-v ${GITHUB_WORKSPACE}:/branch:ro" >> "$GITHUB_ENV"
 
       - name: complete-test (chr22, 1000G) for all registered benchmarks
         run: |
           mkdir -p work
           n=0
-          until docker run --rm $MOUNTS -v "${PWD}/work:/DATA" -w /DATA "$IMG" \
-                  crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G; do
+          until docker run --rm $BRANCH_MOUNT -v "${PWD}/work:/DATA" -w /DATA "$IMG" bash -c '
+                  set -e
+                  cp /branch/crisprme.py /opt/conda/bin/crisprme.py
+                  cp -rf /branch/PostProcess/* /opt/conda/opt/crisprme/PostProcess/
+                  mkdir -p /opt/conda/opt/crisprme/test
+                  cp -rf /branch/test/* /opt/conda/opt/crisprme/test/
+                  crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
+                '; do
             n=$((n+1))
             if [ "$n" -ge 3 ]; then echo "complete-test failed after $n attempts"; exit 1; fi
             echo "complete-test attempt $n failed; cleaning + retrying"
@@ -60,8 +68,14 @@ jobs:
 
       - name: validate-test (chr22) — assert all benchmarks match the ground truth
         run: |
-          docker run --rm $MOUNTS -v "${PWD}/work:/DATA" -w /DATA "$IMG" \
+          docker run --rm $BRANCH_MOUNT -v "${PWD}/work:/DATA" -w /DATA "$IMG" bash -c '
+            set -e
+            cp /branch/crisprme.py /opt/conda/bin/crisprme.py
+            cp -rf /branch/PostProcess/* /opt/conda/opt/crisprme/PostProcess/
+            mkdir -p /opt/conda/opt/crisprme/test
+            cp -rf /branch/test/* /opt/conda/opt/crisprme/test/
             crisprme.py validate-test --chrom chr22
+          '
 
       - name: Upload logs on failure
         if: failure()
