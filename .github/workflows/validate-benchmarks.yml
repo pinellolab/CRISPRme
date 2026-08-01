@@ -35,10 +35,12 @@ jobs:
       - name: complete-test (chr22, 1000G) for all registered benchmarks
         run: |
           mkdir -p work
-          for attempt in 1 2 3; do
-            docker run --rm -v "${PWD}/work:/DATA" -w /DATA crisprme:ci \
-              crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G && break
-            echo "complete-test attempt $attempt failed; cleaning + retrying"
+          n=0
+          until docker run --rm -v "${PWD}/work:/DATA" -w /DATA crisprme:ci \
+                  crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G; do
+            n=$((n+1))
+            if [ "$n" -ge 3 ]; then echo "complete-test failed after $n attempts"; exit 1; fi
+            echo "complete-test attempt $n failed; cleaning + retrying"
             sudo rm -rf work/Results/crisprme-test-out_* || true
             sleep 15
           done
