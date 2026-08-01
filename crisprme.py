@@ -1917,7 +1917,9 @@ def validate_test():
             sys.exit(1)
     # begin crisprme test
     script_validation = os.path.join(script_path, "validate.py")
-    code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
+    code = subprocess.call(
+        f"{sys.executable} {script_validation} {chrom}", shell=True
+    )
     if code != 0:
         raise OSError("CRISPRme off-target sites validation encountered an Error!")
     
@@ -1987,7 +1989,9 @@ def setup_database():
     # begin crisprme test
     script_setup = os.path.join(script_path, "setup_legacy_database.py")
     try:
-        subprocess.run(["python", script_setup, chrom, working_dir, str(force)], check=True)
+        subprocess.run(
+            [sys.executable, script_setup, chrom, working_dir, str(force)], check=True
+        )
     except subprocess.CalledProcessError as e:
         sys.stderr.write(
                 f"Legacy database setup exited with error code {e.returncode}"
