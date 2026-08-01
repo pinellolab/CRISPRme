@@ -1,10 +1,14 @@
 name: validate-test benchmarks (chr22)
 
-# Builds the branch's Docker image and runs the full CRISPRme round-trip on a
-# native Linux runner (no emulation): complete-test on chr22 with 1000G, then
-# validate-test, which compares CRISPRme's predicted off-targets against the
-# committed brute-force ground-truth references for every registered benchmark.
-# Fails if any benchmark's off-target set does not match.
+# Runs the full CRISPRme round-trip on a native Linux runner (no emulation):
+# complete-test on chr22 with 1000G, then validate-test, which compares
+# CRISPRme's predicted off-targets against the committed brute-force ground-truth
+# references for every registered benchmark. Fails if any benchmark's off-target
+# set does not match.
+#
+# The published image installs a *released* CRISPRme from bioconda, so we pull it
+# and mount this branch's code over the installed package to exercise the PR's
+# changes (crisprme.py, the PostProcess drivers, and the benchmark registry/data).
 
 on:
   pull_request:
@@ -21,22 +25,24 @@ jobs:
   validate-benchmarks:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      IMG: pinellolab/crisprme
     steps:
       - uses: actions/checkout@v4
 
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android || true
-          df -h /
+      - name: Pull CRISPRme image
+        run: docker pull "$IMG"
 
-      - name: Build CRISPRme image (branch code)
-        run: docker build . --file Dockerfile --tag crisprme:ci
+      - name: Compose branch-code mounts
+        run: |
+          B="${GITHUB_WORKSPACE}"
+          echo "MOUNTS=-v ${B}/crisprme.py:/opt/conda/bin/crisprme.py:ro -v ${B}/PostProcess/complete_test.py:/opt/conda/opt/crisprme/PostProcess/complete_test.py:ro -v ${B}/PostProcess/validate.py:/opt/conda/opt/crisprme/PostProcess/validate.py:ro -v ${B}/test:/opt/conda/opt/crisprme/test:ro" >> "$GITHUB_ENV"
 
       - name: complete-test (chr22, 1000G) for all registered benchmarks
         run: |
           mkdir -p work
           n=0
-          until docker run --rm -v "${PWD}/work:/DATA" -w /DATA crisprme:ci \
+          until docker run --rm $MOUNTS -v "${PWD}/work:/DATA" -w /DATA "$IMG" \
                   crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G; do
             n=$((n+1))
             if [ "$n" -ge 3 ]; then echo "complete-test failed after $n attempts"; exit 1; fi
@@ -47,7 +53,7 @@ jobs:
 
       - name: validate-test (chr22) — assert all benchmarks match the ground truth
         run: |
-          docker run --rm -v "${PWD}/work:/DATA" -w /DATA crisprme:ci \
+          docker run --rm $MOUNTS -v "${PWD}/work:/DATA" -w /DATA "$IMG" \
             crisprme.py validate-test --chrom chr22
 
       - name: Upload logs on failure
