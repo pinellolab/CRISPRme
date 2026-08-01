@@ -158,6 +158,113 @@ def haplotype_search_complete(results_dir: str) -> bool:
     return os.path.isfile(os.path.join(results_dir, LOG_ERROR_NO_CHECK_FILENAME))
 
 
+def clean_incomplete_haplotype_output(
+    output_dir: str, reason: str = "an incomplete previous attempt"
+) -> None:
+    """Removes a haplotype's stale output directory left behind by a
+    previous incomplete/crashed `complete-search` attempt (or one built with
+    different search parameters, see `haplotype_params_match`), so a retry
+    can actually proceed.
+
+    `complete_search()`'s own `_check_output()` guard refuses to run into a
+    non-empty `--output` folder -- exactly right for protecting against
+    clobbering a genuinely different run, but it also blocks retrying the
+    *same* haplotype search after a crash, since a crash always leaves
+    partial files behind (its own error message says as much: "please
+    delete ... before running a new CRISPRme search"). Only call this once
+    the caller has already confirmed `output_dir` does NOT represent a
+    usable, current result -- at that point nothing in it is worth keeping,
+    so removing it to unblock the retry is safe.
+
+    No-op if the directory doesn't exist yet (a fresh, first-time run has
+    nothing to clean up).
+
+    Args:
+        output_dir: The specific haplotype's own output directory (e.g.
+            `Results/<name>_paternal`) -- never call this with anything
+            broader, since it recursively deletes everything under it.
+        reason: Human-readable phrase describing why this directory is
+            being removed, logged so the user isn't left wondering (e.g.
+            override with "results built with different search parameters"
+            when that's why, rather than the default incomplete-run wording).
+    """
+    if os.path.isdir(output_dir):
+        print(f"Detected {reason} at {output_dir}, removing before retry")
+        shutil.rmtree(output_dir)
+
+
+_HAPLOTYPE_PARAM_FLAGS = ["--genome", "--guide", "--pam", "--mm", "--bDNA", "--bRNA", "--merge"]
+COMMAND_LINE_FILENAME = ".command_line.txt"
+
+
+def _read_recorded_params(results_dir: str) -> Optional[Dict[str, str]]:
+    """Reads the recorded `--genome`/`--guide`/`--pam`/`--mm`/`--bDNA`/
+    `--bRNA`/`--merge` values from a previous `complete-search` run's
+    `.command_line.txt` -- written unconditionally by every `complete-search`
+    invocation (including each haplotype's own, via `_run_haplotype_search`),
+    so this needs no new files or directory-naming changes to read.
+
+    Returns:
+        A dict of flag -> value for whichever of the flags above were found,
+        or `None` if the file is missing or doesn't parse (e.g. a genuinely
+        incomplete/crashed run that never got far enough to write it).
+    """
+    command_line_path = os.path.join(results_dir, COMMAND_LINE_FILENAME)
+    if not os.path.isfile(command_line_path):
+        return None
+    with open(command_line_path) as f:
+        content = f.read()
+    prefix = "input_command\t"
+    if not content.startswith(prefix):
+        return None
+    tokens = content[len(prefix):].strip().split()
+    recorded = {}
+    for flag in _HAPLOTYPE_PARAM_FLAGS:
+        if flag in tokens:
+            idx = tokens.index(flag)
+            if idx + 1 < len(tokens):
+                recorded[flag] = tokens[idx + 1]
+    return recorded
+
+
+def haplotype_params_match(
+    results_dir: str, genome_dir: str, guide_file: str, pam_file: str,
+    mm: int, bDNA: int, bRNA: int, merge_bp: int,
+) -> bool:
+    """Checks whether a haplotype's existing output directory was produced
+    with the same search parameters as the current invocation.
+
+    Without this, `assembly_search` would silently reuse a stale result if
+    rerun with the same `--output` name but different `--genome-*`/`--guide`/
+    `--pam`/`--mm`/`--bDNA`/`--bRNA`/`--merge` values -- `haplotype_search_complete`
+    only checks that *a* complete result exists, not that it's the *current*
+    one. Reads the existing `.command_line.txt` `complete_search()` already
+    writes; no new files, no directory-naming changes.
+
+    Args:
+        results_dir: The haplotype's output directory to check.
+        genome_dir, guide_file, pam_file: Absolute paths, as resolved by
+            `assembly_search()`'s own arg-checking (must match exactly).
+        mm, bDNA, bRNA, merge_bp: The current invocation's values.
+
+    Returns:
+        True only if every recorded parameter matches exactly; False if
+        anything differs, or if the recorded parameters can't be read at all
+        (treated the same as "don't reuse" -- consistent with how
+        `haplotype_search_complete` already treats an unreadable result as
+        not-yet-complete).
+    """
+    recorded = _read_recorded_params(results_dir)
+    if recorded is None:
+        return False
+    current = {
+        "--genome": genome_dir, "--guide": guide_file, "--pam": pam_file,
+        "--mm": str(mm), "--bDNA": str(bDNA), "--bRNA": str(bRNA),
+        "--merge": str(merge_bp),
+    }
+    return recorded == current
+
+
 def load_chrom_alias(chrom_alias_file: str) -> Tuple[Dict[str, str], Dict[str, str]]:
     """Loads a chromAlias file into assembly->ucsc and ucsc->genbank mappings.
 
@@ -350,6 +457,107 @@ def load_unlifted_ids(unmapped_path: str) -> set:
 LOG_VERBOSE_FILENAME = "log_verbose.txt"
 LOG_ERROR_FILENAME = "log_error.txt"
 
+_SHARED_KEY_COLS = ["hg38_chr", "Strand_(fewest_mm+b)", "hg38_start"]
+
+
+def _combine_across_haplotypes(
+    hg38_predictions: Dict[str, pd.DataFrame], names: List[str], merge_bp: int
+) -> pd.DataFrame:
+    """Combines two haplotypes' already within-haplotype-collapsed hg38
+    predictions into one report, matching "same site" by proximity (within
+    `merge_bp`) rather than exact-coordinate equality -- absorbs the 1-3bp
+    bulge-registration drift documented in `cluster_collapse`'s docstring,
+    which independently affects each haplotype's own lift-over anchor
+    position.
+
+    Deliberately does NOT reuse `cluster_collapse`'s transitive chaining:
+    chaining is only correct within one haplotype's own results, where
+    nearby rows are known artifacts of one real alignment event (bulge
+    bookkeeping shifting the counted anchor position). Across two
+    independent haplotypes, a bridging point could just as easily be an
+    unrelated, genuinely distinct real site rather than a shared artifact --
+    chaining across them risks merging real, distinct loci into one. Instead
+    this does a direct, non-chaining nearest-within-tolerance match
+    (`pandas.merge_asof`, one hop per row, no transitive linking).
+
+    `merge_asof` matches each haplotype-`a` row independently, so the same
+    haplotype-`b` row can end up the nearest match for more than one
+    haplotype-`a` row (possible when two haplotype-`a` sites are each within
+    `merge_bp` of the same haplotype-`b` site but more than `merge_bp` apart
+    from each other -- otherwise they'd already have been collapsed within
+    haplotype `a`'s own `cluster_collapse` pass). A single real haplotype-`b`
+    site can't genuinely confirm two different haplotype-`a` sites as the
+    same physical locus, so only the closest claim is kept; the other
+    haplotype-`a` row is demoted back to `"<a>_only"`.
+
+    Args:
+        hg38_predictions: Each haplotype's already-`cluster_collapse`d
+            (one row per real site, within that haplotype) predictions in
+            hg38 coordinates.
+        names: The two haplotype names, in the order defining which side's
+            columns get which suffix.
+        merge_bp: Same tolerance used for `cluster_collapse` -- should match
+            the `--merge` value used for both haplotypes' `complete-search`
+            runs.
+
+    Returns:
+        One row per reconciled site, with an `origin` column
+        (`"<a>_only"`, `"<b>_only"`, or `"both"`).
+    """
+    a, b = names
+    left = hg38_predictions[a].sort_values(_SHARED_KEY_COLS).reset_index(drop=True)
+    right = hg38_predictions[b].sort_values(_SHARED_KEY_COLS).reset_index(drop=True).copy()
+
+    # an entirely non-mappable haplotype leaves an empty frame here (e.g.
+    # every prediction failed to lift over) -- pandas infers an `object`
+    # dtype for an empty column, which merge_asof rejects when the other
+    # side is a real int64 `hg38_start` ("incompatible merge keys" error).
+    # Short-circuit rather than coerce dtypes into a merge that has nothing
+    # to actually match against either way.
+    if left.empty and right.empty:
+        return pd.DataFrame(columns=list(left.columns) + ["origin"])
+    if right.empty:
+        out = left.rename(columns={
+            col: f"{col}_{a}" for col in left.columns if col not in _SHARED_KEY_COLS
+        })
+        out["origin"] = f"{a}_only"
+        return out
+    if left.empty:
+        out = right.rename(columns={
+            col: f"{col}_{b}" for col in right.columns if col not in _SHARED_KEY_COLS
+        })
+        out["origin"] = f"{b}_only"
+        return out
+
+    # merge_asof collapses the "on" column to a single (left's) value, so
+    # keep a copy of the right side's own position to compute the true gap
+    # for tie-breaking below
+    right["_right_hg38_start"] = right["hg38_start"]
+
+    matched = pd.merge_asof(
+        left, right, on="hg38_start", by=["hg38_chr", "Strand_(fewest_mm+b)"],
+        tolerance=merge_bp, direction="nearest", suffixes=(f"_{a}", f"_{b}"),
+    )
+    b_id_col = f"off_target_id_{b}"
+    matched["_gap"] = (matched["hg38_start"] - matched["_right_hg38_start"]).abs()
+
+    is_matched = matched[b_id_col].notna()
+    closest_claim_idx = matched[is_matched].groupby(b_id_col)["_gap"].idxmin()
+    demote = is_matched & ~matched.index.isin(closest_claim_idx)
+    b_cols = [c for c in matched.columns if c.endswith(f"_{b}")] + ["_right_hg38_start"]
+    matched.loc[demote, b_cols] = pd.NA
+
+    matched["origin"] = matched[b_id_col].notna().map({True: "both", False: f"{a}_only"})
+    matched = matched.drop(columns=["_gap", "_right_hg38_start"])
+
+    matched_b_ids = set(matched.loc[matched["origin"] == "both", b_id_col])
+    b_only = right[~right["off_target_id"].isin(matched_b_ids)].drop(columns=["_right_hg38_start"]).copy()
+    rename_map = {col: f"{col}_{b}" for col in b_only.columns if col not in _SHARED_KEY_COLS}
+    b_only = b_only.rename(columns=rename_map)
+    b_only["origin"] = f"{b}_only"
+
+    return pd.concat([matched, b_only], ignore_index=True)
+
 
 def reconcile_haplotypes(
     haplotypes: Dict[str, dict], workdir: str, merge_bp: int = 3
@@ -448,16 +656,7 @@ def reconcile_haplotypes(
         a, b = names[0], names[1]
 
         log("Combining lifted predictions across haplotypes...")
-        combined = hg38_predictions[a].merge(
-            hg38_predictions[b],
-            on=["hg38_chr", "hg38_start", "hg38_end"],
-            how="outer",
-            suffixes=(f"_{a}", f"_{b}"),
-            indicator=True,
-        )
-        origin_map = {"left_only": f"{a}_only", "right_only": f"{b}_only", "both": "both"}
-        combined["origin"] = combined["_merge"].map(origin_map)
-        combined = combined.drop(columns=["_merge"])
+        combined = _combine_across_haplotypes(hg38_predictions, [a, b], merge_bp)
 
         origin_counts = combined["origin"].value_counts()
         summary = {

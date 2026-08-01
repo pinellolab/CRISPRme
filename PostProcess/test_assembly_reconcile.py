@@ -114,6 +114,135 @@ class TestClusterCollapse(unittest.TestCase):
         self.assertEqual(out["pos"].iloc[0], 101)
 
 
+_HG38_ROW_COLS = [
+    "off_target_id", "hg38_chr", "hg38_start", "hg38_end",
+    "Strand_(fewest_mm+b)", "CFD_score_(fewest_mm+b)",
+]
+
+
+def _hg38_row(off_target_id, chrom, start, strand="+", cfd=0.5, end=None):
+    return {
+        "off_target_id": off_target_id,
+        "hg38_chr": chrom,
+        "hg38_start": start,
+        "hg38_end": end if end is not None else start + 1,
+        "Strand_(fewest_mm+b)": strand,
+        "CFD_score_(fewest_mm+b)": cfd,
+    }
+
+
+class TestCombineAcrossHaplotypes(unittest.TestCase):
+    def _combine(self, a_rows, b_rows, merge_bp=3):
+        # even an empty haplotype's real predictions frame still has the
+        # full column schema (it's the result of a merge/filter, not a bare
+        # empty list) -- pd.DataFrame([]) would have zero columns, which
+        # isn't representative of real usage and hides schema-dependent bugs
+        preds = {
+            "a": pd.DataFrame(a_rows, columns=_HG38_ROW_COLS),
+            "b": pd.DataFrame(b_rows, columns=_HG38_ROW_COLS),
+        }
+        return ar._combine_across_haplotypes(preds, ["a", "b"], merge_bp)
+
+    def test_exact_match_is_both(self):
+        out = self._combine(
+            [_hg38_row("a1", "chr1", 1000)],
+            [_hg38_row("b1", "chr1", 1000)],
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out["origin"].iloc[0], "both")
+
+    def test_within_tolerance_drift_is_both(self):
+        # the original bug: 2bp bulge-registration drift used to be reported
+        # as two separate "_only" hits instead of one "both" hit
+        out = self._combine(
+            [_hg38_row("a1", "chr1", 1000)],
+            [_hg38_row("b1", "chr1", 1002)],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out["origin"].iloc[0], "both")
+
+    def test_beyond_tolerance_stays_separate(self):
+        out = self._combine(
+            [_hg38_row("a1", "chr1", 1000)],
+            [_hg38_row("b1", "chr1", 1010)],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 2)
+        self.assertCountEqual(out["origin"].tolist(), ["a_only", "b_only"])
+
+    def test_no_bridging_across_unrelated_distant_sites(self):
+        # regression test for the chaining/bridging risk: sorted positions
+        # 6000 (a1) -> 6002 (b1) -> 6005 (a2) have consecutive gaps of 2 and
+        # 3, both <= merge_bp=3 -- a transitive-chaining approach (like
+        # cluster_collapse's, if wrongly reused across haplotypes) would
+        # bridge all three into ONE cluster and silently discard 2 of the 3
+        # real distinct sites. a1 and a2 are 5bp apart directly (> merge_bp),
+        # so they're genuinely separate sites, correctly kept apart within
+        # their own haplotype's collapse already. Pairwise-only matching
+        # must not silently lose a2 -- it has no direct exclusive claim on
+        # b1 (a1 is closer, gap 2 vs 3) but must still surface as its own row.
+        out = self._combine(
+            [
+                _hg38_row("a1", "chr1", 6000, cfd=0.1),
+                _hg38_row("a2", "chr1", 6005, cfd=0.2),
+            ],
+            [_hg38_row("b1", "chr1", 6002, cfd=0.9)],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 2)  # never 1 -- that would mean a2 got silently merged away
+        self.assertIn("a2", out["off_target_id_a"].dropna().tolist())
+        both_rows = out[out["origin"] == "both"]
+        self.assertEqual(both_rows["off_target_id_a"].iloc[0], "a1")
+
+    def test_shared_nearest_neighbor_ties_break_to_closest_only(self):
+        # two "a" sites each within tolerance of the same "b" site (possible
+        # since the two "a" sites are >merge_bp apart from each other, so
+        # cluster_collapse wouldn't have merged them within haplotype a) --
+        # only the closer "a" site should get credited as "both"
+        out = self._combine(
+            [
+                _hg38_row("a1", "chr1", 1000),
+                _hg38_row("a2", "chr1", 1005),
+            ],
+            [_hg38_row("b1", "chr1", 1002)],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 2)
+        both_rows = out[out["origin"] == "both"]
+        self.assertEqual(len(both_rows), 1)
+        self.assertEqual(both_rows["off_target_id_a"].iloc[0], "a1")
+        a_only_rows = out[out["origin"] == "a_only"]
+        self.assertEqual(a_only_rows["off_target_id_a"].iloc[0], "a2")
+
+    def test_different_strand_never_matches(self):
+        out = self._combine(
+            [_hg38_row("a1", "chr1", 1000, strand="+")],
+            [_hg38_row("b1", "chr1", 1000, strand="-")],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 2)
+        self.assertCountEqual(out["origin"].tolist(), ["a_only", "b_only"])
+
+    def test_different_chrom_never_matches(self):
+        out = self._combine(
+            [_hg38_row("a1", "chr1", 1000)],
+            [_hg38_row("b1", "chr2", 1000)],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 2)
+        self.assertCountEqual(out["origin"].tolist(), ["a_only", "b_only"])
+
+    def test_empty_haplotype_b_all_a_only(self):
+        out = self._combine(
+            [_hg38_row("a1", "chr1", 1000)],
+            [],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out["origin"].iloc[0], "a_only")
+
+
 class TestFindResultsPrefix(unittest.TestCase):
     def test_finds_unique_prefix(self):
         with tempfile.TemporaryDirectory() as d:
@@ -156,6 +285,128 @@ class TestHaplotypeSearchComplete(unittest.TestCase):
             open(os.path.join(d, "guideX_PAM_genome_mm4_bMax2_integrated_results.tsv"), "w").close()
             open(os.path.join(d, ar.LOG_ERROR_NO_CHECK_FILENAME), "w").close()
             self.assertTrue(ar.haplotype_search_complete(d))
+
+
+class TestCleanIncompleteHaplotypeOutput(unittest.TestCase):
+    def test_removes_stale_incomplete_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stale = os.path.join(tmp, "paternal_output")
+            os.makedirs(stale)
+            open(os.path.join(stale, "Params.txt"), "w").close()
+            open(os.path.join(stale, "log_verbose.txt"), "w").close()
+
+            ar.clean_incomplete_haplotype_output(stale)
+
+            self.assertFalse(os.path.isdir(stale))
+
+    def test_missing_directory_is_a_no_op(self):
+        # a fresh, first-time run has nothing to clean up -- must not raise
+        with tempfile.TemporaryDirectory() as tmp:
+            never_existed = os.path.join(tmp, "does_not_exist")
+            ar.clean_incomplete_haplotype_output(never_existed)  # should not raise
+            self.assertFalse(os.path.isdir(never_existed))
+
+    def test_does_not_touch_sibling_directories(self):
+        # regression guard: cleaning up one haplotype's directory must never
+        # affect a sibling directory (e.g. the other haplotype's own,
+        # already-complete output), since assembly_search() calls this with
+        # one haplotype's specific path at a time
+        with tempfile.TemporaryDirectory() as tmp:
+            stale = os.path.join(tmp, "paternal_output")
+            sibling = os.path.join(tmp, "maternal_output")
+            os.makedirs(stale)
+            os.makedirs(sibling)
+            open(os.path.join(sibling, "guideX_integrated_results.tsv"), "w").close()
+
+            ar.clean_incomplete_haplotype_output(stale)
+
+            self.assertFalse(os.path.isdir(stale))
+            self.assertTrue(os.path.isdir(sibling))
+            self.assertTrue(os.path.isfile(os.path.join(sibling, "guideX_integrated_results.tsv")))
+
+    def test_custom_reason_used_in_log_message(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stale = os.path.join(tmp, "paternal_output")
+            os.makedirs(stale)
+            with patch("builtins.print") as mock_print:
+                ar.clean_incomplete_haplotype_output(
+                    stale, reason="results built with different search parameters"
+                )
+            mock_print.assert_called_once()
+            self.assertIn("results built with different search parameters", mock_print.call_args[0][0])
+            self.assertFalse(os.path.isdir(stale))
+
+
+def _write_command_line_file(results_dir, genome, guide, pam, mm, bDNA, bRNA, merge_bp):
+    os.makedirs(results_dir, exist_ok=True)
+    cmd = (
+        f"/usr/bin/python3 /path/crisprme.py complete-search --genome {genome} "
+        f"--guide {guide} --pam {pam} --mm {mm} --bDNA {bDNA} --bRNA {bRNA} "
+        f"--merge {merge_bp} --output some_name --thread 4"
+    )
+    with open(os.path.join(results_dir, ar.COMMAND_LINE_FILENAME), "w") as f:
+        f.write(f"input_command\t{cmd}\n")
+
+
+class TestHaplotypeParamsMatch(unittest.TestCase):
+    def _params(self, **overrides):
+        base = dict(
+            genome_dir="/genomes/g1", guide_file="/guides/g.txt",
+            pam_file="/pams/p.txt", mm=4, bDNA=1, bRNA=1, merge_bp=3,
+        )
+        base.update(overrides)
+        return base
+
+    def test_matches_when_all_params_identical(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._params()
+            _write_command_line_file(
+                tmp, p["genome_dir"], p["guide_file"], p["pam_file"],
+                p["mm"], p["bDNA"], p["bRNA"], p["merge_bp"],
+            )
+            self.assertTrue(ar.haplotype_params_match(tmp, **p))
+
+    def test_no_match_when_genome_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._params()
+            _write_command_line_file(
+                tmp, p["genome_dir"], p["guide_file"], p["pam_file"],
+                p["mm"], p["bDNA"], p["bRNA"], p["merge_bp"],
+            )
+            changed = self._params(genome_dir="/genomes/g2_different")
+            self.assertFalse(ar.haplotype_params_match(tmp, **changed))
+
+    def test_no_match_when_guide_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._params()
+            _write_command_line_file(
+                tmp, p["genome_dir"], p["guide_file"], p["pam_file"],
+                p["mm"], p["bDNA"], p["bRNA"], p["merge_bp"],
+            )
+            changed = self._params(guide_file="/guides/different_guide.txt")
+            self.assertFalse(ar.haplotype_params_match(tmp, **changed))
+
+    def test_no_match_when_mm_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._params()
+            _write_command_line_file(
+                tmp, p["genome_dir"], p["guide_file"], p["pam_file"],
+                p["mm"], p["bDNA"], p["bRNA"], p["merge_bp"],
+            )
+            changed = self._params(mm=6)
+            self.assertFalse(ar.haplotype_params_match(tmp, **changed))
+
+    def test_no_match_when_command_line_file_missing(self):
+        # a genuinely incomplete/crashed run that never got far enough to
+        # write .command_line.txt -- must not be treated as reusable
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertFalse(ar.haplotype_params_match(tmp, **self._params()))
+
+    def test_no_match_when_command_line_file_malformed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, ar.COMMAND_LINE_FILENAME), "w") as f:
+                f.write("not the expected format at all\n")
+            self.assertFalse(ar.haplotype_params_match(tmp, **self._params()))
 
 
 class TestLoadChromAlias(unittest.TestCase):

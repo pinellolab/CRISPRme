@@ -37,7 +37,7 @@ if "--debug" in input_args:
     corrected_web_path = current_working_directory
 
 sys.path.insert(0, script_path)
-from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete  # noqa: E402
+from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete, clean_incomplete_haplotype_output, haplotype_params_match  # noqa: E402
 
 cicd_test = False
 if "--ci-cd-test" in input_args:
@@ -1513,20 +1513,40 @@ def assembly_search() -> None:
     # avoid re-running a multi-hour haplotype search if it already completed
     # successfully -- e.g. a retry after a failure that only affected
     # reconciliation (a chromAlias/liftOver issue, say), not the searches
-    if haplotype_search_complete(paternal_output_dir):
+    paternal_complete = haplotype_search_complete(paternal_output_dir)
+    paternal_reusable = paternal_complete and haplotype_params_match(
+        paternal_output_dir, genome_paternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t
+    )
+    if paternal_reusable:
         print(f"Found existing completed paternal search results at Results/{paternal_output_name}, reusing (not re-running)")
         paternal_results = paternal_output_dir
     else:
+        if paternal_complete:
+            clean_incomplete_haplotype_output(
+                paternal_output_dir, reason="results built with different search parameters"
+            )
+        else:
+            clean_incomplete_haplotype_output(paternal_output_dir)
         print(f"Running paternal haplotype search -> Results/{paternal_output_name}")
         paternal_results = _run_haplotype_search(
             genome_paternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
             paternal_output_name, thread, debug,
         )
 
-    if haplotype_search_complete(maternal_output_dir):
+    maternal_complete = haplotype_search_complete(maternal_output_dir)
+    maternal_reusable = maternal_complete and haplotype_params_match(
+        maternal_output_dir, genome_maternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t
+    )
+    if maternal_reusable:
         print(f"Found existing completed maternal search results at Results/{maternal_output_name}, reusing (not re-running)")
         maternal_results = maternal_output_dir
     else:
+        if maternal_complete:
+            clean_incomplete_haplotype_output(
+                maternal_output_dir, reason="results built with different search parameters"
+            )
+        else:
+            clean_incomplete_haplotype_output(maternal_output_dir)
         print(f"Running maternal haplotype search -> Results/{maternal_output_name}")
         maternal_results = _run_haplotype_search(
             genome_maternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
