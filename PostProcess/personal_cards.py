@@ -44,7 +44,16 @@ warnings.filterwarnings("ignore")
 # TODO if argv8 is selected, from argv6 get the directory containing the summary of the specific sample for gecko -> line 618
 # NOTE al momento lo script funziona con gecko.annotation.summary; la comparison con i sample la fa su annotation.summary. Quando l'analisi per sample sarà fatta, la comparison
 # con i sampla dovrà essere fatta sul file specifico
-plt.style.use("seaborn-poster")
+# py3.11-readiness: the "seaborn-poster" style was renamed to
+# "seaborn-v0_8-poster" in matplotlib 3.6 and the old alias removed in 3.8.
+# Pick whichever exists so the same code works on old and new matplotlib.
+# No-op on the current image (resolves to "seaborn-poster").
+_POSTER_STYLE = (
+    "seaborn-v0_8-poster"
+    if "seaborn-v0_8-poster" in plt.style.available
+    else "seaborn-poster"
+)
+plt.style.use(_POSTER_STYLE)
 # matplotlib.rcParams['pdf.fonttype'] = 42
 # matplotlib.rcParams['ps.fonttype'] = 42
 # matplotlib.rcParams["figure.figsize"] = [100, 80]
