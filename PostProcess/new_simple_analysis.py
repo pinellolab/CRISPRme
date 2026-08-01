@@ -120,7 +120,10 @@ def calc_cfd(guide_seq, sg, pam, mm_scores, pam_scores, do_scores):
             ) as e:  # If '-' is in first position, i do not have the score for that position
                 pass
 
-    score *= pam_scores[pam]
+    # Guard against non-ATCG PAM bases (e.g. from real NIST/NCBI hg38):
+    # a non-canonical PAM contributes 0 to the CFD product instead of raising
+    # KeyError (issue #94). Canonical PAM bases (A/C/G/T) are unaffected.
+    score *= pam_scores.get(pam, 0.0)
     return score
 
 
