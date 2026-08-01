@@ -61,6 +61,7 @@ import argparse
 import pickle
 import random
 import re
+import sys
 import numpy as np
 import PA_limitedIndel as PA_script
 import pandas as pd
@@ -404,6 +405,29 @@ def predict_crista_score(features_lst):
     n_predictors = 5
 
     path = RF_PICKLE_PATH
+    # py3.11-readiness: CRISTA_predictors.pkl was pickled with an old sklearn
+    # whose private modules were later renamed (sklearn.ensemble.forest ->
+    # sklearn.ensemble._forest; sklearn.tree.tree -> sklearn.tree._classes).
+    # Install sys.modules aliases so the old pickled paths resolve on modern
+    # sklearn. This is a strict NO-OP on the current image: the try/except only
+    # registers an alias when the *new* module is importable (i.e. modern
+    # sklearn), and on the old image those imports fail and the block does
+    # nothing (the old paths still exist there).
+    # NOTE: CRISTA scores MUST be numerically re-validated on the py3.11 image
+    # once the crispritz py3.11 build lands; this shim only makes unpickling
+    # succeed, it does not guarantee bit-identical model output across sklearn
+    # versions.
+    for _old_name, _new_module in (
+        ("sklearn.ensemble.forest", "sklearn.ensemble._forest"),
+        ("sklearn.tree.tree", "sklearn.tree._classes"),
+    ):
+        try:
+            import importlib
+
+            sys.modules[_old_name] = importlib.import_module(_new_module)
+        except Exception:
+            # Old sklearn (current image) or import failure: leave as-is.
+            pass
     with open(path, "rb") as pklr:
         predictors = pickle.load(pklr)
 
