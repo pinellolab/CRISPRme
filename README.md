@@ -240,6 +240,28 @@ official Docker installation guide specific to your OS:
 - [Windows Installation Guide](https://docs.docker.com/docker-for-windows/install/)
 - [Linux Installation Guide](https://docs.docker.com/engine/install/ubuntu/)
 
+**Apple Silicon (M1/M2/M3) support**
+
+The CRISPRme Docker image is now published as a multi-architecture image with a
+native `linux/arm64` build, so it runs **natively on Apple Silicon Macs with no
+emulation** (no Rosetta / QEMU, no "platform mismatch" warning). Both the
+`crispritz` dependency (native `linux-aarch64` bioconda build) and `crisprme`
+itself (a `noarch` package) install per-architecture without any source
+compilation. Docker automatically selects the correct architecture when you
+pull or run the image, so no special flags are required.
+
+**Docker Desktop memory allocation (important)**
+
+CRISPRme's searches are memory intensive. By default Docker Desktop caps the
+memory available to containers, which can cause searches to fail with
+out-of-memory errors. Before running large analyses, raise the limit in
+**Docker Desktop → Settings → Resources → Memory** to **at least 32 GB** (64 GB
+or more is recommended for large analyses). CRISPRme prints a non-fatal
+`WARNING:` at the start of a `complete-search` / `complete-test` run when it
+detects less than 32 GB of total memory, reminding you to increase this
+allocation. (You can override the threshold with `CRISPRME_MIN_GB` or skip the
+check entirely with `CRISPRME_SKIP_MEM_CHECK=1`.)
+
 **Linux-Specific Post-Installation Steps**
 
 If you're using Linux, additional configuration steps are required:

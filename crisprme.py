@@ -2,6 +2,7 @@
 
 from typing import List, NoReturn, Tuple
 from Bio.Seq import Seq
+from PostProcess.memory_check import warn_low_memory
 
 import subprocess
 import itertools
@@ -1137,6 +1138,7 @@ def _check_threads(args: List[str], threads: bool) -> int:
     return thread
 
 def complete_search() -> None:
+    warn_low_memory()  # non-fatal low-memory warning (Docker Desktop, etc.)
     args = input_args[2:]  # retrieve complete-search input arguments
     if "--help" in args or not args:  # print help
         print_help_complete_search()
@@ -1731,6 +1733,7 @@ def complete_test_crisprme():
             process.
     """
 
+    warn_low_memory()  # non-fatal low-memory warning (Docker Desktop, etc.)
     if "--help" in input_args or len(input_args) < 3:
         print_help_complete_test()
         sys.exit(1)
