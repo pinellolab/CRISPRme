@@ -32,7 +32,7 @@
       "guide_crisprme": "NNNNCCTTGTCAAGGCTATTGGTC",
       "guide_search": "TTTVCCTTGTCAAGGCTATTGGTC",
       "reference": "brute-force-cas12-1000G/brute_force_cas12_1000G.tsv",
-      "md5": "260ab4fcb1af23509377752e8845880e",
+      "md5": "fb7ef712d6f81699d8fa8eaffa2906c7",
       "source": "HBG1/HBG2 clinical Cas12a guide (Blood 2019, doi:10.1182/blood-2019-130256); on-targets chr11:5249950 / 5254874",
       "pam_length": 4,
       "pam_concrete": "TTTV",

@@ -200,7 +200,7 @@ def main():
 
     DNA = str(SeqIO.read(args.fasta, "fasta").seq)
     with open(args.output, "w", newline="") as fout:
-        writer = csv.writer(fout, delimiter="\t")
+        writer = csv.writer(fout, delimiter="\t", lineterminator="\n")
         writer.writerow(
             ["CHR", "RNA", "DNA", "Strand", "Start", "END",
              "mismatches", "gaps_in_RNA", "gaps_in_DNA"]
