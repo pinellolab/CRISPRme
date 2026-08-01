@@ -227,8 +227,10 @@ def iupac_decomposition(split, guide_no_bulge, guide_no_pam, cluster_to_save):
                     haploSamples = {0: [], 1: []}
                     for count, sample in enumerate(sampleSet[i]):
                         sampleInfo = sample.split(":")
+                        gt_alleles = sampleInfo[1].split("|")
                         for haplo in totalDict:
-                            if sampleInfo[1].split("|")[haplo] != "0":
+                            allele = gt_alleles[haplo] if len(gt_alleles) > haplo else gt_alleles[0]  # haploid guard
+                            if allele != "0":
                                 haploSamples[haplo].append(sampleInfo[0])
                     totalDict[0][0][(pos_c, elem)] = [
                         listReplaceTarget,
