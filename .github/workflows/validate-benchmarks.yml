@@ -36,7 +36,14 @@ jobs:
       - name: Compose branch-code mounts
         run: |
           B="${GITHUB_WORKSPACE}"
-          echo "MOUNTS=-v ${B}/crisprme.py:/opt/conda/bin/crisprme.py:ro -v ${B}/PostProcess/complete_test.py:/opt/conda/opt/crisprme/PostProcess/complete_test.py:ro -v ${B}/PostProcess/validate.py:/opt/conda/opt/crisprme/PostProcess/validate.py:ro -v ${B}/test:/opt/conda/opt/crisprme/test:ro" >> "$GITHUB_ENV"
+          # Mount the branch's crisprme.py and the WHOLE PostProcess/ directory
+          # over the installed package, so PRs that add or change any PostProcess
+          # module (e.g. a new validate_inputs.py / assembly_reconcile.py imported
+          # by crisprme.py) are actually exercised. Mounting only a few named files
+          # would leave new modules missing (ModuleNotFoundError) and silently test
+          # the image's code instead of the PR's. PostProcess/ is pure Python/shell
+          # plus data files identical to the image, so a read-only overlay is safe.
+          echo "MOUNTS=-v ${B}/crisprme.py:/opt/conda/bin/crisprme.py:ro -v ${B}/PostProcess:/opt/conda/opt/crisprme/PostProcess:ro -v ${B}/test:/opt/conda/opt/crisprme/test:ro" >> "$GITHUB_ENV"
 
       - name: complete-test (chr22, 1000G) for all registered benchmarks
         run: |
