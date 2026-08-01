@@ -681,9 +681,26 @@ def _sort_annotation(annotationfile: str) -> str:
     Raises:
         SystemExit: If decompression, sorting, compression, or renaming fails.
     """
-    annotationfile_sorted = _sort_bed(annotationfile, f"{annotationfile}.tmp.sorted.bed")
+    # sort-bed needs an uncompressed BED. Accept either a plain .bed or a
+    # bgzipped .bed.gz (setup/complete-test download the latter) and always
+    # write the canonical bgzipped output back to <name>.gz.
+    if annotationfile.endswith(".gz"):
+        gz_path, plain_path = annotationfile, annotationfile[:-3]
+    else:
+        gz_path, plain_path = f"{annotationfile}.gz", annotationfile
+    decompressed_here = False
+    if not os.path.isfile(plain_path):
+        if os.path.isfile(gz_path):
+            _decompress_file(gz_path, plain_path)  # gunzip -k -c gz > plain
+            decompressed_here = True
+        else:
+            error(f"Annotation file not found: {annotationfile}")
+    annotationfile_sorted = _sort_bed(plain_path, f"{plain_path}.tmp.sorted.bed")
     annotationfile_sorted_bgzip = _compress_file(annotationfile_sorted)
-    return _mv_file(annotationfile_sorted_bgzip, f"{annotationfile}.gz")
+    result = _mv_file(annotationfile_sorted_bgzip, gz_path)
+    if decompressed_here:
+        _rm_files([plain_path])  # remove only the temp copy we created
+    return result
 
 
 def _check_annotation(args: List[str], annotation: bool) -> str:
