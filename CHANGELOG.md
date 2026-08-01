@@ -14,6 +14,54 @@ and the `release-crisprme` skill.
 ### Added
 - (nothing yet)
 
+## [2.1.12] - 2026-08-01
+
+### Added
+- Cas9 and Cas12a validation benchmark examples with precomputed brute-force
+  ground-truth references and an extensible registry
+  (`test/benchmark/benchmarks.json`); `validate-test` compares CRISPRme
+  off-targets against them (#116).
+- A fast, dependency-free Rust port of the brute-force ground-truth generator
+  (`test/benchmark/rust/`) that produces output identical to the Python
+  generator (#116).
+- `validate-benchmarks` GitHub Actions CI that runs the full
+  `complete-test` → `validate-test` round-trip on Linux for every registered
+  benchmark (#116, #120).
+- Native Apple Silicon (`linux/arm64`) Docker image via a multi-arch `buildx`
+  workflow; the multi-arch image is published to Docker Hub on release tags
+  (#121).
+- Low-memory startup warning (`PostProcess/memory_check.py`) advising Docker
+  Desktop users to raise the memory limit when total RAM is below ~32 GB (#121).
+- Search-space budget estimator and guard (`PostProcess/search_budget.py`) that
+  warns before resource-explosive runs, with a companion analysis in
+  `docs/SCALABILITY_ANALYSIS.md` (#118).
+- Release tooling: a `release-crisprme` Claude Code skill, `docs/RELEASING.md`,
+  this `CHANGELOG.md`, and `scripts/prepare_release.py` (#117); plus docs for the
+  fast Rust generator and using the release skill (#122).
+- Input-format hardening: `--gene_annotation` is now auto-sorted like
+  `--annotation`; clear errors for multi-line PAM files and malformed PAM
+  filenames; and a non-fatal warning when a degenerate PAM motif is combined with
+  bulges (the CRISPRitz #105 crash, fixed in CRISPRitz 2.7.1) (#125).
+- Documentation: `docs/INPUT_FORMATS.md` (PAM/Cas12a/VCF/chromosome/annotation/
+  bulge guidance, #124), `docs/ISSUE_AUDIT.md` (a review of all open + closed
+  issues, #126), and `docs/ROADMAP.md` (the 2.1.12 → 2.1.13 plan, #128).
+
+### Fixed
+- Multiple bugs affecting new VCF dataset processing, concurrent runs, and
+  gnomAD handling (#96).
+- Guard the CFD PAM-score lookup against non-ATCG PAM bases present in real hg38,
+  which previously crashed the run with a `KeyError` (#94, #125).
+- Guard the post-analysis intermediate reads against non-UTF-8 bytes
+  (`UnicodeDecodeError`) so a stray byte no longer aborts a run (#52, #125).
+- `validate-test` now exits non-zero when a benchmark mismatches or the
+  `complete-test` output is missing, instead of passing silently (#116).
+- `complete-test` downloads 1000 Genomes VCFs over HTTPS instead of FTP,
+  unblocking FTP-restricted and CI networks (#116).
+
+### Changed
+- Synced the `Dockerfile` `crisprme_version` pin to the released version, which
+  had lagged behind `crisprme.py` and the Bioconda recipe (#117).
+
 ## [2.1.11] - 2026-07-06
 
 ### Fixed
@@ -112,7 +160,8 @@ and the `release-crisprme` skill.
 ### Changed
 - Upgraded the DockerHub image with the latest fixes.
 
-[Unreleased]: https://github.com/pinellolab/CRISPRme/compare/v2.1.11...HEAD
+[Unreleased]: https://github.com/pinellolab/CRISPRme/compare/v2.1.12...HEAD
+[2.1.12]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.12
 [2.1.11]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.11
 [2.1.10]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.10
 [2.1.9]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.9
