@@ -19,6 +19,7 @@ import numpy as np
 
 import math
 import os
+import pathlib
 
 SUMMARYTABCOLS = [
     "Job", "Genome", "Variants", "Mismatches", "DNA bulge", "RNA bulge", "PAM", "Number of Guides", "Start"
@@ -346,17 +347,17 @@ def display_history_table(
 
 
 def retrieve_mode() -> str:
-    """Retrieve the CRISPRme running mode.
-
-    This function reads the running mode (server or local) from the mode type
-    file.
+    """Retrieve the CRISPRme running mode from the mode file.
 
     Returns:
-        A string representing the running mode ("server" or "local").
+        "server" or "local". Defaults to "local" if the file is absent or unreadable.
     """
-    with open(os.path.join(current_working_directory, ".mode_type.txt"), mode="r") as infile:
-        modetype = infile.readlines()
-    return modetype[0]
+    mode_file = pathlib.Path(current_working_directory) / ".mode_type.txt"
+    try:
+        content = mode_file.read_text(encoding="utf-8").strip()
+        return content if content in ("server", "local") else "local"
+    except (FileNotFoundError, OSError):
+        return "local"  # safe default
 
 def history_header() -> html.Div:
     """Create the header for the history page.

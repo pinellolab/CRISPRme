@@ -29,6 +29,8 @@ from .pages_utils import (
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
+    sort_annotation,
+    compress_file,
 )
 from app import (
     URL,
@@ -43,7 +45,7 @@ from app import (
 
 from dash.exceptions import PreventUpdate
 from dash.dependencies import Input, Output, State
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -123,7 +125,7 @@ def split_filter_part(filter_part: str) -> Tuple:
     ],
     [Input("load-example-button", "n_clicks")],
 )
-def load_example_data(load_button_click: int) -> List[str]:
+def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     """Load data for CRISPRme example run.
 
     ...
@@ -145,9 +147,9 @@ def load_example_data(load_button_click: int) -> List[str]:
         "20bp-NGG-SpCas9",  # Editor to use
         "hg38",  # ref genome to use
         ["1000G"],  # VCF to use
-        "6",  # MM
-        "2",  # DNA bulges
-        "2",  # RNA bulges
+        "4",  # MM
+        "1",  # DNA bulges
+        "1",  # RNA bulges
         "4",  # start window in base editor
         "8",  # stop window in base editor
         "A",  # nt to check in base editor
@@ -384,7 +386,8 @@ def change_url(
     # ---- Set search parameters
     # ANNOTATION CHECK
     gencode_name = "gencode.protein_coding.bed"
-    annotation_name = ".dummy.bed"  # to proceed without annotation file
+    annotation_name = "vuoto.txt"  # to proceed without annotation file
+    annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
     if "EN" in annotation_var:
         annotation_name = "dhs+encode+gencode.hg38.bed"  # use dhs annotation file
         if "MA" in annotation_var:
@@ -395,7 +398,6 @@ def change_url(
                     ".bed",
                 ]
             )
-            annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
             annotation_tmp = os.path.join(annotation_dir, f"ann_tmp_{job_id}.bed")
             cmd = f"cp {os.path.join(annotation_dir, annotation_name)} {annotation_tmp}"
             code = subprocess.call(cmd, shell=True)
@@ -427,16 +429,10 @@ def change_url(
         if code != 0:
             raise ValueError(f"an error occurred while running {cmd}")
         annotation_name = f"{annotation_input}.tmp"
+
     if "EN" not in annotation_var:
-        cmd = f"rm -rf {os.path.join(annotation_dir, '.dummy.bed')}"
-        code = subprocess.call(cmd, shell=True)
-        if code != 0:
-            raise ValueError(f"An error occurred while running {cmd}")
-        cmd = f"touch {os.path.join(annotation_dir, '.dummy.bed')}"
-        code = subprocess.call(cmd, shell=True)
-        if code != 0:
-            raise ValueError(f"An error occurred while running {cmd}")
-        gencode_name = ".dummy.bed"
+        annotation_name = "vuoto.txt"
+        gencode_name = "vuoto.txt"
     # GENOME TYPE CHECK
     ref_comparison = False
     genome_type = "ref"  # search is 'ref' or 'both'
@@ -971,6 +967,20 @@ def change_url(
     log_error = os.path.join(result_dir, "log_error.txt")
     assert isinstance(dna, int)
     assert isinstance(rna, int)
+
+    # if annotation requested, compress and index bed 
+    if annotation_name != "vuoto.txt":
+        annotation = sort_annotation(annotation)
+    else:
+        if not os.path.isfile(annotation):
+            code = subprocess.call(f"touch {annotation}", shell=True)
+
+    if gencode_name != "vuoto.txt":
+        gencode = compress_file(gencode)
+    else:
+        if not os.path.isfile(gencode):
+            code = subprocess.call(f"touch {gencode}", shell=True)
+
     cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} 1> {log_verbose} 2>{log_error}"
     # run job
     pool_executor.submit(subprocess.run, cmd, shell=True)

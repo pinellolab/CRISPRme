@@ -10,16 +10,21 @@
 # CRISPRme
 
 CRISPRme is a comprehensive tool designed for thorough off-target assessment in 
-CRISPR-Cas systems. Available as a web application 
-([http://crisprme.di.univr.it/](http://crisprme.di.univr.it/)), offline tool, and 
-command-line interface, it integrates human genetic variant datasets with orthogonal 
-genomic annotations to predict and prioritize potential off-target sites at scale. 
-CRISPRme accounts for single-nucleotide variants (SNVs) and indels, considers 
-*bona fide* haplotypes, and allows for spacer:protospacer mismatches and bulges, 
-making it well-suited for both population-wide and personal genome analyses. CRISPRme 
-automates the entire workflow, from data download to executing the search, and delivers 
-detailed reports complete with tables and figures through an interactive web-based 
-interface.
+CRISPR-Cas systems. It is available as a command-line interface and an offline tool
+with a locally deployable web interface. CRISPRme integrates human genetic variant 
+datasets with orthogonal genomic annotations to predict and prioritize potential 
+off-target sites at scale. CRISPRme accounts for single-nucleotide variants (SNVs) 
+and indels, considers *bona fide* haplotypes, and allows for spacer:protospacer 
+mismatches and bulges, making it well-suited for both population-wide and personal 
+genome analyses. CRISPRme automates the entire workflow, from data download to 
+executing the search, and delivers detailed reports complete with tables and figures 
+through an interactive web-based interface.
+
+> ⚠️ **Note**  
+> The original public CRISPRme web service is no longer available.  
+> All functionalities are now accessible via the command-line interface or the 
+locally hosted web interface. Visit https://pinellolab.github.io/CRISPRme/ for a
+quick guide on deploying locally the web interface.
 
 ## Table Of Contents
 
@@ -41,7 +46,8 @@ interface.
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.4 [Targets Integration](#224-targets-integration)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.5 [GNOMAD Converter](#225-gnomad-converter)
 <br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.6 [Generate Personal Card](#226-generate-personal-card)
-<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.7 [Web Interface](#227-web-interface)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.7 [Setup Legacy Database](#227-setup-legacy-database)
+<br>&nbsp;&nbsp;&nbsp;&nbsp; 2.2.8 [Local Web Interface](#228-local-web-interface)
 <br>3 [Test](#3-test)
 <br>&nbsp;&nbsp;3.1 [Quick Test](#31-quick-test)
 <br>&nbsp;&nbsp;3.2 [Detailed Test](#32-detailed-test)
@@ -142,7 +148,7 @@ you prefer `Conda`, you can replace `mamba` with `conda` in all the commands bel
 Open a terminal and execute the following command:  
 
 ```bash
-mamba create -n crisprme python=3.9 crisprme -y  # Install CRISPRme and its dependencies
+mamba create -n crisprme python=3.8 crisprme -y  # Install CRISPRme and its dependencies
 ```  
 
 This command sets up a dedicated `conda` environment named `crisprme`, installing 
@@ -189,9 +195,9 @@ desired version number:
 mamba install crisprme=<latest_version>  # Update CRISPRme to the specified version
 ```
 
-For example, to update CRISPRme to version `2.1.6`, execute:
+For example, to update CRISPRme to version `2.1.11`, execute:
 ```bash
-mamba install crisprme=2.1.6
+mamba install crisprme=2.1.11
 ```
 If you're using `Conda`, replace `mamba` with `conda` in the commands above.
 
@@ -387,7 +393,14 @@ outputs. The following is a summary of CRISPRme's key features:
   <br>Generates a personalized summary for a specific sample, identifying all 
   private off-targets unique to that individual.
 
-- [**Web Interface**](#227-web-interface) (`web-interface`)
+- [**Setup Legacy Database**](#227-setup-legacy-database) (`setup`)
+  <br>Initializes the CRISPRme legacy database by downloading reference genomes,
+  variant datasets, PAM definition files, and all associated resources
+  originally distributed through the CRISPRme web server. The downloaded
+  resources can be reused across analyses, eliminating the need for repeated
+  downloads and simplifying environment setup.
+
+- [**Web Interface**](#228-local-web-interface) (`web-interface`)
   <br>Launches CRISPRme's interactive web interface, allowing users to manage 
   and execute tasks directly via a local browser.
 
@@ -1217,13 +1230,122 @@ ensuring precise and personalized reporting.
   CRISTA scores, and number of Mismatches and Bulges highlighting off-target 
   risk influenced by genetic variants.
 
-#### 2.2.7 Web Interface
+#### 2.2.7 Setup Legacy Database
+---
+
+The Setup Legacy Database functionality initializes the CRISPRme legacy
+database by downloading all reference genomes, variant datasets, PAM
+definition files, and associated resources originally distributed through the
+CRISPRme web server.
+
+This functionality provides a convenient way to reproduce the original CRISPRme
+environment and ensures that all required resources are available locally
+before running analyses. Once downloaded, the resources can be reused across
+multiple analyses without requiring additional downloads, reducing setup time
+and improving reproducibility.
+
+This feature is particularly useful when deploying CRISPRme on new systems,
+setting up shared computational environments, or preparing offline analysis
+workflows. The setup process provides the following key benefits:
+
+- Automated download and organization of all required reference resources,
+eliminating the need for manual retrieval and configuration.
+- Support for downloading either the complete database or chromosome-specific
+resources, allowing users to reduce storage requirements when working on
+targeted analyses.
+- Reuse of downloaded resources across multiple CRISPRme runs, avoiding
+redundant downloads and ensuring consistent analysis environments.
+
+This functionality serves as the foundation for CRISPRme analyses by providing
+all reference data and auxiliary resources required by downstream workflows.
+
+Usage Example for the Setup Legacy Database function:
+
+- **Via Conda/Mamba**
+```bash
+crisprme.py setup \
+  --path CRISPRme_database
+```
+
+- **Via Docker**
+```bash
+docker run -v ${PWD}:/DATA -w /DATA -it pinellolab/crisprme \
+  crisprme.py setup \
+  --path CRISPRme_database
+```
+
+##### Input Arguments
+---
+
+Below is a detailed list of the input arguments supported by the Setup Legacy
+Database function, including detailed explanations and default behaviors:
+
+**General Parameters**
+
+- `--help`
+  <br>Displays the help message with details about the available options and
+  exits the program.
+- `--debug` (Optional)
+  <br>Runs the tool in debug mode.
+
+**Database Configuration Parameters**
+
+- `--path` (Optional)
+  <br>Specifies the directory where the CRISPRme legacy database and all
+  associated resources will be downloaded and installed. If not provided, the
+  current working directory is used.
+- `--chrom` (Optional)
+  <br>Downloads resources associated with a specific chromosome only (for
+  example, chr22). This option can significantly reduce download time and
+  storage requirements when testing or performing chromosome-restricted
+  analyses. By default, resources for all chromosomes are downloaded.
+- `--force` (Optional)
+  <br>Forces the download of all resources even if an existing CRISPRme
+  database is already detected in the specified installation directory. This
+  option is useful when repairing incomplete installations or refreshing
+  previously downloaded data.
+
+##### Output Data Overview
+---
+
+The Setup Legacy Database functionality creates a local CRISPRme database
+containing all resources required for downstream analyses.
+
+**Note 1**: The exact directory structure depends on the resources available
+from the CRISPRme legacy repository and the selected download options.
+
+**Note 2**: Downloaded resources are preserved and can be reused across
+multiple CRISPRme analyses without requiring additional setup steps.
+
+**Downloaded Resources**
+
+- Reference genome files
+  <br>Genome assemblies required by CRISPRme for off-target identification and
+  genomic coordinate annotation.
+- Variant datasets
+  <br>Population-scale variant collections used to perform variant-aware
+  off-target searches and population analyses.
+- PAM definition files
+  <br>Configuration files describing PAM sequences and nuclease-specific
+  targeting rules supported by CRISPRme.
+- Auxiliary resources
+  <br>Additional metadata, indexes, and support files required by CRISPRme
+  workflows and analysis modules.
+
+**Output Directory**
+
+- Installation directory specified by `--path`
+  <br>Contains the complete CRISPRme legacy database organized in a structure
+  compatible with all CRISPRme analysis workflows.
+
+#### 2.2.8 Local Web Interface
 ---
 
 The **Web Interface** module offers a user-friendly, locally hosted graphical 
-user interface (GUI) for CRISPRme. This feature replicates the functionality of 
-CRISPRme's online platform, enabling users to execute CRISPRme workflows and 
-explore search results interactively without requiring an internet connection.
+user interface (GUI) for CRISPRme. This interface enables users to execute CRISPRme
+workflows and explore results interactively through a web browser, without requiring
+any external web service. This interface provides a complete interactive environment
+for running CRISPRme analyses locally.
 
 The GUI allows users to submit CRISPRme jobs directly through the web interface. 
 Users can upload input files, configure parameters, and monitor progress with 
@@ -1249,8 +1371,8 @@ Usage example for the Web Interface function:
 
 - **Via Docker**
   ```bash
-  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
-    crisprme.py web-interface  # Starts the local server and launches the web interface
+  docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 \
+    pinellolab/crisprme crisprme.py web-interface  # Starts the local server and launches the web interface
   ```
 
 ##### Input Arguments

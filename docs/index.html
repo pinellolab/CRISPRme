@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CRISPRme is a variant-aware CRISPR off-target nomination tool. The hosted web app is retired, but CRISPRme is fully open source: use the command line, or deploy the same web interface locally.">
+  <title>CRISPRme: variant-aware CRISPR off-target nomination</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>
+      <img src="crisprme-logo.png" alt="CRISPRme" class="logo">
+    </h1>
+    <p class="tagline">Variant-aware CRISPR off-target nomination</p>
+  </header>
+
+  <main>
+    <section class="notice" aria-labelledby="notice-heading">
+      <h2 id="notice-heading">Run CRISPRme on your own machine</h2>
+      <p>
+        CRISPRme is open source and actively maintained, and you can run the
+        web interface locally on your own machine with the same functionality
+        as before. The previous hosted application at
+        <strong>crisprme.di.univr.it</strong> is no longer available, because
+        institutional hosting at the University of Verona ended for this
+        service. All features remain available to you.
+      </p>
+      <p>
+        You have two easy paths to run CRISPRme on your own machine, both with
+        the same functionality as the previous hosted version:
+      </p>
+      <ul class="options">
+        <li>Use the <strong>command line</strong> version for scripted or batch analyses.</li>
+        <li>Deploy the <strong>web interface locally</strong> for the same point-and-click experience as the hosted app.</li>
+      </ul>
+      <p class="cta-row">
+        <a class="button" href="https://github.com/pinellolab/CRISPRme">View on GitHub</a>
+        <a class="secondary" href="https://github.com/pinellolab/CRISPRme#1-installation">Installation instructions &rarr;</a>
+      </p>
+    </section>
+
+    <section aria-labelledby="run-heading">
+      <h2 id="run-heading">Step-by-step: install and launch the web interface</h2>
+      <p>
+        Follow the three steps below to go from a clean machine to a running
+        local web interface - equivalent to the retired hosted version. Pick the
+        track that matches how you want to install CRISPRme: <strong>Conda /
+        Mamba</strong> or <strong>Docker</strong>. Both tracks cover the same
+        three steps:
+      </p>
+      <ol class="options">
+        <li><strong>Install CRISPRme</strong> (and activate the environment).</li>
+        <li><strong>Set up the legacy reference database</strong> (one-time download).</li>
+        <li><strong>Launch the local web interface</strong> and open it in your browser.</li>
+      </ol>
+
+      <p>The one-time setup in Step 2 automatically downloads and configures:</p>
+      <ul>
+        <li>hg38 reference genome</li>
+        <li>1000 Genomes Project Phase 3 dataset</li>
+        <li>HGDP variant dataset</li>
+        <li>Sample metadata files</li>
+        <li>Default annotations and PAM definitions</li>
+      </ul>
+
+      <div class="tabs" role="tablist" aria-label="Installation method">
+        <button class="tab" id="tab-conda" role="tab" aria-selected="true"
+                aria-controls="panel-conda" data-target="panel-conda">
+          Conda / Mamba
+        </button>
+        <button class="tab" id="tab-docker" role="tab" aria-selected="false"
+                aria-controls="panel-docker" data-target="panel-docker" tabindex="-1">
+          Docker
+        </button>
+      </div>
+
+      <!-- ===================== Conda / Mamba track ===================== -->
+      <div class="tab-panel" id="panel-conda" role="tabpanel" aria-labelledby="tab-conda">
+
+        <h3>Step 1 &mdash; Install CRISPRme and activate the environment</h3>
+        <p>
+          Configure the Bioconda channels once, then create and activate the
+          <code>crisprme</code> environment.
+        </p>
+        <pre><code># Configure Bioconda channels (one-time)
+mamba config --add channels bioconda
+mamba config --add channels defaults
+mamba config --add channels conda-forge
+mamba config --set channel_priority strict
+
+# Create and activate the environment
+mamba create -n crisprme python=3.8 crisprme -y
+mamba activate crisprme
+
+# Verify the installation
+crisprme.py --version</code></pre>
+        <p class="note">
+          If you use <code>conda</code> rather than <code>mamba</code>, replace
+          <code>mamba</code> with <code>conda</code> in every command.
+        </p>
+
+        <h3>Step 2 &mdash; Set up the legacy reference database (one-time)</h3>
+        <pre><code># Choose a working directory
+CRISPRME_DIR="$HOME/my_crisprme_run"
+
+# Download and configure all reference data (~410 GB)
+crisprme.py setup --path "$CRISPRME_DIR"</code></pre>
+        <p>
+          <strong>Optional:</strong> to test the installation before downloading
+          the complete dataset, perform a chromosome-specific setup first:
+        </p>
+        <pre><code>crisprme.py setup --chrom chr22 --path "$CRISPRME_DIR"</code></pre>
+        <p>
+          The setup process is resumable. If a download is interrupted, simply
+          rerun the same command and CRISPRme will continue from the last
+          completed step.
+        </p>
+
+        <h3>Step 3 &mdash; Launch the local web interface</h3>
+        <pre><code>mamba activate crisprme
+cd "$CRISPRME_DIR"           # the directory you chose in Step 2
+crisprme.py web-interface    # starts the local server on port 8080</code></pre>
+      </div>
+
+      <!-- ===================== Docker track ===================== -->
+      <div class="tab-panel" id="panel-docker" role="tabpanel"
+           aria-labelledby="tab-docker" hidden>
+
+        <h3>Step 1 &mdash; Install Docker and pull the CRISPRme image</h3>
+        <p>
+          Install Docker for your operating system using the official guides for
+          <a href="https://docs.docker.com/desktop/install/mac-install/">macOS</a>,
+          <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
+          or <a href="https://docs.docker.com/engine/install/ubuntu/">Linux</a>.
+          Then verify the installation and pull the CRISPRme image:
+        </p>
+        <pre><code># Verify Docker is working
+docker run hello-world
+
+# Pull the latest pre-built CRISPRme image
+docker pull pinellolab/crisprme</code></pre>
+
+        <h3>Step 2 &mdash; Set up the legacy reference database (one-time)</h3>
+        <p>
+          Create and enter a working directory on your host machine, then run the
+          setup command inside the container. The directory is mounted into the
+          container as <code>/DATA</code>, so all data is written to your host.
+        </p>
+        <pre><code># Choose and enter a working directory
+mkdir -p "$HOME/my_crisprme_run"
+cd "$HOME/my_crisprme_run"
+
+# Download and configure all reference data (~410 GB)
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+  crisprme.py setup --path /DATA</code></pre>
+        <p>
+          <strong>Optional:</strong> to test the installation before downloading
+          the complete dataset, perform a chromosome-specific setup first:
+        </p>
+        <pre><code>docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+  crisprme.py setup --chrom chr22 --path /DATA</code></pre>
+        <p>
+          The setup process is resumable. If a download is interrupted, simply
+          rerun the same command and CRISPRme will continue from the last
+          completed step.
+        </p>
+
+        <h3>Step 3 &mdash; Launch the local web interface</h3>
+        <p>
+          Run the web interface from the same working directory. The
+          <code>-p 8080:8080</code> flag forwards the container port to your host
+          so the browser can reach the server.
+        </p>
+        <pre><code>cd "$HOME/my_crisprme_run"   # the directory you set up in Step 2
+docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 \
+  pinellolab/crisprme crisprme.py web-interface</code></pre>
+      </div>
+
+      <h3>Open the interface in your browser</h3>
+      <p>
+        After the server starts, open one of the supported browsers (Chrome,
+        Firefox, or Safari) and navigate to:
+      </p>
+      <pre><code>http://127.0.0.1:8080</code></pre>
+      <p class="note">
+        If CRISPRme is running on a remote server or HPC node, replace
+        <code>127.0.0.1</code> with the server's IP address.
+      </p>
+
+      <div class="note">
+        <strong>Important:</strong> the web interface must be started from a valid
+        CRISPRme working directory containing the expected folders
+        (<code>Genomes/</code>, <code>VCFs/</code>, <code>PAMs/</code>,
+        <code>Annotations/</code>, etc.), otherwise datasets and configuration
+        files will not be detected. If you are unsure about the expected project
+        structure, refer to the
+        <a href="https://github.com/pinellolab/CRISPRme/blob/main/README.md#21-directory-structure">
+          directory structure documentation</a>.
+      </div>
+    </section>
+
+    <section aria-labelledby="resources-heading">
+      <h2 id="resources-heading">Advanced Resources &amp; Documentation</h2>
+
+      <p>
+        The quick-start guide above is sufficient to get the local web interface
+        running. For detailed usage instructions, advanced configuration options,
+        and complete workflow documentation, consult the guides below.
+      </p>
+
+      <div class="resource-grid">
+
+        <div class="resource-card">
+          <h3>Web Interface User Guide</h3>
+          <p>
+            Learn how to configure analyses, monitor jobs, explore results,
+            generate personal risk cards, and use all visualization and reporting
+            features available through the graphical interface.
+          </p>
+          <p>
+            <a href="https://github.com/pinellolab/CRISPRme/blob/main/docs/crisprme_web_interface_user_guide.md">
+              Open Detailed User Guide
+            </a>
+          </p>
+        </div>
+
+      <div class="resource-card">
+        <h3>CLI Setup &amp; Usage Guide</h3>
+        <p>
+          Complete documentation for installation, dataset management,
+          command-line workflows, custom VCF integration, PAM definition,
+          automation, and large-scale analyses.
+        </p>
+        <p>
+          <a href="https://github.com/pinellolab/CRISPRme/blob/main/docs/crisprme_data_setup_051826.md">
+            Open CLI Guide
+          </a>
+        </p>
+      </div>
+
+    </div>
+  </section>
+
+    <section aria-labelledby="docs-heading">
+      <h2 id="docs-heading">Documentation</h2>
+      <ul class="links">
+        <li><a href="https://github.com/pinellolab/CRISPRme#1-installation">Installation</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#2-usage">Usage</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#228-local-web-interface">Web Interface</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#3-test">Testing</a></li>
+        <li><a href="https://github.com/pinellolab/CRISPRme#4-citation">Citation</a></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="cite-heading">
+      <h2 id="cite-heading">Citation</h2>
+      <p class="citation">
+        Cancellieri S, Zeng J, Lin LY, Tognon M, Nguyen MA, Lin J, Bombieri N,
+        Maitland SA, Ciuculescu MF, Katta V, Tsai SQ, Armant M, Wolfe SA,
+        Giugno R, Bauer DE, Pinello L. Human genetic diversity alters
+        off-target outcomes of therapeutic gene editing.
+        <em>Nat Genet</em>. 2023 Jan;55(1):34-43.
+        doi:
+        <a href="https://doi.org/10.1038/s41588-022-01257-y">10.1038/s41588-022-01257-y</a>.
+      </p>
+    </section>
+
+    <section aria-labelledby="contacts-heading">
+      <h2 id="contacts-heading">Contacts</h2>
+      <ul class="links">
+        <li>Luca Pinello: <a href="mailto:lpinello@mgh.harvard.edu">lpinello@mgh.harvard.edu</a></li>
+        <li>Rosalba Giugno: <a href="mailto:rosalba.giugno@univr.it">rosalba.giugno@univr.it</a></li>
+        <li>Daniel Bauer: <a href="mailto:bauer@bloodgroup.tch.harvard.edu">bauer@bloodgroup.tch.harvard.edu</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      CRISPRme is licensed under
+      <a href="https://github.com/pinellolab/CRISPRme/blob/main/LICENSE">AGPL-3.0</a>
+      for academic use. Commercial or for-profit use requires a separate
+      license; please contact
+      <a href="mailto:lpinello@mgh.harvard.edu">Luca Pinello</a>.
+    </p>
+  </footer>
+
+  <script>
+    (function () {
+      var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+
+      function activate(tab) {
+        tabs.forEach(function (t) {
+          var selected = t === tab;
+          t.setAttribute('aria-selected', selected ? 'true' : 'false');
+          t.tabIndex = selected ? 0 : -1;
+          var panel = document.getElementById(t.getAttribute('data-target'));
+          if (panel) panel.hidden = !selected;
+        });
+      }
+
+      tabs.forEach(function (tab, i) {
+        tab.addEventListener('click', function () { activate(tab); });
+        tab.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            var next = e.key === 'ArrowRight'
+              ? tabs[(i + 1) % tabs.length]
+              : tabs[(i - 1 + tabs.length) % tabs.length];
+            next.focus();
+            activate(next);
+          }
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
