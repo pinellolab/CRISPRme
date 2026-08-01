@@ -207,8 +207,13 @@ for guide in guides:
             acfd.write(guide + "\t" + str(100 / (100 + sum_cfds)) + "\tNA\tNA\n")
 
     df_general_count = pd.DataFrame(general_table[guide]["ref"])
-    df_general_count = df_general_count.append(
-        pd.DataFrame(general_table[guide]["var"])
+    # py3.11-readiness: DataFrame.append was removed in pandas 2.0. pd.concat
+    # with ignore_index=True reproduces the same row order/columns; the index is
+    # dropped anyway by the subsequent to_csv(index=False). No-op on the current
+    # image (identical output).
+    df_general_count = pd.concat(
+        [df_general_count, pd.DataFrame(general_table[guide]["var"])],
+        ignore_index=True,
     )
     df_general_count.to_csv(
         f"{path_output}/.{name_job}.general_target_count."
