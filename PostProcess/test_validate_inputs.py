@@ -831,8 +831,10 @@ class TestCheckVcfFullScan(unittest.TestCase):
 
     def test_high_allele_count_multiallelic_warns(self):
         with tempfile.TemporaryDirectory() as tmp:
-            alt = ",".join(["C", "G", "T", "C", "G", "T", "C", "G", "T", "C"])  # 10 alleles
-            records = [vcf_record(pos=1000, ref="A", alt=alt)]
+            alleles = ["C", "G", "T", "C", "G", "T", "C", "G", "T", "C"]  # 10 alleles
+            alt = ",".join(alleles)
+            af = ",".join(["0.01"] * len(alleles))  # enough AF values to isolate this check
+            records = [vcf_record(pos=1000, ref="A", alt=alt, info=f"AF={af}")]
             issues = self._scan(tmp, records)
             self.assertEqual(len(issues), 1)
             self.assertEqual(issues[0].severity, vi.WARN)
@@ -840,8 +842,44 @@ class TestCheckVcfFullScan(unittest.TestCase):
 
     def test_below_threshold_allele_count_no_warning(self):
         with tempfile.TemporaryDirectory() as tmp:
-            alt = ",".join(["C", "G", "T", "C", "G", "T", "C", "G", "T"])  # 9 alleles
-            records = [vcf_record(pos=1000, ref="A", alt=alt)]
+            alleles = ["C", "G", "T", "C", "G", "T", "C", "G", "T"]  # 9 alleles
+            alt = ",".join(alleles)
+            af = ",".join(["0.01"] * len(alleles))  # enough AF values to isolate this check
+            records = [vcf_record(pos=1000, ref="A", alt=alt, info=f"AF={af}")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(issues, [])
+
+    def test_af_index_overflow_errors(self):
+        # 2 single-char SNP ALT alleles (positions 1, 2) but only 1 AF value
+        # -- enricher.py indexes af[2-1] = af[1], an uncaught IndexError
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="A", alt="C,G", info="AF=0.1")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.ERROR)
+            self.assertIn("fewer comma-separated AF values", issues[0].message)
+
+    def test_af_index_sufficient_values_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="A", alt="C,G", info="AF=0.1,0.05")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(issues, [])
+
+    def test_af_index_indel_allele_does_not_consume_af_slot(self):
+        # second ALT allele is a multi-char indel (not a "SNP" in
+        # enricher.py's sense), so it never gets indexed into the AF list --
+        # only the single-char "C" at position 1 does, and 1 AF value covers it
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="A", alt="C,ATCG", info="AF=0.1")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(issues, [])
+
+    def test_af_index_biallelic_single_alt_not_checked(self):
+        # no comma in ALT at all -- enricher.py's biallelic branch uses the
+        # whole AF string directly, never splits/indexes it, so a "short" AF
+        # here isn't actually at risk
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="A", alt="T", info="AF=0.1")]
             issues = self._scan(tmp, records)
             self.assertEqual(issues, [])
 

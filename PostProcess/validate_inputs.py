@@ -882,6 +882,12 @@ def check_vcf_full_scan(
     - Indels within 26bp of a chromosome start: `enricher.py:302`'s
       `pos-26` context window goes negative, and Python silently wraps a
       negative slice index to the end of the string instead of erroring.
+    - AF/ALT allele-count consistency for multiallelic SNP sites:
+      `enricher.py`'s `add_to_dict_snps` indexes the comma-separated AF list
+      by each single-character ALT allele's 1-indexed position in the full
+      ALT list, with no bounds check -- fewer AF values than that highest
+      position raises an uncaught `IndexError` that crashes enrichment
+      outright for the whole run.
 
     Args:
         vcf_path: Path to a single `.vcf.gz` file.
@@ -910,6 +916,7 @@ def check_vcf_full_scan(
     unphased_seen = False
     indel_near_start_count = 0
     out_of_bounds_count = 0
+    af_index_overflow_count = 0
     expected_chrom_norm = _normalize_chrom(expected_chrom) if expected_chrom else None
 
     try:
@@ -973,6 +980,21 @@ def check_vcf_full_scan(
                     af_positions_seen.add(af_pos)
                 if filt in ENRICHER_PASS_VALUES:
                     pass_count += 1
+
+                # AF/ALT allele-count consistency (enricher.py's multiallelic
+                # SNP branch, add_to_dict_snps): a comma-separated ALT with
+                # >=1 single-character allele indexes the comma-separated AF
+                # list by each such allele's 1-indexed position in the full
+                # ALT list, with no bounds check -- fewer AF values than the
+                # highest such position raises an uncaught IndexError
+                if len(ref) == 1 and len(alt_alleles) > 1 and af_pos is not None:
+                    snp_positions = [
+                        i + 1 for i, a in enumerate(alt_alleles) if len(a) == 1
+                    ]
+                    if snp_positions:
+                        af_values = info.split(";")[af_pos][3:].split(",")
+                        if len(af_values) < max(snp_positions):
+                            af_index_overflow_count += 1
 
                 # GT phasing separator survey
                 for sample in fields[9:]:
@@ -1055,6 +1077,18 @@ def check_vcf_full_scan(
                 f"{MULTIALLELIC_WARN_THRESHOLD} ALT alleles — crispritz matches "
                 "allele indices by substring, which misattributes samples once "
                 "two-digit allele indices appear",
+            )
+        )
+    if af_index_overflow_count:
+        issues.append(
+            Issue(
+                ERROR,
+                f"{fname}: {af_index_overflow_count} multiallelic SNP site(s) "
+                "have fewer comma-separated AF values than crispritz's "
+                "allele-index lookup needs — enricher.py indexes the AF list "
+                "by each SNP ALT allele's position with no bounds check, "
+                "raising an uncaught IndexError that crashes the entire "
+                "enrichment step outright",
             )
         )
     if breakend_count:
