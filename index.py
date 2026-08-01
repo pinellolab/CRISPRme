@@ -28,12 +28,12 @@ from pages import (
 )
 
 from dash import Dash
-from dash.dependencies import Input, Output, State
+from dash import Input, Output, State
 from dash.exceptions import PreventUpdate
 from typing import Tuple
 
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 
 import sys
 import os
@@ -161,7 +161,7 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
 
 def run_server(app: Dash, host: str, port: str, debug: bool) -> None:
     try:
-        app.run_server(
+        app.run(
             host=host,
             port=port,
             debug=debug,

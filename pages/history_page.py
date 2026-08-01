@@ -9,11 +9,11 @@ handling user interactions such as row selection and filtering.
 from .pages_utils import RESULTS_DIR, PARAMS_FILE, LOG_FILE, GUIDES_FILE
 
 from typing import Dict, List, Optional, Tuple
-from dash.dependencies import Input, Output, State
+from dash import Input, Output, State
 from dash.exceptions import PreventUpdate
 from app import app, current_working_directory, URL
 
-import dash_html_components as html
+from dash import html
 import pandas as pd
 import numpy as np
 

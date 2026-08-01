@@ -5,7 +5,7 @@ website.
 from app import URL
 
 import dash_bootstrap_components as dbc
-import dash_html_components as html
+from dash import html
 
 import os
 
@@ -104,8 +104,7 @@ def create_search_bar() -> dbc.Row:
                 )
             ),
         ],
-        no_gutters=True,
-        className="ml-auto flex-nowrap mt-3 mt-md-0",
+        className="g-0 ml-auto flex-nowrap mt-3 mt-md-0",
         align="center",
     )
     return search_bar
@@ -144,7 +143,7 @@ def navbar():
                         ),
                     ],
                     align="center",
-                    no_gutters=True,
+                    className="g-0",
                 ),
                 href=os.path.join(URL, "index"),
             ),

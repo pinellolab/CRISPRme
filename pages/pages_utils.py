@@ -7,7 +7,7 @@ from app import operators, current_working_directory
 from typing import Dict, List, Optional, Tuple
 from glob import glob
 
-import dash_html_components as html
+from dash import html
 import pandas as pd
 
 import subprocess

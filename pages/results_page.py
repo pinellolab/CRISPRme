@@ -68,19 +68,19 @@ from PostProcess.supportFunctions.loadSample import associateSample
 from PostProcess import CFDGraph, query_manager
 
 from dash.exceptions import PreventUpdate
-from dash.dependencies import Input, Output, State
+from dash import Input, Output, State
 from typing import Dict, List, Tuple
 from glob import glob
 
-import dash_html_components as html
-import dash_core_components as dcc
+from dash import html
+from dash import dcc
 import dash_bootstrap_components as dbc
 import pandas as pd
 
 import subprocess
 import math
 import base64  # for decoding upload content
-import dash_table
+from dash import dash_table
 import sqlite3
 import flask
 import errno

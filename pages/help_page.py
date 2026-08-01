@@ -11,7 +11,7 @@ the webapp.
 from .pages_utils import ASSETS_DIR, MANUAL_IMGS
 from app import app_directory
 
-import dash_html_components as html
+from dash import html
 
 import base64  # for decoding upload content
 import os

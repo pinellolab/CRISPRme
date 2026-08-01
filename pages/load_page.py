@@ -12,12 +12,12 @@ are automatically deleted and could not be accessed anymore.
 from app import app, current_working_directory, URL
 from .pages_utils import RESULTS_DIR, GUIDES_FILE, LOG_FILE, PARAMS_FILE
 
-from dash.dependencies import Input, Output, State
+from dash import Input, Output, State
 from dash.exceptions import PreventUpdate
 from typing import List, Tuple
 
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 import dash_bootstrap_components as dbc
 
 import subprocess
