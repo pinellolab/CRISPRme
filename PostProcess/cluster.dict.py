@@ -99,9 +99,12 @@ if "orderChr" in sys.argv[:]:
     )  # sort input file by chr, clusterpos, real guide, direction
     print("END Sorting", time.time() - start_time)
     start_time = time.time()
-    with open(result_name + ".tmp_sort.txt") as targets, open(
-        result_name, "w+"
-    ) as result:
+    # errors="replace" guards against a stray non-UTF-8 byte in the
+    # intermediate target file aborting the run with UnicodeDecodeError
+    # (issue #52). Normal ASCII/UTF-8 files are unaffected.
+    with open(
+        result_name + ".tmp_sort.txt", encoding="utf-8", errors="replace"
+    ) as targets, open(result_name, "w+") as result:
         # Write Header
         if "total" not in sys.argv[:]:
             if addGuide:
@@ -197,7 +200,8 @@ if total_line > MAX_LIMIT:
             cluster_ok = True
             guide = guide.strip()
             # DO SLOW CLUSTERING
-            with open(sys.argv[1]) as targets:
+            # errors="replace": tolerate stray non-UTF-8 bytes (issue #52).
+            with open(sys.argv[1], encoding="utf-8", errors="replace") as targets:
                 for line in targets:
                     line = line.strip().split("\t")
                     if "#" in line[0] or line[1].replace("-", "") != guide:
@@ -437,7 +441,8 @@ if total_line > MAX_LIMIT:
 
 else:
     #####DO FAST CLUSTERING
-    with open(sys.argv[1]) as targets:
+    # errors="replace": tolerate stray non-UTF-8 bytes (issue #52).
+    with open(sys.argv[1], encoding="utf-8", errors="replace") as targets:
         for line in targets:
             if "#" in line:
                 continue

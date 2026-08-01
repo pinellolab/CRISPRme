@@ -903,7 +903,11 @@ def _check_gene_annotation(args: List[str], geneann: bool) -> str:
         error("Missing input for --gene_annotation. Gene annotation file must be specified")
     if not os.path.isfile(gene_annotation):
         error("The file specified for --gene_annotation does not exist")
-    return _compress_file(gene_annotation)
+    # Sort (and bgzip/tabix) the gene annotation the same way --annotation is
+    # handled. Previously this only compressed the file, so an unsorted BED
+    # broke downstream processing (FDA item 4/5). _sort_annotation accepts both
+    # plain .bed and bgzipped .bed.gz inputs.
+    return _sort_annotation(gene_annotation)  # sort input gene annotation file
 
 def _check_mm(args: List[str]) -> int:
     """Retrieves and validates the number of mismatches from command-line arguments.
@@ -1197,6 +1201,15 @@ def complete_search() -> None:
     total_pam_len = 0
     with open(pamfile, "r") as pam_file:
         pam_char = pam_file.readline()
+        # Only the first line is used, so a multi-line PAM file would silently
+        # ignore the extra motifs. Reject it with a clear error instead (FDA
+        # item): a single IUPAC motif per file is supported.
+        if any(line.strip() for line in pam_file):
+            raise ValueError(
+                "Only one PAM motif per file is supported; the PAM file "
+                f"'{pamfile}' contains more than one non-empty line. Combine "
+                "the motifs into a single IUPAC motif (e.g. NAG + NGG -> NRG)."
+            )
         total_pam_len = len(pam_char.split(" ")[0])
         index_pam_value = pam_char.split(" ")[-1]
         if int(pam_char.split(" ")[-1]) < 0:
@@ -1212,7 +1225,17 @@ def complete_search() -> None:
 
     genome_ref = os.path.basename(genomedir)
     annotation_name = os.path.basename(annotationfile)
-    nuclease = os.path.basename(pamfile).split(".")[0].split("-")[2]
+    # The nuclease name is parsed from the PAM filename, which must follow the
+    # <length>-<motif>-<CasName>.txt convention (e.g. 20bp-NGG-SpCas9.txt).
+    # Validate before indexing to avoid a cryptic IndexError (FDA item).
+    pam_name_fields = os.path.basename(pamfile).split(".")[0].split("-")
+    if len(pam_name_fields) < 3:
+        raise ValueError(
+            f"Invalid PAM filename '{os.path.basename(pamfile)}': expected the "
+            "'<length>-<motif>-<CasName>.txt' convention "
+            "(e.g. 20bp-NGG-SpCas9.txt)."
+        )
+    nuclease = pam_name_fields[2]
     if bMax != 0:
         search_index = True
     else:
