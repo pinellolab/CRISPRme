@@ -4027,6 +4027,8 @@ def generate_sample_card(
     # recover job id
     job_id = search.split("=")[-1]
     job_directory = os.path.join(current_working_directory, RESULTS_DIR, job_id)
+    # directory holding the personal/private target plots for this job
+    imgsdir = os.path.join(job_directory, "imgs")
     # read summary by sample data
     samples_summary = pd.read_csv(
         os.path.join(
@@ -4050,45 +4052,10 @@ def generate_sample_card(
     targets_private_fname = os.path.join(
         job_directory, f"{job_id}.{sample}.{guide}.private_targets.tsv"
     )
-    # path to database
-    db_path = glob(os.path.join(current_working_directory, RESULTS_DIR, job_id, ".*.db"))[0]
-    assert isinstance(db_path, str)
-    if not os.path.isfile(db_path):
-        raise FileNotFoundError(f"Unable to locate {db_path}")
-    # open connection to database
-    conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    # get query columns
-    query_cols = get_query_column(filter_criterion)
-    # perform the query
-    result_personal = pd.read_sql_query(
-        "SELECT * FROM final_table WHERE \"{}\"='{}' AND \"{}\" LIKE '%{}%'".format(
-            GUIDE_COLUMN, guide, query_cols["samples"], sample
-        ),
-        conn,
-    )
-    # sort personal targets data
-    order = False
-    if filter_criterion == "fewest":
-        order = True
-    result_personal = result_personal.sort_values([query_cols["sort"]], ascending=order)
-    # extract sample private targets
-    result_private = result_personal[result_personal[query_cols["samples"]] == sample]
-    conn.commit()
-    conn.close()  # close connection to db
-    # store personal and private targets
-    result_personal.to_csv(integrated_personal, sep="\t", index=False)
-    result_private.to_csv(integrated_private, sep="\t", index=False)
-    # zip target files
-    integrated_private_zip = integrated_private.replace("tsv", "zip")
-    cmd = f"zip -j {integrated_private_zip} {integrated_private}"
-    code = subprocess.call(cmd, shell=True)
-    if code != 0:
-        raise ValueError(f'An error occurred while running "{cmd}"')
-    # plot images in personal card tab
-    # TODO: avoid calling scripts, use functions instead
-    os.system(
-        f"python {app_directory}/PostProcess/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/Results/{job_id}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
+    # template for the cached plot filenames -> .format(criterion, guide, sample, kind)
+    plotfname = os.path.join(
+        imgsdir,
+        "CRISPRme_{0}_top_1000_log_for_main_text_{1}.{2}.{3}.png",
     )
     if os.path.isfile(targets_private_fname) and (
         all(
