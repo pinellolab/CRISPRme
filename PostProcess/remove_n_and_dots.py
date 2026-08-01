@@ -33,7 +33,7 @@ def read_report_chunks(report_fname: str) -> TextFileReader:
     Returns:
         TextFileReader: An iterator over DataFrame chunks.
     """
-    return pd.read_csv(report_fname, sep="\t", chunksize=CHUNKSIZE)
+    return pd.read_csv(report_fname, sep="\t", chunksize=CHUNKSIZE, dtype=str)
 
 
 def polish_report(report_chunks: TextFileReader, report_fname: str) -> None:
