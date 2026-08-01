@@ -158,29 +158,18 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                         elif "Search Reference\tStart" in current_log:
                             index_status = html.P("Done", style={"color": "green"})
                             done += 1
-                    if variants:
-                        if (
-                            "Search Reference\tEnd" in current_log
-                            and "Search Variant\tEnd" in current_log
-                            and "Search INDELs\tEnd" in current_log
-                        ):
-                            search_status = html.P("Done", style={"color": "green"})
-                            done += 1
-                        elif (
-                            "Search Reference\tStart" in current_log
-                            or "Search Variant\tStart" in current_log
-                        ):
-                            search_status = html.P(
-                                "Searching...", style={"color": "orange"}
-                            )
-                    else:
-                        if "Search Reference\tEnd" in current_log:
-                            search_status = html.P("Done", style={"color": "green"})
-                            done += 1
-                        elif "Search Reference\tStart" in current_log:
-                            search_status = html.P(
-                                "Searching...", style={"color": "orange"}
-                            )
+                    # The pipeline logs the search stage as "Off-targets search"
+                    # (see submit_job_automated_new_multiple_vcfs.sh), not "Search
+                    # Reference/Variant/INDELs" — the old strings never matched, so
+                    # this step never flipped to Done and the VIEW RESULTS button
+                    # (gated on done == 7) never appeared.
+                    if "Off-targets search\tEnd" in current_log:
+                        search_status = html.P("Done", style={"color": "green"})
+                        done += 1
+                    elif "Off-targets search\tStart" in current_log:
+                        search_status = html.P(
+                            "Searching...", style={"color": "orange"}
+                        )
                     if variants:
                         if (
                             "Post-analysis SNPs\tEnd" in current_log
@@ -270,7 +259,17 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                             ),
                             False,
                         )
-                    if done == 7 or "Job\tDone" in current_log:
+                    # Show VIEW RESULTS as soon as the pipeline's last stage is
+                    # done. Keying only on done==7 / "Job\tDone" was fragile: the
+                    # search step didn't count (marker mismatch, fixed above) and
+                    # the final marker is written as "Job\nDone" (newline), not a
+                    # tab — so the button could stay hidden on a finished job.
+                    if (
+                        done == 7
+                        or "Creating database\tEnd" in current_log
+                        or "Job\tDone" in current_log
+                        or "Job\nDone" in current_log
+                    ):
                         return (
                             {"visibility": "visible"},
                             index_status,

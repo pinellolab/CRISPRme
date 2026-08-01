@@ -1175,22 +1175,49 @@ def _sort_bed(fname: str, outfname: str) -> str:
 def compress_file(fname: str) -> str:
     """Compresses a file using bgzip and returns the path to the compressed file.
 
-    Uses bgzip to compress the specified file. Raises an error if compression fails.
+    Uses bgzip to compress the specified file. The operation is idempotent and
+    non-destructive: if the plain input file is already missing but the compressed
+    ``.gz`` counterpart exists (e.g. because a previous submission already
+    compressed a shared annotation file), the existing ``.gz`` is reused instead
+    of failing. The source file is kept (``bgzip -k``) so shared annotation files
+    are not consumed by the first job that touches them, and leftover ``.tmp``/
+    lock cruft from interrupted runs is cleaned up defensively.
 
     Args:
-        fname: Path to the file to be compressed.
+        fname: Path to the file to be compressed. May already carry a ``.gz``
+            suffix, in which case that path is returned unchanged.
 
     Returns:
         The path to the compressed file with a .gz extension.
 
     Raises:
-        SystemExit: If compression fails.
+        subprocess.SubprocessError: If compression fails.
     """
-    code = subprocess.call(f"bgzip -f {fname}", shell=True)
+    # normalize plain/compressed paths so the function can be called with either
+    if fname.endswith(".gz"):
+        gz_path, plain_path = fname, fname[:-3]
+    else:
+        gz_path, plain_path = f"{fname}.gz", fname
+    # defensively clean up cruft left behind by interrupted runs so a stale
+    # temporary or lock file cannot corrupt the shared annotation directory
+    for cruft in (f"{plain_path}.tmp", f"{gz_path}.tmp", f"{gz_path}.tbi.lock"):
+        if os.path.isfile(cruft):
+            subprocess.call(f"rm -f {cruft}", shell=True)
+    # idempotent path: the plain file was already compressed by a previous run
+    # (bgzip -f had removed it) - reuse the existing .gz instead of failing
+    if not os.path.isfile(plain_path):
+        if os.path.isfile(gz_path):
+            return gz_path
+        raise subprocess.SubprocessError(
+            f"Cannot compress file, neither {plain_path} nor {gz_path} found"
+        )
+    # non-destructive compression: keep the source file (-k) and overwrite any
+    # stale .gz (-f) so re-submitting the same job is safe
+    code = subprocess.call(f"bgzip -k -f {plain_path}", shell=True)
     if code != 0:
         raise subprocess.SubprocessError("Compressing and indexing file failed")
-    assert os.path.isfile(f"{fname}.gz")
-    return f"{fname}.gz"
+    assert os.path.isfile(gz_path)
+    return gz_path
 
 
 def _mv_file(fname: str, outfname: str) -> str:
@@ -1248,6 +1275,10 @@ def sort_annotation(annotationfile: str) -> str:
     annotationfile_sorted = _sort_bed(plain_path, f"{plain_path}.tmp.sorted.bed")
     annotationfile_sorted_bgzip = compress_file(annotationfile_sorted)
     result = _mv_file(annotationfile_sorted_bgzip, gz_path)
+    # clean up the intermediate sorted BED (compress_file keeps its source with
+    # -k, so remove it here) to avoid leaving cruft in the shared annotation dir
+    if os.path.isfile(annotationfile_sorted):
+        subprocess.call(f"rm -f {annotationfile_sorted}", shell=True)
     if decompressed_here and os.path.isfile(plain_path):
         subprocess.call(f"rm {plain_path}", shell=True)
     return result
