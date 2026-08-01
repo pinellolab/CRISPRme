@@ -233,13 +233,21 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
         ftp_server = VCF1000GSERVER if ds == "1000G" else VCFHGDPSERVER
         vcf_url = VCF1000GURL if ds == "1000G" else VCFHGDPURL
         chroms = CHROMS if chrom == "all" else [chrom]
-        for c in chroms:  # request FTP connection
-            vcf = download(
-                vcf_dataset_dir,
-                ftp_conn=True,
-                ftp_server=ftp_server,
-                ftp_path=vcf_url.format(c),
-            )
+        for c in chroms:
+            if ds == "1000G":
+                # the EBI 1000G host also serves HTTPS; prefer it, since FTP is
+                # frequently blocked on CI runners and institutional/cloud networks
+                vcf = download(
+                    vcf_dataset_dir,
+                    http_url=f"https://{ftp_server}{vcf_url.format(c)}",
+                )
+            else:  # HGDP (Sanger) via FTP
+                vcf = download(
+                    vcf_dataset_dir,
+                    ftp_conn=True,
+                    ftp_server=ftp_server,
+                    ftp_path=vcf_url.format(c),
+                )
             md5data = MD51000G if ds == "1000G" else MD5HGDP
             if md5data[os.path.basename(vcf)] != compute_md5(vcf):
                 raise ValueError(f"Download for {os.path.basename(vcf)} failed")
