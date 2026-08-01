@@ -6,6 +6,33 @@ three published artifacts — the **GitHub release**, the **Docker image**, and 
 see the `release-crisprme` Claude Code skill (`.claude/skills/release-crisprme/SKILL.md`);
 this document is the human-readable counterpart.
 
+## Using the release skill (Claude Code)
+
+Day to day, the easiest way to cut a release is the `release-crisprme` skill from
+a Claude Code session opened at the repo root:
+
+1. **Prerequisites (one-time / per-release):** `main` is green and up to date,
+   `gh` is authenticated, and the `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`
+   repository secrets are set (already configured for `pinellolab/crisprme`, so
+   the multi-arch image publishes on the release tag).
+2. **Invoke it:** type `/release-crisprme`, or just ask in plain language, e.g.
+   *"release CRISPRme 2.1.13"*. The skill then walks the whole flow:
+   - pre-flight version-consistency check across `crisprme.py`, `Dockerfile`, the
+     git tag, and the Bioconda recipe;
+   - move `CHANGELOG.md` `[Unreleased]` into the new version;
+   - bump the version everywhere (`scripts/prepare_release.py X.Y.Z`);
+   - create the GitHub release/tag `vX.Y.Z` — this triggers the multi-arch Docker
+     publish automatically;
+   - update the Bioconda recipe (autobump PR or a manual PR) with the tarball
+     `sha256` and `build.number: 0`;
+   - verify GitHub, Docker, and Bioconda all report `X.Y.Z`.
+3. It **pauses before anything irreversible** (creating the public tag/release)
+   so you can confirm first.
+
+The rest of this document is the manual, step-by-step version of exactly what the
+skill automates — use it if you prefer to run the commands yourself, or if the
+skill isn't available.
+
 ## The sync model
 
 There is one source of truth for a version — the number `X.Y.Z` — and it must be

@@ -54,6 +54,29 @@ brute-force generation cheap (matches `complete_test.py`). Runtime note: the
 generator is a pure-Python exhaustive scanner (~minutes per Mb), so a full
 chromosome is a batch job.
 
+## Faster generation: the Rust port
+
+For large or genome-wide runs, use the drop-in Rust generator in [`rust/`](rust/)
+instead of the Python script. It is std-only (no external crates), roughly an
+order of magnitude faster, and produces **byte-for-byte identical output**
+(validated against the committed chr22 reference: 3495 rows, 0 missing, 0 extra).
+It takes the **same flags** as `generate_brute_force.py`.
+
+```sh
+# build once (needs a Rust toolchain: https://rustup.rs)
+cd test/benchmark/rust && cargo build --release
+
+# Cas9 example — same flags as the Python generator
+./target/release/brute_force_gen \
+    --fasta chrN.enriched.fa --rna CTAACAGTTGCTTTTATCACNGG \
+    --max-mismatches 4 --max-dna-gaps 1 --max-rna-gaps 1 \
+    --chrom chrN --pam GG --output chrN.cas9.tsv
+```
+
+See [`rust/README.md`](rust/README.md) for the full flag reference and the
+Cas12a (5' PAM) example. Because the output is identical, you can generate
+references with either implementation interchangeably.
+
 ## Important: genome provenance
 The brute force must be generated from **the exact same variant-enriched genome
 CRISPRme searches** (its `add-variants` output). Using a differently-enriched
