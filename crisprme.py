@@ -2,7 +2,6 @@
 
 from typing import List, NoReturn, Tuple
 from Bio.Seq import Seq
-from PostProcess.memory_check import warn_low_memory
 
 import subprocess
 import itertools
@@ -36,6 +35,23 @@ if "--debug" in input_args:
     print("DEBUG MODE")
     script_path = current_working_directory + "PostProcess/"
     corrected_web_path = current_working_directory
+
+# Load the non-fatal low-memory warning from the PostProcess directory by
+# explicit file path: crisprme.py is installed in bin/, so PostProcess is not
+# importable as a package, and crisprme.py otherwise shells out rather than
+# importing PostProcess modules. Never let this optional check break startup.
+import importlib.util as _ilu
+
+try:
+    _mc_spec = _ilu.spec_from_file_location(
+        "memory_check", os.path.join(script_path, "memory_check.py")
+    )
+    _mc_mod = _ilu.module_from_spec(_mc_spec)
+    _mc_spec.loader.exec_module(_mc_mod)
+    warn_low_memory = _mc_mod.warn_low_memory
+except Exception:  # pragma: no cover - defensive; memory check is optional
+    def warn_low_memory(*args, **kwargs):
+        return None
 
 cicd_test = False
 if "--ci-cd-test" in input_args:
