@@ -585,18 +585,75 @@ class TestCheckSamplesInVcfHeader(unittest.TestCase):
             self.assertIn("S2", issues[0].message)
             self.assertIn("KeyError", issues[0].message)
 
+    def test_empty_sample_ids_is_skipped_not_flagged(self):
+        # #112 regression: when no sample IDs could be resolved from
+        # --samplesID, the check must SKIP (empty result), not flag every VCF
+        # sample as missing.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "chr1.vcf.gz")
+            make_vcf_gz(path, [vcf_record(samples=("0/1", "1/1"))], header=self.HEADER)
+            self.assertEqual(vi.check_samples_in_vcf_header(path, []), [])
+
 
 # ===========================================================================
-# _read_samples_file
+# _read_samples_file  (resolves a --samplesID *config* into real sample IDs)
 # ===========================================================================
 
 
 class TestReadSamplesFile(unittest.TestCase):
-    def test_reads_first_column_skipping_header_and_blanks(self):
+    def _make_cwd_with_assoc(self, tmp, config_name, assoc_files):
+        """Build <tmp>/samplesIDs/<assoc> files + a --samplesID config listing
+        their names. Returns the config path. `assoc_files` maps
+        filename -> file text."""
+        samplesids_dir = os.path.join(tmp, "samplesIDs")
+        os.makedirs(samplesids_dir, exist_ok=True)
+        for fname, text in assoc_files.items():
+            write_text(os.path.join(samplesids_dir, fname), text)
+        config_path = os.path.join(tmp, config_name)
+        write_text(config_path, "".join(f"{n}\n" for n in assoc_files))
+        return config_path
+
+    def test_resolves_association_file_and_reads_sample_ids(self):
+        # The 1000G shape: --samplesID lists an association filename; the
+        # association file has SAMPLE_ID/POPULATION_ID/... columns.
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "samples.tsv")
-            write_text(path, "#Sample\tSuperpop\nS1\tEUR\n\nS2\tAFR\n")
-            self.assertEqual(vi._read_samples_file(path), ["S1", "S2"])
+            assoc = "#SAMPLE_ID\tPOPULATION_ID\tSUPERPOPULATION_ID\tSEX\nHG00096\tGBR\tEUR\tmale\nHG00097\tGBR\tEUR\tfemale\n"
+            config = self._make_cwd_with_assoc(
+                tmp, "samplesIDs.config.txt", {"hg38_1000G.samplesID.txt": assoc}
+            )
+            self.assertEqual(
+                vi._read_samples_file(config, tmp), ["HG00096", "HG00097"]
+            )
+
+    def test_unions_multiple_referenced_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            config = self._make_cwd_with_assoc(
+                tmp,
+                "cfg.txt",
+                {
+                    "a.txt": "#SAMPLE_ID\tP\tS\tX\nS1\tp\ts\tm\n",
+                    "b.txt": "#SAMPLE_ID\tP\tS\tX\nS2\tp\ts\tf\n",
+                },
+            )
+            self.assertEqual(sorted(vi._read_samples_file(config, tmp)), ["S1", "S2"])
+
+    def test_missing_referenced_file_is_skipped(self):
+        # If a referenced association file can't be resolved yet, skip it (do
+        # NOT treat the filename as a sample ID -- that was the #112 bug).
+        with tempfile.TemporaryDirectory() as tmp:
+            config = os.path.join(tmp, "cfg.txt")
+            write_text(config, "hg38_1000G.samplesID.txt\n")
+            self.assertEqual(vi._read_samples_file(config, tmp), [])
+
+    def test_resolves_relative_to_config_dir_when_no_cwd(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            write_text(
+                os.path.join(tmp, "assoc.txt"),
+                "#SAMPLE_ID\tP\tS\tX\nS1\tp\ts\tm\n",
+            )
+            config = os.path.join(tmp, "cfg.txt")
+            write_text(config, "assoc.txt\n")
+            self.assertEqual(vi._read_samples_file(config), ["S1"])
 
 
 # ===========================================================================

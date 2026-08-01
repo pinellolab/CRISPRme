@@ -621,21 +621,78 @@ def check_gzip_compressed(fname_path: str, label: str) -> List[Issue]:
     return []
 
 
-def _read_samples_file(samplesfile: str) -> List[str]:
-    """Reads sample IDs (column 0) from a `--samplesID` file.
+def _read_sample_ids_from_association_file(assoc_path: str) -> List[str]:
+    """Reads sample IDs (column 0) from a sample→population *association* file.
 
-    Mirrors `associateSample.py:47-58` (installed crispritz): an optional `#`
-    header line is skipped, remaining lines are tab-separated with the sample
-    ID in column 0.
+    An association file is what `associateSample.loadSampleAssociation`
+    consumes: tab-separated columns SAMPLE_ID, POPULATION_ID,
+    SUPERPOPULATION_ID, SEX, with an optional leading `#` header line skipped.
+    Column 0 holds the actual per-individual sample ID (e.g. `HG00096`) — these
+    are the names that must match the VCF header, and the keys
+    `annotator.py` looks up in `dict_sample_to_pop`.
     """
     sample_ids: List[str] = []
-    with open(samplesfile, "r") as fin:
+    with open(assoc_path, "r") as fin:
         for line in fin:
             if not line.strip():
                 continue
             if line.startswith("#"):
                 continue
             sample_ids.append(line.strip().split("\t")[0])
+    return sample_ids
+
+
+def _read_samples_file(
+    samplesfile: str, current_working_directory: Optional[str] = None
+) -> List[str]:
+    """Resolves a `--samplesID` config file into the full set of sample IDs.
+
+    Important: `--samplesID` is NOT itself a sample→population association
+    file. It is a *config listing association-file names*, one per line (see
+    `crisprme.py`'s help: "a file listing sample files (one per line) present
+    in samplesIDs folder"). The pipeline
+    (`submit_job_automated_new_multiple_vcfs.sh:603-617`) reads each line as a
+    filename, looks it up under `<current_working_directory>/samplesIDs/<name>`,
+    and concatenates those files' contents into `.sampleID.txt`, which is what
+    finally feeds `associateSample.loadSampleAssociation` -> `dict_sample_to_pop`.
+
+    So to reproduce reality, this function reads each association filename from
+    the config, resolves it under `samplesIDs/`, and unions the column-0 sample
+    IDs from every referenced file. A missing referenced file is skipped (the
+    pipeline would error on it separately) so we never emit a false positive on
+    incomplete resolution.
+
+    Args:
+        samplesfile: Path to the `--samplesID` config file.
+        current_working_directory: Directory containing the `samplesIDs/`
+            folder (mirrors how the pipeline resolves it). If ``None`` or a
+            referenced file cannot be found there, the config line is also
+            tried relative to the config file's own directory.
+
+    Returns:
+        The union of column-0 sample IDs across all resolvable referenced
+        association files. Empty if none could be resolved.
+    """
+    sample_ids: List[str] = []
+    config_dir = os.path.dirname(os.path.abspath(samplesfile))
+    with open(samplesfile, "r") as fin:
+        for line in fin:
+            name = line.strip()
+            if not name or name.startswith("#"):
+                continue
+            candidates = []
+            if current_working_directory:
+                candidates.append(
+                    os.path.join(current_working_directory, "samplesIDs", name)
+                )
+            candidates.append(os.path.join(config_dir, name))
+            assoc_path = next((c for c in candidates if os.path.isfile(c)), None)
+            if assoc_path is None:
+                # Referenced association file not resolvable yet; skip rather
+                # than treat the filename itself as a sample ID (that was the
+                # #112 false-positive). The pipeline reports a missing file.
+                continue
+            sample_ids.extend(_read_sample_ids_from_association_file(assoc_path))
     return sample_ids
 
 
@@ -652,12 +709,21 @@ def check_samples_in_vcf_header(vcf_path: str, sample_ids: List[str]) -> List[Is
 
     Args:
         vcf_path: Path to a single `.vcf.gz` file.
-        sample_ids: Sample IDs from `--samplesID` (from `_read_samples_file`).
+        sample_ids: Resolved sample IDs — the union of column-0 IDs across
+            every association file referenced by the `--samplesID` config
+            (from `_read_samples_file`). Empty if none could be resolved, in
+            which case the check is skipped.
 
     Returns:
         A single error `Issue` listing missing sample names, or an empty list.
     """
     fname = os.path.basename(vcf_path)
+    if not sample_ids:
+        # No sample IDs could be resolved from --samplesID (e.g. the referenced
+        # association files aren't present yet). Can't reliably compare, and an
+        # empty set would flag every VCF sample as "missing" — the #112 false
+        # positive. Skip; check_vcf_content still validates the header itself.
+        return []
     try:
         with gzip.open(vcf_path, "rt") as fin:
             header_fields: Optional[List[str]] = None
@@ -692,6 +758,7 @@ def run_lightweight(
     pamfile: str,
     gene_annotation_file: Optional[str] = None,
     samplesfile: Optional[str] = None,
+    current_working_directory: Optional[str] = None,
 ) -> ValidationReport:
     """Runs all lightweight (always-on) input checks and returns the report.
 
@@ -715,8 +782,13 @@ def run_lightweight(
         pamfile: Path to the PAM file.
         gene_annotation_file: Path to the gene annotation file, or the
             `vuoto.txt` mock path if not used.
-        samplesfile: Path to the `--samplesID` file, or the `vuoto.txt` mock
-            path / `None` if not used.
+        samplesfile: Path to the `--samplesID` config file, or the `vuoto.txt`
+            mock path / `None` if not used. This is a list of association-file
+            names (one per line), resolved under `samplesIDs/` -- not a
+            sample→population file itself (see `_read_samples_file`).
+        current_working_directory: Directory containing the `samplesIDs/`
+            folder, used to resolve association-file names from `--samplesID`
+            the same way the pipeline does.
 
     Returns:
         A `ValidationReport` with every check's outcome recorded. Call
@@ -732,7 +804,11 @@ def run_lightweight(
     )
 
     has_samplesfile = bool(samplesfile) and os.path.basename(samplesfile) != MOCK_FILENAME
-    sample_ids = _read_samples_file(samplesfile) if has_samplesfile else []
+    sample_ids = (
+        _read_samples_file(samplesfile, current_working_directory)
+        if has_samplesfile
+        else []
+    )
 
     for vcf_dir in vcf_dataset_dirs:
         if not os.path.isdir(vcf_dir):
@@ -764,7 +840,7 @@ def run_lightweight(
                 ok_message=f"{os.path.basename(vf)}: gzip-compressed, valid #CHROM "
                 "header with samples, first record has an AF field",
             )
-            if has_samplesfile:
+            if has_samplesfile and sample_ids:
                 report.add(
                     check_samples_in_vcf_header(vf, sample_ids),
                     ok_message=f"{os.path.basename(vf)}: all VCF samples found in --samplesID",
@@ -1270,6 +1346,7 @@ if __name__ == "__main__":
         ns.pam,
         ns.gene_annotation,
         ns.samplesID,
+        ns.cwd,
     )
     result.write()
     has_errors = result.has_errors()

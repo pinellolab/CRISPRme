@@ -1394,6 +1394,7 @@ def complete_search() -> None:
         pamfile,
         gene_annotation,
         samplefile,
+        current_working_directory,
     )
     validation_report.write()
 
