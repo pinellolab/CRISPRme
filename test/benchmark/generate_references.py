@@ -63,8 +63,11 @@ def main():
             "--max-dna-gaps", str(th["bDNA"]),
             "--max-rna-gaps", str(th["bRNA"]),
             "--chrom", args.chrom,
+            "--pam", bench.get("pam_concrete", ""),
             "--output", out,
         ]
+        if bench.get("pam_5prime"):
+            cmd.append("--pam-5prime")
         sys.stderr.write(f"[{bench['name']}] {bench['nuclease']} {bench['guide_search']} "
                          f"mm={th['mm']} bDNA={th['bDNA']} bRNA={th['bRNA']} -> {out}\n")
         rc = subprocess.call(cmd)
