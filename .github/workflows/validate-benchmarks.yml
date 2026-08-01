@@ -1,0 +1,53 @@
+name: validate-test benchmarks (chr22)
+
+# Builds the branch's Docker image and runs the full CRISPRme round-trip on a
+# native Linux runner (no emulation): complete-test on chr22 with 1000G, then
+# validate-test, which compares CRISPRme's predicted off-targets against the
+# committed brute-force ground-truth references for every registered benchmark.
+# Fails if any benchmark's off-target set does not match.
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "PostProcess/**"
+      - "test/benchmark/**"
+      - "test/data/**"
+      - "crisprme.py"
+      - ".github/workflows/validate-benchmarks.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-benchmarks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android || true
+          df -h /
+
+      - name: Build CRISPRme image (branch code)
+        run: docker build . --file Dockerfile --tag crisprme:ci
+
+      - name: complete-test (chr22, 1000G) for all registered benchmarks
+        run: |
+          mkdir -p work
+          docker run --rm -v "${PWD}/work:/DATA" -w /DATA crisprme:ci \
+            crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
+
+      - name: validate-test (chr22) — assert all benchmarks match the ground truth
+        run: |
+          docker run --rm -v "${PWD}/work:/DATA" -w /DATA crisprme:ci \
+            crisprme.py validate-test --chrom chr22
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crisprme-test-out-logs
+          path: |
+            work/Results/**/log_*.txt
+          if-no-files-found: ignore

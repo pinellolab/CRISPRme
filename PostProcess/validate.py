@@ -99,10 +99,17 @@ def check_variant_dataset() -> None:
 
 
 def download_brute_force_targets(base_url: str, reference: str, expected_md5: str) -> str:
-    """Download (and cache) a brute-force reference, verifying its MD5."""
+    """Resolve a brute-force reference: prefer the copy committed in the repo,
+    then a local cache, then download. Verifies the MD5 in every case."""
     os.makedirs(BFDIR, exist_ok=True)
+    # 1. repo-committed reference (works in CI / offline / for branch-only refs)
+    repo_ref = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir,
+                            "test", "benchmark", reference)
+    if os.path.isfile(repo_ref) and compute_md5(repo_ref) == expected_md5:
+        sys.stderr.write(f"Using committed brute-force reference: {repo_ref}\n")
+        return repo_ref
     local = os.path.join(BFDIR, os.path.basename(reference))
-    # cache: reuse a previously downloaded file if its md5 already matches
+    # 2. cache: reuse a previously downloaded file if its md5 already matches
     if os.path.isfile(local) and compute_md5(local) == expected_md5:
         sys.stderr.write(f"Using cached brute-force reference: {local}\n")
         return local

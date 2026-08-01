@@ -64,6 +64,5 @@ matches almost anything). Pin the enriched genome build alongside the reference.
 The dynamic-programming brute-force checker is by **Benjamin Vyshedskiy**
 (https://github.com/benjaminvyshedskiy/Dynamic_checker). `generate_brute_force.py`
 vendors it with attribution; only output formatting (tab-delimited, underscore
-column names) was adapted. **TODO (maintainers):** confirm licensing/permission
-with the author and add an appropriate license header, as the source repository
-does not currently include a license.
+column names) was adapted. Developed in the Pinello Lab; included with the
+author's permission.
