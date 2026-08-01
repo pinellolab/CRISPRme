@@ -20,6 +20,12 @@ RUN apt update
 RUN apt upgrade -y
 
 # Install crispritz & crisprme packages
-RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.8 crispritz=$crispritz_version crisprme=$crisprme_version && micromamba clean --all --yes
+# Python 3.11: the web app now targets the modern Dash stack (Dash 2.x, Flask
+# 3.x, Werkzeug 3.x, itsdangerous 2.x). These are intentionally left unpinned
+# so conda can resolve a coherent set for Python 3.11.
+# NOTE: a full 3.11 image also requires a crispritz Python-3.11 Bioconda build
+# (tracked separately); until that lands the crispritz pin here may need to be
+# relaxed or sourced from a py3.11 channel.
+RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.11 crispritz=$crispritz_version crisprme=$crisprme_version && micromamba clean --all --yes
 # Start the base environment
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
