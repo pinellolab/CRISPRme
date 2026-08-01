@@ -90,6 +90,12 @@ app.layout = html.Div(
         dcc.Location(id="url", refresh=False),
         html.Div(id="page-content"),
         html.P(id="signal", style={"visibility": "hidden"}),
+        # Persistent hidden placeholder for the change_page multi-output target.
+        # The visible job-link element lives inside the /load page content, which
+        # is only rendered on that route; without this always-present placeholder
+        # Dash 2.x rejects the entire change_page callback (its Output target does
+        # not exist in the base layout), leaving every page blank.
+        html.Div(id="job-link", style={"display": "none"}),
     ]
 )
 
@@ -128,7 +134,11 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
         # define url to display on load page to check on job status
         # if online show the webaddress, show the ip address otherwise
         job_loading_url = WEBADDRESS if ONLINE else IPADDRESS
-        return (load_page.load_page(), f"{job_loading_url}/load{search}")
+        job_link = f"{job_loading_url}/load{search}"
+        # render the copyable link inline on the load page; the second return
+        # value keeps feeding the persistent hidden job-link placeholder in the
+        # base layout so the multi-output callback target always exists
+        return (load_page.load_page(job_link), job_link)
     if path == "/result":  # display results page
         job_id = search.split("=")[-1]  # recover job id from url
         if not hash_guide or hash_guide is None:

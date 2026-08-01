@@ -374,7 +374,7 @@ def remove_result(n: int, dir_name: str) -> html.P:
 
 
 # Load Page
-def load_page() -> List:
+def load_page(job_link: str = "link") -> List:
     """Construct the layout of the results load page. The page is displayed
     while CRISPRme analysis is running, and show the user the status of each
     analysis step.
@@ -383,7 +383,11 @@ def load_page() -> List:
 
     Parameters
     ----------
-    None
+    job_link : str
+        URL the user can copy to check the job status/results. Rendered inline
+        so the load page no longer needs its own ``job-link`` component (which
+        would duplicate the persistent ``job-link`` placeholder in the base
+        layout and break the page in the browser).
 
     Returns
     -------
@@ -407,8 +411,7 @@ def load_page() -> List:
                         ),
                         html.Div(
                             html.P(
-                                "link",
-                                id="job-link",
+                                job_link,
                                 style={"margin-top": "0.75rem", "font-size": "large"},
                             ),
                             style={
