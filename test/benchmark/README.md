@@ -10,8 +10,15 @@ alignment instead of CRISPRme's TST index search).
   guide `sg1617`, thresholds mm=4 / DNA-bulge=1 / RNA-bulge=1) on the hg38 +
   1000G variant-enriched genome.
 - `brute-force-cas12-1000G/brute_force_cas12_1000G.tsv` — Cas12a reference
-  (TODO: generate with the pipeline below).
+  (HBG1/HBG2 clinical guide, TTTV PAM). **Currently chr22-scoped** (953 off-targets);
+  run `validate-test --chrom chr22`. Regenerate genome-wide with the driver below.
 - `generate_brute_force.py` — the ground-truth generator (see credit below).
+- `generate_references.py` — registry-driven driver (regenerates any benchmark).
+
+**Validation status:** on chr22, `generate_brute_force.py` reproduces the committed
+Cas9 reference **exactly** (3495 rows, 0 diff) on the identical enriched genome,
+confirming the algorithm + PAM/edge-gap filters. The Cas12a reference was produced
+by the same validated generator.
 
 ## Reproducible generation pipeline
 ```bash
@@ -24,14 +31,19 @@ python test/benchmark/generate_brute_force.py \
     --fasta <chrN.enriched.fa> \
     --rna CTAACAGTTGCTTTTATCACNGG \
     --max-mismatches 4 --max-dna-gaps 1 --max-rna-gaps 1 \
+    --pam GG \
     --chrom chrN --output chrN.cas9.tsv
 
-#    ...and for Cas12a (TTTV 5' PAM, 23 nt spacer): put the PAM at the 5' end
+#    ...and for Cas12a (TTTV 5' PAM, 20 nt spacer): PAM first, --pam-5prime
 python test/benchmark/generate_brute_force.py \
     --fasta <chrN.enriched.fa> \
     --rna TTTV<CAS12_SPACER> \
     --max-mismatches 4 --max-dna-gaps 1 --max-rna-gaps 1 \
+    --pam TTTV --pam-5prime \
     --chrom chrN --output chrN.cas12.tsv
+
+# Or drive both from the registry:
+#   python test/benchmark/generate_references.py --enriched-fasta <chrN.enriched.fa> --chrom chrN
 
 # 3. Concatenate per-chromosome TSVs, sort, and record the MD5 (BFTARGETSMD5 in
 #    PostProcess/utils.py) so validate.py can integrity-check the download.
