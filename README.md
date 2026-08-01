@@ -338,6 +338,10 @@ variant-aware search, and result analysis. The tool also includes a
 user-friendly graphical interface, which can be deployed locally to streamline 
 its usage.
 
+> 📄 **Preparing inputs?** See [`docs/INPUT_FORMATS.md`](docs/INPUT_FORMATS.md)
+> for PAM/guide file formats, chromosome naming, VCF and annotation
+> requirements, bulge reporting, and how to estimate expensive searches.
+
 
 ### 2.1 Directory Structure
 ---
