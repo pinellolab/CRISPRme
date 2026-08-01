@@ -51,8 +51,15 @@ from utils import (
 from typing import Tuple
 
 import subprocess
+import json
 import sys
 import os
+
+# benchmark registry (test/benchmark/benchmarks.json)
+BENCHMARKS_JSON = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), os.pardir, "test", "benchmark",
+    "benchmarks.json",
+)
 
 # define genome data url
 HG38URL = "https://hgdownload.soe.ucsc.edu/goldenPath/hg38"
@@ -93,13 +100,15 @@ def check_output() -> None:
     """
     results_dir = os.path.abspath(os.path.join(os.getcwd(), CRISPRME_DIRS[1]))
     assert os.path.isdir(results_dir)
-    complete_test_res_dir = os.path.join(results_dir, COMPLETETESTRESDIR)
-    if os.path.isdir(complete_test_res_dir):  # complete test already run
-        sys.stderr.write(
-            "Complete-test already run once. Please delete complete-test "
-            f"results folder before running it again: {complete_test_res_dir}\n"
-        )
-        sys.exit(0)  # avoid throwing complete-search error on output folder
+    # one output dir per registered benchmark (crisprme-test-out_<name>)
+    for bench in load_benchmarks()["benchmarks"]:
+        d = os.path.join(results_dir, f"{COMPLETETESTRESDIR}_{bench['name']}")
+        if os.path.isdir(d):
+            sys.stderr.write(
+                "Complete-test already run once. Please delete the complete-test "
+                f"results folder before running it again: {d}\n"
+            )
+            sys.exit(0)  # avoid throwing complete-search error on output folder
 
 
 def _assign_genome_directory_name(chrom: str) -> str:
@@ -224,13 +233,21 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
         ftp_server = VCF1000GSERVER if ds == "1000G" else VCFHGDPSERVER
         vcf_url = VCF1000GURL if ds == "1000G" else VCFHGDPURL
         chroms = CHROMS if chrom == "all" else [chrom]
-        for c in chroms:  # request FTP connection
-            vcf = download(
-                vcf_dataset_dir,
-                ftp_conn=True,
-                ftp_server=ftp_server,
-                ftp_path=vcf_url.format(c),
-            )
+        for c in chroms:
+            if ds == "1000G":
+                # the EBI 1000G host also serves HTTPS; prefer it, since FTP is
+                # frequently blocked on CI runners and institutional/cloud networks
+                vcf = download(
+                    vcf_dataset_dir,
+                    http_url=f"https://{ftp_server}{vcf_url.format(c)}",
+                )
+            else:  # HGDP (Sanger) via FTP
+                vcf = download(
+                    vcf_dataset_dir,
+                    ftp_conn=True,
+                    ftp_server=ftp_server,
+                    ftp_path=vcf_url.format(c),
+                )
             md5data = MD51000G if ds == "1000G" else MD5HGDP
             if md5data[os.path.basename(vcf)] != compute_md5(vcf):
                 raise ValueError(f"Download for {os.path.basename(vcf)} failed")
@@ -417,6 +434,41 @@ def write_sg1617_guidefile() -> str:
     return guidefile
 
 
+def load_benchmarks() -> dict:
+    """Load the benchmark registry (falls back to the canonical Cas9 case)."""
+    try:
+        with open(BENCHMARKS_JSON) as fin:
+            return json.load(fin)
+    except (OSError, ValueError):
+        return {
+            "thresholds": {"mm": 4, "bDNA": 1, "bRNA": 1},
+            "benchmarks": [{
+                "name": "cas9_sg1617", "nuclease": "SpCas9",
+                "pam_name": "20bp-NGG-SpCas9.txt",
+                "pam_content": "NNNNNNNNNNNNNNNNNNNNNGG 3",
+                "guide_file": "sg1617_test_guide.txt",
+                "guide_crisprme": "CTAACAGTTGCTTTTATCACNNN",
+            }],
+        }
+
+
+def write_pamfile(pam_name: str, pam_content: str) -> str:
+    """Write a benchmark PAM file into the working-dir PAMs directory."""
+    sys.stderr.write(f"Creating PAM file {pam_name}\n")
+    pamfile = os.path.join(ensure_pams_directory(os.getcwd()), pam_name)
+    with open(pamfile, mode="w") as outfile:
+        outfile.write(pam_content.rstrip("\n") + "\n")
+    return pamfile
+
+
+def write_guidefile(guide_file: str, guide_seq: str) -> str:
+    """Write a benchmark guide file into the working directory."""
+    sys.stderr.write(f"Creating guide file {guide_file}\n")
+    with open(guide_file, mode="w") as outfile:
+        outfile.write(guide_seq.rstrip("\n") + "\n")
+    return guide_file
+
+
 def write_vcf_config(dataset: str) -> str:
     """
     Write a test VCF list file for a specific variant dataset.
@@ -498,24 +550,36 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
     samplesids = write_samplesids_config(dataset)  # write test samples ids list
     # download gencode and encode annotation data
     gencode, encode = download_annotation_data()
-    pam = write_ngg_pamfile()  # write test NGG PAM file
-    guide = write_sg1617_guidefile()  # write test sg1617 guide
     debug_arg = "--debug" if debug else ""
-    # TODO: replace call to local crisprme
-    crisprme_cmd = (
-        f"crisprme.py complete-search --genome {genome_dir} "
-        f"--bmax 1 --mm 4 --bDNA 1 --bRNA 1 --merge 3 --pam {pam} "
-        f"--guide {guide} --vcf {vcf} --samplesID {samplesids} --annotation {encode} "
-        f"--gene_annotation {gencode} --output {COMPLETETESTRESDIR} --thread {threads} "
-        f"{debug_arg} --ci-cd-test"
-    )
-    returncode = subprocess.call(crisprme_cmd, shell=True)  # run crisprme test
-    if returncode != 0:
+    # Run one complete-search per registered benchmark. complete-search refuses
+    # to run into a non-empty output folder, so each benchmark gets its OWN
+    # output dir (crisprme-test-out_<name>); validate-test looks in each.
+    registry = load_benchmarks()
+    th = registry["thresholds"]
+    bmax = max(th["bDNA"], th["bRNA"])
+    for bench in registry["benchmarks"]:
+        output_dir = f"{COMPLETETESTRESDIR}_{bench['name']}"
+        pam = write_pamfile(bench["pam_name"], bench["pam_content"])
+        guide = write_guidefile(bench["guide_file"], bench["guide_crisprme"])
         sys.stderr.write(
-            "ERROR: complete-test failed during complete-search "
-            f"(exit code {returncode}). See the log output above.\n"
+            f"Running complete-search for benchmark '{bench['name']}' "
+            f"({bench.get('nuclease', '')}) -> {output_dir}\n"
         )
-        sys.exit(returncode)
+        crisprme_cmd = (
+            f"crisprme.py complete-search --genome {genome_dir} "
+            f"--bmax {bmax} --mm {th['mm']} --bDNA {th['bDNA']} --bRNA {th['bRNA']} "
+            f"--merge 3 --pam {pam} --guide {guide} --vcf {vcf} "
+            f"--samplesID {samplesids} --annotation {encode} "
+            f"--gene_annotation {gencode} --output {output_dir} "
+            f"--thread {threads} {debug_arg} --ci-cd-test"
+        )
+        returncode = subprocess.call(crisprme_cmd, shell=True)
+        if returncode != 0:
+            sys.stderr.write(
+                "ERROR: complete-test failed during complete-search for benchmark "
+                f"'{bench['name']}' (exit code {returncode}). See the log above.\n"
+            )
+            sys.exit(returncode)
 
 
 def main():
