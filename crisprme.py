@@ -36,6 +36,23 @@ if "--debug" in input_args:
     script_path = current_working_directory + "PostProcess/"
     corrected_web_path = current_working_directory
 
+# Load the non-fatal low-memory warning from the PostProcess directory by
+# explicit file path: crisprme.py is installed in bin/, so PostProcess is not
+# importable as a package, and crisprme.py otherwise shells out rather than
+# importing PostProcess modules. Never let this optional check break startup.
+import importlib.util as _ilu
+
+try:
+    _mc_spec = _ilu.spec_from_file_location(
+        "memory_check", os.path.join(script_path, "memory_check.py")
+    )
+    _mc_mod = _ilu.module_from_spec(_mc_spec)
+    _mc_spec.loader.exec_module(_mc_mod)
+    warn_low_memory = _mc_mod.warn_low_memory
+except Exception:  # pragma: no cover - defensive; memory check is optional
+    def warn_low_memory(*args, **kwargs):
+        return None
+
 cicd_test = False
 if "--ci-cd-test" in input_args:
     cicd_test = True
@@ -1137,6 +1154,7 @@ def _check_threads(args: List[str], threads: bool) -> int:
     return thread
 
 def complete_search() -> None:
+    warn_low_memory()  # non-fatal low-memory warning (Docker Desktop, etc.)
     args = input_args[2:]  # retrieve complete-search input arguments
     if "--help" in args or not args:  # print help
         print_help_complete_search()
@@ -1750,6 +1768,7 @@ def complete_test_crisprme():
             process.
     """
 
+    warn_low_memory()  # non-fatal low-memory warning (Docker Desktop, etc.)
     if "--help" in input_args or len(input_args) < 3:
         print_help_complete_test()
         sys.exit(1)

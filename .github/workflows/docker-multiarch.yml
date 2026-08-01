@@ -1,0 +1,85 @@
+name: Docker Multi-Arch Build
+
+# Build the CRISPRme Docker image natively for both linux/amd64 and
+# linux/arm64 (Apple Silicon). Both crispritz (native linux-aarch64 bioconda
+# build) and crisprme (noarch) install per-architecture with no source
+# compilation, so buildx can produce a true multi-arch image.
+#
+# On pull_request / workflow_dispatch we only BUILD both arches (push: false)
+# to validate that both platforms build successfully. Publishing to Docker Hub
+# (pinellolab/crisprme:latest + :<tag>) happens only on version tags, using the
+# DOCKERHUB_USERNAME / DOCKERHUB_TOKEN repository secrets.
+
+on:
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+      - "*.*.*"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Validation build: build both arches, do NOT push. Runs on PRs & manual runs.
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build multi-arch image (no push)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build linux/amd64 + linux/arm64 (validation, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: crisprme:ci-multiarch
+
+  # ---------------------------------------------------------------------------
+  # Publish build: build both arches and push to Docker Hub. Only on tags.
+  #
+  # The login/push steps are intentionally COMMENTED OUT so nothing publishes
+  # accidentally. Before enabling, a maintainer must configure the repository
+  # secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, then uncomment the steps
+  # below and set `push: true`.
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Publish multi-arch image (tags only)
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            pinellolab/crisprme:latest
+            pinellolab/crisprme:${{ github.ref_name }}
