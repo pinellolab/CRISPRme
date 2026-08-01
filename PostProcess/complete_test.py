@@ -100,13 +100,15 @@ def check_output() -> None:
     """
     results_dir = os.path.abspath(os.path.join(os.getcwd(), CRISPRME_DIRS[1]))
     assert os.path.isdir(results_dir)
-    complete_test_res_dir = os.path.join(results_dir, COMPLETETESTRESDIR)
-    if os.path.isdir(complete_test_res_dir):  # complete test already run
-        sys.stderr.write(
-            "Complete-test already run once. Please delete complete-test "
-            f"results folder before running it again: {complete_test_res_dir}\n"
-        )
-        sys.exit(0)  # avoid throwing complete-search error on output folder
+    # one output dir per registered benchmark (crisprme-test-out_<name>)
+    for bench in load_benchmarks()["benchmarks"]:
+        d = os.path.join(results_dir, f"{COMPLETETESTRESDIR}_{bench['name']}")
+        if os.path.isdir(d):
+            sys.stderr.write(
+                "Complete-test already run once. Please delete the complete-test "
+                f"results folder before running it again: {d}\n"
+            )
+            sys.exit(0)  # avoid throwing complete-search error on output folder
 
 
 def _assign_genome_directory_name(chrom: str) -> str:
@@ -541,25 +543,26 @@ def run_crisprme_test(chrom: str, dataset: str, threads: int, debug: bool) -> No
     # download gencode and encode annotation data
     gencode, encode = download_annotation_data()
     debug_arg = "--debug" if debug else ""
-    # Run one complete-search per registered benchmark. All benchmarks share the
-    # same output dir; CRISPRitz names target files by PAM/guide/thresholds, so
-    # each benchmark's targets coexist and validate-test finds each by name.
+    # Run one complete-search per registered benchmark. complete-search refuses
+    # to run into a non-empty output folder, so each benchmark gets its OWN
+    # output dir (crisprme-test-out_<name>); validate-test looks in each.
     registry = load_benchmarks()
     th = registry["thresholds"]
     bmax = max(th["bDNA"], th["bRNA"])
     for bench in registry["benchmarks"]:
+        output_dir = f"{COMPLETETESTRESDIR}_{bench['name']}"
         pam = write_pamfile(bench["pam_name"], bench["pam_content"])
         guide = write_guidefile(bench["guide_file"], bench["guide_crisprme"])
         sys.stderr.write(
             f"Running complete-search for benchmark '{bench['name']}' "
-            f"({bench.get('nuclease', '')})\n"
+            f"({bench.get('nuclease', '')}) -> {output_dir}\n"
         )
         crisprme_cmd = (
             f"crisprme.py complete-search --genome {genome_dir} "
             f"--bmax {bmax} --mm {th['mm']} --bDNA {th['bDNA']} --bRNA {th['bRNA']} "
             f"--merge 3 --pam {pam} --guide {guide} --vcf {vcf} "
             f"--samplesID {samplesids} --annotation {encode} "
-            f"--gene_annotation {gencode} --output {COMPLETETESTRESDIR} "
+            f"--gene_annotation {gencode} --output {output_dir} "
             f"--thread {threads} {debug_arg} --ci-cd-test"
         )
         returncode = subprocess.call(crisprme_cmd, shell=True)

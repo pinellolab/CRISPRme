@@ -21,10 +21,13 @@ import json
 import sys
 import os
 
-# crispritz targets folder produced by complete-test
-TARGETSDIR = f"{CRISPRME_DIRS[1]}/{COMPLETETESTRESDIR}/crispritz_targets"
 # local (cached) folder for downloaded brute-force references
-BFDIR = f"{CRISPRME_DIRS[1]}/{COMPLETETESTRESDIR}/benchmark/"
+BFDIR = f"{CRISPRME_DIRS[1]}/benchmark_references/"
+
+
+def targets_dir(name: str) -> str:
+    """crispritz_targets folder for a benchmark (its own complete-test output)."""
+    return f"{CRISPRME_DIRS[1]}/{COMPLETETESTRESDIR}_{name}/crispritz_targets"
 # benchmark registry (test/benchmark/benchmarks.json), resolved relative to repo
 BENCHMARKS_JSON = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), os.pardir, "test", "benchmark",
@@ -66,17 +69,25 @@ def load_benchmarks() -> Dict:
         return _FALLBACK_BENCHMARKS
 
 
-def target_report_names(pam_name: str, mm: int, bdna: int, brna: int) -> Tuple[str, str]:
-    """Reference and 1000G crispritz target report filenames for a benchmark."""
+def target_report_names(pam_name: str, mm: int, bdna: int, brna: int, chrom: str) -> Tuple[str, str]:
+    """Reference and 1000G crispritz target report filenames for a benchmark.
+
+    complete-test builds a per-chromosome genome (``hg38_<chrom>`` for a single
+    chromosome, ``hg38`` for the whole genome), and CRISPRitz names the reports
+    after that genome, so the names differ between ``--chrom chr22`` and ``all``.
+    """
+    genome = "hg38" if chrom == "all" else f"hg38_{chrom}"
     suffix = f"{pam_name}_guides.txt_{mm}_{bdna}_{brna}.targets.txt"
-    return f"hg38_{suffix}", f"hg38+hg38_1000G_{suffix}"
+    return f"{genome}_{suffix}", f"{genome}+hg38_1000G_{suffix}"
 
 
-def find_crispritz_targets(pam_name: str, mm: int, bdna: int, brna: int) -> Optional[Tuple[str, str]]:
-    """Return (ref, 1000G) target report paths if both exist, else None."""
-    ref_name, alt_name = target_report_names(pam_name, mm, bdna, brna)
-    ref_path = os.path.join(TARGETSDIR, ref_name)
-    alt_path = os.path.join(TARGETSDIR, alt_name)
+def find_crispritz_targets(name: str, pam_name: str, mm: int, bdna: int, brna: int,
+                           chrom: str) -> Optional[Tuple[str, str]]:
+    """Return (ref, 1000G) target report paths for a benchmark if both exist."""
+    ref_name, alt_name = target_report_names(pam_name, mm, bdna, brna, chrom)
+    tdir = targets_dir(name)
+    ref_path = os.path.join(tdir, ref_name)
+    alt_path = os.path.join(tdir, alt_name)
     if os.path.isfile(ref_path) and os.path.isfile(alt_path):
         return ref_path, alt_path
     return None
@@ -191,7 +202,8 @@ def run_test_validation(chrom: str) -> None:
     validated = failed = skipped = 0
     for bench in registry["benchmarks"]:
         name = bench["name"]
-        targets = find_crispritz_targets(bench["pam_name"], th["mm"], th["bDNA"], th["bRNA"])
+        targets = find_crispritz_targets(
+            name, bench["pam_name"], th["mm"], th["bDNA"], th["bRNA"], chrom)
         if targets is None:
             sys.stderr.write(f"[{name}] SKIPPED: complete-test targets not found "
                              "(this benchmark was not run).\n")
