@@ -998,7 +998,6 @@ def change_url(
         Output("mms", "className"),
         Output("dna", "className"),
         Output("rna", "className"),
-        Output("len-guide-sequence-ver", "className"),
         Output("warning-list", "children"),
     ],
     [Input("check-job", "n_clicks"), Input("close", "n_clicks")],
@@ -1084,7 +1083,6 @@ def check_input(
     rna_update = None
     be_start_update = None
     be_stop_update = None
-    len_guide_update = None
     update_style = False
     miss_input_list = []  # recover missing inputs
     # display missing genome
@@ -1262,7 +1260,6 @@ def check_input(
             mms_update,
             dna_update,
             rna_update,
-            len_guide_update,
             miss_input,
         )
     return (
@@ -1274,7 +1271,6 @@ def check_input(
         mms_update,
         dna_update,
         rna_update,
-        len_guide_update,
         miss_input,
     )
 
