@@ -257,14 +257,12 @@ Both accept either a plain `.bed` or a bgzipped `.bed.gz` file (the sort helper
 transparently handles both; see `_sort_annotation` in `crisprme.py`, lines
 694–713).
 
-**Sorting.** BEDs must be sorted with BEDOPS/GRCh ordering. On current `main`,
-`--annotation` is **auto-sorted** for you (`_check_annotation` →
-`_sort_annotation`, `crisprme.py` line 743). `--gene_annotation` is currently
-only compressed, not sorted (`_check_gene_annotation` → `_compress_file`,
-`crisprme.py` line 906); automatic sorting for it is being aligned with
-`--annotation`. **Intended and recommended behavior: both files should be
-sorted.** To be safe today, pre-sort your gene-annotation BED (e.g. with
-`sort-bed`) before passing it in.
+**Sorting.** BEDs must be sorted with BEDOPS/GRCh ordering. As of 2.1.12,
+**both `--annotation` and `--gene_annotation` are auto-sorted for you** — each is
+routed through `_sort_annotation` (via `_check_annotation` / `_check_gene_annotation`
+in `crisprme.py`), which decompresses if needed, sorts with `sort-bed`, and
+re-compresses. You can pass either a plain `.bed` or a `.bed.gz`, sorted or not, and
+CRISPRme normalizes it.
 
 ---
 
