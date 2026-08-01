@@ -329,8 +329,9 @@ def validate(crisprme_targets: pd.DataFrame, bf_targets: pd.DataFrame) -> None:
             off-target records.
 
     Raises:
-        SystemExit: Always raised at the end of validation, with exit status 0
-            regardless of whether the comparison passes or fails.
+        SystemExit: Exit status 0 if the CRISPRme and brute-force off-target
+            sets match, or 1 if a mismatch is detected, so that `validate-test`
+            can be used as a pass/fail installation check.
     """
     sys.stderr.write("Running off-target sites validation\n")
     # compute off-target site identifiers
@@ -370,7 +371,7 @@ def validate(crisprme_targets: pd.DataFrame, bf_targets: pd.DataFrame) -> None:
             + "\n".join(f"    - {s}" for s in list(extra_in_crisprme)[:max_examples])
             + "\n"
         )
-    sys.exit(0)
+    sys.exit(1)  # validation failed: signal non-zero so the test actually fails
 
 
 def run_test_validation(chrom: str) -> None:

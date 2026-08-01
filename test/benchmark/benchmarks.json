@@ -1,0 +1,31 @@
+{
+  "_comment": "Registry of validate-test benchmark cases. Each entry defines a nuclease/guide benchmark with a precomputed brute-force ground truth. To add a new example: append an entry, generate its reference with test/benchmark/generate_references.sh, host the TSV, and record its md5. validate.py iterates this registry, downloads+caches each reference (keyed by md5), and reports per-case pass/fail.",
+  "reference_base_url": "https://raw.githubusercontent.com/pinellolab/CRISPRme/main/test/benchmark/",
+  "thresholds": { "mm": 4, "bDNA": 1, "bRNA": 1 },
+  "benchmarks": [
+    {
+      "name": "cas9_sg1617",
+      "nuclease": "SpCas9",
+      "pam_name": "20bp-NGG-SpCas9.txt",
+      "pam_5prime": false,
+      "guide_file": "sg1617_test_guide.txt",
+      "guide_crisprme": "CTAACAGTTGCTTTTATCACNNN",
+      "guide_search": "CTAACAGTTGCTTTTATCACNGG",
+      "reference": "brute-force-1000G/brute_force_1000G.tsv",
+      "md5": "2c1721f6c4586698bfd70b6ddbe34b8b",
+      "source": "canonical CRISPRme Cas9 benchmark (sg1617)"
+    },
+    {
+      "name": "cas12a_hbg",
+      "nuclease": "enAsCas12a",
+      "pam_name": "TTTV-20bp-Cas12a.txt",
+      "pam_5prime": true,
+      "guide_file": "hbg_cas12a_test_guide.txt",
+      "guide_crisprme": "NNNNCCTTGTCAAGGCTATTGGTC",
+      "guide_search": "TTTVCCTTGTCAAGGCTATTGGTC",
+      "reference": "brute-force-cas12-1000G/brute_force_cas12_1000G.tsv",
+      "md5": "TODO-after-generation",
+      "source": "HBG1/HBG2 clinical Cas12a guide (Blood 2019, doi:10.1182/blood-2019-130256); on-targets chr11:5249950 / 5254874"
+    }
+  ]
+}
