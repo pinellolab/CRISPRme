@@ -1,0 +1,87 @@
+name: validate-test benchmarks (chr22)
+
+# Runs the full CRISPRme round-trip on a native Linux runner (no emulation):
+# complete-test on chr22 with 1000G, then validate-test, which compares
+# CRISPRme's predicted off-targets against the committed brute-force ground-truth
+# references for every registered benchmark. Fails if any benchmark's off-target
+# set does not match.
+#
+# The published image installs a *released* CRISPRme from bioconda, so we pull it
+# and COPY this branch's code over the installed package to exercise the PR's
+# changes (crisprme.py, the whole PostProcess/ pipeline, and the benchmark data).
+# We copy (merge) rather than bind-mount the directory so install-generated data
+# not in the repo is preserved (e.g. CRISTA_predictors.pkl, unzipped at install).
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "PostProcess/**"
+      - "test/benchmark/**"
+      - "test/data/**"
+      - "crisprme.py"
+      - ".github/workflows/validate-benchmarks.yml"
+  workflow_dispatch:
+
+jobs:
+  validate-benchmarks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      IMG: pinellolab/crisprme
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pull CRISPRme image
+        run: docker pull "$IMG"
+
+      - name: Prepare branch-code overlay
+        run: |
+          # Mount the whole branch repo read-only at /branch; each container step
+          # then COPIES the branch's crisprme.py + PostProcess/ + test/ over the
+          # installed package. Copying MERGES (PR files overwrite their installed
+          # twins) while preserving install-generated data absent from the repo,
+          # e.g. CRISTA_predictors.pkl (unzipped from CRISTA_predictors.zip at
+          # install). Bind-mounting PostProcess/ over the dir hid that .pkl and
+          # broke CRISTA scoring. The copy also brings in PR-added modules
+          # (validate_inputs.py, assembly_reconcile.py) so they import + run.
+          echo "BRANCH_MOUNT=-v ${GITHUB_WORKSPACE}:/branch:ro" >> "$GITHUB_ENV"
+
+      - name: complete-test (chr22, 1000G) for all registered benchmarks
+        run: |
+          mkdir -p work
+          n=0
+          until docker run --rm $BRANCH_MOUNT -v "${PWD}/work:/DATA" -w /DATA "$IMG" bash -c '
+                  set -e
+                  cp /branch/crisprme.py /opt/conda/bin/crisprme.py
+                  cp -rf /branch/PostProcess/* /opt/conda/opt/crisprme/PostProcess/
+                  mkdir -p /opt/conda/opt/crisprme/test
+                  cp -rf /branch/test/* /opt/conda/opt/crisprme/test/
+                  crisprme.py complete-test --chrom chr22 --vcf_dataset 1000G
+                '; do
+            n=$((n+1))
+            if [ "$n" -ge 3 ]; then echo "complete-test failed after $n attempts"; exit 1; fi
+            echo "complete-test attempt $n failed; cleaning + retrying"
+            sudo rm -rf work/Results/crisprme-test-out_* || true
+            sleep 15
+          done
+
+      - name: validate-test (chr22) — assert all benchmarks match the ground truth
+        run: |
+          docker run --rm $BRANCH_MOUNT -v "${PWD}/work:/DATA" -w /DATA "$IMG" bash -c '
+            set -e
+            cp /branch/crisprme.py /opt/conda/bin/crisprme.py
+            cp -rf /branch/PostProcess/* /opt/conda/opt/crisprme/PostProcess/
+            mkdir -p /opt/conda/opt/crisprme/test
+            cp -rf /branch/test/* /opt/conda/opt/crisprme/test/
+            crisprme.py validate-test --chrom chr22
+          '
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crisprme-test-out-logs
+          path: |
+            work/Results/**/log_*.txt
+          if-no-files-found: ignore

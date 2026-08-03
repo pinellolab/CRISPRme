@@ -99,9 +99,12 @@ if "orderChr" in sys.argv[:]:
     )  # sort input file by chr, clusterpos, real guide, direction
     print("END Sorting", time.time() - start_time)
     start_time = time.time()
-    with open(result_name + ".tmp_sort.txt") as targets, open(
-        result_name, "w+"
-    ) as result:
+    # errors="replace" guards against a stray non-UTF-8 byte in the
+    # intermediate target file aborting the run with UnicodeDecodeError
+    # (issue #52). Normal ASCII/UTF-8 files are unaffected.
+    with open(
+        result_name + ".tmp_sort.txt", encoding="utf-8", errors="replace"
+    ) as targets, open(result_name, "w+") as result:
         # Write Header
         if "total" not in sys.argv[:]:
             if addGuide:
@@ -129,10 +132,25 @@ if "orderChr" in sys.argv[:]:
             )
         current_chr_pos_dir_g = ""
         current_cluster = []
+        malformed_rows = 0  # count of skipped malformed/truncated target rows
         for line in targets:
             if "#" in line:  # Skip header
                 continue
             line = line.strip().split("\t")
+            # Guard against blank/truncated rows: the cluster key uses line[14]
+            # (Real Guide) and the sort key uses line[9]/line[7], so a row with
+            # fewer than 15 columns would raise IndexError and abort the entire
+            # (often multi-hour) run. Skip it instead and keep going. Logged to
+            # STDOUT, not STDERR, because the pipeline treats any stderr output
+            # as fatal (see issue #94). See issues #106/#107/#108.
+            if len(line) < 15:
+                malformed_rows += 1
+                if malformed_rows <= 5:
+                    print(
+                        "WARNING: skipping malformed target row "
+                        f"({len(line)} columns, expected >= 15): {line[:6]}"
+                    )
+                continue
             if (
                 line[3] + line[5] + line[6] + line[14] != current_chr_pos_dir_g
             ):  # NEW CLUSTER FOUND
@@ -158,6 +176,13 @@ if "orderChr" in sys.argv[:]:
         for t in current_cluster:
             result.write("\t".join(t) + "\n")
 
+        if malformed_rows:
+            print(
+                f"WARNING: skipped {malformed_rows} malformed/truncated target "
+                "row(s) during clustering; the intermediate target file may be "
+                "truncated (e.g. an interrupted or out-of-space write)"
+            )
+
         # Remove tmp sort
         os.remove(result_name + ".tmp_sort.txt")
         print("END Clustering (Local)", time.time() - start_time)
@@ -175,7 +200,8 @@ if total_line > MAX_LIMIT:
             cluster_ok = True
             guide = guide.strip()
             # DO SLOW CLUSTERING
-            with open(sys.argv[1]) as targets:
+            # errors="replace": tolerate stray non-UTF-8 bytes (issue #52).
+            with open(sys.argv[1], encoding="utf-8", errors="replace") as targets:
                 for line in targets:
                     line = line.strip().split("\t")
                     if "#" in line[0] or line[1].replace("-", "") != guide:
@@ -415,7 +441,8 @@ if total_line > MAX_LIMIT:
 
 else:
     #####DO FAST CLUSTERING
-    with open(sys.argv[1]) as targets:
+    # errors="replace": tolerate stray non-UTF-8 bytes (issue #52).
+    with open(sys.argv[1], encoding="utf-8", errors="replace") as targets:
         for line in targets:
             if "#" in line:
                 continue

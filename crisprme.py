@@ -11,7 +11,7 @@ import os
 import re
 
 
-version = "2.1.11"  #  CRISPRme version; TODO: update when required
+version = "2.1.12"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +36,25 @@ if "--debug" in input_args:
     script_path = current_working_directory + "PostProcess/"
     corrected_web_path = current_working_directory
 
+# Load the non-fatal low-memory warning from the PostProcess directory by
+# explicit file path: crisprme.py is installed in bin/, so PostProcess is not
+# importable as a package, and crisprme.py otherwise shells out rather than
+# importing PostProcess modules. Never let this optional check break startup.
+import importlib.util as _ilu
+
+try:
+    _mc_spec = _ilu.spec_from_file_location(
+        "memory_check", os.path.join(script_path, "memory_check.py")
+    )
+    _mc_mod = _ilu.module_from_spec(_mc_spec)
+    _mc_spec.loader.exec_module(_mc_mod)
+    warn_low_memory = _mc_mod.warn_low_memory
+except Exception:  # pragma: no cover - defensive; memory check is optional
+    def warn_low_memory(*args, **kwargs):
+        return None
+
 sys.path.insert(0, script_path)
+from validate_inputs import run_lightweight, run_full, resolve_vcf_dataset_dirs  # noqa: E402
 from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete, clean_incomplete_haplotype_output, haplotype_params_match  # noqa: E402
 
 cicd_test = False
@@ -299,7 +317,11 @@ def print_help_complete_search() -> None:
         "'bulges', or 'mm+bulges' [default: 'mm+bulges,mm']\n"
         "\t--output, specify the output folder name; results will be saved in "
         "Results/<name> [REQUIRED]\n"
-        "\t--thread, set number of threads to use [default: 8]\n")
+        "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--full_input_validate, also run a full per-VCF-record scan (chromosome "
+        "coverage, AF/FILTER consistency, POS bounds, multiallelic/breakend/"
+        "duplicate/phasing survey) before launching the search; slower than the "
+        "default lightweight checks, so opt-in [OPTIONAL]\n")
     sys.exit(1)
 
 
@@ -677,9 +699,26 @@ def _sort_annotation(annotationfile: str) -> str:
     Raises:
         SystemExit: If decompression, sorting, compression, or renaming fails.
     """
-    annotationfile_sorted = _sort_bed(annotationfile, f"{annotationfile}.tmp.sorted.bed")
+    # sort-bed needs an uncompressed BED. Accept either a plain .bed or a
+    # bgzipped .bed.gz (setup/complete-test download the latter) and always
+    # write the canonical bgzipped output back to <name>.gz.
+    if annotationfile.endswith(".gz"):
+        gz_path, plain_path = annotationfile, annotationfile[:-3]
+    else:
+        gz_path, plain_path = f"{annotationfile}.gz", annotationfile
+    decompressed_here = False
+    if not os.path.isfile(plain_path):
+        if os.path.isfile(gz_path):
+            _decompress_file(gz_path, plain_path)  # gunzip -k -c gz > plain
+            decompressed_here = True
+        else:
+            error(f"Annotation file not found: {annotationfile}")
+    annotationfile_sorted = _sort_bed(plain_path, f"{plain_path}.tmp.sorted.bed")
     annotationfile_sorted_bgzip = _compress_file(annotationfile_sorted)
-    return _mv_file(annotationfile_sorted_bgzip, f"{annotationfile}.gz")
+    result = _mv_file(annotationfile_sorted_bgzip, gz_path)
+    if decompressed_here:
+        _rm_files([plain_path])  # remove only the temp copy we created
+    return result
 
 
 def _check_annotation(args: List[str], annotation: bool) -> str:
@@ -872,7 +911,11 @@ def _check_gene_annotation(args: List[str], geneann: bool) -> str:
         error("Missing input for --gene_annotation. Gene annotation file must be specified")
     if not os.path.isfile(gene_annotation):
         error("The file specified for --gene_annotation does not exist")
-    return _compress_file(gene_annotation)
+    # Sort (and bgzip/tabix) the gene annotation the same way --annotation is
+    # handled. Previously this only compressed the file, so an unsorted BED
+    # broke downstream processing (FDA item 4/5). _sort_annotation accepts both
+    # plain .bed and bgzipped .bed.gz inputs.
+    return _sort_annotation(gene_annotation)  # sort input gene annotation file
 
 def _check_mm(args: List[str]) -> int:
     """Retrieves and validates the number of mismatches from command-line arguments.
@@ -1123,6 +1166,7 @@ def _check_threads(args: List[str], threads: bool) -> int:
     return thread
 
 def complete_search() -> None:
+    warn_low_memory()  # non-fatal low-memory warning (Docker Desktop, etc.)
     args = input_args[2:]  # retrieve complete-search input arguments
     if "--help" in args or not args:  # print help
         print_help_complete_search()
@@ -1159,12 +1203,22 @@ def complete_search() -> None:
                 raise ValueError("Please input a value for flag --vcf-filter-pass-values")
         except IndexError as e:
             raise ValueError("Missing input for --vcf-filter-pass-values") from e
+    full_input_validate = "--full_input_validate" in args
 
     # extract pam seq from file
     pam_len = 0
     total_pam_len = 0
     with open(pamfile, "r") as pam_file:
         pam_char = pam_file.readline()
+        # Only the first line is used, so a multi-line PAM file would silently
+        # ignore the extra motifs. Reject it with a clear error instead (FDA
+        # item): a single IUPAC motif per file is supported.
+        if any(line.strip() for line in pam_file):
+            raise ValueError(
+                "Only one PAM motif per file is supported; the PAM file "
+                f"'{pamfile}' contains more than one non-empty line. Combine "
+                "the motifs into a single IUPAC motif (e.g. NAG + NGG -> NRG)."
+            )
         total_pam_len = len(pam_char.split(" ")[0])
         index_pam_value = pam_char.split(" ")[-1]
         if int(pam_char.split(" ")[-1]) < 0:
@@ -1178,9 +1232,39 @@ def complete_search() -> None:
             pam_len = end_idx
             pam_begin = False
 
+    # Issue #105: a partially-degenerate PAM motif (IUPAC codes W/R/Y/S/K/M/B/D/H/V)
+    # combined with bulges can crash the underlying CRISPRitz search engine with a
+    # heap-corruption error ("free(): invalid pointer"). The observed trigger is an
+    # odd-length degenerate motif (e.g. WTN); even-length ones such as TTTV (Cas12a)
+    # are stable, so this is a scoped, NON-FATAL warning (never blocks a valid run).
+    # The root cause is fixed in CRISPRitz 2.7.1; CRISPRme will pin to it in a later
+    # release. Until then, surface a clear message instead of a cryptic C++ abort.
+    if (
+        bMax > 0
+        and pam_len % 2 == 1
+        and any(c in "WRYSKMBDHV" for c in pam_char.upper())
+    ):
+        sys.stderr.write(
+            f"WARNING: PAM motif '{pam_char}' is a partially-degenerate, odd-length "
+            "motif used with bulges. This combination can crash the underlying "
+            "search engine (issue #105, fixed in CRISPRitz 2.7.1). If the search "
+            "aborts with a memory error, retry without bulges or use a "
+            "fully-specified PAM.\n"
+        )
+
     genome_ref = os.path.basename(genomedir)
     annotation_name = os.path.basename(annotationfile)
-    nuclease = os.path.basename(pamfile).split(".")[0].split("-")[2]
+    # The nuclease name is parsed from the PAM filename, which must follow the
+    # <length>-<motif>-<CasName>.txt convention (e.g. 20bp-NGG-SpCas9.txt).
+    # Validate before indexing to avoid a cryptic IndexError (FDA item).
+    pam_name_fields = os.path.basename(pamfile).split(".")[0].split("-")
+    if len(pam_name_fields) < 3:
+        raise ValueError(
+            f"Invalid PAM filename '{os.path.basename(pamfile)}': expected the "
+            "'<length>-<motif>-<CasName>.txt' convention "
+            "(e.g. 20bp-NGG-SpCas9.txt)."
+        )
+    nuclease = pam_name_fields[2]
     if bMax != 0:
         search_index = True
     else:
@@ -1298,6 +1382,35 @@ def complete_search() -> None:
     void_mail = "_"
     if sequence_use == False:
         os.system(f"cp {guidefile} {outputfolder}/guides.txt")
+
+    # pre-flight input validation (lightweight tier, always on): catches
+    # misconfigurations that would otherwise only surface deep into the run
+    vcf_dataset_dirs = (
+        resolve_vcf_dataset_dirs(vcfdir, current_working_directory) if variant else []
+    )
+    validation_report = run_lightweight(
+        genomedir,
+        vcf_dataset_dirs,
+        os.path.join(outputfolder, "guides.txt"),
+        pamfile,
+        gene_annotation,
+        samplefile,
+        current_working_directory,
+    )
+    validation_report.write()
+
+    # opt-in full-file scan (--full_input_validate): slower, so only runs on
+    # request; still checked before the pipeline subprocess launches
+    full_validation_report = None
+    if full_input_validate and variant:
+        full_validation_report = run_full(genomedir, vcf_dataset_dirs)
+        full_validation_report.write()
+
+    if validation_report.has_errors() or (
+        full_validation_report is not None and full_validation_report.has_errors()
+    ):
+        sys.exit(1)
+
     print(
         f"Launching job {outputfolder}. The stdout is redirected in log_verbose.txt and stderr is redirected in log_error.txt"
     )
@@ -1978,6 +2091,7 @@ def complete_test_crisprme():
             process.
     """
 
+    warn_low_memory()  # non-fatal low-memory warning (Docker Desktop, etc.)
     if "--help" in input_args or len(input_args) < 3:
         print_help_complete_test()
         sys.exit(1)

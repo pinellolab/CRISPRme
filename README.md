@@ -62,14 +62,19 @@ quick guide on deploying locally the web interface.
 To ensure optimal performance, CRISPRme requires the following:
 
 - **Minimum Memory (RAM)**: 32 GB
-  <br>Suitable for typical use cases and smaller datasets.
+  <br>Suitable for single-chromosome tests and small, targeted analyses.
 
-- **Recommended Memory for Large Analyses**: 64 GB or more
-  <br>Necessary for intensive operations such as whole-genome searches and
-  processing large variant datasets.
+- **Whole-genome / population-scale analyses**: 64 GB or more
+  <br>Required for whole-genome searches with large variant datasets. In practice
+  a genome-wide search against the full 1000 Genomes dataset peaks well above
+  32 GB (observed ~64–100 GB during the results post-processing stage), so 64 GB
+  should be treated as the practical floor for whole-genome + population-variant
+  runs, not merely a recommendation. Note that peak memory occurs in
+  post-processing rather than the search itself.
 
 For best results, confirm that your system meets or exceeds these specifications 
-before running CRISPRme.
+before running CRISPRme. To estimate the cost of a large search up front, see
+`docs/SCALABILITY_ANALYSIS.md`.
 
 ## 1 Installation
 
@@ -127,12 +132,12 @@ Once `Mamba` is installed, configure it to use Bioconda and related channels by
 running the following one-time setup commands:
 ```bash
 mamba config --add channels bioconda
-mamba config --add channels defaults
 mamba config --add channels conda-forge
 mamba config --set channel_priority strict
 ```
 > **Note:** If you prefer to use `Conda`, replace `mamba` with `conda` in the 
-commands above
+commands above. (Per current Bioconda guidance we do **not** add the `defaults`
+channel, and `conda-forge` is given the highest priority.)
 
 By completing these steps, your system will be fully prepared for installing CRISPRme.
 
@@ -171,7 +176,7 @@ crisprme.py --version  # Display the installed CRISPRme version
 crisprme.py            # List CRISPRme functionalities
 ```  
 
-- The first command will output the version of CRISPRme (e.g., `2.1.6`).  
+- The first command will output the version of CRISPRme (e.g., `2.1.12`).  
 - The second command should display CRISPRme's functionalities.  
 
 If both commands execute successfully, your installation is complete, and 
@@ -239,6 +244,28 @@ official Docker installation guide specific to your OS:
 - [MacOS Installation Guide](https://docs.docker.com/docker-for-mac/install/)
 - [Windows Installation Guide](https://docs.docker.com/docker-for-windows/install/)
 - [Linux Installation Guide](https://docs.docker.com/engine/install/ubuntu/)
+
+**Apple Silicon (M1/M2/M3) support**
+
+The CRISPRme Docker image is now published as a multi-architecture image with a
+native `linux/arm64` build, so it runs **natively on Apple Silicon Macs with no
+emulation** (no Rosetta / QEMU, no "platform mismatch" warning). Both the
+`crispritz` dependency (native `linux-aarch64` bioconda build) and `crisprme`
+itself (a `noarch` package) install per-architecture without any source
+compilation. Docker automatically selects the correct architecture when you
+pull or run the image, so no special flags are required.
+
+**Docker Desktop memory allocation (important)**
+
+CRISPRme's searches are memory intensive. By default Docker Desktop caps the
+memory available to containers, which can cause searches to fail with
+out-of-memory errors. Before running large analyses, raise the limit in
+**Docker Desktop → Settings → Resources → Memory** to **at least 32 GB** (64 GB
+or more is recommended for large analyses). CRISPRme prints a non-fatal
+`WARNING:` at the start of a `complete-search` / `complete-test` run when it
+detects less than 32 GB of total memory, reminding you to increase this
+allocation. (You can override the threshold with `CRISPRME_MIN_GB` or skip the
+check entirely with `CRISPRME_SKIP_MEM_CHECK=1`.)
 
 **Linux-Specific Post-Installation Steps**
 
@@ -315,6 +342,10 @@ analysis. It integrates robust functionalities for off-target detection,
 variant-aware search, and result analysis. The tool also includes a 
 user-friendly graphical interface, which can be deployed locally to streamline 
 its usage.
+
+> 📄 **Preparing inputs?** See [`docs/INPUT_FORMATS.md`](docs/INPUT_FORMATS.md)
+> for PAM/guide file formats, chromosome naming, VCF and annotation
+> requirements, bulge reporting, and how to estimate expensive searches.
 
 
 ### 2.1 Directory Structure
@@ -448,14 +479,14 @@ Usage Example for the Complete Search function:
     --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
     --guide sg1617.txt \  # guide 
     --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
-    --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
+    --annotation Annotations/dhs+encode+gencode.hg38.bed \  # annotation BED
     --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
     --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
     --be-window 4,8 \  # base editing window start and stop positions within off-targets
     --be-base A,G \  # nucleotide to test base editing potential (A>G)
-    --mm 6 \  # number of max mismatches
-    --bDNA 2 \  # number of max DNA bulges
-    --bRNA 2 \  # number of max RNA bulges
+    --mm 4 \  # number of max mismatches (default for CRISPRme examples/tests)
+    --bDNA 1 \  # number of max DNA bulges
+    --bRNA 1 \  # number of max RNA bulges
     --merge 3 \  # merge off-targets mapped within 3 bp in clusters
     --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
     --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
@@ -471,14 +502,14 @@ Usage Example for the Complete Search function:
     --vcf vcf_config.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP variant datasets
     --guide sg1617.txt \  # guide 
     --pam PAMs/20bp-NGG-spCas9.txt \  # NGG PAM file
-    --annotation Annotations/dhs+gencode+encode.hg38.bed \  # annotation BED
+    --annotation Annotations/dhs+encode+gencode.hg38.bed \  # annotation BED
     --gene_annotation Annotations/gencode.protein_coding.bed \  # gene proximity annotation BED
     --samplesID samplesIDs.1000G.HGDP.txt \  # config file declaring usage of 1000G and HGDP samples
     --be-window 4,8 \  # base editing window start and stop positions within off-targets
     --be-base A,G \  # nucleotide to test base editing potential (A>G)
-    --mm 6 \  # number of max mismatches
-    --bDNA 2 \  # number of max DNA bulges
-    --bRNA 2 \  # number of max RNA bulges
+    --mm 4 \  # number of max mismatches (default for CRISPRme examples/tests)
+    --bDNA 1 \  # number of max DNA bulges
+    --bRNA 1 \  # number of max RNA bulges
     --merge 3 \  # merge off-targets mapped within 3 bp in clusters
     --sorting-criteria-scoring mm+bulges \  # prioritize within each cluster off-targets with highest score and lowest mm+bulges (CFD and CRISTA reports only)
     --sorting-criteria mm,bulges \  # prioritize within each cluster off-targets with lowest mm and bulges counts
@@ -925,7 +956,7 @@ Usage Example for the Targets Integration function:
 
 - **Via Docker**
   ```bash
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme \
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
     crisprme.py targets-integration \ 
     --targets results.integrated_results.tsv \  # search results
     --empirical_data empirical_data.bed \  # empirical data BED 
@@ -1154,16 +1185,16 @@ Usage Example for the Generate Personal Card function:
 - **Via Conda/Mamba**
   ```bash
   crisprme.py generate-personal-card \
-    --result_dir Results/sg1617.6.2.2 \  # results directory from previous search
+    --result_dir Results/sg1617.4.1.1 \  # results directory from previous search
     --guide_seq CTAACAGTTGCTTTTATCACNNN \  # guide sequence 
     --sample_id NA21129  # sample ID
   ```
 
 - **Via Docker**
   ```bash
-  docker run -v ${PWD}:/DATA -w /DATA -i i pinellolab/crisprme \
+  docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
     crisprme.py generate-personal-card \
-    --result_dir Results/sg1617.6.2.2 \  # results directory from previous search
+    --result_dir Results/sg1617.4.1.1 \  # results directory from previous search
     --guide_seq CTAACAGTTGCTTTTATCACNNN \  # guide sequence 
     --sample_id NA21129  # sample ID
   ```
@@ -1185,7 +1216,7 @@ Personal Card function, including detailed explanations and default behaviors:
 
 **Input Data Parameters**
 
-- `--results_dir` (*Required*)
+- `--result_dir` (*Required*)
   <br>Specifies the directory containing the CRISPRme search results. The tool 
   extracts the relevant targets from the reports available in this directory. 
   Ensure this path includes all necessary output files generated by CRISPRme 
@@ -1375,6 +1406,14 @@ Usage example for the Web Interface function:
     pinellolab/crisprme crisprme.py web-interface  # Starts the local server and launches the web interface
   ```
 
+> 🌐 **Accessing the interface from another machine (SSH tunnel).** The server
+> binds IPv4 `0.0.0.0:8080`. When forwarding it over SSH from a remote host, use
+> the explicit IPv4 address as the forward target — `localhost` may resolve to
+> IPv6 (`::1`) and be refused:
+> ```bash
+> ssh -N -L 8080:127.0.0.1:8080 user@remote-host   # then open http://localhost:8080
+> ```
+
 ##### Input Arguments
 ---
 
@@ -1430,16 +1469,16 @@ Open a terminal and execute the following command to check the software version:
 
 - **Via Conda/Mamba**
   ```bash
-  crisprme.py --version  # Expected output: v2.1.6
+  crisprme.py --version  # Expected output: v2.1.12
   ```
 
 - **Via Docker**
   ```bash
   docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
-  crisprme.py --version  # Expected output: v2.1.6
+  crisprme.py --version  # Expected output: v2.1.12
   ```
 
-If the output displays the correct software version (e.g., `v2.1.6`), CRISPRme 
+If the output displays the correct software version (e.g., `v2.1.12`), CRISPRme 
 is successfully installed and ready for use.
 
 **Step 2: Access CRISPRme Help Menu**
