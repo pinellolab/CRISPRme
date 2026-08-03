@@ -102,9 +102,12 @@ genome-wide 1000G run (sg1617, NGG, 4/1/1) measured end-to-end on a 256-core / 1
   Hugging Face measured **~6.5× faster** than EBI on the same host.
 
 ### Optimization plan
-1. **Enrichment — the biggest win (CRISPRitz):** rewrite `enricher.py` in **Rust**
-   and **parallelize across chromosomes** (embarrassingly parallel). Together these
-   target collapsing the ~12.5 h stage toward minutes — i.e. ~13.5 h → ~1 h.
+1. **Enrichment — the biggest win (CRISPRitz):** rewrite `enricher.py` in **C++**
+   (fits the existing C++/OpenMP build — no new deps, unlike Rust — and drops the
+   pandas dependency) and **parallelize across chromosomes** (embarrassingly
+   parallel). Together these target collapsing the ~12.5 h stage toward minutes —
+   i.e. ~13.5 h → ~1 h. **Byte-identical C++ port done: CRISPRitz PR #26**; the
+   cross-chromosome parallelism is the remaining follow-up.
 2. **Post-analysis memory cap (CRISPRme):** bound the worker pool to a memory
    budget (default 64 GB) — **landed in 2.1.13** (`CRISPRME_MAX_MEM_GB`).
 3. **Hugging Face data + index hosting:** a **dedicated HF repository hosting all
