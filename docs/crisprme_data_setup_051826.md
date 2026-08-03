@@ -14,7 +14,6 @@ and re-running one search command (Section 3). Information on how to include a n
 
 ```bash
 mamba config --add channels bioconda
-mamba config --add channels defaults
 mamba config --add channels conda-forge
 mamba config --set channel_priority strict
 ```
@@ -498,7 +497,7 @@ Each operation the setup command performs, for users who need to debug, customiz
 ### A2a. Create the working directory structure
 
 ```bash
-mkdir -p Genomes VCFs Annotations PAMs Dictionaries genome_library Results samplesIDs
+mkdir -p Genomes VCFs Annotations PAMs Dictionaries Results samplesIDs
 ```
 
 All subsequent commands must be run from inside this working directory. CRISPRme writes all output relative to it.
@@ -507,9 +506,9 @@ All subsequent commands must be run from inside this working directory. CRISPRme
 
 **Full genome (default):** downloads the complete hg38 assembly from UCSC (~900 MB compressed) and unpacks it as one uncompressed FASTA per chromosome. The archive MD5 is verified before extraction to catch truncated downloads. Existing chromosomes that pass the integrity check are skipped on re-runs.
 
-**Single chromosome (`--chrom chrN`):** downloads only `chrN.fa.gz` from the UCSC per-chromosome endpoint and unpacks it to `Genomes/chrN/chrN.fa`. Use this for testing before committing to the full download.
+**Single chromosome (`--chrom chrN`):** downloads only `chrN.fa.gz` from the UCSC per-chromosome endpoint and unpacks it to `Genomes/hg38_chrN/chrN.fa` (e.g. `Genomes/hg38_chr22/chr22.fa`). Use this for testing before committing to the full download.
 
-Expected result: `Genomes/hg38/` (full) or `Genomes/chrN/` (single-chrom) containing one `.fa` file per downloaded chromosome.
+Expected result: `Genomes/hg38/` (full) or `Genomes/hg38_chrN/` (single-chrom) containing one `.fa` file per downloaded chromosome.
 
 ### A2c. Download variant VCFs (1000G and HGDP)
 

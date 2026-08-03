@@ -1,14 +1,14 @@
 # CRISPRme: Local Web Interface User Guide
 
 This guide covers how to launch, navigate, and operate CRISPRme's locally hosted web
-interface. Installation (Section 1 of the CLI Setup Guide) and reference data setup
-(Section 2 of the CLI Setup Guide) need to be completed only once before using either
+interface. Installation (Section 1 of the Setup Guide) and reference data setup
+(Section 2 of the Setup Guide) need to be completed only once before using either
 interface. Once your data is in place, the web interface provides a point-and-click
 alternative to the command line for running searches and exploring results.
 
 > **Prerequisite:** This guide assumes CRISPRme is already installed and your reference
 > data is configured. If you have not yet completed those steps, work through the
-> *CRISPRme CLI Setup and Usage Guide* (Sections 1 and 2) before proceeding here.
+> *CRISPRme Setup and Usage Guide* (Sections 1 and 2) before proceeding here.
 
 ---
 
@@ -44,7 +44,7 @@ available from the CLI.
 **What the interface does not replace:**
 
 The web interface is a front-end to the same `complete-search` pipeline described in
-the CLI guide. Utilities such as `gnomAD-converter` and `generate-personal-card`
+the Setup Guide. Utilities such as `gnomAD-converter` and `generate-personal-card`
 remain CLI-only operations. For those workflows, refer to Section 2.2 of the
 *CRISPRme README*.
 
@@ -70,7 +70,7 @@ Annotations/   Dictionaries/  Genomes/  PAMs/  Results/  VCFs/  samplesIDs/
 ```
 
 If any of these directories are missing, complete the setup step described in Section 2
-of the CLI guide before continuing.
+of the Setup Guide before continuing.
 
 ### 2b. Activate the CRISPRme environment
 
@@ -199,7 +199,7 @@ in Section 5 of this guide:
 
 This section walks through the three-step submission form on the Homepage. For full
 parameter definitions — including accepted value ranges and biological rationale —
-refer to *Section 3 of the CRISPRme CLI Setup and Usage Guide*.
+refer to *Section 2.2.1 (Complete Search) of the CRISPRme README*.
 
 ### Step 1: Spacer, Cas Protein, and PAM selection
 
@@ -242,7 +242,7 @@ short DNA sequence adjacent to the protospacer that is essential for Cas protein
 binding.
 
 If your nuclease is not listed, create a custom PAM file as described in Section 5
-of the CLI guide and restart the server to make it available in the dropdown.
+of the Setup Guide and restart the server to make it available in the dropdown.
 
 ### Step 2: Genome selection and threshold configuration
 
@@ -275,6 +275,11 @@ off-targets:
   relative to the RNA). The web interface supports up to **2 DNA bulges**.
 - **RNA bulges** — the maximum number of RNA bulges (insertions in the RNA strand
   relative to the DNA). The web interface supports up to **2 RNA bulges**.
+
+The form is pre-filled with the recommended defaults of **4 mismatches, 1 DNA
+bulge, and 1 RNA bulge** — a good balance of sensitivity and runtime for most
+analyses. Raise them only when you specifically need a wider search; higher values
+grow the search space (and runtime/memory) substantially.
 
 Bulges can be consecutive (e.g., `NN--NN`) or interleaved (e.g., `NN-N-NN`).
 
@@ -684,5 +689,5 @@ to its corresponding CLI flag for cross-reference.
 | Job name | `--output` | Yes |
 
 For complete parameter definitions, accepted value ranges, and guidance on choosing
-appropriate values for your experimental question, refer to *Section 3 of the
-CRISPRme CLI Setup and Usage Guide* and *Section 2.2.1 of the CRISPRme README*.
+appropriate values for your experimental question, refer to *Section 2.2.1
+(Complete Search) of the CRISPRme README*.
