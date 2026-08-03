@@ -191,7 +191,13 @@ def _crispritz_version(crispritz: str = "crispritz.py") -> Optional[str]:
             text=True,
             timeout=30,
         )
-        return (out.stdout or out.stderr).strip() or None
+        text = (out.stdout or out.stderr).strip()
+        # crispritz.py rejects --version; don't record that error as a "version"
+        if not text or "not allowed" in text.lower() or text.lower().startswith(
+            "error"
+        ):
+            return None
+        return text
     except Exception:
         return None
 
@@ -273,9 +279,11 @@ def build(args: argparse.Namespace) -> None:
         print("[crisprme-index] enriching genome (add-variants)")
         _run(add_variants_command(vcf_dir, genome_dir, crispritz), cwd=build_root)
 
-        # crispritz writes variants_genome/SNPs_genome/<name>_enriched + *.json
+        # crispritz's add-variants names the enriched dir after the GENOME DIR
+        # basename (not --name): "<genome_basename>_enriched".
+        genome_basename = os.path.basename(os.path.normpath(genome_dir))
         snps_genome = os.path.join(build_root, "variants_genome", "SNPs_genome")
-        enriched_src = os.path.join(snps_genome, f"{name}_enriched")
+        enriched_src = os.path.join(snps_genome, f"{genome_basename}_enriched")
         enriched_name = f"{name}+{vcf_name}"
         enriched_dir = os.path.join(build_root, "Genomes", enriched_name)
         os.makedirs(os.path.dirname(enriched_dir), exist_ok=True)
@@ -323,8 +331,9 @@ def build(args: argparse.Namespace) -> None:
     for d in (stage_genomes, stage_dicts):
         if os.path.isdir(d) and not os.listdir(d):
             os.rmdir(d)
-    if os.path.isdir(build_root) and not os.listdir(build_root):
-        os.rmdir(build_root)
+    # remove the crispritz scratch working dir entirely — the real artifacts have
+    # been moved out to the staging layout above, and it must not be uploaded
+    shutil.rmtree(build_root, ignore_errors=True)
 
     # ---- manifest ---------------------------------------------------------- #
     manifest = {
