@@ -35,12 +35,14 @@ before running the analysis.
 from utils import (
     check_crisprme_directory_tree,
     download,
+    hf_fetch,
     gunzip,
     untar,
     rename,
     compute_md5,
     CHROMS,
     CRISPRME_DIRS,
+    HF_DATA_REPO,
     MD5GENOME,
     MD51000G,
     MD5HGDP,
@@ -127,6 +129,44 @@ def _assign_genome_directory_name(chrom: str) -> str:
     return "hg38" if chrom == "all" else f"hg38_{chrom}"
 
 
+def _hf_download_full_genome(genome_dir: str) -> str:
+    """Fetch all extracted hg38 per-chromosome FASTA files from HuggingFace into
+    ``genome_dir`` (``Genomes/hg38``).
+
+    Uses ``snapshot_download`` with an ``allow_patterns`` filter so only the
+    ``genomes/hg38/*`` files are pulled, then copies each ``*.fa`` into
+    ``genome_dir``. This skips the UCSC tarball download + untar entirely.
+
+    Per-file MD5: CRISPRme's ``MD5GENOME`` dict only covers the UCSC tarball
+    (``hg38.chromFa.tar.gz``), so there is no per-file digest to check on this
+    path; integrity relies on HuggingFace's own content-hash/etag verification
+    performed inside ``snapshot_download``.
+
+    Args:
+        genome_dir: Destination ``Genomes/hg38`` directory.
+
+    Returns:
+        str: ``genome_dir``.
+    """
+    from huggingface_hub import snapshot_download
+
+    os.makedirs(genome_dir, exist_ok=True)
+    snap = snapshot_download(
+        repo_id=HF_DATA_REPO,
+        repo_type="dataset",
+        allow_patterns="genomes/hg38/*",
+    )
+    src_dir = os.path.join(snap, "genomes", "hg38")
+    fa_files = [f for f in os.listdir(src_dir) if f.endswith(".fa")]
+    if not fa_files:
+        raise FileNotFoundError(f"No FASTA files found under {src_dir}")
+    import shutil
+
+    for fa in fa_files:
+        shutil.copyfile(os.path.join(src_dir, fa), os.path.join(genome_dir, fa))
+    return genome_dir
+
+
 def download_genome_data(chrom: str, dest: str) -> str:
     """
     Download genome data for the requested chromosome selection and return the
@@ -159,6 +199,28 @@ def download_genome_data(chrom: str, dest: str) -> str:
         raise FileExistsError(f"Unable to locate {dest}")
     sys.stderr.write(f"Downloading fasta file for chromosome(s) {chrom}\n")
     genome_dir = os.path.join(dest, _assign_genome_directory_name(chrom))
+    # try HF first (extracted FASTA, no tarball step); fall back to UCSC on any
+    # error. HF hosts one .fa file per chromosome, so the tarball download +
+    # untar is skipped entirely on the HF path.
+    try:
+        if chrom == "all":
+            hf_genome_dir = _hf_download_full_genome(genome_dir)
+        else:
+            os.makedirs(genome_dir, exist_ok=True)  # create Genomes/hg38_{chrom}
+            chromfa = hf_fetch(
+                f"genomes/hg38/{chrom}.fa", os.path.join(genome_dir, f"{chrom}.fa")
+            )
+            assert os.path.isfile(chromfa)
+            hf_genome_dir = genome_dir
+        sys.stderr.write(
+            f"Fetched genome for {chrom} from HuggingFace ({HF_DATA_REPO})\n"
+        )
+        return os.path.abspath(hf_genome_dir)
+    except Exception as e:  # noqa: BLE001 - fall back to original source
+        sys.stderr.write(
+            f"HuggingFace fetch failed for genome {chrom} ({e}); "
+            "falling back to UCSC\n"
+        )
     if chrom == "all":
         chromstar = download(dest, http_url=f"{HG38URL}/bigZips/hg38.chromFa.tar.gz")
         # check genome md5
@@ -234,6 +296,26 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
         vcf_url = VCF1000GURL if ds == "1000G" else VCFHGDPURL
         chroms = CHROMS if chrom == "all" else [chrom]
         for c in chroms:
+            md5data = MD51000G if ds == "1000G" else MD5HGDP
+            vcf_basename = os.path.basename(vcf_url.format(c))
+            # try HF first (extracted .vcf.gz, byte-identical to originals so the
+            # existing MD5 dict still matches); fall back to EBI/Sanger on error.
+            try:
+                vcf = hf_fetch(
+                    f"vcfs/{ds}/{vcf_basename}",
+                    os.path.join(vcf_dataset_dir, vcf_basename),
+                )
+                if md5data[os.path.basename(vcf)] != compute_md5(vcf):
+                    raise ValueError(f"MD5 mismatch for {vcf_basename}")
+                sys.stderr.write(
+                    f"Fetched {vcf_basename} from HuggingFace ({HF_DATA_REPO})\n"
+                )
+                continue
+            except Exception as e:  # noqa: BLE001 - fall back to original source
+                sys.stderr.write(
+                    f"HuggingFace fetch failed for {vcf_basename} ({e}); "
+                    "falling back to original source\n"
+                )
             if ds == "1000G":
                 # the EBI 1000G host also serves HTTPS; prefer it, since FTP is
                 # frequently blocked on CI runners and institutional/cloud networks
@@ -248,7 +330,6 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
                     ftp_server=ftp_server,
                     ftp_path=vcf_url.format(c),
                 )
-            md5data = MD51000G if ds == "1000G" else MD5HGDP
             if md5data[os.path.basename(vcf)] != compute_md5(vcf):
                 raise ValueError(f"Download for {os.path.basename(vcf)} failed")
 
@@ -297,6 +378,23 @@ def download_samples_ids_data(dataset: str) -> None:
         samplesid_fname = (
             "samplesIDs.1000G.txt" if ds == "1000G" else "samplesIDs.HGDP.txt"
         )
+        target = os.path.join(samplesids_dir, f"hg38_{ds}.samplesID.txt")
+        # try HF first: the sample-ID file is stored under its final renamed name
+        # (hg38_<ds>.samplesID.txt) and is byte-identical to the original, so its
+        # MD5 still matches the MD5SAMPLES entry keyed by the original basename.
+        try:
+            samplesids = hf_fetch(f"samplesIDs/hg38_{ds}.samplesID.txt", target)
+            if MD5SAMPLES[samplesid_fname] != compute_md5(samplesids):
+                raise ValueError(f"MD5 mismatch for {samplesid_fname}")
+            sys.stderr.write(
+                f"Fetched hg38_{ds}.samplesID.txt from HuggingFace ({HF_DATA_REPO})\n"
+            )
+            continue
+        except Exception as e:  # noqa: BLE001 - fall back to original source
+            sys.stderr.write(
+                f"HuggingFace fetch failed for hg38_{ds}.samplesID.txt ({e}); "
+                "falling back to GitHub\n"
+            )
         samplesids = download(
             samplesids_dir, http_url=f"{TESTDATAURL}/samplesIDs/{samplesid_fname}"
         )
@@ -368,6 +466,19 @@ def _retrieve_ann_data(annotation_dir: str, url: str, fname: str) -> str:
         ValueError: If the downloaded file fails the MD5 check.
     """
 
+    # try HF first: annotations are stored EXTRACTED (plain .bed), so the tarball
+    # download + MD5(tarball) + untar steps are skipped. MD5ANNOTATION only keys
+    # the tarball, so there is no per-.bed digest to check here; integrity relies
+    # on HuggingFace's own content-hash/etag verification.
+    try:
+        bed = hf_fetch(f"annotations/{fname}", os.path.join(annotation_dir, fname))
+        assert os.path.isfile(bed)
+        sys.stderr.write(f"Fetched {fname} from HuggingFace ({HF_DATA_REPO})\n")
+        return bed
+    except Exception as e:  # noqa: BLE001 - fall back to original source
+        sys.stderr.write(
+            f"HuggingFace fetch failed for {fname} ({e}); falling back to GitHub\n"
+        )
     # download gencode annotation
     annfile_tar = download(annotation_dir, http_url=os.path.join(TESTDATAURL, url))
     if MD5ANNOTATION[os.path.basename(annfile_tar)] != compute_md5(annfile_tar):

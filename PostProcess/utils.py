@@ -32,10 +32,18 @@ from ftplib import FTP
 import subprocess
 import requests
 import hashlib
+import shutil
 import tarfile
 import gzip
 import sys
 import os
+
+# HuggingFace dataset repo that mirrors CRISPRme's reference data as EXTRACTED
+# (un-tarred) files, served over HuggingFace's fast CDN. Empirically ~45x faster
+# than the original EBI/UCSC/Sanger sources. Overridable via the
+# CRISPRME_HF_DATA_REPO env var so the dataset can be retargeted (e.g. when moved
+# under a `pinellolab` org) without a code change.
+HF_DATA_REPO = os.environ.get("CRISPRME_HF_DATA_REPO", "lucapinello/crisprme-data")
 
 CRISPRME_DIRS = [
     "Genomes",
@@ -285,6 +293,54 @@ def download(
         return ftp_download(ftp_server, ftp_path, dest, fname)
     else:  # http/https connection requested
         return http_download(http_url, dest, fname)
+
+
+def hf_fetch(repo_filename: str, dest_path: str) -> str:
+    """Fetch a single file from the CRISPRme HuggingFace dataset and place it at
+    exactly ``dest_path``.
+
+    The file is first pulled into HuggingFace's local cache via
+    ``hf_hub_download`` (which handles resumable, CDN-accelerated transfer and
+    verifies its own content hash / etag), then copied to ``dest_path`` so the
+    on-disk layout is byte-identical to what the legacy http/ftp download path
+    would have produced. The caller is responsible for any additional MD5
+    verification against CRISPRme's known-good digests.
+
+    Args:
+        repo_filename: Path of the file within the HF dataset repo, e.g.
+            ``"genomes/hg38/chr22.fa"`` or
+            ``"vcfs/1000G/ALL.chr22.shapeit2_...vcf.gz"``.
+        dest_path: Absolute local path where the file must ultimately land.
+            Parent directories are created if needed.
+
+    Returns:
+        str: ``dest_path`` (the final on-disk location of the fetched file).
+
+    Raises:
+        ImportError: If ``huggingface_hub`` is not installed.
+        Exception: Any error raised by ``hf_hub_download`` (missing repo/file,
+            network failure, etc.) is allowed to propagate so callers can fall
+            back to the original source.
+    """
+    # imported lazily so environments without huggingface_hub still load utils;
+    # the caller's try/except then falls back to the legacy source.
+    from huggingface_hub import hf_hub_download
+
+    cached = hf_hub_download(
+        repo_id=HF_DATA_REPO,
+        repo_type="dataset",
+        filename=repo_filename,
+    )
+    dest_dir = os.path.dirname(dest_path)
+    if dest_dir:
+        os.makedirs(dest_dir, exist_ok=True)
+    # copy (not move) since `cached` lives in the shared HF cache and may be a
+    # symlink into the blob store; copyfile dereferences and leaves the cache
+    # intact for future resume/skip behavior.
+    shutil.copyfile(cached, dest_path)
+    if not os.path.isfile(dest_path):
+        raise FileNotFoundError(f"{dest_path} not created")
+    return dest_path
 
 
 def remove(fname: str) -> None:
