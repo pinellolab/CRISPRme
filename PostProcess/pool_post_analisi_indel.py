@@ -58,7 +58,35 @@ def start_analysis(fname: str) -> None:
         )
 
 
+def memory_capped_workers(requested, n_tasks):
+    """Bound concurrent post-analysis workers to a memory budget (see the SNP
+    twin `pool_post_analisi_snp.py` for the rationale). Default 64 GB, overridable
+    via `CRISPRME_MAX_MEM_GB` / `CRISPRME_POSTPROC_WORKER_GB`."""
+    try:
+        budget_gb = float(os.environ.get("CRISPRME_MAX_MEM_GB", "64"))
+    except ValueError:
+        budget_gb = 64.0
+    try:
+        per_worker_gb = float(os.environ.get("CRISPRME_POSTPROC_WORKER_GB", "4"))
+    except ValueError:
+        per_worker_gb = 4.0
+    if per_worker_gb <= 0:
+        per_worker_gb = 4.0
+    cap = max(1, int(budget_gb // per_worker_gb))
+    return max(1, min(requested, cap, n_tasks))
+
+
 # chromosome-wise vcfs list
 chrs = [f for f in os.listdir(vcf_folder) if f.endswith(".vcf.gz")]
-with Pool(processes=ncpus) as pool:  # run chrom-wise post-analysis in parallel
+workers = memory_capped_workers(ncpus, len(chrs))
+# NOTE: write this diagnostic to STDOUT (log_verbose.txt), never STDERR.
+# The caller treats a non-empty stderr log (`[ -s $logerror ]`) as a fatal
+# post-analysis failure, so informational text on stderr aborts the run.
+sys.stdout.write(
+    f"Post-analysis INDELs: {workers} concurrent worker(s) "
+    f"(cores={ncpus}, memory budget "
+    f"{os.environ.get('CRISPRME_MAX_MEM_GB', '64')} GB)\n"
+)
+sys.stdout.flush()
+with Pool(processes=workers) as pool:  # run chrom-wise post-analysis in parallel
     pool.map(start_analysis, chrs)
