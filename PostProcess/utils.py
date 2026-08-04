@@ -34,6 +34,7 @@ import requests
 import hashlib
 import tarfile
 import gzip
+import time
 import sys
 import os
 
@@ -192,7 +193,11 @@ def ftp_download(
 
 
 def http_download(
-    http_url: Union[str, None], dest: str, fname: Optional[str] = None
+    http_url: Union[str, None],
+    dest: str,
+    fname: Optional[str] = None,
+    retries: int = 4,
+    backoff: float = 5.0,
 ) -> str:
     """Download a file from an HTTP or HTTPS URL to a specified destination.
 
@@ -224,16 +229,34 @@ def http_download(
             "Invalid HTTP URL. It must start with 'http://' or 'https://'."
         )
     fname = os.path.join(dest, fname or os.path.basename(http_url))
-    response = requests.get(http_url, stream=True)  # download data from http
-    response.raise_for_status()  # ensure the request was successful
-    with open(fname, mode="wb") as outfile:
-        # write downloaded data in fixed size chunks
-        for chunk in response.iter_content(chunk_size=8192):
-            if chunk:
-                outfile.write(chunk)
-    if not os.path.isfile(fname):
-        raise FileNotFoundError(f"{fname} not created")
-    return fname
+    # Retry transient failures with a linear backoff. Large reference downloads
+    # (genome, population VCFs) are often served by slow/rate-limited hosts where
+    # a single dropped connection would otherwise abort a multi-hour run. Each
+    # attempt reopens the file in "wb" mode, so a partial file is overwritten.
+    last_error: Optional[Exception] = None
+    for attempt in range(1, retries + 1):
+        try:
+            with requests.get(http_url, stream=True, timeout=(30, 300)) as response:
+                response.raise_for_status()  # ensure the request was successful
+                with open(fname, mode="wb") as outfile:
+                    # write downloaded data in fixed size chunks
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            outfile.write(chunk)
+            if os.path.isfile(fname):
+                return fname
+            last_error = FileNotFoundError(f"{fname} not created")
+        except Exception as exc:  # transient network / HTTP errors -> retry
+            last_error = exc
+            sys.stderr.write(
+                f"Download attempt {attempt}/{retries} for "
+                f"{os.path.basename(fname)} failed: {exc}\n"
+            )
+        if attempt < retries:
+            time.sleep(backoff * attempt)  # linear backoff between attempts
+    raise last_error if last_error is not None else FileNotFoundError(
+        f"{fname} not created"
+    )
 
 
 def download(

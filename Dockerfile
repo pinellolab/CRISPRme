@@ -6,7 +6,7 @@ LABEL org.opencontainers.image.authors="ManuelTgn, lucapinello"
 
 # Set the variables for version control during installation
 ARG crispritz_version=2.7.1
-ARG crisprme_version=2.1.12
+ARG crisprme_version=2.1.13
 
 # set the shell to bash
 ENV SHELL bash
