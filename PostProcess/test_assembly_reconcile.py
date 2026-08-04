@@ -308,9 +308,23 @@ class TestHaplotypeSearchComplete(unittest.TestCase):
             open(os.path.join(d, "guideX_PAM_genome_mm4_bMax2_integrated_results.tsv"), "w").close()
             self.assertFalse(ar.haplotype_search_complete(d))
 
-    def test_true_when_both_present(self):
+    def test_false_when_alt_alignments_file_missing(self):
+        # regression test: the integrated-results file and the alt-alignments
+        # file are written by two separate (if normally back-to-back) steps
+        # in the real pipeline -- a narrow interruption between them could
+        # leave one without the other. load_crisprme_predictions reads the
+        # alt-alignments file unconditionally, so treating this as
+        # "complete" would defer straight to an uncaught FileNotFoundError
+        # during reconciliation instead of a clean retry.
         with tempfile.TemporaryDirectory() as d:
             open(os.path.join(d, "guideX_PAM_genome_mm4_bMax2_integrated_results.tsv"), "w").close()
+            open(os.path.join(d, ar.LOG_ERROR_NO_CHECK_FILENAME), "w").close()
+            self.assertFalse(ar.haplotype_search_complete(d))
+
+    def test_true_when_all_three_present(self):
+        with tempfile.TemporaryDirectory() as d:
+            open(os.path.join(d, "guideX_PAM_genome_mm4_bMax2_integrated_results.tsv"), "w").close()
+            open(os.path.join(d, "guideX_PAM_genome_mm4_bMax2_all_results_with_alternative_alignments.tsv"), "w").close()
             open(os.path.join(d, ar.LOG_ERROR_NO_CHECK_FILENAME), "w").close()
             self.assertTrue(ar.haplotype_search_complete(d))
 
@@ -522,6 +536,30 @@ class TestCheckChromAliasCoverage(unittest.TestCase):
         ar.check_chrom_alias_coverage(preds, {"chr1": "x"}, "paternal")
 
 
+class TestCheckLiftoverFailureRate(unittest.TestCase):
+    def test_passes_when_most_predictions_lift_successfully(self):
+        ar.check_liftover_failure_rate(attempted_count=100, unlifted_count=10, name="paternal")
+
+    def test_raises_when_majority_rejected(self):
+        # a wrong/swapped chain file rejects almost everything -- must be a
+        # clear, immediate error, not a silent near-total "haplotype-private"
+        # result
+        with self.assertRaises(ValueError) as ctx:
+            ar.check_liftover_failure_rate(attempted_count=100, unlifted_count=60, name="paternal")
+        self.assertIn("paternal", str(ctx.exception))
+        self.assertIn("chain file", str(ctx.exception))
+
+    def test_zero_attempted_does_not_raise(self):
+        # everything already got dropped for missing chromAlias coverage
+        # (that's check_chrom_alias_coverage's job to catch) -- nothing left
+        # to divide by here
+        ar.check_liftover_failure_rate(attempted_count=0, unlifted_count=0, name="paternal")
+
+    def test_exactly_at_threshold_does_not_raise(self):
+        # ratio > threshold raises, ratio == threshold does not
+        ar.check_liftover_failure_rate(attempted_count=100, unlifted_count=50, name="paternal")
+
+
 class TestCheckLiftoverAvailable(unittest.TestCase):
     def test_raises_when_not_on_path(self):
         with patch.object(ar.shutil, "which", return_value=None):
@@ -658,12 +696,27 @@ class TestReconcileHaplotypes(unittest.TestCase):
             self.assertEqual(len(combined), 3)
 
     def test_unliftable_locus_counted_as_non_mappable_not_dropped(self):
+        # 3 loci per haplotype, not 1: check_liftover_failure_rate exists
+        # specifically to catch a suspiciously high liftOver rejection rate,
+        # so a fixture testing "one genuine rejection is handled correctly"
+        # needs enough attempted predictions that one rejection is a normal,
+        # low ratio -- not the exact failure mode that check guards against.
         with tempfile.TemporaryDirectory() as tmpdir:
             paternal_dir = self._make_haplotype_results(
-                tmpdir, "paternal", [self._pred_row("chr1", 1000, 0.9)],
+                tmpdir, "paternal",
+                [
+                    self._pred_row("chr1", 1000, 0.9),
+                    self._pred_row("chr1", 5000, 0.5),
+                    self._pred_row("chr1", 9000, 0.3),
+                ],
             )
             maternal_dir = self._make_haplotype_results(
-                tmpdir, "maternal", [self._pred_row("chr1", 1000, 0.9)],
+                tmpdir, "maternal",
+                [
+                    self._pred_row("chr1", 1000, 0.9),
+                    self._pred_row("chr1", 5000, 0.5),
+                    self._pred_row("chr1", 9000, 0.3),
+                ],
             )
             haplotypes = {
                 "paternal": {
@@ -678,23 +731,30 @@ class TestReconcileHaplotypes(unittest.TestCase):
                 },
             }
 
+            # both haplotypes' loci at 5000/9000 lift identically (-> "both");
+            # only maternal's locus at 1000 fails to lift at all, which must
+            # still be counted as non-mappable, not silently dropped.
+            lift_map = {5000: 60000, 9000: 70000}
+
             def fake_run_liftover(bed_path, chain_file, mapped_path, unmapped_path, env="liftover_env"):
                 bed = pd.read_csv(bed_path, sep="\t", header=None,
                                    names=["chrom", "start", "end", "off_target_id"])
                 with open(mapped_path, "w") as mf, open(unmapped_path, "w") as uf:
-                    if "paternal" in bed_path:
-                        for _, r in bed.iterrows():
-                            mf.write(f"chr1\t49999\t50000\t{r['off_target_id']}\n")
-                    else:
-                        uf.write("#Deleted in new\n")
-                        for _, r in bed.iterrows():
+                    for _, r in bed.iterrows():
+                        if r["end"] == 1000 and "maternal" in bed_path:
+                            uf.write("#Deleted in new\n")
                             uf.write(f"{r['chrom']}\t{r['start']}\t{r['end']}\t{r['off_target_id']}\n")
+                        elif r["end"] == 1000:
+                            mf.write(f"chr1\t49999\t50000\t{r['off_target_id']}\n")
+                        else:
+                            hg38_end = lift_map[r["end"]]
+                            mf.write(f"chr1\t{hg38_end - 1}\t{hg38_end}\t{r['off_target_id']}\n")
                 return mapped_path, unmapped_path
 
             with patch.object(ar, "run_liftover", side_effect=fake_run_liftover):
                 combined, summary = ar.reconcile_haplotypes(haplotypes, workdir=tmpdir, merge_bp=3)
 
-            self.assertEqual(summary["both"], 0)
+            self.assertEqual(summary["both"], 2)
             self.assertEqual(summary["paternal_only"], 1)
             self.assertEqual(summary["maternal_only"], 0)
             self.assertEqual(summary["paternal_non_mappable"], 0)

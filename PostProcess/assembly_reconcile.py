@@ -52,6 +52,10 @@ CHUNKSIZE = 10**6
 # naming mismatch, not a handful of legitimately-unmappable decoy contigs --
 # raise instead of silently folding all of them into "non-mappable"
 CHROM_ALIAS_MISMATCH_ERROR_RATIO = 0.5
+# same principle, applied to liftOver's own rejection rate (distinct failure
+# class from the chromAlias-coverage check above -- e.g. a wrong/swapped
+# chain file, not an unrecognized chromosome name)
+LIFTOVER_FAILURE_ERROR_RATIO = 0.5
 
 
 def cluster_collapse(
@@ -142,18 +146,29 @@ def haplotype_search_complete(results_dir: str) -> bool:
     used to decide whether `assembly_search` can skip re-running an
     already-completed haplotype search.
 
+    Also requires `*_all_results_with_alternative_alignments.tsv` to exist:
+    `load_crisprme_predictions` reads it unconditionally, but it and
+    `*_integrated_results.tsv` are written by two separate (if normally
+    back-to-back) steps in the real pipeline, so a sufficiently narrow
+    interruption between them could leave the latter without the former.
+
     Args:
         results_dir: A `complete-search` output folder.
 
     Returns:
-        True if both the integrated results file and the post-completion
-        log rename are present.
+        True if the integrated results file, the alternative-alignments
+        file, and the post-completion log rename are all present.
     """
     if not os.path.isdir(results_dir):
         return False
     try:
-        find_results_prefix(results_dir)
+        prefix = find_results_prefix(results_dir)
     except FileNotFoundError:
+        return False
+    alt_file = os.path.join(
+        results_dir, f"{prefix}_all_results_with_alternative_alignments.tsv"
+    )
+    if not os.path.isfile(alt_file):
         return False
     return os.path.isfile(os.path.join(results_dir, LOG_ERROR_NO_CHECK_FILENAME))
 
@@ -367,6 +382,47 @@ def check_chrom_alias_coverage(
             "reconciliation is affected by this. Fix the chromAlias file or "
             "genome naming, then re-run assembly-search -- already-completed "
             "haplotype searches will be reused, not re-run."
+        )
+
+
+def check_liftover_failure_rate(attempted_count: int, unlifted_count: int, name: str) -> None:
+    """Sanity-checks that `liftOver` itself isn't rejecting a suspiciously
+    high fraction of inputs, before treating a large non-mappable count as
+    ordinary haplotype-private biology.
+
+    Distinct from `check_chrom_alias_coverage`, which only catches
+    predictions whose chromosome isn't even recognized by the chromAlias
+    file, checked *before* liftOver ever runs. This catches a different
+    failure class: liftOver runs and genuinely rejects most of its input,
+    which can happen with a wrong chain file (e.g. the paternal/maternal
+    `--chain-*` files swapped, or a stale/mismatched chain file) -- same
+    "fail clearly instead of silently reporting a mostly-meaningless result"
+    principle as the chromAlias check, applied to the post-liftover signal.
+
+    Args:
+        attempted_count: Predictions actually handed to liftOver (i.e.
+            excluding ones already dropped for lacking a chromAlias entry --
+            those are a distinct, already-guarded failure mode).
+        unlifted_count: How many of those liftOver itself rejected.
+        name: Haplotype name, for the error message.
+
+    Raises:
+        ValueError: If the rejection rate exceeds `LIFTOVER_FAILURE_ERROR_RATIO`.
+    """
+    if attempted_count == 0:
+        return
+    ratio = unlifted_count / attempted_count
+    if ratio > LIFTOVER_FAILURE_ERROR_RATIO:
+        raise ValueError(
+            f"{name}: liftOver rejected {unlifted_count}/{attempted_count} "
+            f"predictions ({ratio:.0%}) -- this usually means the wrong chain "
+            f"file was supplied for --chain-{name} (e.g. paternal/maternal "
+            "chain files swapped, or a stale/mismatched chain file), not that "
+            "these are genuinely haplotype-private sites. Both haplotype "
+            "searches already completed successfully; only reconciliation is "
+            "affected by this. Fix the chain file, then re-run assembly-search "
+            "-- already-completed haplotype searches will be reused, not "
+            "re-run."
         )
 
 
@@ -646,11 +702,17 @@ def reconcile_haplotypes(
             run_liftover(bed_path, cfg["chain_file"], mapped_path, unmapped_path)
 
             lifted[name] = load_lifted_bed(mapped_path)
+            liftover_rejected_ids = load_unlifted_ids(unmapped_path)
+            check_liftover_failure_rate(
+                len(predictions[name]) - len(no_chrom_alias_ids),
+                len(liftover_rejected_ids),
+                name,
+            )
             # a missing chromAlias entry is just as unmappable-to-hg38 as a
             # genuine liftOver failure -- there's no chain-file name to look
             # it up under at all -- so it belongs in the same non-mappable
             # count, not silently dropped (see build_offtarget_bed's docstring)
-            unlifted_ids[name] = load_unlifted_ids(unmapped_path) | no_chrom_alias_ids
+            unlifted_ids[name] = liftover_rejected_ids | no_chrom_alias_ids
             log(f"{name}: {len(unlifted_ids[name])} non-mappable (no hg38 equivalent)")
 
         hg38_predictions: Dict[str, pd.DataFrame] = {}
