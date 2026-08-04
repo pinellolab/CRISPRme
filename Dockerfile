@@ -32,7 +32,7 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
         biopython more-itertools statsmodels intervaltree \
         pysam bcftools bedtools bedops samtools htslib axel gdown zip gsl \
         importlib-metadata \
-        "dash>=2.14" dash-bootstrap-components dash-daq \
+        "dash>=2.14,<3" dash-bootstrap-components dash-daq \
         flask flask-caching flask-compress gunicorn werkzeug \
     && micromamba clean --all --yes
 
@@ -64,12 +64,14 @@ RUN git clone --depth 1 --branch ${crispritz_ref} \
     && rm -rf /opt/crispritz-src
 
 # ---- Install crisprme from this build context (source) ---------------------
-# crisprme.py resolves PostProcess as <dir-of-crisprme.py>[:-3] + opt/crisprme/,
-# so it must live in a bin/ dir with PostProcess at <prefix>/opt/crisprme/.
-COPY crisprme.py ${PREFIX}/bin/crisprme.py
-COPY PostProcess ${PREFIX}/opt/crisprme/PostProcess
-COPY test ${PREFIX}/opt/crisprme/test
-RUN chmod +x ${PREFIX}/bin/crisprme.py \
+# Copy the whole source tree under opt/crisprme/ (mirrors the Bioconda build.sh
+# layout) so every module the CLI and web app import is present — PostProcess,
+# seq_script, pages, assets, scripts, test, etc. crisprme.py resolves PostProcess
+# as <dir-of-crisprme.py>[:-3] + opt/crisprme/, so it must also live in a bin/ dir.
+COPY . ${PREFIX}/opt/crisprme/
+RUN cp ${PREFIX}/opt/crisprme/crisprme.py ${PREFIX}/bin/crisprme.py \
+    && chmod +x ${PREFIX}/bin/crisprme.py \
+    && rm -rf ${PREFIX}/opt/crisprme/.git \
     # unzip the CRISTA model at build time (the 276 MB pickle ships zipped in git)
     && if [ -f ${PREFIX}/opt/crisprme/PostProcess/CRISTA_predictors.zip ]; then \
          cd ${PREFIX}/opt/crisprme/PostProcess \
