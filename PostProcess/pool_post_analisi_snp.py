@@ -61,10 +61,15 @@ chroms = [
 ]
 
 workers = memory_capped_workers(ncpus, len(chroms))
-sys.stderr.write(
+# NOTE: write this diagnostic to STDOUT (log_verbose.txt), never STDERR.
+# The caller (submit_job_automated_new_multiple_vcfs.sh) treats a non-empty
+# stderr log (`[ -s $logerror ]`) as a fatal post-analysis failure, so any
+# informational text on stderr here would abort the run with a false error.
+sys.stdout.write(
     f"Post-analysis SNPs: {workers} concurrent worker(s) "
     f"(cores={ncpus}, memory budget "
     f"{os.environ.get('CRISPRME_MAX_MEM_GB', '64')} GB)\n"
 )
+sys.stdout.flush()
 with Pool(processes=workers) as pool:
     pool.map(start_analysis, chroms)
