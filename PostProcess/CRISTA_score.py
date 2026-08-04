@@ -405,6 +405,22 @@ def predict_crista_score(features_lst):
     n_predictors = 5
 
     path = RF_PICKLE_PATH
+    # The 276 MB CRISTA model ships zipped in git (CRISTA_predictors.zip, <100 MB,
+    # under GitHub's per-file limit) and is unzipped at conda-build time. For
+    # source/git installs (which have no build step), unzip it on first use so it
+    # works out of the box with no separate download. Resolve paths relative to
+    # this file so it succeeds regardless of the caller's working directory.
+    if not os.path.exists(path):
+        _here = os.path.dirname(os.path.realpath(__file__))
+        _pkl = os.path.join(_here, "CRISTA_predictors.pkl")
+        _zip = os.path.join(_here, "CRISTA_predictors.zip")
+        if not os.path.exists(_pkl) and os.path.exists(_zip):
+            import zipfile
+
+            with zipfile.ZipFile(_zip) as _zf:
+                _zf.extractall(_here)
+        if os.path.exists(_pkl):
+            path = _pkl
     # py3.11-readiness: CRISTA_predictors.pkl was pickled with an old sklearn
     # whose private modules were later renamed (sklearn.ensemble.forest ->
     # sklearn.ensemble._forest; sklearn.tree.tree -> sklearn.tree._classes).
