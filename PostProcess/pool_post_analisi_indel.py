@@ -79,10 +79,14 @@ def memory_capped_workers(requested, n_tasks):
 # chromosome-wise vcfs list
 chrs = [f for f in os.listdir(vcf_folder) if f.endswith(".vcf.gz")]
 workers = memory_capped_workers(ncpus, len(chrs))
-sys.stderr.write(
+# NOTE: write this diagnostic to STDOUT (log_verbose.txt), never STDERR.
+# The caller treats a non-empty stderr log (`[ -s $logerror ]`) as a fatal
+# post-analysis failure, so informational text on stderr aborts the run.
+sys.stdout.write(
     f"Post-analysis INDELs: {workers} concurrent worker(s) "
     f"(cores={ncpus}, memory budget "
     f"{os.environ.get('CRISPRME_MAX_MEM_GB', '64')} GB)\n"
 )
+sys.stdout.flush()
 with Pool(processes=workers) as pool:  # run chrom-wise post-analysis in parallel
     pool.map(start_analysis, chrs)
