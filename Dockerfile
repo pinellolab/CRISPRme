@@ -19,7 +19,9 @@ RUN apt-get upgrade -y && apt-get clean
 RUN apt update
 RUN apt upgrade -y
 
-# Install crispritz & crisprme packages
-RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.8 crispritz=$crispritz_version crisprme=$crisprme_version && micromamba clean --all --yes
+# Install crispritz & crisprme packages, plus liftOver (assembly-search's
+# liftover dependency -- not yet part of crisprme's own bioconda recipe, so
+# listed explicitly here until that recipe is updated)
+RUN micromamba install -y -n base -c conda-forge -c bioconda python=3.8 crispritz=$crispritz_version crisprme=$crisprme_version ucsc-liftover && micromamba clean --all --yes
 # Start the base environment
 ARG MAMBA_DOCKERFILE_ACTIVATE=1

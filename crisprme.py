@@ -55,6 +55,7 @@ except Exception:  # pragma: no cover - defensive; memory check is optional
 
 sys.path.insert(0, script_path)
 from validate_inputs import run_lightweight, run_full, resolve_vcf_dataset_dirs  # noqa: E402
+from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete, clean_incomplete_haplotype_output, haplotype_params_match  # noqa: E402
 
 cicd_test = False
 if "--ci-cd-test" in input_args:
@@ -1444,6 +1445,248 @@ def complete_search() -> None:
     os.system(f"mv {outputfolder}/Params.txt {outputfolder}/.Params.txt")
 
 
+def print_help_assembly_search() -> None:
+    """Prints detailed help information for the assembly-search functionality.
+
+    Outputs a description of the pipeline and lists all available command-line
+    options to stderr, then exits the program.
+    """
+    sys.stderr.write(
+        "The assembly-search functionality searches a fully assembled personal "
+        "diploid genome directly -- two haplotype assemblies (e.g. paternal and "
+        "maternal) -- instead of inferring variants from population data via a "
+        "reference genome + VCF. No --vcf is used: each haplotype assembly IS the "
+        "individual's genome. Each haplotype is searched independently with the "
+        "same underlying complete-search pipeline, then predictions are lifted "
+        "to hg38 (via the supplied chain files) and reconciled: found on both "
+        "haplotypes is homozygous-equivalent, found on only one is "
+        "heterozygous-equivalent, and predictions with no hg38 equivalent at all "
+        "are haplotype-non-mappable -- invisible to any reference-based search.\n"
+    )
+    sys.stderr.write(
+        "Options:\n"
+        "\t--genome-paternal, --genome-maternal, one haplotype's per-chromosome "
+        "FASTA folder each [REQUIRED]\n"
+        "\t--chain-paternal, --chain-maternal, one haplotype's liftOver chain "
+        "file vs. GRCh38 each [REQUIRED]\n"
+        "\t--chrom-alias-paternal, --chrom-alias-maternal, one haplotype's "
+        "chromAlias file each (tab-separated, columns '# assembly', 'ucsc', "
+        "'genbank' -- HPRC-style) [REQUIRED]\n"
+        "\t--guide, specify a file containing guide RNAs [REQUIRED]\n"
+        "\t--pam, specify a file containing the PAM sequence [REQUIRED]\n"
+        "\t--mm, number of mismatches allowed in the search [REQUIRED]\n"
+        "\t--bDNA, number of DNA bulges allowed in the search [OPTIONAL]\n"
+        "\t--bRNA, number of RNA bulges allowed in the search [OPTIONAL]\n"
+        "\t--merge, window size (nucleotides) to merge candidate off-targets "
+        "using the highest scoring as pivot [default: 3] -- also used as the "
+        "locus-clustering threshold when reconciling the two haplotypes, so it "
+        "must describe both runs consistently\n"
+        "\t--output, base output name; each haplotype's results are saved in "
+        "Results/<name>_paternal and Results/<name>_maternal, and the "
+        "reconciled combined report in Results/<name>_combined [REQUIRED]\n"
+        "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--debug, debug mode (passed through to each haplotype's search)\n"
+    )
+    sys.exit(1)
+
+
+def _check_named_dir(args: List[str], flag: str, description: str) -> str:
+    """Generic version of `_check_genome` for a caller-specified flag name."""
+    try:
+        d = os.path.abspath(args[args.index(flag) + 1])
+    except IndexError:
+        error(f"Missing input for {flag}. {description} must be specified")
+    if not os.path.isdir(d):
+        error(f"The folder specified for {flag} does not exist")
+    return d
+
+
+def _check_named_file(args: List[str], flag: str, description: str) -> str:
+    """Generic version of the existing file-checking helpers for a
+    caller-specified flag name."""
+    try:
+        f = os.path.abspath(args[args.index(flag) + 1])
+    except IndexError:
+        error(f"Missing input for {flag}. {description} must be specified")
+    if not os.path.isfile(f):
+        error(f"The file specified for {flag} does not exist")
+    return f
+
+
+def _check_mandatory_args_assembly_search(args: List[str]) -> None:
+    required = [
+        "--genome-paternal", "--genome-maternal",
+        "--chain-paternal", "--chain-maternal",
+        "--chrom-alias-paternal", "--chrom-alias-maternal",
+        "--guide", "--pam", "--mm", "--output",
+    ]
+    for flag in required:
+        if flag not in args:
+            error(f"{flag} is required")
+
+
+def _run_haplotype_search(
+    genomedir: str, guidefile: str, pamfile: str, mm: int, bDNA: int, bRNA: int,
+    merge_t: int, output_name: str, thread: int, debug: bool,
+) -> str:
+    """Runs `complete-search` for one haplotype as a subprocess, mirroring the
+    pattern already established by `complete_test_crisprme()` -- a subcommand
+    invoking `complete-search` as a fresh process rather than calling
+    `complete_search()` in-process, which is necessary here since
+    `complete_search()` derives its arguments from the module-level
+    `input_args = sys.argv`, not from parameters, so it can't cleanly be
+    called twice in-process with different `--genome` values. Uses the exact
+    interpreter and script path running right now (rather than relying on a
+    bare `crisprme.py` being on PATH, as `complete_test.py` does) since this
+    is a new, not-yet-installed subcommand. Output streams straight to the
+    terminal rather than being captured, also matching
+    `complete_test_crisprme()` -- the real per-step pipeline logs are
+    written to `Results/<output_name>/log_verbose.txt`/`log_error.txt`
+    regardless of how this outer process's own stdout/stderr are handled, so
+    capturing them here bought no real diagnostic value while hiding all
+    progress output during what can be a multi-hour run.
+
+    Returns:
+        The absolute path to the haplotype's `complete-search` output folder.
+    """
+    python_exe = sys.executable
+    crisprme_script = os.path.abspath(__file__)
+    debug_flag = "--debug" if debug else ""
+    cmd = (
+        f"{python_exe} {crisprme_script} complete-search --genome {genomedir} "
+        f"--guide {guidefile} --pam {pamfile} --mm {mm} --bDNA {bDNA} --bRNA {bRNA} "
+        f"--merge {merge_t} --output {output_name} --thread {thread} {debug_flag}"
+    )
+    output_folder = os.path.join(current_working_directory, CRISPRMEDIRS[1], output_name)
+    code = subprocess.call(cmd, shell=True, cwd=current_working_directory)
+    if code != 0:
+        raise OSError(
+            f"\nHaplotype search failed for --output {output_name}! See "
+            f"{os.path.join(output_folder, 'log_error.txt')} for details\n"
+        )
+    return output_folder
+
+
+def assembly_search() -> None:
+    """Searches a personal diploid genome assembly (two haplotypes) for
+    off-targets and reconciles predictions across both, mapped to hg38.
+
+    No `--vcf` is used or accepted: each haplotype assembly already is the
+    individual's genome, so there's nothing to infer from population data.
+    Each haplotype is searched independently via `complete-search`
+    (`_run_haplotype_search`), then predictions are reconciled via
+    `assembly_reconcile.reconcile_haplotypes` -- see that module for the
+    reconciliation algorithm and the real-data validation behind it.
+    """
+    args = input_args[2:]
+    if "--help" in args or not args:
+        print_help_assembly_search()
+    check_crisprme_dirtree()
+    _check_mandatory_args_assembly_search(args)
+    check_liftover_available()
+
+    genome_paternal = _check_named_dir(args, "--genome-paternal", "Paternal genome folder")
+    genome_maternal = _check_named_dir(args, "--genome-maternal", "Maternal genome folder")
+    chain_paternal = _check_named_file(args, "--chain-paternal", "Paternal liftOver chain file")
+    chain_maternal = _check_named_file(args, "--chain-maternal", "Maternal liftOver chain file")
+    chrom_alias_paternal = _check_named_file(args, "--chrom-alias-paternal", "Paternal chromAlias file")
+    chrom_alias_maternal = _check_named_file(args, "--chrom-alias-maternal", "Maternal chromAlias file")
+    guidefile = _check_guide(args, True)
+    pamfile = _check_pam(args)
+    mm = _check_mm(args)
+    bDNA = _check_bdna(args, "--bDNA" in args)
+    bRNA = _check_brna(args, "--bRNA" in args)
+    merge_t = _check_merge(args, "--merge" in args)
+    thread = _check_threads(args, "--thread" in args)
+    debug = "--debug" in args
+
+    try:
+        output_base = args[args.index("--output") + 1]
+    except IndexError:
+        error("Missing input for --output. Output base name must be specified")
+
+    combined_output = os.path.join(current_working_directory, CRISPRMEDIRS[1], f"{output_base}_combined")
+    combined_tsv = os.path.join(combined_output, f"{output_base}_combined_hg38.tsv")
+    # only guard against clobbering a previously *completed* run -- leftover
+    # reconciliation intermediates (BED files) from a prior failed attempt
+    # are fine to overwrite and are regenerated fresh below regardless
+    if os.path.isfile(combined_tsv):
+        error(
+            f"{combined_tsv} already exists from a previously completed "
+            "assembly-search run! Select another --output name, or delete "
+            "it to re-run reconciliation."
+        )
+    os.makedirs(combined_output, exist_ok=True)
+
+    paternal_output_name = f"{output_base}_paternal"
+    maternal_output_name = f"{output_base}_maternal"
+    paternal_output_dir = os.path.join(current_working_directory, CRISPRMEDIRS[1], paternal_output_name)
+    maternal_output_dir = os.path.join(current_working_directory, CRISPRMEDIRS[1], maternal_output_name)
+
+    # avoid re-running a multi-hour haplotype search if it already completed
+    # successfully -- e.g. a retry after a failure that only affected
+    # reconciliation (a chromAlias/liftOver issue, say), not the searches
+    paternal_complete = haplotype_search_complete(paternal_output_dir)
+    paternal_reusable = paternal_complete and haplotype_params_match(
+        paternal_output_dir, genome_paternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t
+    )
+    if paternal_reusable:
+        print(f"Found existing completed paternal search results at Results/{paternal_output_name}, reusing (not re-running)")
+        paternal_results = paternal_output_dir
+    else:
+        if paternal_complete:
+            clean_incomplete_haplotype_output(
+                paternal_output_dir, reason="results built with different search parameters"
+            )
+        else:
+            clean_incomplete_haplotype_output(paternal_output_dir)
+        print(f"Running paternal haplotype search -> Results/{paternal_output_name}")
+        paternal_results = _run_haplotype_search(
+            genome_paternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
+            paternal_output_name, thread, debug,
+        )
+
+    maternal_complete = haplotype_search_complete(maternal_output_dir)
+    maternal_reusable = maternal_complete and haplotype_params_match(
+        maternal_output_dir, genome_maternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t
+    )
+    if maternal_reusable:
+        print(f"Found existing completed maternal search results at Results/{maternal_output_name}, reusing (not re-running)")
+        maternal_results = maternal_output_dir
+    else:
+        if maternal_complete:
+            clean_incomplete_haplotype_output(
+                maternal_output_dir, reason="results built with different search parameters"
+            )
+        else:
+            clean_incomplete_haplotype_output(maternal_output_dir)
+        print(f"Running maternal haplotype search -> Results/{maternal_output_name}")
+        maternal_results = _run_haplotype_search(
+            genome_maternal, guidefile, pamfile, mm, bDNA, bRNA, merge_t,
+            maternal_output_name, thread, debug,
+        )
+
+    print("Reconciling paternal and maternal predictions against hg38...")
+    haplotypes = {
+        "paternal": {
+            "chrom_alias_file": chrom_alias_paternal,
+            "chain_file": chain_paternal,
+            "results_dir": paternal_results,
+        },
+        "maternal": {
+            "chrom_alias_file": chrom_alias_maternal,
+            "chain_file": chain_maternal,
+            "results_dir": maternal_results,
+        },
+    }
+    combined, summary = reconcile_haplotypes(haplotypes, combined_output, merge_bp=merge_t)
+    combined.to_csv(combined_tsv, sep="\t", index=False)
+
+    print(f"Reconciliation complete. Wrote {combined_tsv}")
+    for category, count in summary.items():
+        print(f"  {category}: {count}")
+
+
 def target_integration():
     if "--help" in input_args:
         print(
@@ -2052,6 +2295,9 @@ def crisprme_help() -> None:
         "crisprme.py complete-test\n"
         "\tTest the complete CRISPRme pipeline on single chromosomes or complete "
         "genomes\n\n"
+        "crisprme.py assembly-search\n"
+        "\tSearches a personal diploid genome assembly (two haplotypes, no VCF) "
+        "and reconciles off-target predictions across both, mapped to hg38\n\n"
         "crisprme.py validate-test\n"
         "\tValidate targets obtained from complete-test by comparing them against "
         "brute-force search and alignment results\n\n"
@@ -2085,6 +2331,8 @@ elif sys.argv[1] == "complete-search":  # run complete search
     complete_search()
 elif sys.argv[1] == "complete-test":  # run complete test
     complete_test_crisprme()
+elif sys.argv[1] == "assembly-search":  # run diploid assembly search
+    assembly_search()
 elif sys.argv[1] == "validate-test":  # run validate complete-test
     validate_test()
 elif sys.argv[1] == "targets-integration":  # run targets integration
