@@ -459,6 +459,18 @@ LOG_ERROR_FILENAME = "log_error.txt"
 
 _SHARED_KEY_COLS = ["hg38_chr", "Strand_(fewest_mm+b)", "hg38_start"]
 
+# `pandas.merge_asof` requires the "on" column to be sorted globally across
+# the whole frame, not just within each `by` group (verified directly against
+# the pinned dev-env's pandas 1.2.5). `_SHARED_KEY_COLS`' order -- (chrom,
+# strand) primary, position last -- is correct for `cluster_collapse`'s
+# chained clustering, but leaves `hg38_start` non-monotonic overall once more
+# than one (chrom, strand) group is present (e.g. any real result set with
+# both + and - strand hits), which raises "left/right keys must be sorted".
+# Putting `hg38_start` first fixes this; `merge_asof`'s `by=` still correctly
+# restricts matches to within the same (chrom, strand) group regardless of
+# how rows from different groups are interleaved.
+_MERGE_ASOF_SORT_COLS = ["hg38_start", "hg38_chr", "Strand_(fewest_mm+b)"]
+
 
 def _combine_across_haplotypes(
     hg38_predictions: Dict[str, pd.DataFrame], names: List[str], merge_bp: int
@@ -505,8 +517,8 @@ def _combine_across_haplotypes(
         (`"<a>_only"`, `"<b>_only"`, or `"both"`).
     """
     a, b = names
-    left = hg38_predictions[a].sort_values(_SHARED_KEY_COLS).reset_index(drop=True)
-    right = hg38_predictions[b].sort_values(_SHARED_KEY_COLS).reset_index(drop=True).copy()
+    left = hg38_predictions[a].sort_values(_MERGE_ASOF_SORT_COLS).reset_index(drop=True)
+    right = hg38_predictions[b].sort_values(_MERGE_ASOF_SORT_COLS).reset_index(drop=True).copy()
 
     # an entirely non-mappable haplotype leaves an empty frame here (e.g.
     # every prediction failed to lift over) -- pandas infers an `object`

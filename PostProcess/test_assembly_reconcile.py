@@ -242,6 +242,34 @@ class TestCombineAcrossHaplotypes(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(out["origin"].iloc[0], "a_only")
 
+    def test_multiple_strand_groups_does_not_raise_unsorted_keys(self):
+        # regression test: merge_asof requires its "on" column (hg38_start)
+        # to be sorted GLOBALLY across the whole frame, not just within each
+        # `by` group. Sorting by (chrom, strand, start) -- correct for
+        # cluster_collapse's chained clustering -- only guarantees hg38_start
+        # increases *within* each (chrom, strand) group; here "+" sorts
+        # before "-" but a1's position (5000) is higher than a2's (1000), so
+        # the global sequence [5000, 1000] is not monotonic and used to raise
+        # "left keys must be sorted". Any real result set with hits on both
+        # strands (i.e. virtually all of them) hits this.
+        out = self._combine(
+            [
+                _hg38_row("a1", "chr1", 5000, strand="+"),
+                _hg38_row("a2", "chr1", 1000, strand="-"),
+            ],
+            [
+                _hg38_row("b1", "chr1", 5001, strand="+"),
+                _hg38_row("b2", "chr1", 1001, strand="-"),
+            ],
+            merge_bp=3,
+        )
+        self.assertEqual(len(out), 2)
+        both_rows = out[out["origin"] == "both"]
+        self.assertEqual(len(both_rows), 2)
+        self.assertCountEqual(
+            both_rows["off_target_id_a"].tolist(), ["a1", "a2"]
+        )
+
 
 class TestFindResultsPrefix(unittest.TestCase):
     def test_finds_unique_prefix(self):
