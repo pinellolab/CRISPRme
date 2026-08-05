@@ -12,7 +12,27 @@ and the `release-crisprme` skill.
 ## [Unreleased]
 
 ### Added
-- (nothing yet)
+- Python 3.11 modernization: pipeline fixes for pandas 2.x / matplotlib 3.x and
+  a Dash 1.x → 2.x web-app migration, plus a Python-3.11 Docker image built from
+  source (CRISPRitz 2.8.0) (#131).
+- `assembly-search` subcommand: off-target search on a personal diploid genome
+  assembly (two haplotypes, no VCF), reconciled to hg38 via liftOver (#113).
+- Reference-index UX: `build-index-only` pre-builds the reusable CRISPRitz
+  reference index without running a search, and `complete-search --index-path`
+  reuses a prebuilt/staged index library (a missing index is a hard error rather
+  than a silent rebuild).
+- HuggingFace data distribution: `download` fetches reference data (genome,
+  annotations, PAMs, sample IDs, VCFs, precomputed indexes) from a HuggingFace
+  dataset repository over its CDN, and `publish-index` uploads a locally built
+  index for reuse. Default repo `lucapinello/crisprme-data`, overridable via
+  `--hf-repo` / `CRISPRME_HF_REPO` (#140, #141).
+
+### Documentation
+- Data-setup guide: documented what `setup` produces (including the combined
+  1000G+HGDP config files), the HuggingFace fast-download path, and a new
+  "Prebuild, reuse, and share the reference index" section.
+- README: added a from-source install path and a reference-index /
+  data-distribution commands section.
 
 ## [2.1.13] - 2026-08-04
 

@@ -335,6 +335,30 @@ pinellolab/crisprme latest    <image_id>     <timestamp>    <size>
 
 You are now ready to run CRISPRme using Docker.
 
+### 1.3 Install CRISPRme from source
+
+For development, or to run an unreleased branch, you can install CRISPRme directly from a checkout. This installs CRISPRme's dependencies into a conda environment and runs `crisprme.py` from the source tree.
+
+```bash
+# 1. clone the repository (use --branch to pick a specific release/branch)
+git clone https://github.com/pinellolab/CRISPRme.git
+cd CRISPRme
+
+# 2. create the runtime environment. The simplest route is to install the
+#    released package's dependencies, then run crisprme.py from source:
+mamba create -n crisprme-dev -c conda-forge -c bioconda crisprme
+mamba activate crisprme-dev
+
+# 3. run crisprme.py from the checkout (it resolves PostProcess/ relative to
+#    itself, so invoke it by path)
+python crisprme.py --version
+```
+
+Notes:
+- CRISPRme depends on the **CRISPRitz** search engine (installed as a dependency by the command above). If you are also developing CRISPRitz, build it from its own repository and make sure `crispritz.py` is on your `PATH`.
+- The `assembly-search` subcommand additionally requires the UCSC `liftOver` binary (`conda install -c bioconda ucsc-liftover`).
+- The vendored CRISTA model ships zipped in git and is unzipped automatically on first use.
+
 ## 2 Usage
 
 CRISPRme is a tool designed for variant- and haplotype-aware CRISPR off-target 
@@ -1438,6 +1462,35 @@ users to interactively explore and run CRISPRme analyses. All results are
 displayed dynamically within the web interface itself, offering an interactive 
 experience for viewing CRISPRme data and outputs (see [Section 2.2.1](#221-complete-search)
 for details).
+
+#### 2.2.9 Reference-Index and Data-Distribution Commands
+
+Bulge-enabled searches build a CRISPRitz index of the reference genome. `complete-search` does this automatically on the first run and reuses it afterward, but three commands let you control it explicitly — useful for batch jobs, shared clusters, and skipping the build via prebuilt indexes.
+
+**`build-index-only`** — build the reusable reference index (into `genome_library/<PAM>_<bulges+1>_<genome>`) without running a search. Pass the same `--genome`/`--pam`/`--bDNA`/`--bRNA` you will search with:
+
+```bash
+crisprme.py build-index-only --genome Genomes/hg38 --pam PAMs/20bp-NGG-SpCas9.txt \
+  --bDNA 1 --bRNA 1 --thread 16 --path /data/crisprme
+```
+
+**`complete-search --index-path <dir>`** — reuse a prebuilt/staged index library instead of building one under the working directory. A missing matching index is a hard error (rather than a silent rebuild), which is what you want on a read-only shared mount.
+
+**`download`** — fetch reference data from a HuggingFace dataset repository over HF's CDN (typically much faster than the FTP/UCSC sources). `--what` selects the component: `genome`, `annotations`, `pams`, `samples`, `vcf` (with `--dataset`), `index` (with `--index-name`), or `all` (genome + annotations + PAMs + samples). Default repo `lucapinello/crisprme-data`, overridable with `--hf-repo` or `CRISPRME_HF_REPO`:
+
+```bash
+crisprme.py download --what all --path /data/crisprme
+crisprme.py download --what vcf --dataset 1000G --path /data/crisprme
+crisprme.py download --what index --index-name NGG_2_hg38 --path /data/crisprme
+```
+
+**`publish-index`** — upload a locally built index to a HuggingFace dataset repository so other machines can skip the build (needs an HF write token via `--token` or `HF_TOKEN`):
+
+```bash
+crisprme.py publish-index --index genome_library/NGG_2_hg38
+```
+
+See the companion data-setup guide (`docs/crisprme_data_setup_051826.md`, Sections 2d and 3½) for the end-to-end workflow.
 
 ## 3 Test
 
