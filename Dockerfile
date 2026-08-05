@@ -31,6 +31,7 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
         "matplotlib-base<3.9" \
         biopython more-itertools statsmodels intervaltree \
         pysam bcftools bedtools bedops samtools htslib axel gdown zip gsl \
+        ucsc-liftover \
         importlib-metadata \
         "dash>=2.14,<3" dash-bootstrap-components dash-daq \
         flask flask-caching flask-compress gunicorn werkzeug \

@@ -233,24 +233,49 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
         ftp_server = VCF1000GSERVER if ds == "1000G" else VCFHGDPSERVER
         vcf_url = VCF1000GURL if ds == "1000G" else VCFHGDPURL
         chroms = CHROMS if chrom == "all" else [chrom]
+        md5data = MD51000G if ds == "1000G" else MD5HGDP
         for c in chroms:
-            if ds == "1000G":
-                # the EBI 1000G host also serves HTTPS; prefer it, since FTP is
-                # frequently blocked on CI runners and institutional/cloud networks
-                vcf = download(
-                    vcf_dataset_dir,
-                    http_url=f"https://{ftp_server}{vcf_url.format(c)}",
+            expected_fname = os.path.basename(vcf_url.format(c))
+            dest_path = os.path.join(vcf_dataset_dir, expected_fname)
+            # Resume: skip files already downloaded and checksum-verified in a
+            # previous (interrupted) run, so a partially completed multi-hour
+            # download can be restarted cheaply instead of starting over.
+            if os.path.isfile(dest_path) and md5data.get(
+                expected_fname
+            ) == compute_md5(dest_path):
+                sys.stderr.write(
+                    f"{expected_fname} already present and verified; skipping\n"
                 )
-            else:  # HGDP (Sanger) via FTP
-                vcf = download(
-                    vcf_dataset_dir,
-                    ftp_conn=True,
-                    ftp_server=ftp_server,
-                    ftp_path=vcf_url.format(c),
+                continue
+            # Retry on checksum mismatch (e.g. a truncated transfer from a slow or
+            # flaky host) instead of aborting the whole run on the first failure.
+            attempts = 3
+            for attempt in range(1, attempts + 1):
+                if ds == "1000G":
+                    # the EBI 1000G host also serves HTTPS; prefer it, since FTP is
+                    # frequently blocked on CI runners and institutional/cloud networks
+                    vcf = download(
+                        vcf_dataset_dir,
+                        http_url=f"https://{ftp_server}{vcf_url.format(c)}",
+                    )
+                else:  # HGDP (Sanger) via FTP
+                    vcf = download(
+                        vcf_dataset_dir,
+                        ftp_conn=True,
+                        ftp_server=ftp_server,
+                        ftp_path=vcf_url.format(c),
+                    )
+                if md5data[os.path.basename(vcf)] == compute_md5(vcf):
+                    break  # download verified
+                sys.stderr.write(
+                    f"Checksum mismatch for {os.path.basename(vcf)} "
+                    f"(attempt {attempt}/{attempts}); re-downloading\n"
                 )
-            md5data = MD51000G if ds == "1000G" else MD5HGDP
-            if md5data[os.path.basename(vcf)] != compute_md5(vcf):
-                raise ValueError(f"Download for {os.path.basename(vcf)} failed")
+                if attempt == attempts:
+                    raise ValueError(
+                        f"Download for {os.path.basename(vcf)} failed after "
+                        f"{attempts} attempts"
+                    )
 
 
 def ensure_samplesids_directory(dest: str) -> str:

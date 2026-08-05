@@ -1,0 +1,750 @@
+"""
+This module reconciles CRISPRme off-target predictions across two personal
+genome haplotype assemblies (e.g. paternal/maternal), producing one combined
+report in hg38 coordinates.
+
+Each haplotype's predicted off-targets are lifted independently to hg38 via
+`liftOver` (using that haplotype's own chain file), then joined directly on
+hg38 coordinates: found on both haplotypes is homozygous-equivalent, found on
+only one is heterozygous-equivalent, and predictions that don't lift at all
+are haplotype-non-mappable -- invisible to any reference-genome-based search.
+
+This logic was developed and validated interactively against real HG01255
+(HPRC) data before being ported here -- see
+`assembly_search/assembly_search_generalized_071326.ipynb` in the project
+root for the exploratory version and the real numbers it produced. Two real
+bugs were caught during that validation and are fixed here from the start:
+
+1. The alternative-alignments file contains many rows per genomic locus with
+   the *exact* same coordinate (different mismatch/bulge interpretations of
+   one site -- measured up to 233 rows at one locus).
+2. A subtler case: ~5.7% of loci have a near-duplicate 1-3bp away on the same
+   chrom+strand, every one involving a bulge -- the *same* physical site
+   reported at a shifted anchor position because a bulge changes the
+   alignment's registration.
+
+Both are handled by `cluster_collapse()`, which reuses the exact greedy
+chained-gap clustering algorithm CRISPRme's own `--merge` step uses
+(`merge_contiguous_targets.py:531-596`), rather than exact-coordinate
+matching. The `merge_bp` passed to every function in this module should match
+the `--merge` value used for the underlying `complete-search` runs, since
+this is reusing CRISPRme's own definition of "one site."
+"""
+
+from typing import Dict, List, Optional, Tuple
+
+import glob
+import os
+import shutil
+import subprocess
+
+import pandas as pd
+
+PRED_COLS = [
+    "Spacer+PAM", "Chromosome", "Start_coordinate_(fewest_mm+b)",
+    "Strand_(fewest_mm+b)", "Aligned_spacer+PAM_(fewest_mm+b)",
+    "Aligned_protospacer+PAM_REF_(fewest_mm+b)", "Aligned_protospacer+PAM_ALT_(fewest_mm+b)",
+    "Mismatches_(fewest_mm+b)", "Bulges_(fewest_mm+b)", "CFD_score_(fewest_mm+b)",
+]
+CHUNKSIZE = 10**6
+# if more than this fraction of a haplotype's predictions have a chromosome
+# missing from the chromAlias file, that's almost certainly a genome/alias
+# naming mismatch, not a handful of legitimately-unmappable decoy contigs --
+# raise instead of silently folding all of them into "non-mappable"
+CHROM_ALIAS_MISMATCH_ERROR_RATIO = 0.5
+# same principle, applied to liftOver's own rejection rate (distinct failure
+# class from the chromAlias-coverage check above -- e.g. a wrong/swapped
+# chain file, not an unrecognized chromosome name)
+LIFTOVER_FAILURE_ERROR_RATIO = 0.5
+
+
+def cluster_collapse(
+    df: pd.DataFrame, chrom_col: str, strand_col: str, pos_col: str,
+    score_col: str, merge_bp: int,
+) -> pd.DataFrame:
+    """Collapses rows to one per proximity cluster.
+
+    Uses the same greedy chained-gap algorithm CRISPRme's own `--merge` step
+    uses: sort by position, start a new cluster whenever the gap from the
+    previous point (same chrom+strand) exceeds `merge_bp` -- clusters chain,
+    this is not a fixed window -- then keep the best-scoring row per cluster.
+
+    Args:
+        df: Rows to collapse.
+        chrom_col: Column name holding the chromosome.
+        strand_col: Column name holding the strand.
+        pos_col: Column name holding the position to cluster on.
+        score_col: Column name to pick the best row per cluster (higher wins;
+            NaN sorts last).
+        merge_bp: Maximum gap (bp) between consecutive points to stay in the
+            same cluster. Should match the `--merge` value used to generate
+            the underlying CRISPRme results.
+
+    Returns:
+        One row per cluster, the highest-`score_col` row in each.
+    """
+    df = df.sort_values([chrom_col, strand_col, pos_col]).reset_index(drop=True)
+    cluster_ids: List[int] = []
+    cluster_id = 0
+    prev_chrom = prev_strand = prev_pos = None
+    for chrom, strand, pos in zip(df[chrom_col], df[strand_col], df[pos_col]):
+        if chrom != prev_chrom or strand != prev_strand or (pos - prev_pos) > merge_bp:
+            cluster_id += 1
+        cluster_ids.append(cluster_id)
+        prev_chrom, prev_strand, prev_pos = chrom, strand, pos
+    df = df.assign(_cluster_id=cluster_ids)
+    df = df.sort_values(score_col, ascending=False, na_position="last")
+    df = df.drop_duplicates(subset=["_cluster_id"], keep="first")
+    return df.drop(columns=["_cluster_id"]).reset_index(drop=True)
+
+
+def find_results_prefix(results_dir: str) -> str:
+    """Derives a haplotype's CRISPRme results filename prefix by locating its
+    `*_integrated_results.tsv` file, rather than reconstructing CRISPRme's
+    internal naming convention (guide+PAM+genome+mm+bMax) by hand.
+
+    Args:
+        results_dir: A `complete-search` output folder.
+
+    Returns:
+        The filename prefix shared by `<prefix>_integrated_results.tsv` and
+        `<prefix>_all_results_with_alternative_alignments.tsv`.
+
+    Raises:
+        FileNotFoundError: If zero or more than one `*_integrated_results.tsv`
+            is found (e.g. a multi-guide run, not yet supported here).
+    """
+    suffix = "_integrated_results.tsv"
+    matches = glob.glob(os.path.join(results_dir, f"*{suffix}"))
+    if len(matches) != 1:
+        raise FileNotFoundError(
+            f"Expected exactly one *{suffix} file in {results_dir}, found "
+            f"{len(matches)}: {matches}"
+        )
+    return os.path.basename(matches[0])[: -len(suffix)]
+
+
+# submit_job_automated_new_multiple_vcfs.sh renames log_error.txt to this,
+# unconditionally, as its very last meaningful step (right after echoing
+# "JOB END") -- so its presence is the one signal that a run reached its
+# true end, not just that some result files happened to get written along
+# the way.
+LOG_ERROR_NO_CHECK_FILENAME = "log_error_no_check.txt"
+
+
+def haplotype_search_complete(results_dir: str) -> bool:
+    """Checks whether a haplotype's `complete-search` output represents a
+    genuinely finished run, not just one that produced some result files
+    before failing partway through.
+
+    `*_integrated_results.tsv` (what `find_results_prefix` looks for) is
+    written well before the pipeline's actual end -- a crash during the
+    zip/db_creation/mail-send/cleanup steps that follow it would still leave
+    that file behind. `log_error.txt` only gets renamed to
+    `log_error_no_check.txt` as the pipeline's unconditional last step, so
+    requiring both together is the accurate "did this really finish" check,
+    used to decide whether `assembly_search` can skip re-running an
+    already-completed haplotype search.
+
+    Also requires `*_all_results_with_alternative_alignments.tsv` to exist:
+    `load_crisprme_predictions` reads it unconditionally, but it and
+    `*_integrated_results.tsv` are written by two separate (if normally
+    back-to-back) steps in the real pipeline, so a sufficiently narrow
+    interruption between them could leave the latter without the former.
+
+    Args:
+        results_dir: A `complete-search` output folder.
+
+    Returns:
+        True if the integrated results file, the alternative-alignments
+        file, and the post-completion log rename are all present.
+    """
+    if not os.path.isdir(results_dir):
+        return False
+    try:
+        prefix = find_results_prefix(results_dir)
+    except FileNotFoundError:
+        return False
+    alt_file = os.path.join(
+        results_dir, f"{prefix}_all_results_with_alternative_alignments.tsv"
+    )
+    if not os.path.isfile(alt_file):
+        return False
+    return os.path.isfile(os.path.join(results_dir, LOG_ERROR_NO_CHECK_FILENAME))
+
+
+def clean_incomplete_haplotype_output(
+    output_dir: str, reason: str = "an incomplete previous attempt"
+) -> None:
+    """Removes a haplotype's stale output directory left behind by a
+    previous incomplete/crashed `complete-search` attempt (or one built with
+    different search parameters, see `haplotype_params_match`), so a retry
+    can actually proceed.
+
+    `complete_search()`'s own `_check_output()` guard refuses to run into a
+    non-empty `--output` folder -- exactly right for protecting against
+    clobbering a genuinely different run, but it also blocks retrying the
+    *same* haplotype search after a crash, since a crash always leaves
+    partial files behind (its own error message says as much: "please
+    delete ... before running a new CRISPRme search"). Only call this once
+    the caller has already confirmed `output_dir` does NOT represent a
+    usable, current result -- at that point nothing in it is worth keeping,
+    so removing it to unblock the retry is safe.
+
+    No-op if the directory doesn't exist yet (a fresh, first-time run has
+    nothing to clean up).
+
+    Args:
+        output_dir: The specific haplotype's own output directory (e.g.
+            `Results/<name>_paternal`) -- never call this with anything
+            broader, since it recursively deletes everything under it.
+        reason: Human-readable phrase describing why this directory is
+            being removed, logged so the user isn't left wondering (e.g.
+            override with "results built with different search parameters"
+            when that's why, rather than the default incomplete-run wording).
+    """
+    if os.path.isdir(output_dir):
+        print(f"Detected {reason} at {output_dir}, removing before retry")
+        shutil.rmtree(output_dir)
+
+
+_HAPLOTYPE_PARAM_FLAGS = ["--genome", "--guide", "--pam", "--mm", "--bDNA", "--bRNA", "--merge"]
+COMMAND_LINE_FILENAME = ".command_line.txt"
+
+
+def _read_recorded_params(results_dir: str) -> Optional[Dict[str, str]]:
+    """Reads the recorded `--genome`/`--guide`/`--pam`/`--mm`/`--bDNA`/
+    `--bRNA`/`--merge` values from a previous `complete-search` run's
+    `.command_line.txt` -- written unconditionally by every `complete-search`
+    invocation (including each haplotype's own, via `_run_haplotype_search`),
+    so this needs no new files or directory-naming changes to read.
+
+    Returns:
+        A dict of flag -> value for whichever of the flags above were found,
+        or `None` if the file is missing or doesn't parse (e.g. a genuinely
+        incomplete/crashed run that never got far enough to write it).
+    """
+    command_line_path = os.path.join(results_dir, COMMAND_LINE_FILENAME)
+    if not os.path.isfile(command_line_path):
+        return None
+    with open(command_line_path) as f:
+        content = f.read()
+    prefix = "input_command\t"
+    if not content.startswith(prefix):
+        return None
+    tokens = content[len(prefix):].strip().split()
+    recorded = {}
+    for flag in _HAPLOTYPE_PARAM_FLAGS:
+        if flag in tokens:
+            idx = tokens.index(flag)
+            if idx + 1 < len(tokens):
+                recorded[flag] = tokens[idx + 1]
+    return recorded
+
+
+def haplotype_params_match(
+    results_dir: str, genome_dir: str, guide_file: str, pam_file: str,
+    mm: int, bDNA: int, bRNA: int, merge_bp: int,
+) -> bool:
+    """Checks whether a haplotype's existing output directory was produced
+    with the same search parameters as the current invocation.
+
+    Without this, `assembly_search` would silently reuse a stale result if
+    rerun with the same `--output` name but different `--genome-*`/`--guide`/
+    `--pam`/`--mm`/`--bDNA`/`--bRNA`/`--merge` values -- `haplotype_search_complete`
+    only checks that *a* complete result exists, not that it's the *current*
+    one. Reads the existing `.command_line.txt` `complete_search()` already
+    writes; no new files, no directory-naming changes.
+
+    Args:
+        results_dir: The haplotype's output directory to check.
+        genome_dir, guide_file, pam_file: Absolute paths, as resolved by
+            `assembly_search()`'s own arg-checking (must match exactly).
+        mm, bDNA, bRNA, merge_bp: The current invocation's values.
+
+    Returns:
+        True only if every recorded parameter matches exactly; False if
+        anything differs, or if the recorded parameters can't be read at all
+        (treated the same as "don't reuse" -- consistent with how
+        `haplotype_search_complete` already treats an unreadable result as
+        not-yet-complete).
+    """
+    recorded = _read_recorded_params(results_dir)
+    if recorded is None:
+        return False
+    current = {
+        "--genome": genome_dir, "--guide": guide_file, "--pam": pam_file,
+        "--mm": str(mm), "--bDNA": str(bDNA), "--bRNA": str(bRNA),
+        "--merge": str(merge_bp),
+    }
+    return recorded == current
+
+
+def load_chrom_alias(chrom_alias_file: str) -> Tuple[Dict[str, str], Dict[str, str]]:
+    """Loads a chromAlias file into assembly->ucsc and ucsc->genbank mappings.
+
+    Args:
+        chrom_alias_file: Path to an HPRC-style `*.chromAlias.txt` file
+            (tab-separated, columns `# assembly`, `ucsc`, `genbank`).
+
+    Returns:
+        `(assembly_to_ucsc, ucsc_to_genbank)`.
+    """
+    chrom_alias_df = pd.read_csv(chrom_alias_file, sep="\t")
+    assembly_to_ucsc = dict(zip(chrom_alias_df["# assembly"], chrom_alias_df["ucsc"]))
+    ucsc_to_genbank = dict(zip(chrom_alias_df["ucsc"], chrom_alias_df["genbank"]))
+    return assembly_to_ucsc, ucsc_to_genbank
+
+
+def load_crisprme_predictions(
+    results_dir: str, prefix: str, merge_bp: int, cols: Optional[List[str]] = None
+) -> pd.DataFrame:
+    """Loads and combines one haplotype's CRISPRme output into one
+    deduplicated, one-row-per-genomic-locus table.
+
+    Args:
+        results_dir: A `complete-search` output folder.
+        prefix: Filename prefix (from `find_results_prefix`).
+        merge_bp: Passed to `cluster_collapse` -- should match the `--merge`
+            value used for this haplotype's `complete-search` run.
+        cols: Result columns to keep. Defaults to `PRED_COLS`.
+
+    Returns:
+        One row per genomic locus, with a stable `off_target_id` column.
+    """
+    if cols is None:
+        cols = PRED_COLS
+
+    alt_file = os.path.join(results_dir, f"{prefix}_all_results_with_alternative_alignments.tsv")
+    integrated_file = os.path.join(results_dir, f"{prefix}_integrated_results.tsv")
+
+    with open(alt_file) as f:
+        num_lines = sum(1 for _ in f)
+    num_chunks = (num_lines - 1) // CHUNKSIZE + 1
+    chunks = [
+        chunk
+        for chunk in pd.read_csv(alt_file, sep="\t", usecols=cols, chunksize=CHUNKSIZE)
+    ]
+    alt_df = pd.concat(chunks, ignore_index=True) if chunks else pd.DataFrame(columns=cols)
+
+    integrated_df = pd.read_csv(integrated_file, sep="\t", usecols=cols)
+    combined = alt_df.merge(integrated_df, on=cols, how="outer").drop_duplicates(ignore_index=True)
+
+    combined = cluster_collapse(
+        combined, "Chromosome", "Strand_(fewest_mm+b)",
+        "Start_coordinate_(fewest_mm+b)", "CFD_score_(fewest_mm+b)", merge_bp,
+    )
+    combined["off_target_id"] = combined.index.astype(str)
+    return combined
+
+
+def check_chrom_alias_coverage(
+    preds: pd.DataFrame, ucsc_to_genbank: Dict[str, str], name: str
+) -> None:
+    """Sanity-checks that the chromAlias file actually names this haplotype's
+    chromosomes, before treating any mismatch as ordinary haplotype-private
+    biology.
+
+    A handful of predictions on contigs the chromAlias file doesn't cover
+    (e.g. small unplaced/decoy scaffolds) is expected and gets folded into
+    the non-mappable count downstream. But if a *large* fraction of
+    predictions have an unrecognized chromosome, that's a strong signal the
+    genome FASTA's chromosome naming doesn't actually match the supplied
+    chromAlias file (wrong file, wrong assembly, or a naming convention the
+    file doesn't cover) -- worth failing clearly and immediately rather than
+    silently reporting a mostly-meaningless "almost everything is
+    haplotype-private" result.
+
+    Args:
+        preds: This haplotype's predictions (must have a `Chromosome` column).
+        ucsc_to_genbank: This haplotype's chromAlias `ucsc`->`genbank` mapping.
+        name: Haplotype name, for the error message.
+
+    Raises:
+        ValueError: If the unmatched-row fraction exceeds
+            `CHROM_ALIAS_MISMATCH_ERROR_RATIO`.
+    """
+    total = len(preds)
+    if total == 0:
+        return
+    known = set(ucsc_to_genbank)
+    unmatched = preds.loc[~preds["Chromosome"].isin(known)]
+    ratio = len(unmatched) / total
+    if ratio > CHROM_ALIAS_MISMATCH_ERROR_RATIO:
+        examples = sorted(unmatched["Chromosome"].unique())[:5]
+        raise ValueError(
+            f"{name}: {len(unmatched)}/{total} predictions ({ratio:.0%}) have a "
+            f"chromosome not found in the {name} chromAlias file's 'ucsc' column "
+            f"(e.g. {examples}) -- this usually means the genome FASTA's "
+            f"chromosome naming doesn't match the --chrom-alias-{name} file "
+            "provided, not that these are genuinely unmappable contigs. Both "
+            "haplotype searches already completed successfully; only "
+            "reconciliation is affected by this. Fix the chromAlias file or "
+            "genome naming, then re-run assembly-search -- already-completed "
+            "haplotype searches will be reused, not re-run."
+        )
+
+
+def check_liftover_failure_rate(attempted_count: int, unlifted_count: int, name: str) -> None:
+    """Sanity-checks that `liftOver` itself isn't rejecting a suspiciously
+    high fraction of inputs, before treating a large non-mappable count as
+    ordinary haplotype-private biology.
+
+    Distinct from `check_chrom_alias_coverage`, which only catches
+    predictions whose chromosome isn't even recognized by the chromAlias
+    file, checked *before* liftOver ever runs. This catches a different
+    failure class: liftOver runs and genuinely rejects most of its input,
+    which can happen with a wrong chain file (e.g. the paternal/maternal
+    `--chain-*` files swapped, or a stale/mismatched chain file) -- same
+    "fail clearly instead of silently reporting a mostly-meaningless result"
+    principle as the chromAlias check, applied to the post-liftover signal.
+
+    Args:
+        attempted_count: Predictions actually handed to liftOver (i.e.
+            excluding ones already dropped for lacking a chromAlias entry --
+            those are a distinct, already-guarded failure mode).
+        unlifted_count: How many of those liftOver itself rejected.
+        name: Haplotype name, for the error message.
+
+    Raises:
+        ValueError: If the rejection rate exceeds `LIFTOVER_FAILURE_ERROR_RATIO`.
+    """
+    if attempted_count == 0:
+        return
+    ratio = unlifted_count / attempted_count
+    if ratio > LIFTOVER_FAILURE_ERROR_RATIO:
+        raise ValueError(
+            f"{name}: liftOver rejected {unlifted_count}/{attempted_count} "
+            f"predictions ({ratio:.0%}) -- this usually means the wrong chain "
+            f"file was supplied for --chain-{name} (e.g. paternal/maternal "
+            "chain files swapped, or a stale/mismatched chain file), not that "
+            "these are genuinely haplotype-private sites. Both haplotype "
+            "searches already completed successfully; only reconciliation is "
+            "affected by this. Fix the chain file, then re-run assembly-search "
+            "-- already-completed haplotype searches will be reused, not "
+            "re-run."
+        )
+
+
+def build_offtarget_bed(
+    preds: pd.DataFrame, ucsc_to_genbank: Dict[str, str], bed_path: str
+) -> Tuple[str, set]:
+    """Writes a BED file of one haplotype's predicted off-target coordinates,
+    keyed by each row's `off_target_id`, in the chain file's chromosome
+    naming (GenBank accessions, per the HPRC chromAlias convention).
+
+    Returns:
+        `(bed_path, dropped_ids)` -- `dropped_ids` are the `off_target_id`s
+        excluded because their chromosome has no chromAlias mapping. These
+        are just as unmappable-to-hg38 as a genuine liftOver failure (there's
+        no way to look them up in the chain file at all), so callers should
+        fold them into the same non-mappable accounting as
+        `load_unlifted_ids`, not just discard them.
+    """
+    bed = preds[["Chromosome", "Start_coordinate_(fewest_mm+b)", "off_target_id"]].copy()
+    bed = bed.rename(columns={"Start_coordinate_(fewest_mm+b)": "chromEnd"})
+    bed["chromStart"] = bed["chromEnd"] - 1
+    bed["chrom"] = bed["Chromosome"].map(ucsc_to_genbank)
+    dropped_ids = set(bed.loc[bed["chrom"].isna(), "off_target_id"])
+    bed = bed.dropna(subset=["chrom"])
+    bed = bed[["chrom", "chromStart", "chromEnd", "off_target_id"]]
+    bed.to_csv(bed_path, sep="\t", header=False, index=False)
+    return bed_path, dropped_ids
+
+
+def check_liftover_available() -> None:
+    """Verifies the `liftOver` binary is on PATH before any expensive work
+    starts.
+
+    `liftOver` (UCSC tool, bioconda package `ucsc-liftover`) is a required
+    dependency for `assembly-search` -- bundled into the Docker image
+    alongside crispritz/crisprme, but not yet part of CRISPRme's own bioconda
+    recipe for the plain `mamba install crisprme` path (a separate,
+    not-yet-done follow-up). Checking this before launching two multi-hour
+    haplotype searches means a missing dependency fails immediately and
+    clearly instead of only surfacing at the very last reconciliation step.
+
+    Raises:
+        RuntimeError: If `liftOver` isn't found on PATH.
+    """
+    if shutil.which("liftOver") is None:
+        raise RuntimeError(
+            "liftOver (UCSC tool) not found on PATH -- required for "
+            "assembly-search. Install it with `mamba install -c bioconda "
+            "ucsc-liftover` (or `conda install`), or use a CRISPRme Docker "
+            "image built after this dependency was added."
+        )
+
+
+def run_liftover(bed_path: str, chain_file: str, mapped_path: str, unmapped_path: str) -> Tuple[str, str]:
+    """Runs UCSC `liftOver` on a BED file. Assumes `liftOver` is on PATH --
+    see `check_liftover_available`.
+
+    Raises:
+        RuntimeError: If `liftOver` exits non-zero.
+    """
+    cmd = f"liftOver {bed_path} {chain_file} {mapped_path} {unmapped_path}"
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"liftOver failed:\n{result.stderr}")
+    return mapped_path, unmapped_path
+
+
+def load_lifted_bed(mapped_path: str) -> pd.DataFrame:
+    return pd.read_csv(
+        mapped_path, sep="\t", header=None,
+        names=["hg38_chr", "hg38_start", "hg38_end", "off_target_id"],
+        dtype={"off_target_id": str},
+    )
+
+
+def load_unlifted_ids(unmapped_path: str) -> set:
+    """liftOver writes failed features back out in BED format, with
+    '#'-prefixed comment lines explaining why each one failed to map."""
+    ids = set()
+    with open(unmapped_path) as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+            ids.add(line.strip().split("\t")[3])
+    return ids
+
+
+LOG_VERBOSE_FILENAME = "log_verbose.txt"
+LOG_ERROR_FILENAME = "log_error.txt"
+
+_SHARED_KEY_COLS = ["hg38_chr", "Strand_(fewest_mm+b)", "hg38_start"]
+
+# `pandas.merge_asof` requires the "on" column to be sorted globally across
+# the whole frame, not just within each `by` group (verified directly against
+# the pinned dev-env's pandas 1.2.5). `_SHARED_KEY_COLS`' order -- (chrom,
+# strand) primary, position last -- is correct for `cluster_collapse`'s
+# chained clustering, but leaves `hg38_start` non-monotonic overall once more
+# than one (chrom, strand) group is present (e.g. any real result set with
+# both + and - strand hits), which raises "left/right keys must be sorted".
+# Putting `hg38_start` first fixes this; `merge_asof`'s `by=` still correctly
+# restricts matches to within the same (chrom, strand) group regardless of
+# how rows from different groups are interleaved.
+_MERGE_ASOF_SORT_COLS = ["hg38_start", "hg38_chr", "Strand_(fewest_mm+b)"]
+
+
+def _combine_across_haplotypes(
+    hg38_predictions: Dict[str, pd.DataFrame], names: List[str], merge_bp: int
+) -> pd.DataFrame:
+    """Combines two haplotypes' already within-haplotype-collapsed hg38
+    predictions into one report, matching "same site" by proximity (within
+    `merge_bp`) rather than exact-coordinate equality -- absorbs the 1-3bp
+    bulge-registration drift documented in `cluster_collapse`'s docstring,
+    which independently affects each haplotype's own lift-over anchor
+    position.
+
+    Deliberately does NOT reuse `cluster_collapse`'s transitive chaining:
+    chaining is only correct within one haplotype's own results, where
+    nearby rows are known artifacts of one real alignment event (bulge
+    bookkeeping shifting the counted anchor position). Across two
+    independent haplotypes, a bridging point could just as easily be an
+    unrelated, genuinely distinct real site rather than a shared artifact --
+    chaining across them risks merging real, distinct loci into one. Instead
+    this does a direct, non-chaining nearest-within-tolerance match
+    (`pandas.merge_asof`, one hop per row, no transitive linking).
+
+    `merge_asof` matches each haplotype-`a` row independently, so the same
+    haplotype-`b` row can end up the nearest match for more than one
+    haplotype-`a` row (possible when two haplotype-`a` sites are each within
+    `merge_bp` of the same haplotype-`b` site but more than `merge_bp` apart
+    from each other -- otherwise they'd already have been collapsed within
+    haplotype `a`'s own `cluster_collapse` pass). A single real haplotype-`b`
+    site can't genuinely confirm two different haplotype-`a` sites as the
+    same physical locus, so only the closest claim is kept; the other
+    haplotype-`a` row is demoted back to `"<a>_only"`.
+
+    Args:
+        hg38_predictions: Each haplotype's already-`cluster_collapse`d
+            (one row per real site, within that haplotype) predictions in
+            hg38 coordinates.
+        names: The two haplotype names, in the order defining which side's
+            columns get which suffix.
+        merge_bp: Same tolerance used for `cluster_collapse` -- should match
+            the `--merge` value used for both haplotypes' `complete-search`
+            runs.
+
+    Returns:
+        One row per reconciled site, with an `origin` column
+        (`"<a>_only"`, `"<b>_only"`, or `"both"`).
+    """
+    a, b = names
+    left = hg38_predictions[a].sort_values(_MERGE_ASOF_SORT_COLS).reset_index(drop=True)
+    right = hg38_predictions[b].sort_values(_MERGE_ASOF_SORT_COLS).reset_index(drop=True).copy()
+
+    # an entirely non-mappable haplotype leaves an empty frame here (e.g.
+    # every prediction failed to lift over) -- pandas infers an `object`
+    # dtype for an empty column, which merge_asof rejects when the other
+    # side is a real int64 `hg38_start` ("incompatible merge keys" error).
+    # Short-circuit rather than coerce dtypes into a merge that has nothing
+    # to actually match against either way.
+    if left.empty and right.empty:
+        return pd.DataFrame(columns=list(left.columns) + ["origin"])
+    if right.empty:
+        out = left.rename(columns={
+            col: f"{col}_{a}" for col in left.columns if col not in _SHARED_KEY_COLS
+        })
+        out["origin"] = f"{a}_only"
+        return out
+    if left.empty:
+        out = right.rename(columns={
+            col: f"{col}_{b}" for col in right.columns if col not in _SHARED_KEY_COLS
+        })
+        out["origin"] = f"{b}_only"
+        return out
+
+    # merge_asof collapses the "on" column to a single (left's) value, so
+    # keep a copy of the right side's own position to compute the true gap
+    # for tie-breaking below
+    right["_right_hg38_start"] = right["hg38_start"]
+
+    matched = pd.merge_asof(
+        left, right, on="hg38_start", by=["hg38_chr", "Strand_(fewest_mm+b)"],
+        tolerance=merge_bp, direction="nearest", suffixes=(f"_{a}", f"_{b}"),
+    )
+    b_id_col = f"off_target_id_{b}"
+    matched["_gap"] = (matched["hg38_start"] - matched["_right_hg38_start"]).abs()
+
+    is_matched = matched[b_id_col].notna()
+    closest_claim_idx = matched[is_matched].groupby(b_id_col)["_gap"].idxmin()
+    demote = is_matched & ~matched.index.isin(closest_claim_idx)
+    b_cols = [c for c in matched.columns if c.endswith(f"_{b}")] + ["_right_hg38_start"]
+    matched.loc[demote, b_cols] = pd.NA
+
+    matched["origin"] = matched[b_id_col].notna().map({True: "both", False: f"{a}_only"})
+    matched = matched.drop(columns=["_gap", "_right_hg38_start"])
+
+    matched_b_ids = set(matched.loc[matched["origin"] == "both", b_id_col])
+    b_only = right[~right["off_target_id"].isin(matched_b_ids)].drop(columns=["_right_hg38_start"]).copy()
+    rename_map = {col: f"{col}_{b}" for col in b_only.columns if col not in _SHARED_KEY_COLS}
+    b_only = b_only.rename(columns=rename_map)
+    b_only["origin"] = f"{b}_only"
+
+    return pd.concat([matched, b_only], ignore_index=True)
+
+
+def reconcile_haplotypes(
+    haplotypes: Dict[str, dict], workdir: str, merge_bp: int = 3
+) -> Tuple[pd.DataFrame, Dict[str, int]]:
+    """Runs the full reconciliation pipeline for exactly two haplotypes.
+
+    Writes its own progress to `<workdir>/log_verbose.txt` and, on failure,
+    the error to `<workdir>/log_error.txt` -- the same filenames every other
+    CRISPRme run (`complete-search`, `complete-test`) already writes, opened
+    the same way `complete_search()` opens them: truncated fresh at the
+    start of every call, not accumulated (`crisprme.py`'s own
+    `open(..., "w")` on both files, right before launching the pipeline).
+    `complete_search()` never actually re-enters an existing output folder
+    (an earlier check blocks that), but `reconcile_haplotypes` deliberately
+    does support being retried into the same `workdir` (see
+    `haplotype_search_complete` in this module and its use in
+    `crisprme.py`'s `assembly_search`), so each retry's log reflects only
+    that attempt.
+
+    Args:
+        haplotypes: Exactly two entries, keyed by haplotype name (e.g.
+            "paternal", "maternal"). Each value must have:
+            `chrom_alias_file`, `chain_file`, `results_dir`. `results_prefix`
+            is derived automatically via `find_results_prefix` if not given.
+        workdir: Directory for intermediate BED files and the log files
+            described above (created if missing).
+        merge_bp: Locus-clustering threshold -- should match the `--merge`
+            value used for both haplotypes' `complete-search` runs.
+
+    Returns:
+        `(combined, summary)` where `combined` is one row per reconciled
+        locus with an `origin` column (`"<a>_only"`, `"<b>_only"`, or
+        `"both"`), and `summary` has counts per category plus each
+        haplotype's non-mappable (un-liftable) count.
+
+    Raises:
+        ValueError: If `haplotypes` doesn't have exactly two entries.
+    """
+    if len(haplotypes) != 2:
+        raise ValueError(
+            f"reconcile_haplotypes requires exactly 2 haplotypes, got {len(haplotypes)} "
+            "(N-way ploidy is not yet supported)"
+        )
+    os.makedirs(workdir, exist_ok=True)
+    log_verbose_path = os.path.join(workdir, LOG_VERBOSE_FILENAME)
+    log_error_path = os.path.join(workdir, LOG_ERROR_FILENAME)
+    open(log_verbose_path, "w").close()
+    open(log_error_path, "w").close()
+
+    def log(msg: str) -> None:
+        with open(log_verbose_path, "a") as f:
+            f.write(msg + "\n")
+
+    try:
+        predictions: Dict[str, pd.DataFrame] = {}
+        lifted: Dict[str, pd.DataFrame] = {}
+        unlifted_ids: Dict[str, set] = {}
+
+        for name, cfg in haplotypes.items():
+            log(f"Loading {name} predictions...")
+            prefix = cfg.get("results_prefix") or find_results_prefix(cfg["results_dir"])
+            _, ucsc_to_genbank = load_chrom_alias(cfg["chrom_alias_file"])
+
+            predictions[name] = load_crisprme_predictions(cfg["results_dir"], prefix, merge_bp)
+            check_chrom_alias_coverage(predictions[name], ucsc_to_genbank, name)
+            log(f"{name}: {len(predictions[name])} unique predicted loci")
+
+            bed_path = os.path.join(workdir, f"{name}_offtargets.bed")
+            _, no_chrom_alias_ids = build_offtarget_bed(predictions[name], ucsc_to_genbank, bed_path)
+
+            log(f"Lifting {name} predictions to hg38...")
+            mapped_path = os.path.join(workdir, f"{name}_offtargets_lifted.bed")
+            unmapped_path = os.path.join(workdir, f"{name}_offtargets_not_lifted.bed")
+            run_liftover(bed_path, cfg["chain_file"], mapped_path, unmapped_path)
+
+            lifted[name] = load_lifted_bed(mapped_path)
+            liftover_rejected_ids = load_unlifted_ids(unmapped_path)
+            check_liftover_failure_rate(
+                len(predictions[name]) - len(no_chrom_alias_ids),
+                len(liftover_rejected_ids),
+                name,
+            )
+            # a missing chromAlias entry is just as unmappable-to-hg38 as a
+            # genuine liftOver failure -- there's no chain-file name to look
+            # it up under at all -- so it belongs in the same non-mappable
+            # count, not silently dropped (see build_offtarget_bed's docstring)
+            unlifted_ids[name] = liftover_rejected_ids | no_chrom_alias_ids
+            log(f"{name}: {len(unlifted_ids[name])} non-mappable (no hg38 equivalent)")
+
+        hg38_predictions: Dict[str, pd.DataFrame] = {}
+        for name in haplotypes:
+            preds = predictions[name].copy()
+            preds["off_target_id"] = preds["off_target_id"].astype(str)
+            merged = preds.merge(lifted[name], on="off_target_id", how="inner")
+            merged = cluster_collapse(
+                merged, "hg38_chr", "Strand_(fewest_mm+b)", "hg38_start",
+                "CFD_score_(fewest_mm+b)", merge_bp,
+            )
+            hg38_predictions[name] = merged
+
+        names = list(haplotypes.keys())
+        a, b = names[0], names[1]
+
+        log("Combining lifted predictions across haplotypes...")
+        combined = _combine_across_haplotypes(hg38_predictions, [a, b], merge_bp)
+
+        origin_counts = combined["origin"].value_counts()
+        summary = {
+            "both": int(origin_counts.get("both", 0)),
+            f"{a}_only": int(origin_counts.get(f"{a}_only", 0)),
+            f"{b}_only": int(origin_counts.get(f"{b}_only", 0)),
+            f"{a}_non_mappable": len(unlifted_ids[a]),
+            f"{b}_non_mappable": len(unlifted_ids[b]),
+        }
+        log("Reconciliation complete:")
+        for category, count in summary.items():
+            log(f"  {category}: {count}")
+    except Exception as e:
+        with open(log_error_path, "a") as f:
+            f.write(f"{e}\n")
+        raise
+    return combined, summary

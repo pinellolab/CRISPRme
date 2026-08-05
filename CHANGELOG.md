@@ -14,6 +14,25 @@ and the `release-crisprme` skill.
 ### Added
 - (nothing yet)
 
+## [2.1.13] - 2026-08-04
+
+### Added
+- Robust `complete-test` downloads: HTTP retry with linear backoff plus
+  checksum-verified resume, so a dropped connection or truncated transfer from a
+  slow/flaky host retries (and skips already-verified files) instead of aborting
+  a multi-hour run (#136).
+- Memory-bounded post-analysis: per-chromosome SNP/indel workers are capped to a
+  RAM budget (default 64 GB, overridable via `CRISPRME_MAX_MEM_GB` and
+  `CRISPRME_POSTPROC_WORKER_GB`), preventing the peak-RAM spike observed on
+  genome-wide 1000G runs (#136).
+
+### Fixed
+- Post-analysis worker-count diagnostic is now written to stdout (`log_verbose`)
+  instead of stderr. The caller treats a non-empty stderr log as a fatal
+  post-analysis failure, so the informational message previously aborted every
+  run with a false "post-analysis (snps) failed" even when the analysis
+  succeeded (#136).
+
 ## [2.1.12] - 2026-08-01
 
 ### Added
@@ -160,7 +179,8 @@ and the `release-crisprme` skill.
 ### Changed
 - Upgraded the DockerHub image with the latest fixes.
 
-[Unreleased]: https://github.com/pinellolab/CRISPRme/compare/v2.1.12...HEAD
+[Unreleased]: https://github.com/pinellolab/CRISPRme/compare/v2.1.13...HEAD
+[2.1.13]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.13
 [2.1.12]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.12
 [2.1.11]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.11
 [2.1.10]: https://github.com/pinellolab/CRISPRme/releases/tag/v2.1.10
