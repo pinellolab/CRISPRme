@@ -72,6 +72,12 @@ cicd_test=${23}
 
 # Comma-separated VCF FILTER values to treat as passing (default "PASS,.")
 vcf_filter_pass_values="${24:-PASS,.}"
+# Optional user-supplied prebuilt reference-index library (complete-search
+# --index-path). When set, the reference index is looked up here (e.g. a
+# staged or downloaded genome_library) instead of being built under the
+# working directory; a missing index is a hard error rather than a silent
+# rebuild. "_" (or empty) means "not provided".
+index_path="${25:-_}"
 
 # log files
 log="$output_folder/log.txt"
@@ -247,10 +253,17 @@ while read vcf_f; do
 	cd "$current_working_directory/"
 
 	# START STEP 2.1 Reference genome indexing
+	# reference-index library base: a user-supplied --index-path (prebuilt or
+	# downloaded index) when provided, otherwise the working-directory library
+	if [ "$index_path" != "_" ] && [ -n "$index_path" ]; then
+		ref_lib="$(realpath "$index_path")"
+	else
+		ref_lib="${current_working_directory}/genome_library"
+	fi
 	# candidate index folders, ordered by priority
-	idx_folder1="${current_working_directory}/genome_library/${true_pam}_${bMax}_${ref_name}"  # index for requested number of bulges
-	idx_folder2="${current_working_directory}/genome_library/${true_pam}_${bMax_}_${ref_name}"  # index for requested number of bulges + 1 (superset for required index)
-	idx_folder3="${current_working_directory}/genome_library/${true_pam}_1_${ref_name}"  # index for number of bulges = 1 (used also for 0 bulges)
+	idx_folder1="${ref_lib}/${true_pam}_${bMax}_${ref_name}"  # index for requested number of bulges
+	idx_folder2="${ref_lib}/${true_pam}_${bMax_}_${ref_name}"  # index for requested number of bulges + 1 (superset for required index)
+	idx_folder3="${ref_lib}/${true_pam}_1_${ref_name}"  # index for number of bulges = 1 (used also for 0 bulges)
 
 	# try to use an existing index
 	if [ -d "$idx_folder1" ]; then
@@ -265,6 +278,13 @@ while read vcf_f; do
 		echo "Reference Index already present"
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
 		idx_ref="$idx_folder3"
+	elif [ "$index_path" != "_" ] && [ -n "$index_path" ]; then
+		# an index location was explicitly provided but no matching index was
+		# found there: fail loudly instead of silently rebuilding elsewhere
+		printf "ERROR: no matching reference index under --index-path '%s'\n" "$ref_lib" >&2
+		printf "       expected one of: %s\n" "$(basename "$idx_folder1"), $(basename "$idx_folder2"), $(basename "$idx_folder3")" >&2
+		printf "       build it first with 'crisprme.py build-index-only' (same --genome/--pam/--bDNA/--bRNA), or omit --index-path to build automatically.\n" >&2
+		exit 1
 	else
 		# no valid index found, compute it; use mkdir lock to prevent concurrent builds
 		_lock="${idx_folder1}.lock"

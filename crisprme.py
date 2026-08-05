@@ -318,6 +318,10 @@ def print_help_complete_search() -> None:
         "\t--output, specify the output folder name; results will be saved in "
         "Results/<name> [REQUIRED]\n"
         "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--index-path, use a prebuilt reference-index library at this path "
+        "(e.g. one made with 'build-index-only' or downloaded ahead of time) "
+        "instead of building the index under the working directory; a missing "
+        "matching index is a hard error [OPTIONAL]\n"
         "\t--full_input_validate, also run a full per-VCF-record scan (chromosome "
         "coverage, AF/FILTER consistency, POS bounds, multiallelic/breakend/"
         "duplicate/phasing survey) before launching the search; slower than the "
@@ -1205,6 +1209,22 @@ def complete_search() -> None:
             raise ValueError("Missing input for --vcf-filter-pass-values") from e
     full_input_validate = "--full_input_validate" in args
 
+    # optional prebuilt/staged reference-index library (--index-path). When
+    # given, the reference index is looked up here (e.g. an index made with
+    # build-index-only, or one downloaded ahead of time) rather than built under
+    # the working directory; a missing index becomes a hard error downstream.
+    index_path = "_"
+    if "--index-path" in args:
+        try:
+            index_path = args[args.index("--index-path") + 1]
+            if index_path.startswith("--"):
+                raise ValueError("Please input a value for flag --index-path")
+        except IndexError as e:
+            raise ValueError("Missing input for --index-path") from e
+        index_path = os.path.abspath(index_path)
+        if not os.path.isdir(index_path):
+            error(f"The index path {index_path} does not exist or is not a directory")
+
     # extract pam seq from file
     pam_len = 0
     total_pam_len = 0
@@ -1424,7 +1444,7 @@ def complete_search() -> None:
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
                 f"{sorting_criteria_scoring} {sorting_criteria} {cicd_test} "
-                f"{vcf_filter_pass_values}"
+                f"{vcf_filter_pass_values} {index_path}"
             )
             code = subprocess.call(
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
@@ -1443,6 +1463,115 @@ def complete_search() -> None:
     # change name of guide and param files to hidden
     os.system(f"mv {outputfolder}/guides.txt {outputfolder}/.guides.txt")
     os.system(f"mv {outputfolder}/Params.txt {outputfolder}/.Params.txt")
+
+
+def print_help_build_index() -> None:
+    """Prints detailed help information for the build-index-only functionality.
+
+    Outputs a description of the index-build step and lists all available
+    command-line options to stderr, then exits the program.
+    """
+    sys.stderr.write(
+        "The build-index-only functionality pre-builds the CRISPRitz reference "
+        "genome index that bulge-enabled searches rely on, WITHOUT running a "
+        "search. The index is written under <path>/genome_library/ and is then "
+        "reused automatically by any later 'complete-search' run (launched from "
+        "the same working directory, or pointed at it with --index-path) that "
+        "uses the same genome, PAM and bulge settings. Building the index once "
+        "and reusing it avoids repeating the single most expensive step across "
+        "many searches, and lets an index be staged (or downloaded) ahead of "
+        "time on a large machine.\n"
+    )
+    sys.stderr.write(
+        "Options:\n"
+        "\t--genome, specify the reference genome folder [REQUIRED]\n"
+        "\t--pam, specify a file containing the PAM sequence [REQUIRED]\n"
+        "\t--bDNA, number of DNA bulges the index must support [OPTIONAL, "
+        "default 0]\n"
+        "\t--bRNA, number of RNA bulges the index must support [OPTIONAL, "
+        "default 0]\n"
+        "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--path, working directory under which genome_library/ is created "
+        "[OPTIONAL, default: current directory]\n"
+    )
+    sys.exit(1)
+
+
+def build_index_only() -> None:
+    """Pre-builds the CRISPRitz reference index for a genome+PAM+bulge combo.
+
+    Exposes the index-build step that ``complete-search`` otherwise performs
+    implicitly, so an index can be constructed once (e.g. on a large machine)
+    and reused across many searches. The produced directory
+    (``genome_library/<PAM>_<bMax+1>_<genome>``) is byte-for-byte the same one
+    ``complete-search`` looks for, so no extra bookkeeping is required: a later
+    search with matching --genome/--pam/--bDNA/--bRNA finds and reuses it.
+    """
+    args = input_args[2:]  # retrieve build-index-only input arguments
+    if "--help" in args:
+        print_help_build_index()
+    genomedir = _check_genome(args)  # reference genome folder
+    pamfile = _check_pam(args)  # PAM file
+    thread = _check_threads(args, "--thread" in args)  # number of threads
+    bDNA = _check_bdna(args, "--bDNA" in args)  # DNA bulges
+    bRNA = _check_brna(args, "--bRNA" in args)  # RNA bulges
+    bMax = max(bDNA, bRNA)  # maximum number of bulges
+    if bMax == 0:
+        sys.stderr.write(
+            "Nothing to do: a genome index is only required for bulge-enabled "
+            "searches (--bDNA/--bRNA > 0). Zero-bulge searches run directly on "
+            "the FASTA with no index.\n"
+        )
+        sys.exit(0)
+    # working directory under which genome_library/ is created (mirrors the
+    # current_working_directory complete-search uses to locate genome_library/)
+    workdir = os.getcwd()
+    if "--path" in args:
+        workdir = os.path.abspath(args[args.index("--path") + 1])
+        if not os.path.isdir(workdir):
+            error(f"The working directory {workdir} does not exist")
+    # derive the true PAM string exactly as complete-search does (see the PAM
+    # parsing block in complete_search), so the index folder name matches the
+    # one a later search will look for
+    with open(pamfile, "r") as pf:
+        pam_char = pf.readline()
+        idx_val = int(pam_char.split(" ")[-1])
+        end_idx = abs(idx_val)
+        if idx_val < 0:  # 5' PAM (e.g. Cas12a)
+            pam_char = pam_char.split(" ")[0][0:end_idx]
+        else:  # 3' PAM (e.g. SpCas9)
+            pam_char = pam_char.split(" ")[0][end_idx * (-1):]
+    genome_ref = os.path.basename(genomedir)
+    # complete-search indexes with bMax+1 ("for alignments starting with gaps")
+    index_name = f"{pam_char}_{bMax + 1}_{genome_ref}"
+    idx_folder = os.path.join(workdir, "genome_library", index_name)
+    if os.path.isdir(idx_folder):
+        sys.stderr.write(
+            f"Reference index already present: {idx_folder}\nNothing to do.\n"
+        )
+        sys.exit(0)
+    os.makedirs(os.path.join(workdir, "genome_library"), exist_ok=True)
+    print(
+        f"Building reference index {index_name} (bMax {bMax + 1}, "
+        f"{thread} thread(s))...",
+        flush=True,
+    )
+    # exactly the invocation complete-search uses, run from workdir so the index
+    # lands in <workdir>/genome_library/ under the expected name
+    index_cmd = (
+        f"crispritz.py index-genome {genome_ref} {genomedir}/ {pamfile} "
+        f"-bMax {bMax + 1} -th {thread}"
+    )
+    code = subprocess.call(index_cmd, shell=True, cwd=workdir)
+    if code != 0 or not os.path.isdir(idx_folder):
+        error(f"Reference genome indexing failed (expected {idx_folder})")
+    print(f"Index built: {idx_folder}", flush=True)
+    print(
+        "It will be reused automatically by complete-search runs launched from "
+        "this working directory (or pointed here with --index-path) that use the "
+        "same genome, PAM and bulge settings.",
+        flush=True,
+    )
 
 
 def print_help_assembly_search() -> None:
@@ -2299,6 +2428,9 @@ def crisprme_help() -> None:
         "crisprme.py complete-test\n"
         "\tTest the complete CRISPRme pipeline on single chromosomes or complete "
         "genomes\n\n"
+        "crisprme.py build-index-only\n"
+        "\tPre-builds the reusable CRISPRitz reference index for bulge-enabled "
+        "searches (genome + PAM + bulges) without running a search\n\n"
         "crisprme.py assembly-search\n"
         "\tSearches a personal diploid genome assembly (two haplotypes, no VCF) "
         "and reconciles off-target predictions across both, mapped to hg38\n\n"
@@ -2337,6 +2469,8 @@ elif sys.argv[1] == "complete-test":  # run complete test
     complete_test_crisprme()
 elif sys.argv[1] == "assembly-search":  # run diploid assembly search
     assembly_search()
+elif sys.argv[1] == "build-index-only":  # pre-build reusable reference index
+    build_index_only()
 elif sys.argv[1] == "validate-test":  # run validate complete-test
     validate_test()
 elif sys.argv[1] == "targets-integration":  # run targets integration
