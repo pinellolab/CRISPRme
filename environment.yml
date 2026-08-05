@@ -1,0 +1,54 @@
+# CRISPRme 2.2.0 runtime environment (Python 3.11), for installing FROM SOURCE
+# without the Bioconda crisprme/crispritz packages. Mirrors the dependency set
+# validated in the project Dockerfile.
+#
+#   mamba env create -f environment.yml
+#   mamba activate crisprme-2.2.0
+#   bash install_from_source.sh          # builds crispritz 2.8.0 + installs both
+#
+# The scoring stack pins (scikit-learn/numpy/scipy/pandas) are required: the
+# vendored azimuth/CRISTA models only unpickle on this exact combination.
+name: crisprme-2.2.0
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  # --- azimuth / CRISTA scoring stack (do not bump: pickles are version-locked)
+  - scikit-learn=1.1.3
+  - numpy=1.24.4
+  - scipy=1.10.1
+  - pandas=2.0.3
+  - matplotlib-base<3.9        # >=3.9 needs numpy>=1.25, conflicts with the pin
+  # --- pipeline / analysis
+  - biopython
+  - more-itertools
+  - statsmodels
+  - intervaltree
+  - pysam
+  - bcftools
+  - bedtools
+  - bedops
+  - samtools
+  - htslib
+  - ucsc-liftover              # assembly-search liftOver dependency
+  - axel
+  - gdown
+  - zip
+  - unzip
+  - gsl
+  - importlib-metadata
+  - huggingface_hub            # crisprme.py download / publish-index
+  # --- Dash 2.x web stack
+  - dash>=2.14,<3
+  - dash-bootstrap-components
+  - dash-daq
+  - flask
+  - flask-caching
+  - flask-compress
+  - gunicorn
+  - werkzeug
+  # --- build toolchain to compile the CRISPRitz C++ binaries (OpenMP-enabled)
+  - cxx-compiler
+  - make
+  - git

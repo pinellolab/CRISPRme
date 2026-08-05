@@ -335,29 +335,43 @@ pinellolab/crisprme latest    <image_id>     <timestamp>    <size>
 
 You are now ready to run CRISPRme using Docker.
 
-### 1.3 Install CRISPRme from source
+### 1.3 Install CRISPRme from source (without Bioconda)
 
-For development, or to run an unreleased branch, you can install CRISPRme directly from a checkout. This installs CRISPRme's dependencies into a conda environment and runs `crisprme.py` from the source tree.
+Use this to run an unreleased line (e.g. **2.2.0**, Python 3.11 + Dash 2.x) before it is published to Bioconda, or for development. It installs the runtime dependencies into a conda environment, **builds CRISPRitz 2.8.0 from source**, and installs CRISPRme from the checkout — using the same layout the Bioconda/Docker builds use, so `crisprme.py` and `crispritz.py` end up on your `PATH` and resolve their support files correctly.
+
+**Prerequisites:** `conda`/`mamba`, `git`, and internet access. A C++ compiler with OpenMP and every Python dependency are provided by the environment file below (no `apt`/system packages required).
 
 ```bash
-# 1. clone the repository (use --branch to pick a specific release/branch)
-git clone https://github.com/pinellolab/CRISPRme.git
+# 1. clone the branch you want to run (2.2.0 development lives on python3.11)
+git clone --branch python3.11 https://github.com/pinellolab/CRISPRme.git
 cd CRISPRme
 
-# 2. create the runtime environment. The simplest route is to install the
-#    released package's dependencies, then run crisprme.py from source:
-mamba create -n crisprme-dev -c conda-forge -c bioconda crisprme
-mamba activate crisprme-dev
+# 2. create + activate the runtime environment (pinned deps from environment.yml)
+mamba env create -f environment.yml
+mamba activate crisprme-2.2.0
 
-# 3. run crisprme.py from the checkout (it resolves PostProcess/ relative to
-#    itself, so invoke it by path)
-python crisprme.py --version
+# 3. build CRISPRitz 2.8.0 from source and install both tools into the env
+bash install_from_source.sh
+
+# 4. verify (both tools are now on your PATH)
+crisprme.py --version
+command -v crispritz.py
+```
+
+The `install_from_source.sh` script compiles the CRISPRitz C++ binaries, then copies `crisprme.py`/`crispritz.py` into `$CONDA_PREFIX/bin` and their support trees into `$CONDA_PREFIX/opt/…`, and unzips the CRISTA scoring model. Override the CRISPRitz tag with `CRISPRITZ_REF=<tag> bash install_from_source.sh` if needed.
+
+**Smoke-test the install** (downloads a small chr22 dataset, runs the full pipeline, and compares against the committed ground truth):
+
+```bash
+mkdir crisprme_test && cd crisprme_test
+crisprme.py complete-test --chrom chr22 --thread 4
+crisprme.py validate-test --chrom chr22        # expect: 2 passed, 0 failed
 ```
 
 Notes:
-- CRISPRme depends on the **CRISPRitz** search engine (installed as a dependency by the command above). If you are also developing CRISPRitz, build it from its own repository and make sure `crispritz.py` is on your `PATH`.
-- The `assembly-search` subcommand additionally requires the UCSC `liftOver` binary (`conda install -c bioconda ucsc-liftover`).
-- The vendored CRISTA model ships zipped in git and is unzipped automatically on first use.
+- This is exactly the recipe the project `Dockerfile` automates — if you prefer full isolation, build the image instead (Section 1.2).
+- The `assembly-search` subcommand uses the UCSC `liftOver` binary, which is included in `environment.yml` (`ucsc-liftover`).
+- To launch the web interface after installing: `crisprme.py web-interface` (serves on port 8080).
 
 ## 2 Usage
 
