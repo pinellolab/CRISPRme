@@ -328,6 +328,11 @@ def print_help_complete_search() -> None:
         "(e.g. one made with 'build-index-only' or downloaded ahead of time) "
         "instead of building the index under the working directory; a missing "
         "matching index is a hard error [OPTIONAL]\n"
+        "\t--max-total-edits, cap the TOTAL edits (mismatches + bulges) per "
+        "reported alignment; targets exceeding the cap are dropped right after "
+        "the search, shrinking intermediate files and post-analysis time. E.g. "
+        "with --mm 6 --bDNA 2 --bRNA 2 --max-total-edits 6, a 4mm+1+1 alignment "
+        "is kept but a 6mm+2+2 (=10) one is dropped [OPTIONAL]\n"
         "\t--full_input_validate, also run a full per-VCF-record scan (chromosome "
         "coverage, AF/FILTER consistency, POS bounds, multiallelic/breakend/"
         "duplicate/phasing survey) before launching the search; slower than the "
@@ -1231,6 +1236,19 @@ def complete_search() -> None:
         if not os.path.isdir(index_path):
             error(f"The index path {index_path} does not exist or is not a directory")
 
+    # optional cap on TOTAL edits per alignment (--max-total-edits): drops raw
+    # targets whose mismatches+bulges exceed the cap right after the search, so
+    # combined-edit alignments (e.g. 6mm+2+2 bulges = 10) don't bloat the
+    # intermediate files, scoring and post-analysis (issue #107). -1 = disabled.
+    max_total_edits = -1
+    if "--max-total-edits" in args:
+        try:
+            max_total_edits = int(args[args.index("--max-total-edits") + 1])
+        except (IndexError, ValueError):
+            error("Please provide a non-negative integer for --max-total-edits")
+        if max_total_edits < 0:
+            error("--max-total-edits must be a non-negative integer")
+
     # extract pam seq from file
     pam_len = 0
     total_pam_len = 0
@@ -1450,7 +1468,7 @@ def complete_search() -> None:
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
                 f"{sorting_criteria_scoring} {sorting_criteria} {cicd_test} "
-                f"{vcf_filter_pass_values} {index_path}"
+                f"{vcf_filter_pass_values} {index_path} {max_total_edits}"
             )
             code = subprocess.call(
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose

@@ -78,6 +78,10 @@ vcf_filter_pass_values="${24:-PASS,.}"
 # working directory; a missing index is a hard error rather than a silent
 # rebuild. "_" (or empty) means "not provided".
 index_path="${25:-_}"
+# Optional cap on total edits (mismatches + bulges) per reported alignment
+# (complete-search --max-total-edits). Raw targets exceeding it are dropped
+# right after the search. "-1" (or unset) means no cap.
+max_total_edits="${26:--1}"
 
 # log files
 log="$output_folder/log.txt"
@@ -486,6 +490,18 @@ while read vcf_f; do
 	# move all targets into targets directory
 	if [ -d "${output_folder}/crispritz_targets" ]; then
 		mv $output_folder/*.targets.txt $output_folder/crispritz_targets &>/dev/null
+	fi
+	# optional --max-total-edits cap (issue #107): drop raw targets whose TOTAL
+	# edits (column 10 = Mismatches + Bulge_Size) exceed the cap, BEFORE the
+	# expensive integration/scoring/post-analysis. The raw CRISPRitz targets have
+	# no header, so a plain numeric comparison on $10 is safe. -1 = disabled.
+	if [ "$max_total_edits" != "-1" ] && [ -d "${output_folder}/crispritz_targets" ]; then
+		for _tgt in "${output_folder}"/crispritz_targets/*.targets.txt; do
+			[ -f "$_tgt" ] || continue
+			awk -v m="$max_total_edits" 'NF < 10 || $10 <= m' "$_tgt" >"${_tgt}.capped" \
+				&& mv "${_tgt}.capped" "$_tgt"
+		done
+		echo -e "Applied --max-total-edits cap ($max_total_edits) to raw targets" >>$log
 	fi
 	# move profiles into profile folder
 	if ! [ -d "$output_folder/crispritz_prof" ]; then
