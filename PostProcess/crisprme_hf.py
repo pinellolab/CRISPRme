@@ -33,9 +33,12 @@ Design notes
 from typing import List, Optional
 import os
 import sys
+import io
+import json
 import gzip
 import shutil
 import tarfile
+from datetime import datetime, timezone
 
 # Default HuggingFace dataset repo. Overridable per-invocation with --hf-repo or
 # the CRISPRME_HF_REPO environment variable (e.g. switch to a pinellolab org
@@ -43,12 +46,15 @@ import tarfile
 DEFAULT_HF_REPO = "lucapinello/crisprme-data"
 
 # Components understood by the download command and their remote sub-paths.
+# This layout is the single source of truth for the HF dataset tree; the
+# transparent setup/complete_test fast-path (utils.hf_fetch) targets the same
+# paths (genomes/<ref>/, vcfs/<dataset>/, samplesIDs/, annotations/, indexes/).
 _COMPONENT_PREFIXES = {
     "genome": "genomes",
     "annotations": "annotations",
-    "pams": "PAMs",
+    "pams": "pams",
     "samples": "samplesIDs",
-    "vcf": "VCFs",
+    "vcf": "vcfs",
     "index": "indexes",
 }
 
@@ -197,7 +203,20 @@ def download_component(
         tarball = os.path.join(staging, remote_prefix, f"{index_name}.tar.gz")
         os.makedirs(local_dir, exist_ok=True)
         with tarfile.open(tarball) as tf:
-            tf.extractall(local_dir)  # unpacks genome_library/<index_name>/
+            # surface the provenance manifest (if present) without dropping it
+            # into genome_library/; extract only the index folder members
+            members = [m for m in tf.getmembers() if m.name != "manifest.json"]
+            tf.extractall(local_dir, members=members)  # -> genome_library/<index_name>/
+            try:
+                mf = tf.extractfile("manifest.json")
+                if mf is not None:
+                    meta = json.load(mf)
+                    sys.stderr.write(
+                        f"Downloaded index {index_name} "
+                        f"(built {meta.get('created_at', 'unknown')})\n"
+                    )
+            except (KeyError, json.JSONDecodeError):
+                pass  # no/!invalid manifest — proceed, the index itself is what matters
         shutil.rmtree(staging, ignore_errors=True)
         return os.path.join(local_dir, index_name)
 
@@ -242,9 +261,24 @@ def publish_index(
             "or set HF_TOKEN (never commit it)."
         )
     hf = _require_hf()
+    # self-describing provenance travels inside the tarball (adopted from the
+    # #141 design): PAM / bulge / genome parsed from the folder name
+    # <PAM>_<bMax+1>_<ref>, plus a UTC timestamp.
+    manifest = {"name": index_name, "created_at": datetime.now(timezone.utc).isoformat()}
+    parts = index_name.rsplit("_", 2)
+    if len(parts) == 3:
+        manifest["pam"], manifest["index_bmax"], manifest["genome"] = (
+            parts[0],
+            parts[1],
+            parts[2],
+        )
     tarball = f"{index_dir}.tar.gz"
     with tarfile.open(tarball, "w:gz") as tf:
         tf.add(index_dir, arcname=index_name)  # -> genome_library/<name>/ on unpack
+        manifest_bytes = json.dumps(manifest, indent=2).encode()
+        info = tarfile.TarInfo(name="manifest.json")
+        info.size = len(manifest_bytes)
+        tf.addfile(info, io.BytesIO(manifest_bytes))
     remote_path = f"indexes/{index_name}.tar.gz"
     api = hf.HfApi()
     api.upload_file(
