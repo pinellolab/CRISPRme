@@ -55,6 +55,12 @@ except Exception:  # pragma: no cover - defensive; memory check is optional
 
 sys.path.insert(0, script_path)
 from validate_inputs import run_lightweight, run_full, resolve_vcf_dataset_dirs  # noqa: E402
+from crisprme_hf import (  # noqa: E402  (huggingface_hub imported lazily inside)
+    download_component,
+    publish_index,
+    resolve_repo,
+    DEFAULT_HF_REPO,
+)
 from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete, clean_incomplete_haplotype_output, haplotype_params_match  # noqa: E402
 
 cicd_test = False
@@ -1574,6 +1580,111 @@ def build_index_only() -> None:
     )
 
 
+def print_help_download() -> None:
+    """Prints detailed help information for the download functionality."""
+    sys.stderr.write(
+        "The download functionality fetches CRISPRme reference data from a "
+        "HuggingFace dataset repository over HF's CDN — typically much faster and "
+        "more reliable than the original UCSC/FTP sources — and places it in the "
+        "canonical CRISPRme directory layout (Genomes/, Annotations/, PAMs/, "
+        "samplesIDs/, VCFs/, genome_library/). FASTA is decompressed after "
+        f"download; VCFs are kept bgzipped. Default repo: {DEFAULT_HF_REPO} "
+        "(override with --hf-repo or the CRISPRME_HF_REPO environment "
+        "variable).\n"
+    )
+    sys.stderr.write(
+        "Options:\n"
+        "\t--what, component to fetch: genome | annotations | pams | samples | "
+        "vcf | index | all (all = genome+annotations+pams+samples) [REQUIRED]\n"
+        "\t--ref, reference genome name for --what genome/index [default: hg38]\n"
+        "\t--dataset, variant dataset name for --what vcf (e.g. 1000G, HGDP) "
+        "[REQUIRED for --what vcf]\n"
+        "\t--index-name, precomputed index directory name for --what index "
+        "(e.g. NGG_2_hg38) [REQUIRED for --what index]\n"
+        "\t--hf-repo, HuggingFace dataset repo id to fetch from [OPTIONAL]\n"
+        "\t--path, working directory the CRISPRme dir-tree lives under "
+        "[OPTIONAL, default: current directory]\n"
+    )
+    sys.exit(1)
+
+
+def download_data() -> None:
+    """Fetches CRISPRme reference components from a HuggingFace dataset repo.
+
+    A fast-CDN alternative to the FTP/UCSC downloads performed by ``setup``:
+    genome, annotations, PAMs, sample-ID files, variant VCFs and precomputed
+    indexes are pulled from a HuggingFace dataset into the canonical CRISPRme
+    layout under the working directory.
+    """
+    args = input_args[2:]  # retrieve download input arguments
+    if "--help" in args or "--what" not in args:
+        print_help_download()
+    what = args[args.index("--what") + 1]
+    repo = args[args.index("--hf-repo") + 1] if "--hf-repo" in args else None
+    ref = args[args.index("--ref") + 1] if "--ref" in args else "hg38"
+    dataset = args[args.index("--dataset") + 1] if "--dataset" in args else None
+    index_name = args[args.index("--index-name") + 1] if "--index-name" in args else None
+    workdir = os.getcwd()
+    if "--path" in args:
+        workdir = os.path.abspath(args[args.index("--path") + 1])
+        if not os.path.isdir(workdir):
+            error(f"The working directory {workdir} does not exist")
+    # "all" fetches the always-needed reference bundle (variant VCFs and indexes
+    # are dataset/index specific, so they are requested explicitly)
+    if what == "all":
+        components = ["genome", "annotations", "pams", "samples"]
+    else:
+        components = [what]
+    for comp in components:
+        try:
+            dest = download_component(
+                comp,
+                workdir,
+                repo=repo,
+                ref=ref,
+                dataset=dataset,
+                index_name=index_name,
+            )
+        except (ValueError, ImportError) as e:
+            error(str(e))
+        print(f"Downloaded {comp} -> {dest}", flush=True)
+
+
+def print_help_publish_index() -> None:
+    """Prints detailed help information for the publish-index functionality."""
+    sys.stderr.write(
+        "The publish-index functionality uploads a locally built CRISPRitz "
+        "reference index (a genome_library/<name> directory, e.g. from "
+        "build-index-only) to a HuggingFace dataset repository as a single "
+        "compressed archive, so it can later be fetched with "
+        "'crisprme.py download --what index'. An HF write token is required "
+        "(provide --token or set HF_TOKEN; never commit it).\n"
+    )
+    sys.stderr.write(
+        "Options:\n"
+        "\t--index, path to the genome_library/<name> index directory to publish "
+        "[REQUIRED]\n"
+        "\t--hf-repo, HuggingFace dataset repo id to upload to [OPTIONAL]\n"
+        "\t--token, HuggingFace write token [OPTIONAL if HF_TOKEN is set]\n"
+    )
+    sys.exit(1)
+
+
+def publish_index_cmd() -> None:
+    """Uploads a locally built reference index to a HuggingFace dataset repo."""
+    args = input_args[2:]  # retrieve publish-index input arguments
+    if "--help" in args or "--index" not in args:
+        print_help_publish_index()
+    index_dir = os.path.abspath(args[args.index("--index") + 1])
+    repo = args[args.index("--hf-repo") + 1] if "--hf-repo" in args else None
+    token = args[args.index("--token") + 1] if "--token" in args else None
+    try:
+        remote_path = publish_index(index_dir, repo=repo, token=token)
+    except (ValueError, ImportError) as e:
+        error(str(e))
+    print(f"Published index to {resolve_repo(repo)}:{remote_path}", flush=True)
+
+
 def print_help_assembly_search() -> None:
     """Prints detailed help information for the assembly-search functionality.
 
@@ -2431,6 +2542,12 @@ def crisprme_help() -> None:
         "crisprme.py build-index-only\n"
         "\tPre-builds the reusable CRISPRitz reference index for bulge-enabled "
         "searches (genome + PAM + bulges) without running a search\n\n"
+        "crisprme.py download\n"
+        "\tFast-downloads reference data (genome, annotations, PAMs, samples, "
+        "VCFs, precomputed indexes) from a HuggingFace dataset repository\n\n"
+        "crisprme.py publish-index\n"
+        "\tUploads a locally built reference index to a HuggingFace dataset "
+        "repository for later reuse via 'download --what index'\n\n"
         "crisprme.py assembly-search\n"
         "\tSearches a personal diploid genome assembly (two haplotypes, no VCF) "
         "and reconciles off-target predictions across both, mapped to hg38\n\n"
@@ -2471,6 +2588,10 @@ elif sys.argv[1] == "assembly-search":  # run diploid assembly search
     assembly_search()
 elif sys.argv[1] == "build-index-only":  # pre-build reusable reference index
     build_index_only()
+elif sys.argv[1] == "download":  # fast HuggingFace download of reference data
+    download_data()
+elif sys.argv[1] == "publish-index":  # upload a prebuilt index to HuggingFace
+    publish_index_cmd()
 elif sys.argv[1] == "validate-test":  # run validate complete-test
     validate_test()
 elif sys.argv[1] == "targets-integration":  # run targets integration

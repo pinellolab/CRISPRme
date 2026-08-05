@@ -32,6 +32,7 @@ RUN micromamba install -y -n base -c conda-forge -c bioconda \
         biopython more-itertools statsmodels intervaltree \
         pysam bcftools bedtools bedops samtools htslib axel gdown zip gsl \
         ucsc-liftover \
+        huggingface_hub \
         importlib-metadata \
         "dash>=2.14,<3" dash-bootstrap-components dash-daq \
         flask flask-caching flask-compress gunicorn werkzeug \
