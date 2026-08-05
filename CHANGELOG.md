@@ -25,7 +25,20 @@ and the `release-crisprme` skill.
   annotations, PAMs, sample IDs, VCFs, precomputed indexes) from a HuggingFace
   dataset repository over its CDN, and `publish-index` uploads a locally built
   index for reuse. Default repo `lucapinello/crisprme-data`, overridable via
-  `--hf-repo` / `CRISPRME_HF_REPO` (#140, #141).
+  `--hf-repo` / `CRISPRME_HF_REPO`. `setup`/`complete-test` also try HuggingFace
+  first and fall back transparently to the original UCSC/EBI/Sanger sources
+  (#140, #141).
+- `complete-search --max-total-edits N`: cap the total edits (mismatches +
+  bulges) per reported alignment; over-cap targets are dropped right after the
+  search, shrinking intermediate files and post-analysis time (#107).
+
+### CI
+- New `unit tests` workflow: fast, hermetic byte-compile + network-free HF/index
+  unit tests on every code PR.
+- New `web e2e (playwright)` workflow: builds the py3.11 image, serves the web
+  app, and drives Chromium to assert every Dash 2.x page renders (no blank pages
+  / JS errors).
+- `validate-benchmarks` gained a new-subcommand dispatch + unit-test smoke step.
 
 ### Documentation
 - Data-setup guide: documented what `setup` produces (including the combined
