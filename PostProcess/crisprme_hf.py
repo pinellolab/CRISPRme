@@ -77,12 +77,26 @@ def resolve_repo(cli_repo: Optional[str] = None) -> str:
 
 
 def resolve_token(cli_token: Optional[str] = None) -> Optional[str]:
-    """Resolve an HF token for uploads: CLI value > HF_TOKEN > HUGGING_FACE_HUB_TOKEN."""
-    return (
+    """Resolve an HF token for uploads.
+
+    Order: explicit ``--token`` > ``HF_TOKEN`` > ``HUGGING_FACE_HUB_TOKEN`` >
+    a cached ``huggingface-cli login`` token. The cached-login fallback means
+    that on a machine already logged into HuggingFace, ``publish-index`` works
+    with no extra flags or env vars (matching how other HF tools behave).
+    """
+    tok = (
         cli_token
         or os.environ.get("HF_TOKEN")
         or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     )
+    if tok:
+        return tok
+    try:  # cached `huggingface-cli login` token, if any (no network)
+        from huggingface_hub import get_token
+
+        return get_token()
+    except Exception:  # huggingface_hub absent or no cached token
+        return None
 
 
 def _require_hf():
