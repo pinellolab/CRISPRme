@@ -49,6 +49,22 @@ and the `release-crisprme` skill.
   for non-expert users.
 
 ### Fixed
+- Web interface (Dash 2.x) hardening, from a full Playwright stress test of the
+  running app:
+  - The web server no longer crashes on a from-source install. Dash 2.x's
+    `app.run()` lets the `HOST` environment variable override the host argument,
+    and the from-source conda env sets `HOST` to a non-bindable compiler build
+    triple (`x86_64-conda-linux-gnu`); the server now forces the intended host/
+    port so it binds correctly.
+  - The **Query Genomic Region** and **Personal Risk Cards** result tabs no
+    longer return HTTP 500. Both callbacks type-checked their inputs before the
+    "no click yet" guard, so Dash's initial (empty) render raised a `TypeError`;
+    the guard now runs first, and Filter/Generate with nothing selected is a
+    graceful no-op.
+  - Removed the dead cross-origin "skeleton" stylesheet (blocked by browsers on
+    every page); the layout already uses the Bootstrap grid.
+  - The nuclease dropdown collapses case-variant duplicate PAM files so each
+    nuclease is listed once.
 - Zero-hit searches now complete cleanly with an empty result instead of
   aborting. A search that finds no off-targets (e.g. a very stringent
   guide/parameter combination) previously failed part-way through post-analysis
