@@ -35,13 +35,23 @@ MIN_VCF_HEADER_FIELDS = 10
 # #CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO
 MIN_VCF_DATA_FIELDS = 8
 # FILTER values the crispritz enricher treats as "passing". Mirrors CRISPRitz
-# PR #36 "enricher AF/FILTER robustness" (enricher.py: `if line[6] not in
-# ('PASS', '.')`), which accepts '.' (no filter applied, e.g. HPRC vcfwave
-# output) in addition to 'PASS'. PR #36 also fixes AF-key lookup to an exact
-# "AF=" match (not a 2-char prefix that mis-hit "AF_afr=" etc.). Kept in lockstep
-# with that PR: when it merges upstream and the crispritz pin is bumped, this
-# already matches; on an older crispritz that only accepts 'PASS', '.' records
-# are simply enriched-out (a superset warning here, never a false pass).
+# PR #36 "enricher AF/FILTER robustness" (github.com/pinellolab/CRISPRitz/
+# pull/36; enricher.py: `if line[6] not in ('PASS', '.')`), which accepts '.'
+# (no filter applied, e.g. HPRC vcfwave output) in addition to 'PASS'. PR #36
+# also fixes AF-key lookup to an exact "AF=" match (not a 2-char prefix that
+# mis-hits "AF_afr=" etc.) -- see _af_field() below, which mirrors that part.
+# --vcf-filter-pass-values defaults to "PASS,." (intending to also accept
+# '.'), but that flag isn't actually wired through to crispritz's add-variants
+# call (see validate_inputs_plan.md's "Known separate bug" section) --
+# unrelated to this constant, still a no-op today.
+# This constant already matches PR #36's target state ahead of PR #36 itself
+# shipping in a crispritz release CRISPRme depends on: until it does, a
+# FILTER='.' record validates as fine here but an older, still-installed
+# crispritz enricher silently drops it during enrichment (only 'PASS'
+# survives) -- a real, temporary gap between what this validator accepts and
+# what the installed enricher actually does, not a false pass (worst case is
+# an under-warned run, never a run the validator wrongly blesses as complete
+# that then silently loses data).
 ENRICHER_PASS_VALUES = ("PASS", ".")
 STRUCTURAL_VARIANT_LEN = 50
 # enricher.py:302 builds indel context as genomeStr[pos-26 : pos+26+len(ref)];
@@ -144,31 +154,36 @@ class ValidationReport:
 
 
 def _af_field(info_field: str) -> Tuple[Optional[int], Optional[str]]:
-    """Locates the field `enricher.py` will treat as the site's AF.
+    """Locates the field `enricher.py`/`enricher.cpp` treat as the site's AF.
 
-    Mirrors `enricher.py:362` exactly (`if ele[0:2] == "AF"`) — a prefix
-    match, not an exact-key match — so this returns the *same* field crispritz
-    will actually use, including when it's the wrong one.
+    Mirrors the exact-key match fixed in CRISPRitz PR #36 -- only an INFO
+    entry whose key is exactly "AF" counts; a non-matching entry (e.g.
+    gnomAD-style "AF_afr=") is skipped rather than accepted, so this keeps
+    scanning to find a real "AF=" wherever it appears in the record, matching
+    real behavior once that fix has shipped in a release CRISPRme depends on.
+    Before that fix, crispritz used a looser prefix match and could lock onto
+    a population-specific field appearing before the true one; this function
+    no longer reproduces that (now-fixed) bug.
 
     Returns:
-        `(position, key)` of the first INFO entry whose key starts with `AF`,
+        `(position, "AF")` of the first INFO entry whose key is exactly `AF`,
         or `(None, None)` if none is found.
     """
     for pos, entry in enumerate(info_field.split(";")):
-        if entry[0:2] == "AF":
-            return pos, entry.split("=", 1)[0]
+        key = entry.split("=", 1)[0]
+        if key == "AF":
+            return pos, key
     return None, None
 
 
 def _af_value_parses_as_numeric(info_field: str, af_pos: int) -> bool:
     """Checks whether the AF field's value parses as one or more floats.
 
-    Traced end-to-end (not assumed): `enricher.py:225` extracts this value
-    with `line[7].split(";")[pos_AF][3:]` -- a hardcoded 3-character slice
-    that only works correctly for an exact `AF=` key (see the ERROR case
-    this check's caller already raises for a non-exact key). Even when the
-    key *is* exactly `AF`, the value itself (e.g. `.`, empty, or otherwise
-    non-numeric) is carried completely unvalidated: `enricher.py`'s dict
+    Traced end-to-end (not assumed): CRISPRitz PR #36 fixed how the *key* is
+    matched and made a missing/out-of-range AF value degrade to `""` instead
+    of crashing, but it does not validate that a present, exactly-keyed `AF=`
+    value is itself numeric. That value (e.g. `.`, empty, or otherwise
+    non-numeric) is still carried completely unvalidated: `enricher.py`'s dict
     entry -> `new_simple_analysis.py`'s `retrieveFromDict()`
     (`AF_list.append(split_entry[3].strip())`, no parsing) -> straight into
     the results file's `AF` column. `CRISPRme_plots.py` then does
@@ -199,6 +214,32 @@ def _af_value_parses_as_numeric(info_field: str, af_pos: int) -> bool:
         except ValueError:
             return False
     return True
+
+
+def _indel_allele_positions(ref: str, alt_alleles: List[str]) -> List[int]:
+    """Mirrors `indel_to_fasta`'s `values_for_allele_info` computation.
+
+    An ALT allele at 1-indexed position `v` (within the *full* ALT list, same
+    convention as the SNP path) qualifies as an "indel" allele -- one
+    `indel_to_fasta` will look up an AF value for -- if its length differs
+    from REF's, or both it and REF are multi-character even at equal length
+    (a complex substitution), and it isn't a symbolic allele. Mirrors both of
+    `indel_to_fasta`'s guards: a symbolic REF (`'<' in ref`) disqualifies the
+    whole record (matches its outer `'<' not in line[3]` check), and a
+    symbolic ALT allele is skipped individually (its inner `'<' not in s`).
+
+    This is disjoint from the SNP path's `snp_positions` (single-character
+    ALT alleles, only computed when `len(ref) == 1`): when `len(ref) == 1`,
+    every ALT allele is either exactly length 1 (SNP-qualifying) or not
+    (indel-qualifying) -- never both, never neither.
+    """
+    if "<" in ref:
+        return []
+    positions = []
+    for value, s in enumerate(alt_alleles):
+        if (len(s) != len(ref) or (len(s) > 1 and len(ref) > 1)) and "<" not in s:
+            positions.append(value + 1)
+    return positions
 
 
 def check_genome_fasta(genomedir: str) -> Tuple[List[Issue], List[str]]:
@@ -347,16 +388,18 @@ def check_vcf_content(vcf_path: str) -> List[Issue]:
     - `gzip.open()` is called unconditionally (`enricher.py:19`) — a non-gzip
       file crashes immediately.
     - The header is found by scanning for the literal substring `#CHROM`
-      (`enricher.py:351-355`); if absent, the header variable is never set and
+      (`enricher.py:373-376`); if absent, the header variable is never set and
       a later reference crashes (indel/haplotype mode only).
     - The header must have >=1 sample genotype column, or every variant
       silently produces zero sample associations (a sites-only VCF looks like
       it works, but nothing is ever enriched per-sample).
     - The first data record after the header is used, regardless of its
-      FILTER value, to locate the `AF=` field's position in the INFO column
-      (`enricher.py:356-364`); missing INFO entirely, or no `AF`-prefixed
-      field, either IndexErrors or (in indel/haplotype mode) UnboundLocalErrors
-      downstream.
+      FILTER value, to locate the exact `AF=` field's position in the INFO
+      column (`enricher.py:387-400`). As of CRISPRitz PR #36, a missing or
+      non-exact-key AF field no longer crashes -- it degrades to a blank AF
+      for every record in the file (see the WARN case below), so this is
+      informational rather than a crash risk once that fix has shipped in a
+      release CRISPRme depends on.
 
     Args:
         vcf_path: Path to a single `.vcf.gz` file.
@@ -419,36 +462,23 @@ def check_vcf_content(vcf_path: str) -> List[Issue]:
                 )
                 return issues
             info_field = first_record[7]
-            af_pos, af_key = _af_field(info_field)
+            af_pos, _af_key = _af_field(info_field)
             if af_pos is None:
+                # Once CRISPRitz PR #36 has shipped (see ENRICHER_PASS_VALUES'
+                # comment), enricher.py/enricher.cpp no longer crash on this --
+                # they fall back to an empty AF value for every record in the
+                # file. WARN, not ERROR: the run still completes, just with a
+                # blank AF column for this dataset. Note _af_field() (fixed in
+                # the same CRISPRitz release) can now only ever return exactly
+                # "AF" or None, so the old "matched a non-exact key like
+                # AF_afr=" branch that used to live here is unreachable and
+                # has been removed rather than left as dead code.
                 issues.append(
                     Issue(
-                        ERROR,
+                        WARN,
                         f"{fname}: first data record's INFO field has no "
-                        "AF-prefixed entry (e.g. 'AF=0.1') — enricher.py "
-                        "locates the AF field's position exactly once, from "
-                        "this same first record; if nothing matches, that "
-                        "position is never assigned, and the SNP/indel "
-                        "dictionary-creation step crashes immediately with a "
-                        "NameError on the first PASS record, before any "
-                        "genome enrichment happens",
-                    )
-                )
-            elif af_key != "AF":
-                issues.append(
-                    Issue(
-                        ERROR,
-                        f"{fname}: first data record's INFO field matches on "
-                        f"'{af_key}=', not an exact 'AF=' — crispritz locates "
-                        "the AF field by prefix, not exact key, and extracts "
-                        "its value with a fixed 3-character slice that only "
-                        "works for a true 'AF=' key. For any longer key like "
-                        f"'{af_key}', this produces a garbled, non-numeric "
-                        "value for every record in this file, which crashes "
-                        "CRISPRme_plots.py's pd.to_numeric() at the very end "
-                        "of the run. Common with raw gnomAD-style VCFs where "
-                        "a population-specific field (e.g. AF_afr) appears "
-                        "before the true AF field",
+                        "exact 'AF=' entry (e.g. 'AF=0.1') — this dataset's "
+                        "AF column will be blank in the results",
                     )
                 )
             elif not _af_value_parses_as_numeric(info_field, af_pos):
@@ -924,8 +954,11 @@ def check_vcf_full_scan(
       caught by the filename-only lightweight check.
     - AF field-position consistency: `enricher.py` caches the AF field's
       position from the *first* record only and reuses it for every later
-      record (`enricher.py:356-364`). If INFO field ordering isn't constant
-      record-to-record, later records silently get the wrong AF value.
+      record (`enricher.py:387-400`). If INFO field ordering isn't constant
+      record-to-record, older crispritz versions could silently read the
+      wrong field at that position; as of CRISPRitz PR #36 the extraction
+      re-verifies the key on every record, so this now degrades to a blank
+      AF for the affected records rather than a wrong value.
     - FILTER PASS ratio: warns if effectively no variants will survive
       enrichment, against the values the installed crispritz actually
       hardcodes (`ENRICHER_PASS_VALUES`), not `--vcf-filter-pass-values`
@@ -953,15 +986,21 @@ def check_vcf_full_scan(
       (common with merged cohorts) causes silently wrong haplotype/sample
       attribution. The validator can only warn here; the real fix belongs in
       `new_simple_analysis.py`.
-    - Indels within 26bp of a chromosome start: `enricher.py:302`'s
+    - Indels within 26bp of a chromosome start: `enricher.py:322`'s
       `pos-26` context window goes negative, and Python silently wraps a
       negative slice index to the end of the string instead of erroring.
-    - AF/ALT allele-count consistency for multiallelic SNP sites:
-      `enricher.py`'s `add_to_dict_snps` indexes the comma-separated AF list
-      by each single-character ALT allele's 1-indexed position in the full
-      ALT list, with no bounds check -- fewer AF values than that highest
-      position raises an uncaught `IndexError` that crashes enrichment
-      outright for the whole run.
+    - AF/ALT allele-count consistency, SNP path: `enricher.py`'s
+      `add_to_dict_snps` indexes the comma-separated AF list by each
+      single-character ALT allele's 1-indexed position in the full ALT list.
+      As of CRISPRitz PR #36 this is bounds-checked (falls back to a blank AF
+      instead of crashing), so flagging it here is a data-quality note, not a
+      crash-prevention one -- see the corresponding WARN below.
+    - AF/ALT allele-count consistency, indel path: `enricher.py`'s
+      `indel_to_fasta` has the identical unguarded-index pattern, but
+      identifies which ALT alleles consume an AF slot differently (length
+      differs from REF, or both REF and the allele are multi-character even
+      at equal length) than the SNP path -- see `_indel_allele_positions()`.
+      Same CRISPRitz PR #36 bounds-check, same WARN-not-ERROR reasoning.
 
     Args:
         vcf_path: Path to a single `.vcf.gz` file.
@@ -991,6 +1030,7 @@ def check_vcf_full_scan(
     indel_near_start_count = 0
     out_of_bounds_count = 0
     af_index_overflow_count = 0
+    indel_af_index_overflow_count = 0
     expected_chrom_norm = _normalize_chrom(expected_chrom) if expected_chrom else None
 
     try:
@@ -1070,6 +1110,21 @@ def check_vcf_full_scan(
                         if len(af_values) < max(snp_positions):
                             af_index_overflow_count += 1
 
+                # AF/ALT allele-count consistency, indel path (enricher.py's
+                # indel_to_fasta): the identical unguarded-index pattern as
+                # above, but indel_to_fasta identifies which ALT alleles
+                # "consume" an AF slot differently (length differs from REF,
+                # or both REF and the allele are multi-character even at
+                # equal length) than the SNP path (length exactly 1), so it
+                # needs its own mirrored logic rather than reusing
+                # snp_positions -- see _indel_allele_positions().
+                if af_pos is not None:
+                    indel_positions = _indel_allele_positions(ref, alt_alleles)
+                    if indel_positions:
+                        af_values = info.split(";")[af_pos][3:].split(",")
+                        if len(af_values) < max(indel_positions):
+                            indel_af_index_overflow_count += 1
+
                 # GT phasing separator survey
                 for sample in fields[9:]:
                     gt = sample.split(":", 1)[0]
@@ -1107,8 +1162,12 @@ def check_vcf_full_scan(
                 WARN,
                 f"{fname}: AF field position varies across records "
                 f"({sorted(af_positions_seen)}) — crispritz caches the "
-                "position from the first record only, so later records with "
-                "a different INFO field order will get the wrong AF value",
+                "position from the first record only. Once CRISPRitz PR #36 "
+                "has shipped, a later record whose INFO layout puts a "
+                "different field at that cached position now safely reads as "
+                "a blank AF (the fixed extraction re-verifies the key on "
+                "every record rather than trusting the cached position "
+                "blindly) rather than silently using the wrong value",
             )
         )
     if pass_count == 0:
@@ -1119,8 +1178,8 @@ def check_vcf_full_scan(
         issues.append(
             Issue(
                 ERROR,
-                f"{fname}: 0 of {total_count} variants have FILTER == "
-                f"'{ENRICHER_PASS_VALUES[0]}' — every variant will be "
+                f"{fname}: 0 of {total_count} variants have FILTER in "
+                f"{ENRICHER_PASS_VALUES} — every variant will be "
                 "excluded from enrichment",
             )
         )
@@ -1130,7 +1189,7 @@ def check_vcf_full_scan(
                 WARN,
                 f"{fname}: only {pass_count}/{total_count} "
                 f"({100 * pass_count / total_count:.1f}%) variants have "
-                f"FILTER == '{ENRICHER_PASS_VALUES[0]}' — most variants "
+                f"FILTER in ({', '.join(repr(v) for v in ENRICHER_PASS_VALUES)}) — most variants "
                 "will be excluded from enrichment",
             )
         )
@@ -1154,15 +1213,32 @@ def check_vcf_full_scan(
             )
         )
     if af_index_overflow_count:
+        # Once CRISPRitz PR #36 has shipped, both the SNP and indel paths
+        # bounds-check this instead of indexing unchecked -- an overflowing
+        # allele position now safely gets a blank AF instead of crashing the
+        # whole enrichment step. WARN, not ERROR: no longer fatal, just a
+        # data-quality note (mirrors the reasoning already used for the
+        # multiallelic-substring WARN just above).
         issues.append(
             Issue(
-                ERROR,
+                WARN,
                 f"{fname}: {af_index_overflow_count} multiallelic SNP site(s) "
                 "have fewer comma-separated AF values than crispritz's "
-                "allele-index lookup needs — enricher.py indexes the AF list "
-                "by each SNP ALT allele's position with no bounds check, "
-                "raising an uncaught IndexError that crashes the entire "
-                "enrichment step outright",
+                "allele-index lookup needs — the AF value for the "
+                "out-of-range allele(s) will be blank",
+            )
+        )
+    if indel_af_index_overflow_count:
+        # Same reasoning as af_index_overflow_count just above, mirroring
+        # indel_to_fasta's identical (now bounds-checked, post-PR-#36)
+        # pattern instead of add_to_dict_snps's.
+        issues.append(
+            Issue(
+                WARN,
+                f"{fname}: {indel_af_index_overflow_count} multiallelic "
+                "indel site(s) have fewer comma-separated AF values than "
+                "crispritz's allele-index lookup needs — the AF value for "
+                "the out-of-range allele(s) will be blank",
             )
         )
     if breakend_count:

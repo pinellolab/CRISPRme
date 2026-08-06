@@ -201,8 +201,16 @@ class TestAfField(unittest.TestCase):
     def test_exact_af_second(self):
         self.assertEqual(vi._af_field("DP=10;AF=0.1"), (1, "AF"))
 
-    def test_prefixed_non_exact_key(self):
-        self.assertEqual(vi._af_field("AF_afr=0.2;DP=10"), (0, "AF_afr"))
+    def test_prefixed_non_exact_key_not_matched(self):
+        # CRISPRitz PR #36: exact-key match, not a prefix match -- a
+        # population-specific field like AF_afr= must not be treated as AF.
+        self.assertEqual(vi._af_field("AF_afr=0.2;DP=10"), (None, None))
+
+    def test_prefixed_non_exact_key_before_real_af_still_finds_it(self):
+        # The loop keeps scanning past a non-matching prefix instead of
+        # stopping at the first hit -- so a population field appearing before
+        # the true AF= field no longer causes the real value to be skipped.
+        self.assertEqual(vi._af_field("AF_afr=0.99;AF=0.15;DP=10"), (1, "AF"))
 
     def test_no_af_field(self):
         self.assertEqual(vi._af_field("DP=10;AC=2"), (None, None))
@@ -226,6 +234,37 @@ class TestAfValueParsesAsNumeric(unittest.TestCase):
 
     def test_one_bad_value_among_multiallelic_fails(self):
         self.assertFalse(vi._af_value_parses_as_numeric("AF=0.1,.", 0))
+
+
+class TestIndelAllelePositions(unittest.TestCase):
+    def test_length_mismatch_qualifies(self):
+        # deletion (len 1 vs REF len 2) and insertion (len 4 vs REF len 2)
+        self.assertEqual(vi._indel_allele_positions("AT", ["A", "ATTT"]), [1, 2])
+
+    def test_equal_length_multichar_qualifies(self):
+        # same length as REF (2) but both multi-character -> still an indel
+        self.assertEqual(vi._indel_allele_positions("AT", ["GC"]), [1])
+
+    def test_single_char_alt_same_length_as_ref_does_not_qualify(self):
+        # this is the SNP path's territory (len(ref) == 1 case), not tested
+        # here, but confirm the boundary: equal-length single-char is never
+        # indel-qualifying regardless of REF length
+        self.assertEqual(vi._indel_allele_positions("A", ["C"]), [])
+
+    def test_mixed_snp_and_indel_alleles_only_indel_positions_returned(self):
+        # "C" (len 1, matches REF len 1) is SNP-territory, not indel; "ATCG"
+        # (len 4) is indel-qualifying -- disjoint from the SNP path's own
+        # snp_positions computation for the same ALT list
+        self.assertEqual(vi._indel_allele_positions("A", ["C", "ATCG"]), [2])
+
+    def test_symbolic_ref_disqualifies_entire_record(self):
+        self.assertEqual(vi._indel_allele_positions("<DEL>", ["A"]), [])
+
+    def test_symbolic_alt_allele_skipped(self):
+        self.assertEqual(vi._indel_allele_positions("AT", ["A", "<DEL>"]), [1])
+
+    def test_no_indel_qualifying_alleles_returns_empty(self):
+        self.assertEqual(vi._indel_allele_positions("A", ["C", "G"]), [])
 
 
 # ===========================================================================
@@ -380,26 +419,27 @@ class TestCheckVcfContent(unittest.TestCase):
             self.assertIn("sites-only", issues[0].message)
 
     def test_missing_af_field_entirely(self):
+        # CRISPRitz PR #36: no exact AF= field anywhere degrades to a blank
+        # AF for the whole dataset instead of crashing -- WARN, not ERROR.
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "chr1.vcf.gz")
             make_vcf_gz(path, [vcf_record(info="DP=10")])
             issues = vi.check_vcf_content(path)
             self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0].severity, vi.ERROR)
-            self.assertIn("no AF-prefixed entry", issues[0].message)
+            self.assertEqual(issues[0].severity, vi.WARN)
+            self.assertIn("no exact 'AF=' entry", issues[0].message)
 
-    def test_af_field_present_but_not_exact_key_errors(self):
-        # traced end-to-end: enricher.py's fixed 3-character slice garbles
-        # the value for any non-exact key, which crashes pd.to_numeric() in
-        # CRISPRme_plots.py at the end of the run -- a real crash risk, not
-        # just a differently-sourced (but valid) number
+    def test_af_field_present_but_not_exact_key_passes_cleanly(self):
+        # CRISPRitz PR #36: the match is exact-key and keeps scanning past a
+        # non-matching entry, so a population-specific field (AF_afr=)
+        # appearing before the real AF= field no longer causes a false
+        # rejection of an otherwise perfectly valid record -- it correctly
+        # finds and uses AF=0.1.
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "chr1.vcf.gz")
             make_vcf_gz(path, [vcf_record(info="AF_afr=0.2;AF=0.1")])
             issues = vi.check_vcf_content(path)
-            self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0].severity, vi.ERROR)
-            self.assertIn("AF_afr=", issues[0].message)
+            self.assertEqual(issues, [])
 
     def test_af_value_non_numeric_errors(self):
         # exact "AF" key, but a missing/non-numeric value -- same downstream
@@ -851,22 +891,16 @@ class TestCheckVcfFullScan(unittest.TestCase):
             issues = self._scan(tmp, records)
             self.assertEqual(issues, [])
 
-    def test_dot_filter_not_treated_as_passing(self):
-        # the officially-released crispritz enricher.py only ever hardcodes
-        # 'PASS' (verified against GitHub pinellolab/CRISPRitz master); '.'
-        # is accepted only by an unsubmitted local patch in one developer's
-        # own conda env for HPRC testing, not any shipped crispritz release,
-        # so the validator must not treat '.' as passing today
+    def test_dot_filter_treated_as_passing(self):
+        # CRISPRitz PR #36: enricher.py/enricher.cpp now accept FILTER='.'
+        # (no filter applied, e.g. HPRC vcfwave output) alongside 'PASS'.
         with tempfile.TemporaryDirectory() as tmp:
             records = [
                 vcf_record(pos=100, filt="."),
                 vcf_record(pos=200, filt="."),
             ]
             issues = self._scan(tmp, records)
-            self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0].severity, vi.ERROR)
-            self.assertIn("0 of 2 variants", issues[0].message)
-            self.assertIn("FILTER == 'PASS'", issues[0].message)
+            self.assertEqual(issues, [])
 
     def test_pos_out_of_bounds_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -906,14 +940,16 @@ class TestCheckVcfFullScan(unittest.TestCase):
             issues = self._scan(tmp, records)
             self.assertEqual(issues, [])
 
-    def test_af_index_overflow_errors(self):
-        # 2 single-char SNP ALT alleles (positions 1, 2) but only 1 AF value
-        # -- enricher.py indexes af[2-1] = af[1], an uncaught IndexError
+    def test_af_index_overflow_warns(self):
+        # 2 single-char SNP ALT alleles (positions 1, 2) but only 1 AF value.
+        # CRISPRitz PR #36 added a bounds guard, so the out-of-range allele's
+        # AF now safely degrades to blank instead of an uncaught IndexError
+        # -- WARN, not ERROR.
         with tempfile.TemporaryDirectory() as tmp:
             records = [vcf_record(pos=1000, ref="A", alt="C,G", info="AF=0.1")]
             issues = self._scan(tmp, records)
             self.assertEqual(len(issues), 1)
-            self.assertEqual(issues[0].severity, vi.ERROR)
+            self.assertEqual(issues[0].severity, vi.WARN)
             self.assertIn("fewer comma-separated AF values", issues[0].message)
 
     def test_af_index_sufficient_values_passes(self):
@@ -922,14 +958,52 @@ class TestCheckVcfFullScan(unittest.TestCase):
             issues = self._scan(tmp, records)
             self.assertEqual(issues, [])
 
-    def test_af_index_indel_allele_does_not_consume_af_slot(self):
-        # second ALT allele is a multi-char indel (not a "SNP" in
-        # enricher.py's sense), so it never gets indexed into the AF list --
-        # only the single-char "C" at position 1 does, and 1 AF value covers it
+    def test_af_index_indel_overflow_warns(self):
+        # REF="AT" (len 2), ALT alleles "A" (deletion, len 1) and "ATTT"
+        # (insertion, len 4) -- both qualify as indel alleles (length differs
+        # from REF), positions 1 and 2, but only 1 AF value is present.
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="AT", alt="A,ATTT", info="AF=0.1")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.WARN)
+            self.assertIn("multiallelic indel site(s)", issues[0].message)
+
+    def test_af_index_indel_sufficient_values_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="AT", alt="A,ATTT", info="AF=0.1,0.05")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(issues, [])
+
+    def test_af_index_equal_length_multichar_counts_as_indel(self):
+        # REF="AT", ALT="GC": same length (2) as REF but both multi-character
+        # -- indel_to_fasta's second OR-clause (len(s)>1 and len(ref)>1)
+        # classifies this as an indel-qualifying allele too, distinct from
+        # the length-mismatch case above.
+        with tempfile.TemporaryDirectory() as tmp:
+            records = [vcf_record(pos=1000, ref="AT", alt="GC,ATTT", info="AF=0.1")]
+            issues = self._scan(tmp, records)
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.WARN)
+            self.assertIn("multiallelic indel site(s)", issues[0].message)
+
+    def test_af_index_indel_allele_excluded_from_snp_count_but_checked_by_indel_path(self):
+        # second ALT allele ("ATCG") is a multi-char indel, not a "SNP" in
+        # add_to_dict_snps's sense -- the SNP-path check correctly excludes
+        # it from snp_positions (only the single-char "C" at position 1
+        # counts there, and 1 AF value covers it, so the SNP check alone
+        # would find nothing). But indel_to_fasta's own top-level gate uses
+        # the raw (unsplit) ALT string's length ("C,ATCG", length 6 > 1), so
+        # it *does* engage here and *does* index af[2-1]=af[1] for "ATCG" --
+        # out of bounds against a single AF value. The indel-path check
+        # (added alongside the SNP one) correctly catches this; the SNP-only
+        # check would have silently missed it.
         with tempfile.TemporaryDirectory() as tmp:
             records = [vcf_record(pos=1000, ref="A", alt="C,ATCG", info="AF=0.1")]
             issues = self._scan(tmp, records)
-            self.assertEqual(issues, [])
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.WARN)
+            self.assertIn("multiallelic indel site(s)", issues[0].message)
 
     def test_af_index_biallelic_single_alt_not_checked(self):
         # no comma in ALT at all -- enricher.py's biallelic branch uses the
