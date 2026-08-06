@@ -170,6 +170,17 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
 
 
 def run_server(app: Dash, host: str, port: str, debug: bool) -> None:
+    # Dash 2.x's app.run() lets the HOST/PORT environment variables take
+    # precedence over the host/port arguments passed here. A from-source install
+    # bundles a conda compiler (cxx-compiler, needed to build CRISPRitz) whose
+    # activation sets HOST to the build triple (e.g. x86_64-conda-linux-gnu),
+    # which is not a bindable address and crashes the server with "Temporary
+    # failure in name resolution". Drop those env vars so the explicit host/port
+    # below are honored (Docker is unaffected, but this is safe everywhere).
+    os.environ["HOST"] = host  # force: Dash's os.getenv("HOST", host) must not win
+    os.environ["PORT"] = str(port)
+    sys.stderr.write(f"[crisprme] starting web server on {host}:{port}\n")
+    sys.stderr.flush()
     try:
         app.run(
             host=host,
