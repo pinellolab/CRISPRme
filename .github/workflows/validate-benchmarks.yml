@@ -75,6 +75,33 @@ jobs:
             echo "smoke OK"
           '
 
+      - name: Zero-hit regression — empty result must exit 0, not crash
+        run: |
+          # A search that finds no off-targets must finish cleanly with an empty
+          # result (regression guard for the zero-hit post-analysis cascade fix).
+          # Uses a synthetic genome with no GG dinucleotide -> no NGG PAM sites ->
+          # guaranteed zero hits, so the test is deterministic and needs no
+          # download. `set -e` turns the pre-fix non-zero exit into a CI failure.
+          mkdir -p zhwork
+          docker run --rm $BRANCH_MOUNT -v "${PWD}/zhwork:/DATA" -w /DATA "$IMG" bash -c '
+            set -e
+            cp /branch/crisprme.py /opt/conda/bin/crisprme.py
+            cp -rf /branch/PostProcess/* /opt/conda/opt/crisprme/PostProcess/
+            mkdir -p Genomes/synth PAMs
+            python -c "open(\"Genomes/synth/chrS.fa\",\"w\").write(\">chrS\n\"+(\"AC\"*3000)+\"\n\")"
+            printf "NNNNNNNNNNNNNNNNNNNNNGG 3\n" > PAMs/20bp-NGG-SpCas9.txt
+            printf "GGGGGGGGGGGGGGGGGGGGNNN\n" > guide.txt
+            crisprme.py complete-search --genome Genomes/synth --pam PAMs/20bp-NGG-SpCas9.txt \
+              --guide guide.txt --mm 0 --bDNA 0 --bRNA 0 --output zh
+            if ! grep -qi "No off-targets found" Results/zh/log_verbose.txt; then
+              echo "FAIL: empty-result message missing"; exit 1
+            fi
+            if [ -s Results/zh/log_error.txt ]; then
+              echo "FAIL: log_error is non-empty"; cat Results/zh/log_error.txt; exit 1
+            fi
+            echo "zero-hit regression PASS"
+          '
+
       - name: complete-test (chr22, 1000G) for all registered benchmarks
         run: |
           mkdir -p work
