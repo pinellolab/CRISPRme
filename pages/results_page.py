@@ -3312,24 +3312,24 @@ def update_position_filter(
         New genomic locations and potential filtering criterion
     """
 
-    if n is not None and not isinstance(n, int):
+    # Dash fires this callback once on tab render with n=None (no click) and the
+    # State values still None; guard *before* the type checks so an initial
+    # render is a no-op instead of a 500 (TypeError: Expected str, got NoneType).
+    if n is None:  # no click -> no page update
+        raise PreventUpdate
+    if not isinstance(n, int):
         raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
             f"Expected {str.__name__}, got {type(filter_criterion).__name__}"
         )
-    if not isinstance(chrom, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(chrom).__name__}")
-    if not isinstance(pos_start, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(pos_start).__name__}")
-    if not isinstance(pos_end, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(pos_end).__name__}")
-    if n is None:  # no click -> no page update
-        raise PreventUpdate
-    if pos_start == "":
-        pos_start = "None"
-    if pos_end == "":
-        pos_end = "None"
+    # The chromosome/position State values are None until the user picks them.
+    # Normalize empties to the sentinel "None" so a Filter click with nothing
+    # selected is a graceful no-op downstream (chrom == "None" -> PreventUpdate)
+    # rather than a crash.
+    chrom = "None" if chrom in (None, "") else chrom
+    pos_start = "None" if pos_start in (None, "") else pos_start
+    pos_end = "None" if pos_end in (None, "") else pos_end
     coords = ",".join([chrom, pos_start, pos_end])
     return coords, filter_criterion
 
@@ -4008,7 +4008,12 @@ def generate_sample_card(
         Sample card webpage
     """
 
-    if n is not None and not isinstance(n, int):
+    # Dash fires this callback once on tab render with n=None (no click) and a
+    # None sample; guard *before* the type checks so the initial render is a
+    # no-op instead of a 500 (TypeError: Expected str, got NoneType).
+    if n is None:
+        raise PreventUpdate  # do not do anything
+    if not isinstance(n, int):
         raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(filter_criterion, str):
         raise TypeError(
@@ -4016,12 +4021,14 @@ def generate_sample_card(
         )
     if filter_criterion not in FILTERING_CRITERIA:
         raise ValueError(f"Forbidden filtering criterion ({filter_criterion})")
+    # no sample chosen yet -> don't try to build a card (graceful no-op instead
+    # of a crash when the user clicks Generate without selecting a sample)
+    if sample is None or sample == "":
+        raise PreventUpdate
     if not isinstance(sample, str):
         raise TypeError(f"Expected {str.__name__}, got {type(sample).__name__}")
     if not isinstance(search, str):
         raise TypeError(f"Expected {str.__name__}, got {type(search).__name__}")
-    if n is None:
-        raise PreventUpdate  # do not do anything
     # recover guide
     guide = all_guides[int(sel_cel[0]["row"])]["Guide"]
     # recover job id
