@@ -11,6 +11,8 @@ and the `release-crisprme` skill.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-06
+
 ### Added
 - Python 3.11 modernization: pipeline fixes for pandas 2.x / matplotlib 3.x and
   a Dash 1.x → 2.x web-app migration, plus a Python-3.11 Docker image built from
