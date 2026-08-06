@@ -40,67 +40,107 @@
     </section>
 
     <section aria-labelledby="run-heading">
-      <h2 id="run-heading">Quickstart &mdash; the web interface in Docker</h2>
+      <h2 id="run-heading">Quickstart &mdash; the web interface (Docker or Singularity)</h2>
       <p>
-        The simplest way to run CRISPRme is with <strong>Docker</strong>: the only
-        thing you install is Docker itself &mdash; no conda, no compiling, and no
-        giant download. Copy the commands below, open your browser, fill in a
-        short form, and read your results.
+        The simplest way to run CRISPRme is in a container. Use <strong>Docker</strong>
+        on a laptop or desktop, or <strong>Singularity / Apptainer</strong> on an HPC
+        cluster (no root and no daemon needed). Either way it is a few commands: no
+        conda, no compiling, and no giant download. Pick your runtime below.
       </p>
 
-      <h3>1 &mdash; Install Docker</h3>
-      <p>
-        Install Docker for
-        <a href="https://docs.docker.com/desktop/install/mac-install/">macOS</a>,
-        <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
-        or <a href="https://docs.docker.com/engine/install/">Linux</a>, and give it
-        at least <strong>16&nbsp;GB</strong> of memory (Docker Desktop &rarr;
-        Settings &rarr; Resources). Then check it works:
-      </p>
-      <pre><code>docker run --rm hello-world</code></pre>
+      <div class="tabs" role="tablist" aria-label="Container runtime">
+        <button class="tab" id="tab-docker" role="tab" aria-selected="true"
+                aria-controls="panel-docker" data-target="panel-docker">Docker</button>
+        <button class="tab" id="tab-sing" role="tab" aria-selected="false"
+                aria-controls="panel-sing" data-target="panel-sing" tabindex="-1">Singularity / Apptainer</button>
+      </div>
 
-      <h3>2 &mdash; Download the data and a ready-made index (minutes, not hours)</h3>
-      <p>
-        Make a folder to hold everything, then fetch the reference data and a
-        prebuilt SpCas9 (NGG) index from the CRISPRme mirror. This replaces the old
-        multi-hour setup and the long index build.
-      </p>
-      <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
+      <!-- ============ Docker ============ -->
+      <div class="tab-panel" id="panel-docker" role="tabpanel" aria-labelledby="tab-docker">
+        <h3>1 &mdash; Install Docker</h3>
+        <p>
+          Install Docker for
+          <a href="https://docs.docker.com/desktop/install/mac-install/">macOS</a>,
+          <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
+          or <a href="https://docs.docker.com/engine/install/">Linux</a>, and give it at
+          least <strong>16&nbsp;GB</strong> of memory (Docker Desktop &rarr; Settings
+          &rarr; Resources). Then check it works:
+        </p>
+        <pre><code>docker run --rm hello-world</code></pre>
+
+        <h3>2 &mdash; Download the data and a ready-made index (minutes, not hours)</h3>
+        <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
 
 # reference genome, annotations, PAMs and sample lists
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
   crisprme.py download --what all --path /DATA
 
-# a ready-made SpCas9 (NGG) index &mdash; skips a long index build
+# a ready-made SpCas9 (NGG) index (skips a long index build)
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
   crisprme.py download --what index --index-name NGG_2_hg38 --path /DATA</code></pre>
-      <p class="note">
-        Want variant-aware searches (CRISPRme's speciality)? Also run
-        <code>&hellip; crisprme.py download --what vcf --dataset 1000G --path /DATA</code>
-        to add the 1000&nbsp;Genomes variants. You can skip this for a first run.
-      </p>
 
-      <h3>3 &mdash; Launch the web interface</h3>
-      <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it \
+        <h3>3 &mdash; Launch the web interface</h3>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it \
   pinellolab/crisprme crisprme.py web-interface</code></pre>
+        <p>Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with <strong>Ctrl+C</strong>.</p>
+      </div>
+
+      <!-- ============ Singularity / Apptainer ============ -->
+      <div class="tab-panel" id="panel-sing" role="tabpanel" aria-labelledby="tab-sing" hidden>
+        <h3>1 &mdash; Build the image (one time)</h3>
+        <p>
+          Most clusters already have Apptainer/Singularity. Convert the CRISPRme image
+          to a <code>.sif</code> file (no root needed):
+        </p>
+        <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme</code></pre>
+        <p class="note">On older systems the command is <code>singularity</code> instead of <code>apptainer</code>; they are interchangeable.</p>
+
+        <h3>2 &mdash; Download the data and a ready-made index (minutes, not hours)</h3>
+        <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
+
+# reference genome, annotations, PAMs and sample lists
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py download --what all --path /DATA
+
+# a ready-made SpCas9 (NGG) index (skips a long index build)
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py download --what index --index-name NGG_2_hg38 --path /DATA</code></pre>
+
+        <h3>3 &mdash; Launch the web interface</h3>
+        <pre><code>apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py web-interface</code></pre>
+        <p>
+          Open <strong>http://127.0.0.1:8080</strong> (or, on a cluster, the node's
+          address). Apptainer shares the host network, so no port mapping is needed,
+          but port <strong>8080 must be free</strong> on the node.
+        </p>
+        <p class="note">
+          Use <code>apptainer run</code> (not <code>exec</code>): <code>run</code>
+          activates the environment inside the image, so <code>crisprme.py</code> is on
+          the path.
+        </p>
+      </div>
+
+      <p class="note" style="margin-top:1rem">
+        Want variant-aware searches (CRISPRme's speciality)? Also download the
+        1000&nbsp;Genomes variants with <code>&hellip; crisprme.py download --what vcf --dataset 1000G --path /DATA</code>
+        (same <code>docker run</code>/<code>apptainer run</code> wrapper as above). You can skip this for a first run.
+      </p>
       <p>
-        Leave that running, then open <strong>http://127.0.0.1:8080</strong> in
-        your browser (Chrome, Firefox or Safari). Enter a guide sequence, pick the
-        PAM and genome, set mismatches and bulges, and click <strong>Submit</strong>.
-        Your results are saved on your own computer under
-        <code>~/crisprme/Results/</code>. To stop the server, press
-        <strong>Ctrl&#8288;+&#8288;C</strong>.
+        In the browser: enter a guide sequence, pick the PAM and genome, set mismatches
+        and bulges, and click <strong>Submit</strong>. Results are saved on your own
+        machine under <code>~/crisprme/Results/</code>.
       </p>
       <p class="note">
-        <strong>Nothing in the dropdowns?</strong> You skipped step&nbsp;2 &mdash;
-        run the two <code>download</code> commands first.
+        <strong>Nothing in the dropdowns?</strong> You skipped step&nbsp;2 &mdash; run the two
+        <code>download</code> commands first.
         <strong>Need a different nuclease?</strong> Download its index the same way
-        (e.g. <code>--index-name TTTV_2_hg38</code> for Cas12a); anything not yet
-        published is built automatically on first use.
+        (e.g. <code>--index-name TTTV_2_hg38</code> for Cas12a); anything not yet published
+        is built automatically on first use.
       </p>
 
       <p class="cta-row">
-        <a class="button" href="https://github.com/pinellolab/CRISPRme/blob/main/docs/DOCKER_QUICKSTART.md">Full Docker quickstart &amp; troubleshooting &rarr;</a>
+        <a class="button" href="https://github.com/pinellolab/CRISPRme/blob/main/docs/DOCKER_QUICKSTART.md">Full quickstart &amp; troubleshooting &rarr;</a>
         <a class="secondary" href="https://github.com/pinellolab/CRISPRme/blob/main/docs/crisprme_web_interface_user_guide.md">Web interface user guide &rarr;</a>
       </p>
 
@@ -114,22 +154,22 @@ mamba config --add channels conda-forge
 mamba config --set channel_priority strict
 
 # Create and activate the environment, then verify
-mamba create -n crisprme python=3.8 crisprme -y
+mamba create -n crisprme crisprme -y
 mamba activate crisprme
 crisprme.py --version</code></pre>
         <p>
-          Then fetch data the fast way just like the Docker path
-          (<code>crisprme.py download --what all --path "$PWD"</code>) and launch
-          the interface with <code>crisprme.py web-interface</code>.
+          Then fetch data the fast way just like the container path
+          (<code>crisprme.py download --what all --path "$PWD"</code>) and launch the
+          interface with <code>crisprme.py web-interface</code>.
         </p>
 
         <h3>Build the full reference database from the original sources</h3>
         <p>
           Instead of the fast download, you can download and configure everything
-          (hg38, 1000&nbsp;Genomes, HGDP, annotations, PAMs) directly from the
-          original sources with the built-in <code>setup</code>. This is a large,
-          multi-hour, ~410&nbsp;GB one-time download; the fast <code>download</code>
-          above is recommended for most users.
+          (hg38, 1000&nbsp;Genomes, HGDP, annotations, PAMs) directly from the original
+          sources with the built-in <code>setup</code>. This is a large, multi-hour,
+          ~410&nbsp;GB one-time download; the fast <code>download</code> above is
+          recommended for most users.
         </p>
         <pre><code># Docker
 docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
@@ -139,8 +179,8 @@ docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
 docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
   crisprme.py setup --chrom chr22 --path /DATA</code></pre>
         <p class="note">
-          The web interface must be started from a working directory that contains
-          the CRISPRme folders (<code>Genomes/</code>, <code>PAMs/</code>,
+          The web interface must be started from a working directory that contains the
+          CRISPRme folders (<code>Genomes/</code>, <code>PAMs/</code>,
           <code>Annotations/</code>, &hellip;). The <code>download</code> and
           <code>setup</code> commands create these for you.
         </p>
