@@ -30,7 +30,7 @@ Design notes
   ``.tar.gz`` and are unpacked into ``genome_library/``.
 """
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 import os
 import sys
 import io
@@ -112,6 +112,53 @@ def _require_hf():
             "'conda install -c conda-forge huggingface_hub' or "
             "'pip install huggingface_hub'."
         ) from e
+
+
+def list_available_downloads(
+    component: str, repo: Optional[str] = None
+) -> List[Dict]:
+    """List items available to download from the HuggingFace dataset repo.
+
+    Returns ``[{"name": str, "size": int}, ...]`` for the given component:
+    ``genome``/``vcf`` -> the assembly/dataset folders under ``genomes/`` or
+    ``vcfs/`` (size = sum of that folder's files); ``index`` -> the
+    ``indexes/<name>.tar.gz`` archives. Returns ``[]`` on any error (offline,
+    missing repo, dependency absent) so callers can fall back gracefully.
+    """
+    if component not in ("genome", "vcf", "index"):
+        return []
+    try:
+        hf = _require_hf()
+        repo = resolve_repo(repo)
+        api = hf.HfApi()
+        prefix = _COMPONENT_PREFIXES[component]
+        if component == "index":
+            items = []
+            for entry in api.list_repo_tree(
+                repo, repo_type="dataset", path_in_repo=prefix
+            ):
+                size = getattr(entry, "size", None)
+                path = getattr(entry, "path", "")
+                if size is not None and path.endswith(".tar.gz"):
+                    name = os.path.basename(path)[: -len(".tar.gz")]
+                    items.append({"name": name, "size": size})
+            return sorted(items, key=lambda d: d["name"])
+        # genome / vcf: folders under prefix/, sum their files' sizes
+        sizes: Dict[str, int] = {}
+        for entry in api.list_repo_tree(
+            repo, repo_type="dataset", path_in_repo=prefix, recursive=True
+        ):
+            size = getattr(entry, "size", None)
+            path = getattr(entry, "path", "")
+            if size is None:  # a folder entry, not a file
+                continue
+            rel = path[len(prefix) + 1 :]
+            top = rel.split("/")[0]
+            if top:
+                sizes[top] = sizes.get(top, 0) + size
+        return [{"name": k, "size": v} for k, v in sorted(sizes.items())]
+    except Exception:
+        return []
 
 
 def decompress_gz(path: str, remove_source: bool = True) -> str:

@@ -240,6 +240,42 @@ def _fmt_size(n: float) -> str:
     return f"{n:.1f} TB"
 
 
+# HuggingFace catalog (what is available to download), fetched once per app run.
+_HF_CATALOG: dict = {}
+
+
+def _hf_catalog(component: str) -> List[dict]:
+    """Cached list of HuggingFace-available items for a component ([] if offline)."""
+    if component not in _HF_CATALOG:
+        try:
+            import sys
+
+            pp = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "PostProcess"
+            )
+            if pp not in sys.path:
+                sys.path.insert(0, pp)
+            from crisprme_hf import list_available_downloads
+
+            _HF_CATALOG[component] = list_available_downloads(component)
+        except Exception:
+            _HF_CATALOG[component] = []
+    return _HF_CATALOG[component]
+
+
+def _hf_options(component: str, installed: List[str]) -> List[dict]:
+    """Dropdown options for a HuggingFace component, size-labelled + installed-marked."""
+    inst = set(installed)
+    opts = []
+    for item in _hf_catalog(component):
+        name = item["name"]
+        label = f"{name} ({_fmt_size(item.get('size', 0))})"
+        if name in inst:
+            label += " — installed"
+        opts.append({"label": label, "value": name})
+    return opts
+
+
 # Rough "space required" hints for the download actions (uncompressed on disk).
 _SIZE_HINTS = {
     "genome": "a reference genome is typically ~1-3 GB",
@@ -429,6 +465,16 @@ def settings_page() -> List:
                 type="text",
                 style={"width": "100%", "margin-top": "0.5rem"},
             ),
+            html.Div(
+                dcc.Dropdown(
+                    id="genome-hf-name",
+                    options=_hf_options(
+                        "genome", [g["value"] for g in get_available_genomes()]
+                    ),
+                    placeholder="…or pick a genome available on HuggingFace",
+                ),
+                style={"margin-top": "0.4rem"},
+            ),
             html.Small(
                 "Or upload a local genome file (.fa / .fa.gz / .tar.gz) — chunked, "
                 "no browser size limit. The assembly name is taken from the file name."
@@ -453,11 +499,12 @@ def settings_page() -> List:
             dbc.Row(
                 [
                     dbc.Col(
-                        dcc.Input(
+                        dcc.Dropdown(
                             id="index-hf-name",
-                            placeholder="index name, e.g. NGG_2_hg38",
-                            type="text",
-                            style={"width": "100%"},
+                            options=_hf_options(
+                                "index", [i["value"] for i in get_available_indexes()]
+                            ),
+                            placeholder="pick an index available on HuggingFace",
                         ),
                         width=8,
                     ),
@@ -565,6 +612,16 @@ def settings_page() -> List:
                     ),
                     dbc.Col(html.Button("Add VCF dataset", id="vcf-add-btn"), width=4),
                 ]
+            ),
+            html.Div(
+                dcc.Dropdown(
+                    id="vcf-hf-name",
+                    options=_hf_options(
+                        "vcf", [v["value"] for v in get_all_vcf_datasets()]
+                    ),
+                    placeholder="…or pick a VCF dataset available on HuggingFace (source = HuggingFace)",
+                ),
+                style={"margin-top": "0.4rem"},
             ),
             dcc.Input(
                 id="vcf-path-input",
@@ -784,12 +841,15 @@ def _start(job_id: str):
         State("genome-assembly-input", "value"),
         State("genome-source-dropdown", "value"),
         State("genome-url-input", "value"),
+        State("genome-hf-name", "value"),
     ],
     prevent_initial_call=True,
 )
-def add_genome(n, assembly, source, url):
+def add_genome(n, assembly, source, url, hf_name):
     if n is None or ONLINE:
         raise PreventUpdate
+    if hf_name:  # a genome picked from the HuggingFace catalog takes precedence
+        assembly, source = hf_name, "hf"
     err = _validate_name(assembly or "")
     if err:
         return no_update, no_update, err
@@ -814,9 +874,12 @@ def add_genome(n, assembly, source, url):
 def add_index_hf(n, name):
     if n is None or ONLINE:
         raise PreventUpdate
-    err = _validate_name(name or "")
-    if err:
-        return no_update, no_update, err
+    # name comes from the HF catalog dropdown; index names may contain '+'
+    # (variant indexes), so only guard against path-traversal / spaces here.
+    if not name:
+        return no_update, no_update, "Pick an index from the HuggingFace list."
+    if any(c in name for c in ("/", "\\", " ", "..")):
+        return no_update, no_update, "Invalid index name."
     argv = ["download", "--what", "index", "--index-name", name.strip()]
     return _start(launch_settings_job(argv, "Download index"))
 
@@ -873,12 +936,15 @@ def build_index(n, genome, pam, bdna, brna, vcf):
         State("vcf-name", "value"),
         State("vcf-source-dropdown", "value"),
         State("vcf-path-input", "value"),
+        State("vcf-hf-name", "value"),
     ],
     prevent_initial_call=True,
 )
-def add_vcf(n, name, source, path):
+def add_vcf(n, name, source, path, hf_name):
     if n is None or ONLINE:
         raise PreventUpdate
+    if source == "hf" and hf_name:  # a dataset picked from the HuggingFace catalog
+        name = hf_name
     err = _validate_name(name or "")
     if err:
         return no_update, no_update, err
