@@ -11,6 +11,7 @@ import os
 
 
 PLOTLY_LOGO = "assets/crisprme-icon.svg"
+CRISPRME_LOGO = "assets/crisprme-logo.png"  # full wordmark (correct Outfit font baked in)
 DISPLAY_HISTORY = ""
 
 
@@ -38,13 +39,13 @@ def create_search_bar() -> dbc.Row:
                         "HOME",
                         href=os.path.join(URL, "index"),
                         target="",
-                        style={"text-decoration": "none", "color": "white"},
+                        style={"text-decoration": "none", "color": "#37474f"},
                     ),
                     active=True,
                     className="testHover",
                     style={
                         "text-decoration": "none",
-                        "color": "white",
+                        "color": "#37474f",
                         "font-size": "1.5rem",
                         "padding": "0 0.9rem",
                         "white-space": "nowrap",
@@ -58,13 +59,13 @@ def create_search_bar() -> dbc.Row:
                         "MANUAL",
                         href=os.path.join(URL, "user-guide"),
                         target="",
-                        style={"text-decoration": "none", "color": "white"},
+                        style={"text-decoration": "none", "color": "#37474f"},
                     ),
                     active=True,
                     className="testHover",
                     style={
                         "text-decoration": "none",
-                        "color": "white",
+                        "color": "#37474f",
                         "font-size": "1.5rem",
                         "padding": "0 0.9rem",
                         "white-space": "nowrap",
@@ -78,13 +79,13 @@ def create_search_bar() -> dbc.Row:
                         "CONTACTS",
                         href=os.path.join(URL, "contacts"),
                         target="",
-                        style={"text-decoration": "none", "color": "white"},
+                        style={"text-decoration": "none", "color": "#37474f"},
                     ),
                     active=True,
                     className="testHover",
                     style={
                         "text-decoration": "none",
-                        "color": "white",
+                        "color": "#37474f",
                         "font-size": "1.5rem",
                         "padding": "0 0.9rem",
                         "white-space": "nowrap",
@@ -98,13 +99,13 @@ def create_search_bar() -> dbc.Row:
                         "HISTORY",
                         href=os.path.join(URL, "history"),
                         target="",
-                        style={"text-decoration": "none", "color": "white"},
+                        style={"text-decoration": "none", "color": "#37474f"},
                     ),
                     active=True,
                     className="testHover",
                     style={
                         "text-decoration": "none",
-                        "color": "white",
+                        "color": "#37474f",
                         "font-size": "1.5rem",
                         "padding": "0 0.9rem",
                         "white-space": "nowrap",
@@ -118,13 +119,13 @@ def create_search_bar() -> dbc.Row:
                         "SETTINGS",
                         href=os.path.join(URL, "settings"),
                         target="",
-                        style={"text-decoration": "none", "color": "white"},
+                        style={"text-decoration": "none", "color": "#37474f"},
                     ),
                     active=True,
                     className="testHover",
                     style={
                         "text-decoration": "none",
-                        "color": "white",
+                        "color": "#37474f",
                         "font-size": "1.5rem",
                         "padding": "0 0.9rem",
                         "white-space": "nowrap",
@@ -154,31 +155,24 @@ def navbar():
 
     # create search bar
     search_bar = create_search_bar()
-    # construct the navigation bar
+    # construct the navigation bar: a clean white bar so the full-colour CRISPRme+
+    # wordmark logo reads well (rendered PNG keeps the exact Outfit font/colours)
     navbar = dbc.Navbar(
         [
             html.A(
-                # Use row and col to control vertical alignment of logo / brand
-                dbc.Row(
-                    [
-                        dbc.Col(html.Img(src=PLOTLY_LOGO, height="60px")),
-                        dbc.Col(
-                            dbc.NavbarBrand(
-                                "CRISPRme",
-                                className="ml-2",
-                                style={"font-size": "30px"},
-                            )
-                        ),
-                    ],
-                    align="center",
-                    className="g-0",
-                ),
+                html.Img(src=CRISPRME_LOGO, height="52px"),
                 href=os.path.join(URL, "index"),
+                style={"text-decoration": "none"},
             ),
             dbc.NavbarToggler(id="navbar-toggler"),
             dbc.Collapse(search_bar, id="navbar-collapse", navbar=True),
         ],
-        color="dark",
-        dark=True,
+        color="white",
+        dark=False,
+        style={
+            "box-shadow": "0 2px 10px rgba(0, 0, 0, 0.08)",
+            "border-bottom": "1px solid #eaeaea",
+            "padding": "0.4rem 1.2rem",
+        },
     )
     return navbar
