@@ -564,11 +564,22 @@ while read vcf_f; do
 		if ! [ -f "$final_res_alt" ]; then  # mock required to avoid crashes 
 			touch "$final_res_alt"
 		fi
-		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
-		if [ -s $logerror ]; then
-			printf "ERROR: off-targets post-analysis (reference) failed\n" >&2
-			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
-			exit 1
+		# Skip the reference SNP post-analysis when the search produced no targets
+		# (zero hits). Otherwise pool_post_analisi_snp.py reads a reference
+		# targets file that a zero-hit search never wrote; the resulting "No such
+		# file" on stderr makes the [ -s $logerror ] check abort the whole run.
+		# The INDELs stage already guards this way; the concatenation below uses a
+		# touch-first pattern, so it safely yields an empty (but valid) result.
+		ref_targets_file="$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
+		if [ -s "$ref_targets_file" ]; then
+			./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
+			if [ -s $logerror ]; then
+				printf "ERROR: off-targets post-analysis (reference) failed\n" >&2
+				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+				exit 1
+			fi
+		else
+			echo "No reference off-targets found; producing an empty result set"
 		fi
 		#CONCATENATE REF&VAR RESULTS
 		for key in "${real_chroms[@]}"; do
@@ -677,6 +688,19 @@ if [  -s $logerror ]; then
 	printf "ERROR: failed adding headers to alternative results files\n" >&2
 	rm $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
 	exit 1
+fi
+
+# ZERO-HIT SHORT-CIRCUIT: if the assembled best-result files contain only their
+# header (the search found no off-targets for any guide, e.g. a very stringent
+# guide/parameter combination), the downstream merge / annotation / scoring /
+# integration steps each assume at least one data row and would fail in turn.
+# Finish successfully with an empty-but-valid result instead of aborting.
+if [ -z "$(tail -n +2 "$final_res.bestCFD.txt" 2>/dev/null | head -c 1)" ]; then
+	echo "No off-targets found for the provided guide(s) with the given parameters."
+	echo "The search completed successfully; the result set is empty."
+	# leave the header-only best/alt files in place as the (empty) result
+	echo -e 'Job\tEnd\t'"$(date)" >>"$log"
+	exit 0
 fi
 
 # START STEP 5 - targets merge

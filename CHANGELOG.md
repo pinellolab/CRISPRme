@@ -40,6 +40,18 @@ and the `release-crisprme` skill.
   / JS errors).
 - `validate-benchmarks` gained a new-subcommand dispatch + unit-test smoke step.
 
+### Fixed
+- Zero-hit searches now complete cleanly with an empty result instead of
+  aborting. A search that finds no off-targets (e.g. a very stringent
+  guide/parameter combination) previously failed part-way through post-analysis
+  ("off-targets post-analysis (reference) failed", then a cascade through the
+  rsID / summary / integration steps, all of which assumed at least one target).
+  Added a zero-target guard to the reference SNP post-analysis (mirroring the
+  INDELs one), made `remove_n_and_dots.py` tolerate a header-only report, and
+  added a high-level short-circuit that emits an empty-but-valid result and exits
+  0 when no off-targets are found. Verified end-to-end on ml007 (empty result
+  exits 0; a normal with-hits search is unaffected).
+
 ### Documentation
 - Data-setup guide: documented what `setup` produces (including the combined
   1000G+HGDP config files), the HuggingFace fast-download path, and a new
