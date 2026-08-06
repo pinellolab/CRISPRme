@@ -1038,15 +1038,22 @@ def get_available_CAS() -> List:
     # removed .txt from filenames
     cas_files = [f.replace(".txt", "") for f in cas_files]
     # skip temporary PAMs (used during dictionary updating)
-    casprots = [
+    casprots = sorted(
         casprot.split(".")[0].split("-")[2]
         for casprot in cas_files
         if "tempPAM" not in casprot
-    ]
-    # remove potential duplicates
-    casprots = set(casprots)
+    )
+    # Collapse case-variant duplicates: the distributed PAMs can ship the same
+    # nuclease twice differing only in case (e.g. 20bp-NGG-SpCas9.txt and
+    # 20bp-NGG-spCas9.txt), which otherwise shows the nuclease twice in the
+    # dropdown. Keep one spelling per nuclease (uppercase sorts first, so the
+    # canonical "SpCas9" wins over "spCas9").
+    seen = {}
+    for casprot in casprots:
+        seen.setdefault(casprot.lower(), casprot)
     casprots_data = [
-        {"label": casprot, "value": casprot} for casprot in sorted(casprots)
+        {"label": casprot, "value": casprot}
+        for casprot in sorted(seen.values(), key=str.lower)
     ]
     return casprots_data
 

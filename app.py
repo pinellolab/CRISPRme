@@ -72,10 +72,11 @@ def start_message() -> None:
 
 
 # --> entry point <-- #
-external_stylesheets = [
-    "https://codepen.io/chriddyp/pen/bWLwgP.css",
-    dbc.themes.BOOTSTRAP,
-]  # CSS stylesheet used to style the website
+# The old chriddyp/bWLwgP "skeleton" stylesheet was dropped: modern browsers
+# block it cross-origin (ERR_BLOCKED_BY_RESPONSE.NotSameOrigin), so it failed to
+# load on every page and only produced a console error. The layout uses the
+# dash-bootstrap-components grid (dbc.Row/dbc.Col), so Bootstrap is all we need.
+external_stylesheets = [dbc.themes.BOOTSTRAP]  # CSS used to style the website
 server = flask.Flask(__name__)  # define flask app.server
 app = dash.Dash(
     __name__,
