@@ -27,176 +27,124 @@
         service. All features remain available to you.
       </p>
       <p>
-        You have two easy paths to run CRISPRme on your own machine, both with
-        the same functionality as the previous hosted version:
+        The easiest way to get the same point-and-click experience is the
+        <strong>Docker quickstart below</strong> &mdash; a few commands to a web
+        interface running in your browser, with all the functionality of the
+        previous hosted version. Prefer the command line for scripted or batch
+        analyses? That works too.
       </p>
-      <ul class="options">
-        <li>Use the <strong>command line</strong> version for scripted or batch analyses.</li>
-        <li>Deploy the <strong>web interface locally</strong> for the same point-and-click experience as the hosted app.</li>
-      </ul>
       <p class="cta-row">
-        <a class="button" href="https://github.com/pinellolab/CRISPRme">View on GitHub</a>
-        <a class="secondary" href="https://github.com/pinellolab/CRISPRme#1-installation">Installation instructions &rarr;</a>
+        <a class="button" href="#run-heading">Get started &darr;</a>
+        <a class="secondary" href="https://github.com/pinellolab/CRISPRme">View on GitHub &rarr;</a>
       </p>
     </section>
 
     <section aria-labelledby="run-heading">
-      <h2 id="run-heading">Step-by-step: install and launch the web interface</h2>
+      <h2 id="run-heading">Quickstart &mdash; the web interface in Docker</h2>
       <p>
-        Follow the three steps below to go from a clean machine to a running
-        local web interface - equivalent to the retired hosted version. Pick the
-        track that matches how you want to install CRISPRme: <strong>Conda /
-        Mamba</strong> or <strong>Docker</strong>. Both tracks cover the same
-        three steps:
+        The simplest way to run CRISPRme is with <strong>Docker</strong>: the only
+        thing you install is Docker itself &mdash; no conda, no compiling, and no
+        giant download. Copy the commands below, open your browser, fill in a
+        short form, and read your results.
       </p>
-      <ol class="options">
-        <li><strong>Install CRISPRme</strong> (and activate the environment).</li>
-        <li><strong>Set up the legacy reference database</strong> (one-time download).</li>
-        <li><strong>Launch the local web interface</strong> and open it in your browser.</li>
-      </ol>
 
-      <p>The one-time setup in Step 2 automatically downloads and configures:</p>
-      <ul>
-        <li>hg38 reference genome</li>
-        <li>1000 Genomes Project Phase 3 dataset</li>
-        <li>HGDP variant dataset</li>
-        <li>Sample metadata files</li>
-        <li>Default annotations and PAM definitions</li>
-      </ul>
+      <h3>1 &mdash; Install Docker</h3>
+      <p>
+        Install Docker for
+        <a href="https://docs.docker.com/desktop/install/mac-install/">macOS</a>,
+        <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
+        or <a href="https://docs.docker.com/engine/install/">Linux</a>, and give it
+        at least <strong>16&nbsp;GB</strong> of memory (Docker Desktop &rarr;
+        Settings &rarr; Resources). Then check it works:
+      </p>
+      <pre><code>docker run --rm hello-world</code></pre>
 
-      <div class="tabs" role="tablist" aria-label="Installation method">
-        <button class="tab" id="tab-conda" role="tab" aria-selected="true"
-                aria-controls="panel-conda" data-target="panel-conda">
-          Conda / Mamba
-        </button>
-        <button class="tab" id="tab-docker" role="tab" aria-selected="false"
-                aria-controls="panel-docker" data-target="panel-docker" tabindex="-1">
-          Docker
-        </button>
-      </div>
+      <h3>2 &mdash; Download the data and a ready-made index (minutes, not hours)</h3>
+      <p>
+        Make a folder to hold everything, then fetch the reference data and a
+        prebuilt SpCas9 (NGG) index from the CRISPRme mirror. This replaces the old
+        multi-hour setup and the long index build.
+      </p>
+      <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
 
-      <!-- ===================== Conda / Mamba track ===================== -->
-      <div class="tab-panel" id="panel-conda" role="tabpanel" aria-labelledby="tab-conda">
+# reference genome, annotations, PAMs and sample lists
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
+  crisprme.py download --what all --path /DATA
 
-        <h3>Step 1 &mdash; Install CRISPRme and activate the environment</h3>
-        <p>
-          Configure the Bioconda channels once, then create and activate the
-          <code>crisprme</code> environment.
-        </p>
+# a ready-made SpCas9 (NGG) index &mdash; skips a long index build
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
+  crisprme.py download --what index --index-name NGG_2_hg38 --path /DATA</code></pre>
+      <p class="note">
+        Want variant-aware searches (CRISPRme's speciality)? Also run
+        <code>&hellip; crisprme.py download --what vcf --dataset 1000G --path /DATA</code>
+        to add the 1000&nbsp;Genomes variants. You can skip this for a first run.
+      </p>
+
+      <h3>3 &mdash; Launch the web interface</h3>
+      <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it \
+  pinellolab/crisprme crisprme.py web-interface</code></pre>
+      <p>
+        Leave that running, then open <strong>http://127.0.0.1:8080</strong> in
+        your browser (Chrome, Firefox or Safari). Enter a guide sequence, pick the
+        PAM and genome, set mismatches and bulges, and click <strong>Submit</strong>.
+        Your results are saved on your own computer under
+        <code>~/crisprme/Results/</code>. To stop the server, press
+        <strong>Ctrl&#8288;+&#8288;C</strong>.
+      </p>
+      <p class="note">
+        <strong>Nothing in the dropdowns?</strong> You skipped step&nbsp;2 &mdash;
+        run the two <code>download</code> commands first.
+        <strong>Need a different nuclease?</strong> Download its index the same way
+        (e.g. <code>--index-name TTTV_2_hg38</code> for Cas12a); anything not yet
+        published is built automatically on first use.
+      </p>
+
+      <p class="cta-row">
+        <a class="button" href="https://github.com/pinellolab/CRISPRme/blob/main/docs/DOCKER_QUICKSTART.md">Full Docker quickstart &amp; troubleshooting &rarr;</a>
+        <a class="secondary" href="https://github.com/pinellolab/CRISPRme/blob/main/docs/crisprme_web_interface_user_guide.md">Web interface user guide &rarr;</a>
+      </p>
+
+      <details class="advanced">
+        <summary><strong>Other ways to install</strong> (Conda/Mamba, or build everything from scratch)</summary>
+
+        <h3>Install with Conda / Mamba</h3>
         <pre><code># Configure Bioconda channels (one-time)
 mamba config --add channels bioconda
 mamba config --add channels conda-forge
 mamba config --set channel_priority strict
 
-# Create and activate the environment
+# Create and activate the environment, then verify
 mamba create -n crisprme python=3.8 crisprme -y
 mamba activate crisprme
-
-# Verify the installation
 crisprme.py --version</code></pre>
-        <p class="note">
-          If you use <code>conda</code> rather than <code>mamba</code>, replace
-          <code>mamba</code> with <code>conda</code> in every command.
-        </p>
-
-        <h3>Step 2 &mdash; Set up the legacy reference database (one-time)</h3>
-        <pre><code># Choose a working directory
-CRISPRME_DIR="$HOME/my_crisprme_run"
-
-# Download and configure all reference data (~410 GB)
-crisprme.py setup --path "$CRISPRME_DIR"</code></pre>
         <p>
-          <strong>Optional:</strong> to test the installation before downloading
-          the complete dataset, perform a chromosome-specific setup first:
+          Then fetch data the fast way just like the Docker path
+          (<code>crisprme.py download --what all --path "$PWD"</code>) and launch
+          the interface with <code>crisprme.py web-interface</code>.
         </p>
-        <pre><code>crisprme.py setup --chrom chr22 --path "$CRISPRME_DIR"</code></pre>
+
+        <h3>Build the full reference database from the original sources</h3>
         <p>
-          The setup process is resumable. If a download is interrupted, simply
-          rerun the same command and CRISPRme will continue from the last
-          completed step.
+          Instead of the fast download, you can download and configure everything
+          (hg38, 1000&nbsp;Genomes, HGDP, annotations, PAMs) directly from the
+          original sources with the built-in <code>setup</code>. This is a large,
+          multi-hour, ~410&nbsp;GB one-time download; the fast <code>download</code>
+          above is recommended for most users.
         </p>
-
-        <h3>Step 3 &mdash; Launch the local web interface</h3>
-        <pre><code>mamba activate crisprme
-cd "$CRISPRME_DIR"           # the directory you chose in Step 2
-crisprme.py web-interface    # starts the local server on port 8080</code></pre>
-      </div>
-
-      <!-- ===================== Docker track ===================== -->
-      <div class="tab-panel" id="panel-docker" role="tabpanel"
-           aria-labelledby="tab-docker" hidden>
-
-        <h3>Step 1 &mdash; Install Docker and pull the CRISPRme image</h3>
-        <p>
-          Install Docker for your operating system using the official guides for
-          <a href="https://docs.docker.com/desktop/install/mac-install/">macOS</a>,
-          <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
-          or <a href="https://docs.docker.com/engine/install/ubuntu/">Linux</a>.
-          Then verify the installation and pull the CRISPRme image:
-        </p>
-        <pre><code># Verify Docker is working
-docker run hello-world
-
-# Pull the latest pre-built CRISPRme image
-docker pull pinellolab/crisprme</code></pre>
-
-        <h3>Step 2 &mdash; Set up the legacy reference database (one-time)</h3>
-        <p>
-          Create and enter a working directory on your host machine, then run the
-          setup command inside the container. The directory is mounted into the
-          container as <code>/DATA</code>, so all data is written to your host.
-        </p>
-        <pre><code># Choose and enter a working directory
-mkdir -p "$HOME/my_crisprme_run"
-cd "$HOME/my_crisprme_run"
-
-# Download and configure all reference data (~410 GB)
+        <pre><code># Docker
 docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
-  crisprme.py setup --path /DATA</code></pre>
-        <p>
-          <strong>Optional:</strong> to test the installation before downloading
-          the complete dataset, perform a chromosome-specific setup first:
-        </p>
-        <pre><code>docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
+  crisprme.py setup --path /DATA
+
+# ...or test on a single chromosome first
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme \
   crisprme.py setup --chrom chr22 --path /DATA</code></pre>
-        <p>
-          The setup process is resumable. If a download is interrupted, simply
-          rerun the same command and CRISPRme will continue from the last
-          completed step.
+        <p class="note">
+          The web interface must be started from a working directory that contains
+          the CRISPRme folders (<code>Genomes/</code>, <code>PAMs/</code>,
+          <code>Annotations/</code>, &hellip;). The <code>download</code> and
+          <code>setup</code> commands create these for you.
         </p>
-
-        <h3>Step 3 &mdash; Launch the local web interface</h3>
-        <p>
-          Run the web interface from the same working directory. The
-          <code>-p 8080:8080</code> flag forwards the container port to your host
-          so the browser can reach the server.
-        </p>
-        <pre><code>cd "$HOME/my_crisprme_run"   # the directory you set up in Step 2
-docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 \
-  pinellolab/crisprme crisprme.py web-interface</code></pre>
-      </div>
-
-      <h3>Open the interface in your browser</h3>
-      <p>
-        After the server starts, open one of the supported browsers (Chrome,
-        Firefox, or Safari) and navigate to:
-      </p>
-      <pre><code>http://127.0.0.1:8080</code></pre>
-      <p class="note">
-        If CRISPRme is running on a remote server or HPC node, replace
-        <code>127.0.0.1</code> with the server's IP address.
-      </p>
-
-      <div class="note">
-        <strong>Important:</strong> the web interface must be started from a valid
-        CRISPRme working directory containing the expected folders
-        (<code>Genomes/</code>, <code>VCFs/</code>, <code>PAMs/</code>,
-        <code>Annotations/</code>, etc.), otherwise datasets and configuration
-        files will not be detected. If you are unsure about the expected project
-        structure, refer to the
-        <a href="https://github.com/pinellolab/CRISPRme/blob/main/README.md#21-directory-structure">
-          directory structure documentation</a>.
-      </div>
+      </details>
     </section>
 
     <section aria-labelledby="resources-heading">
