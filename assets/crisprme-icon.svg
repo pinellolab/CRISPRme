@@ -3,7 +3,7 @@
         <!-- Import a modern tech font directly so it renders perfectly -->
         
 
-        <!-- The mathematically exact shape of the person with corrected, thicker legs -->
+        <!-- The mathematically exact shape of the person with thick legs -->
         <g id="person">
             <circle cx="0" cy="-38" r="12.5"/>
             <!-- Torso, Arms & Thick Legs -->
@@ -28,6 +28,20 @@
                      L 24 -6
                      C 23 -16, 20 -22, 10 -22
                      Z" />
+        </g>
+
+        <!-- White backing layer for a thinner, crisp knockout effect -->
+        <g id="scissor-bg">
+            <circle cx="22" cy="0" r="4.5" fill="none" stroke="#ffffff" stroke-width="5.5"/>
+            <!-- Blade completely redrawn with a curved spine for realism -->
+            <path d="M 16 0 L -38 0 Q -20 -7 0 -4 L 16 -3 Z" fill="#ffffff" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+        </g>
+        
+        <!-- Geometric Scissor Half (Dark Blue) -->
+        <g id="scissor-fg">
+            <circle cx="22" cy="0" r="4.5" fill="none" stroke="#15497d" stroke-width="2.5"/>
+            <!-- Realistic blade profile -->
+            <path d="M 16 0 L -38 0 Q -20 -7 0 -4 L 16 -3 Z" fill="#15497d"/>
         </g>
     </defs>
 
@@ -128,41 +142,15 @@
         <use href="#person" transform="translate(128.1, 169.3) scale(0.22)" fill="#388396" opacity="0.33"/>
         <use href="#person" transform="translate(119.0, 122.3) scale(0.12)" fill="#388396" opacity="0.27"/>
         <use href="#person" transform="translate(66.6, 114.9) scale(0.18)" fill="#388396" opacity="0.08"/>
-        <use href="#person" transform="translate(194.1, 161.3) scale(0.16)" fill="#e86a58" opacity="0.26"/>
-        <use href="#person" transform="translate(103.9, 157.1) scale(0.15)" fill="#388396" opacity="0.24"/>
-        <use href="#person" transform="translate(231.0, 170.6) scale(0.12)" fill="#388396" opacity="0.10"/>
-        <use href="#person" transform="translate(115.9, 125.5) scale(0.17)" fill="#388396" opacity="0.27"/>
-        <use href="#person" transform="translate(185.5, 48.7) scale(0.17)" fill="#e86a58" opacity="0.12"/>
-        <use href="#person" transform="translate(99.5, 214.3) scale(0.22)" fill="#e86a58" opacity="0.08"/>
-        <use href="#person" transform="translate(115.9, 47.9) scale(0.19)" fill="#388396" opacity="0.09"/>
-        <use href="#person" transform="translate(133.2, 35.6) scale(0.22)" fill="#388396" opacity="0.11"/>
-        <use href="#person" transform="translate(179.1, 136.0) scale(0.19)" fill="#388396" opacity="0.38"/>
-        <use href="#person" transform="translate(227.4, 60.3) scale(0.14)" fill="#388396" opacity="0.08"/>
-        <use href="#person" transform="translate(98.4, 156.9) scale(0.20)" fill="#388396" opacity="0.23"/>
-        <use href="#person" transform="translate(210.6, 59.0) scale(0.17)" fill="#e86a58" opacity="0.09"/>
-        <use href="#person" transform="translate(81.7, 147.6) scale(0.21)" fill="#e86a58" opacity="0.19"/>
-        <use href="#person" transform="translate(107.1, 111.7) scale(0.13)" fill="#388396" opacity="0.20"/>
-        <use href="#person" transform="translate(209.0, 107.0) scale(0.13)" fill="#e86a58" opacity="0.25"/>
-        <use href="#person" transform="translate(81.1, 77.5) scale(0.15)" fill="#388396" opacity="0.09"/>
-        <use href="#person" transform="translate(197.3, 176.0) scale(0.18)" fill="#388396" opacity="0.20"/>
-        <use href="#person" transform="translate(87.3, 106.3) scale(0.20)" fill="#388396" opacity="0.22"/>
-        <use href="#person" transform="translate(160.6, 33.2) scale(0.15)" fill="#388396" opacity="0.07"/>
-        <use href="#person" transform="translate(208.4, 59.2) scale(0.18)" fill="#e86a58" opacity="0.12"/>
-        <use href="#person" transform="translate(220.3, 196.6) scale(0.21)" fill="#388396" opacity="0.13"/>
-        <use href="#person" transform="translate(87.2, 71.4) scale(0.21)" fill="#388396" opacity="0.09"/>
-        <use href="#person" transform="translate(159.8, 102.1) scale(0.19)" fill="#388396" opacity="0.36"/>
-        <use href="#person" transform="translate(118.3, 143.3) scale(0.20)" fill="#388396" opacity="0.36"/>
-        <use href="#person" transform="translate(180.0, 173.7) scale(0.16)" fill="#388396" opacity="0.25"/>
     </g>
 
-    <!-- Main Hero Figure -->
-    <use href="#person" transform="translate(150, 127) scale(1.35)" fill="#388396"/>
+    <!-- Main Hero Figure (Solid Black for contrast) -->
+    <use href="#person" transform="translate(150, 127) scale(1.35)" fill="#111111"/>
                  
-    <!-- Accurate DNA Overlay positioned at the hands, NO GREEN INFILL -->
+    <!-- Accurate DNA Overlay NO GREEN INFILL -->
     <g transform="translate(150, 144) scale(1.35)">
-        <!-- Rungs (Drawn BEFORE the sine waves so their tips are perfectly masked underneath) -->
+        <!-- Rungs -->
         <g stroke="#6aa84f" stroke-width="2.3" stroke-linecap="round">
-            <!-- Carefully calculated to exactly 6.2px to fit inside the bezier curve bounds -->
             <line x1="-45" y1="-6.2" x2="-45" y2="6.2"/>
             <line x1="-36" y1="-6.2" x2="-36" y2="6.2"/>
             <line x1="-18" y1="-6.2" x2="-18" y2="6.2"/>
@@ -178,8 +166,24 @@
             <path d="M -54 0 Q -40.5 -14 -27 0 T 0 0 T 27 0 T 54 0" />
             <path d="M -54 0 Q -40.5 14 -27 0 T 0 0 T 27 0 T 54 0" />
         </g>
+
+        <!-- Scissors prominently cutting the exact center of the DNA -->
+        <!-- Shifted down to Y=8 so the pivot rests just under the DNA -->
+        <g transform="translate(0, 8) scale(0.65) rotate(90)">
+            <!-- 1. Render both white background shapes to create the thinner visual knockout -->
+            <!-- Adjusted angle to 25 degrees for a more realistic cutting pose -->
+            <use href="#scissor-bg" transform="rotate(-25)"/>
+            <use href="#scissor-bg" transform="scale(1, -1) rotate(-25)"/>
+            
+            <!-- 2. Render the actual Dark Blue scissors on top -->
+            <use href="#scissor-fg" transform="rotate(-25)"/>
+            <use href="#scissor-fg" transform="scale(1, -1) rotate(-25)"/>
+            
+            <!-- 3. Center pivot screw -->
+            <circle cx="0" cy="0" r="2.2" fill="#ffffff" stroke="#15497d" stroke-width="1.2"/>
+        </g>
     </g>
 
-    <!-- Typography updated to 'Outfit' with tight spacing -->
+    <!-- Typography updated to 'Outfit' -->
     
 </svg>
