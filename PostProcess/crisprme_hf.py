@@ -185,6 +185,13 @@ def download_component(
         staging = os.path.join(workdir, ".hf_stage_genome")
         _hf_snapshot(repo, patterns, staging, token)
         src = os.path.join(staging, remote_prefix, ref)
+        if not os.path.isdir(src):
+            shutil.rmtree(staging, ignore_errors=True)
+            raise ValueError(
+                f"No genome '{ref}' found in HuggingFace repo '{repo}' "
+                f"(looked for '{remote_prefix}/{ref}/'). Check --ref, or the repo "
+                f"may not have this genome uploaded yet."
+            )
         dest = os.path.join(local_dir, ref)
         os.makedirs(dest, exist_ok=True)
         for fn in sorted(os.listdir(src)):
@@ -201,6 +208,13 @@ def download_component(
         staging = os.path.join(workdir, ".hf_stage_vcf")
         _hf_snapshot(repo, patterns, staging, token)
         src = os.path.join(staging, remote_prefix, dataset)
+        if not os.path.isdir(src):
+            shutil.rmtree(staging, ignore_errors=True)
+            raise ValueError(
+                f"No VCF dataset '{dataset}' found in HuggingFace repo '{repo}' "
+                f"(looked for '{remote_prefix}/{dataset}/'). Check --dataset, or "
+                f"the repo may not have this dataset uploaded yet."
+            )
         dest = os.path.join(local_dir, dataset)
         os.makedirs(dest, exist_ok=True)
         for fn in sorted(os.listdir(src)):
@@ -215,6 +229,14 @@ def download_component(
         staging = os.path.join(workdir, ".hf_stage_index")
         _hf_snapshot(repo, patterns, staging, token)
         tarball = os.path.join(staging, remote_prefix, f"{index_name}.tar.gz")
+        if not os.path.isfile(tarball):
+            shutil.rmtree(staging, ignore_errors=True)
+            raise ValueError(
+                f"No index '{index_name}' found in HuggingFace repo '{repo}' "
+                f"(looked for '{remote_prefix}/{index_name}.tar.gz'). Check "
+                f"--index-name, or build it locally with 'crisprme.py "
+                f"build-index-only' — the repo may not have it uploaded yet."
+            )
         os.makedirs(local_dir, exist_ok=True)
         with tarfile.open(tarball) as tf:
             # surface the provenance manifest (if present) without dropping it
@@ -239,6 +261,13 @@ def download_component(
     staging = os.path.join(workdir, f".hf_stage_{component}")
     _hf_snapshot(repo, patterns, staging, token)
     src = os.path.join(staging, remote_prefix)
+    if not os.path.isdir(src):
+        shutil.rmtree(staging, ignore_errors=True)
+        raise ValueError(
+            f"No '{component}' files found in HuggingFace repo '{repo}' "
+            f"(looked for '{remote_prefix}/'). The repo may not have this "
+            f"component uploaded yet."
+        )
     os.makedirs(local_dir, exist_ok=True)
     for fn in sorted(os.listdir(src)):
         moved = shutil.move(os.path.join(src, fn), os.path.join(local_dir, fn))
