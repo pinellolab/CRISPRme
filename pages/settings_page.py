@@ -35,16 +35,107 @@ from .pages_utils import (
 from dash import Input, Output, State, html, dcc, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
+from flask import request
 
 from typing import List, Optional
 import subprocess
+import tarfile
 import string
 import random
 import base64
 import shutil
+import gzip
 import os
 
 SETTINGS_DIR = "Settings"
+
+
+# ---------------------------------------------------------------------------
+# Chunked / resumable browser upload (large local files)
+# ---------------------------------------------------------------------------
+# Large genome/VCF files cannot go through dcc.Upload (base64, in-memory). A
+# small client-side helper (assets/chunked_upload.js) slices the chosen file and
+# POSTs it here chunk-by-chunk; we append each chunk to a staging .part file and,
+# on the final chunk, finalize it into the right data folder. Because chunks are
+# appended by (name, index) the upload is resumable: re-sending from the last
+# received index continues the same .part file.
+def _uploads_dir() -> str:
+    d = os.path.join(current_working_directory, SETTINGS_DIR, "uploads")
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _finalize_upload(target: str, part_path: str, name: str, dataset: str) -> str:
+    """Move a completed upload into the correct data folder (unpacking FASTA)."""
+    if target == "annotation":
+        if not name.endswith(".bed"):
+            raise ValueError("annotation upload must be a .bed file")
+        dest_dir = os.path.join(current_working_directory, "Annotations")
+        os.makedirs(dest_dir, exist_ok=True)
+        os.replace(part_path, os.path.join(dest_dir, name))
+        return name
+    if target == "genome":
+        assembly = name
+        for ext in (".chromFa.tar.gz", ".fa.gz", ".fasta.gz", ".tar.gz", ".fa", ".fasta"):
+            if assembly.endswith(ext):
+                assembly = assembly[: -len(ext)]
+                break
+        err = _validate_name(assembly)
+        if err:
+            raise ValueError(err)
+        dest_dir = os.path.join(current_working_directory, "Genomes", assembly)
+        os.makedirs(dest_dir, exist_ok=True)
+        if name.endswith((".tar.gz", ".tgz")):
+            with gzip.open(part_path, "rb") as fin, tarfile.open(fileobj=fin, mode="r") as tar:
+                tar.extractall(dest_dir)
+            os.remove(part_path)
+        elif name.endswith(".gz"):
+            with gzip.open(part_path, "rb") as fin, open(
+                os.path.join(dest_dir, f"{assembly}.fa"), "wb"
+            ) as fout:
+                shutil.copyfileobj(fin, fout)
+            os.remove(part_path)
+        else:
+            os.replace(part_path, os.path.join(dest_dir, f"{assembly}.fa"))
+        return assembly
+    if target == "vcf":
+        err = _validate_name(dataset)
+        if err:
+            raise ValueError(err)
+        dest_dir = os.path.join(current_working_directory, "VCFs", dataset)
+        os.makedirs(dest_dir, exist_ok=True)
+        os.replace(part_path, os.path.join(dest_dir, name))
+        return dataset
+    raise ValueError(f"unknown upload target {target!r}")
+
+
+@app.server.route("/settings/upload-chunk", methods=["POST"])
+def _settings_upload_chunk():
+    if ONLINE:
+        return ("data management is disabled on the public server", 403)
+    target = request.headers.get("X-Target", "")
+    raw_name = request.headers.get("X-File-Name", "")
+    dataset = os.path.basename(request.headers.get("X-Dataset", "") or "")
+    name = os.path.basename(raw_name)
+    try:
+        idx = int(request.headers.get("X-Chunk-Index", "0"))
+        total = int(request.headers.get("X-Total-Chunks", "1"))
+    except ValueError:
+        return ("bad chunk headers", 400)
+    if target not in ("genome", "vcf", "annotation") or not name or ".." in name:
+        return ("bad target or file name", 400)
+    part = os.path.join(_uploads_dir(), name + ".part")
+    with open(part, "wb" if idx == 0 else "ab") as fout:
+        fout.write(request.get_data())
+    if idx + 1 >= total:  # last chunk -> finalize
+        try:
+            result = _finalize_upload(target, part, name, dataset)
+        except Exception as e:
+            if os.path.exists(part):
+                os.remove(part)
+            return (f"finalize failed: {e}", 500)
+        return (f"complete:{result}", 200)
+    return ("chunk received", 200)
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +335,15 @@ def settings_page() -> List:
                 type="text",
                 style={"width": "100%", "margin-top": "0.5rem"},
             ),
+            html.Small(
+                "Or upload a local genome file (.fa / .fa.gz / .tar.gz) — chunked, "
+                "no browser size limit. The assembly name is taken from the file name."
+            ),
+            html.Div(
+                className="crisprme-chunk-upload",
+                style={"margin-top": "0.3rem"},
+                **{"data-target": "genome"},
+            ),
             html.Div(id="genome-feedback", style={"color": "#b00", "margin-top": "0.4rem"}),
         ],
     )
@@ -358,6 +458,15 @@ def settings_page() -> List:
                 placeholder="absolute path to a folder of .vcf.gz (for 'Register a server folder')",
                 type="text",
                 style={"width": "100%", "margin-top": "0.5rem"},
+            ),
+            html.Small(
+                "Or upload a local .vcf.gz into the dataset named above — chunked, "
+                "no browser size limit."
+            ),
+            html.Div(
+                className="crisprme-chunk-upload",
+                style={"margin-top": "0.3rem"},
+                **{"data-target": "vcf", "data-dataset-input": "vcf-name"},
             ),
             html.Div(id="vcf-feedback", style={"color": "#b00", "margin-top": "0.4rem"}),
         ],
