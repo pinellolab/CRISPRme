@@ -1171,6 +1171,56 @@ def get_available_indexes() -> List:
     return [{"label": d, "value": d} for d in sorted(indexes)]
 
 
+def pam_motif(pam_value: str) -> Optional[str]:
+    """The PAM motif (e.g. 'NGG') for a PAM dropdown value, matching how index
+    folders are named. Reads PAMs/<value>.txt and extracts the PAM substring the
+    same way ``build-index-only`` / ``index-genome`` do. Returns None on error.
+    """
+    try:
+        with open(os.path.join(current_working_directory, PAMS_DIR, pam_value + ".txt")) as fh:
+            line = fh.readline()
+        seq = line.split()[0]
+        pos = int(line.split()[1])
+        n = abs(pos)
+        return seq[:n] if pos < 0 else seq[-n:]
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def index_max_bulges(genome: str, pam_value: str, vcf: Optional[str] = None) -> int:
+    """Max bulges an existing TST index supports for this genome+PAM(+VCF).
+
+    Index folders are named ``<motif>_<N>_<genome>[+<vcf>]`` where N = bMax+1, so
+    the usable bulge count is N-1. Returns 0 if no matching index exists (only a
+    0-bulge, index-free search is possible). A variant search also needs the
+    variant index, so callers should take the min with the reference result.
+    """
+    motif = pam_motif(pam_value)
+    if not motif or not genome:
+        return 0
+    genome = genome.replace(" ", "_")
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib):
+        return 0
+    tail = f"_{genome}+{vcf}" if vcf else f"_{genome}"
+    best = 0
+    for d in os.listdir(lib):
+        if not os.path.isdir(os.path.join(lib, d)) or d.endswith("_INDELS"):
+            continue
+        if vcf:
+            if not d.endswith(tail):
+                continue
+        else:
+            if "+" in d or not d.endswith(tail):
+                continue
+        head = d[: -len(tail)]  # '<motif>_<N>'
+        parts = head.rsplit("_", 1)
+        if len(parts) != 2 or parts[0] != motif or not parts[1].isdigit():
+            continue
+        best = max(best, int(parts[1]))
+    return max(0, best - 1)
+
+
 def get_all_vcf_datasets() -> List:
     """List every VCF dataset directory under VCFs/ (no genome filtering).
 

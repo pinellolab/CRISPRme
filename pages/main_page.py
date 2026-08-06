@@ -26,6 +26,7 @@ from .pages_utils import (
     select_same_len_guides,
     get_available_PAM,
     get_available_CAS,
+    index_max_bulges,
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
@@ -44,7 +45,7 @@ from app import (
 )
 
 from dash.exceptions import PreventUpdate
-from dash import Input, Output, State
+from dash import Input, Output, State, no_update
 from typing import Dict, List, Tuple, Union
 from datetime import datetime
 
@@ -1546,6 +1547,55 @@ def change_variants_checklist_state(genome_value: str) -> List:
     return [checklist_variants_options, personal_vcf]
 
 
+# Limit the DNA/RNA bulge options to what a built index supports (hard cap).
+# Bulge searches need a per-PAM TST index; 0-bulge searches run index-free, so 0
+# is always available. A variant search also needs the variant index for each
+# selected dataset, so the cap is the min across the reference and variant
+# indexes. Mismatches are never index-limited, so they are left untouched.
+@app.callback(
+    [
+        Output("dna", "options"),
+        Output("rna", "options"),
+        Output("dna", "value", allow_duplicate=True),
+        Output("rna", "value", allow_duplicate=True),
+        Output("bulge-guard-note", "children"),
+    ],
+    [
+        Input("available-genome", "value"),
+        Input("available-pam", "value"),
+        Input("checklist-variants", "value"),
+        Input("vcf-dropdown", "value"),
+    ],
+    [State("dna", "value"), State("rna", "value")],
+    prevent_initial_call=True,
+)
+def limit_bulges_to_index(genome, pam, variants, vcf, cur_dna, cur_rna):
+    if not genome or not pam:
+        return AV_BULGES, AV_BULGES, no_update, no_update, ""
+    maxb = index_max_bulges(genome, pam, None)  # reference index (always needed)
+    selected = []
+    for v in variants or []:
+        if v in ("1000G", "HGDP"):
+            selected.append(v)
+        elif v == "PV" and vcf:
+            selected.append(vcf)
+    for v in selected:  # a variant bulge search also needs the variant index
+        maxb = min(maxb, index_max_bulges(genome, pam, v))
+    opts = [{"label": i, "value": i} for i in range(0, maxb + 1)]
+    dna_v = cur_dna if (isinstance(cur_dna, int) and cur_dna <= maxb) else 0
+    rna_v = cur_rna if (isinstance(cur_rna, int) and cur_rna <= maxb) else 0
+    if maxb == 0:
+        note = (
+            "No bulge index for this genome/PAM"
+            + (" + selected variant set" if selected else "")
+            + " yet — only a fast 0-bulge search is available. Build an index in "
+            "Settings to enable bulges."
+        )
+    else:
+        note = f"Up to {maxb} DNA/RNA bulge(s) available (limited by the built index)."
+    return opts, opts, dna_v, rna_v, note
+
+
 def index_page() -> html.Div:
     """Construct the layout of CRISPRme main page.
     When a new genome is added to /Genomes directory, reload genomes and PAMs
@@ -1775,6 +1825,10 @@ def index_page() -> html.Div:
                     ),
                 ],
                 style={"display": "inline-block"},
+            ),
+            html.Div(
+                id="bulge-guard-note",
+                style={"font-size": "0.8rem", "color": "#666", "margin-top": "6px"},
             ),
         ],
         style={"margin-top": "10%"},
