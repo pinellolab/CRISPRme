@@ -352,6 +352,51 @@ def error(msg: str) -> NoReturn:
     sys.stderr.write(f"Error: {msg}\n")
     sys.exit(1)
 
+
+def summarize_pipeline_failure(outputfolder: str) -> str:
+    """Build a concise, actionable summary of a failed pipeline run.
+
+    The search pipeline writes per-stage Start/End markers to ``log.txt`` and
+    all subprocess stderr to ``log_error.txt``. On failure the user otherwise
+    just sees "run failed"; this reads those two files to report WHICH stage
+    failed (the last stage that started but never ended) and WHAT the actual
+    error was (the tail of the error log), so a non-expert doesn't have to open
+    and interpret the log files by hand.
+    """
+    lines = []
+    log_txt = os.path.join(outputfolder, "log.txt")
+    log_err = os.path.join(outputfolder, "log_error.txt")
+    # the failing stage = the last one that started but has no matching End
+    failing_stage = None
+    try:
+        started, ended = [], set()
+        with open(log_txt) as fh:
+            for ln in fh:
+                parts = ln.rstrip("\n").split("\t")
+                if len(parts) >= 2 and parts[1] == "Start":
+                    started.append(parts[0])
+                elif len(parts) >= 2 and parts[1] == "End":
+                    ended.add(parts[0])
+        for stage in reversed(started):
+            if stage not in ended:
+                failing_stage = stage
+                break
+    except OSError:
+        pass
+    if failing_stage:
+        lines.append(f"  Failed during stage: {failing_stage}")
+    try:
+        with open(log_err) as fh:
+            errlines = [ln.rstrip("\n") for ln in fh if ln.strip()]
+        if errlines:
+            lines.append("  Last lines of the error log:")
+            lines.extend(f"      {ln}" for ln in errlines[-15:])
+    except OSError:
+        pass
+    lines.append(f"  Full error log: {log_err}")
+    return "\n".join(lines)
+
+
 def _check_mandatory_args(args: List[str]) -> None:
     if "--genome" not in args:
         error("--genome is required")
@@ -1474,6 +1519,12 @@ def complete_search() -> None:
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
             )
             if code != 0:
+                # surface WHERE it failed + the actual error, not just "failed"
+                sys.stderr.write(
+                    "\nCRISPRme run failed.\n"
+                    + summarize_pipeline_failure(outputfolder)
+                    + "\n"
+                )
                 raise OSError(
                     f"\nCRISPRme run failed! See {os.path.join(outputfolder, 'log_error.txt')} for details\n"
                 )

@@ -40,6 +40,12 @@ and the `release-crisprme` skill.
   / JS errors).
 - `validate-benchmarks` gained a new-subcommand dispatch + unit-test smoke step.
 
+### Changed
+- Clearer failure reporting: when a search fails, CRISPRme now prints *which
+  stage* failed (from the per-stage log) and the last lines of the error log,
+  instead of only "run failed — see log_error.txt". Makes failures actionable
+  for non-expert users.
+
 ### Fixed
 - Zero-hit searches now complete cleanly with an empty result instead of
   aborting. A search that finds no off-targets (e.g. a very stringent
@@ -53,6 +59,10 @@ and the `release-crisprme` skill.
   exits 0; a normal with-hits search is unaffected).
 
 ### Documentation
+- New `docs/DOCKER_QUICKSTART.md` + a README quickstart callout: a few-command,
+  no-conda / no-410 GB path to the web interface for non-experts — fast HF data
+  download, a prebuilt index, then `web-interface` in the browser, with
+  troubleshooting and "install more indexes as needed".
 - Data-setup guide: documented what `setup` produces (including the combined
   1000G+HGDP config files), the HuggingFace fast-download path, and a new
   "Prebuild, reuse, and share the reference index" section.

@@ -26,6 +26,24 @@ through an interactive web-based interface.
 locally hosted web interface. Visit https://pinellolab.github.io/CRISPRme/ for a
 quick guide on deploying locally the web interface.
 
+## ⚡ Quickstart — web interface in Docker (no conda, no 410 GB)
+
+New to CRISPRme? Get the point-and-click web interface running in a few commands
+— just install Docker, then:
+
+```bash
+mkdir -p ~/crisprme && cd ~/crisprme
+# 1) fast-download the reference data (minutes, via the HuggingFace CDN)
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what all --path /DATA
+# 2) grab a prebuilt SpCas9 (NGG) index so no long index build is needed
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what index --index-name NGG_2_hg38 --path /DATA
+# 3) launch the web interface, then open http://127.0.0.1:8080
+docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme crisprme.py web-interface
+```
+
+**Full step-by-step (with variants, more indexes, troubleshooting):
+[`docs/DOCKER_QUICKSTART.md`](docs/DOCKER_QUICKSTART.md).**
+
 ## Table Of Contents
 
 0 [System Requirements](#0-system-requirements)
