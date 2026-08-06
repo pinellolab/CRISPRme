@@ -131,6 +131,16 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
     if hash_guide is None:  # dash can pass none for hash on initial load
         hash_guide = ""
     if path == "/load":  # show loading page
+        # recover the job id from ?job=... (guard against a bare /load visit)
+        job_id = ""
+        if search and "job=" in search:
+            job_id = search.split("job=")[-1].split("&")[0].strip()
+        # a bare or malformed /load with no real job -> friendly empty state
+        # instead of a misleading "Job submitted" status page
+        if not job_id or not os.path.isdir(
+            os.path.join(current_working_directory, "Results", job_id)
+        ):
+            return (load_page.load_page_no_job(), "/index")
         # define url to display on load page to check on job status
         # if online show the webaddress, show the ip address otherwise
         job_loading_url = WEBADDRESS if ONLINE else IPADDRESS

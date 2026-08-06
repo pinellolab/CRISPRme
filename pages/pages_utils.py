@@ -982,6 +982,23 @@ def select_same_len_guides(guides: str) -> str:
     return same_len_guides
 
 
+def friendly_pam_label(raw: str) -> str:
+    """Human-readable label for a PAM/nuclease token.
+
+    Filenames like ``20bp-NNN-NO-PAM`` (and the nuclease token ``NO`` parsed from
+    them) are shown to users; ``NO`` on its own is cryptic. Map the known
+    "no PAM" case to a clear label; everything else is returned unchanged. The
+    dropdown *value* stays the raw token, so search behaviour is unaffected.
+    """
+
+    if raw in ("NO", "NO-PAM"):
+        return "No PAM (search all sites)"
+    if raw.endswith("-NO-PAM"):
+        prefix = raw.split("-")[0]  # e.g. "20bp"
+        return f"{prefix} - No PAM (search all sites)"
+    return raw
+
+
 def get_available_PAM() -> List:
     """Recover the PAMs currently available in the /PAMs directory.
 
@@ -1007,8 +1024,13 @@ def get_available_PAM() -> List:
     ]
     # remove '.txt' from filenames
     pams_files = [f.replace(".txt", "") for f in pams_files]
-    # skip temporary PAMs (used during dictionary updating)
-    pams = [{"label": pam, "value": pam} for pam in pams_files if "tempPAM" not in pam]
+    # skip temporary PAMs (used during dictionary updating). The label is
+    # user-friendly; the value stays the raw filename so searches are unaffected.
+    pams = [
+        {"label": friendly_pam_label(pam), "value": pam}
+        for pam in pams_files
+        if "tempPAM" not in pam
+    ]
     return pams
 
 
@@ -1052,7 +1074,7 @@ def get_available_CAS() -> List:
     for casprot in casprots:
         seen.setdefault(casprot.lower(), casprot)
     casprots_data = [
-        {"label": casprot, "value": casprot}
+        {"label": friendly_pam_label(casprot), "value": casprot}
         for casprot in sorted(seen.values(), key=str.lower)
     ]
     return casprots_data

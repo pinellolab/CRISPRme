@@ -703,6 +703,14 @@ def download_link_sample(
             ),
             True,
         )
+    # The interval fires once per second; if the file has not appeared after
+    # ~30s it is not going to, so stop polling instead of showing the
+    # "Generating download link..." banner forever.
+    if n >= 30:
+        return (
+            "Download link unavailable (the file could not be generated).",
+            True,
+        )
     return "Generating download link, Please wait...", False
 
 
@@ -3781,8 +3789,6 @@ def check_existance_sample(job_directory: str, job_id: str, sample: str) -> bool
     [
         Output("div-radar-chart-encode_gencode", "children"),
         Output("div-population-barplot", "children"),
-        Output("div-sample-image", "children"),
-        Output("row-radar-chart-sample", "children"),
     ],
     [
         Input("mm-dropdown", "value"),
@@ -3793,7 +3799,7 @@ def check_existance_sample(job_directory: str, job_id: str, sample: str) -> bool
 )
 def update_images_tabs(
     mm: int, sel_cel: List, filter_criterion: str, search: str, all_guides: List
-) -> Tuple[List, List, List, List]:
+) -> Tuple[List, List]:
     """Compute the plots displayed when watching at the Graphical Reports
     tab in the main CRISPRme results webpage.
 
@@ -3839,8 +3845,6 @@ def update_images_tabs(
     radar_chart_encode_gencode = []
     # radar_chart_gencode = list()
     population_barplots = []
-    guide_images = []
-    sample_images = []
     # begin graphical reports page construction
     try:
         # population barplot
@@ -3942,14 +3946,9 @@ def update_images_tabs(
         radar_chart_encode_gencode.append(
             html.H2("No result found for this combination of mismatches and bulges")
         )
-    # reverse list to print plots in correct order
-    # NB plots are appended in reverse order into main sample_images list
-    reversed_sample_images = sample_images[::-1]
     return (
         radar_chart_encode_gencode,
         population_barplots,
-        guide_images,  # always empty?
-        reversed_sample_images,
     )
 
 

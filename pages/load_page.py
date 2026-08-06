@@ -373,6 +373,52 @@ def remove_result(n: int, dir_name: str) -> html.P:
 
 
 # Load Page
+def load_page_no_job() -> List:
+    """Empty-state shown when /load is opened without a valid job id.
+
+    A bare visit to ``/load`` (e.g. a stale bookmark, or clicking the nav link
+    directly) previously rendered a misleading "Job submitted" status box for a
+    job that does not exist. Instead, tell the user plainly and point them back
+    to the search page.
+
+    Returns
+    -------
+    List
+        Empty-state load page layout
+    """
+
+    return [
+        html.Div(
+            html.Div(
+                [
+                    html.H3("No job to display"),
+                    html.P(
+                        str(
+                            "This page shows the status and results of a specific "
+                            "CRISPRme job. Open it from the link you were given when "
+                            "you submitted a search, or start a new search."
+                        )
+                    ),
+                    dcc.Link(
+                        html.Button(
+                            "Start a new search",
+                            style={
+                                "font-size": "large",
+                                "margin-top": "0.75rem",
+                                "border-radius": "5px",
+                                "border": "2px solid",
+                            },
+                        ),
+                        href="/",
+                    ),
+                ],
+                style={"display": "inline-block", "width": "70%"},
+            ),
+            style={"text-align": "center", "margin-top": "3rem"},
+        )
+    ]
+
+
 def load_page(job_link: str = "link") -> List:
     """Construct the layout of the results load page. The page is displayed
     while CRISPRme analysis is running, and show the user the status of each

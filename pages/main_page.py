@@ -1466,7 +1466,8 @@ def select_cas_pam_dropdown(casprot: str) -> List:
     options = [
         {"label": pam["label"], "value": pam["value"]}
         for pam in available_pams
-        if casprot == pam["label"].split(".")[0].split("-")[2]
+        # match on the raw value (the label may be a friendly alias now)
+        if casprot == pam["value"].split(".")[0].split("-")[2]
     ]
     return [options]
 
