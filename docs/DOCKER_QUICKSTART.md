@@ -157,6 +157,13 @@ uses that PAM (slower once, then reused). You can also pre-build it from the
 command line with `crisprme.py build-index-only` — see
 [`PRECOMPUTED_INDEXES.md`](PRECOMPUTED_INDEXES.md).
 
+Or do all of this **from the browser**: the web interface has a **Settings /
+Data Manager** page (the button on the home page, or `/settings`) where you can
+add genomes, indexes, VCF datasets, annotations and PAMs — including downloading
+a UCSC assembly by name, pre-building a variant-aware index, checking disk usage,
+and deleting data you no longer need. See
+[`SETTINGS_DATA_MANAGER.md`](SETTINGS_DATA_MANAGER.md).
+
 ## Troubleshooting
 
 - **The genome/PAM dropdowns are empty** → you skipped step 3. Run
