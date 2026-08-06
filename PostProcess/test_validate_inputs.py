@@ -504,13 +504,13 @@ class TestCheckTbiFiles(unittest.TestCase):
 class TestCheckPamFile(unittest.TestCase):
     def test_valid_pam(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "pam.txt")
+            path = os.path.join(tmp, "20bp-NGG-SpCas9.txt")
             write_text(path, "NGG 3\n")
             self.assertEqual(vi.check_pam_file(path), [])
 
     def test_missing_offset_token(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "pam.txt")
+            path = os.path.join(tmp, "20bp-NGG-SpCas9.txt")
             write_text(path, "NGG\n")
             issues = vi.check_pam_file(path)
             self.assertEqual(len(issues), 1)
@@ -519,7 +519,7 @@ class TestCheckPamFile(unittest.TestCase):
 
     def test_empty_file_zero_tokens(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "pam.txt")
+            path = os.path.join(tmp, "20bp-NGG-SpCas9.txt")
             write_text(path, "")
             issues = vi.check_pam_file(path)
             self.assertEqual(len(issues), 1)
@@ -528,7 +528,7 @@ class TestCheckPamFile(unittest.TestCase):
 
     def test_non_integer_offset(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "pam.txt")
+            path = os.path.join(tmp, "20bp-NGG-SpCas9.txt")
             write_text(path, "NGG abc\n")
             issues = vi.check_pam_file(path)
             self.assertEqual(len(issues), 1)
@@ -537,13 +537,40 @@ class TestCheckPamFile(unittest.TestCase):
 
     def test_invalid_iupac_character(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "pam.txt")
+            path = os.path.join(tmp, "20bp-NGG-SpCas9.txt")
             write_text(path, "NGGZ 3\n")
             issues = vi.check_pam_file(path)
             self.assertEqual(len(issues), 1)
             self.assertEqual(issues[0].severity, vi.ERROR)
             self.assertIn("invalid IUPAC character", issues[0].message)
             self.assertIn("Z", issues[0].message)
+
+    def test_filename_missing_convention_errors_even_with_valid_content(self):
+        # content-independent: a perfectly valid PAM sequence still fails,
+        # since complete_search() parses the nuclease name from the filename
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "pam.txt")
+            write_text(path, "NGG 3\n")
+            issues = vi.check_pam_file(path)
+            self.assertEqual(len(issues), 1)
+            self.assertEqual(issues[0].severity, vi.ERROR)
+            self.assertIn("convention", issues[0].message)
+
+    def test_filename_with_extra_dashes_in_cas_name_is_fine(self):
+        # only >=3 dash-separated fields required; a Cas name that itself
+        # contains a dash (e.g. "Cas12a-Ultra") still yields >=3 fields
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "24bp-TTTV-Cas12a-Ultra.txt")
+            write_text(path, "TTTV -4\n")
+            self.assertEqual(vi.check_pam_file(path), [])
+
+    def test_filename_and_content_errors_both_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "pam.txt")
+            write_text(path, "NGGZ abc\n")
+            issues = vi.check_pam_file(path)
+            self.assertEqual(len(issues), 3)  # filename + offset + IUPAC
+            self.assertTrue(all(i.severity == vi.ERROR for i in issues))
 
 
 # ===========================================================================
@@ -742,7 +769,7 @@ class TestRunLightweightEndToEnd(unittest.TestCase):
         os.makedirs(vcf_dir)
         make_vcf_gz(os.path.join(vcf_dir, "chr1.vcf.gz"), [vcf_record()])
 
-        pamfile = os.path.join(tmp, "pam.txt")
+        pamfile = os.path.join(tmp, "20bp-NGG-SpCas9.txt")
         write_text(pamfile, "NGG 3\n")
 
         guidefile = os.path.join(tmp, "guides.txt")

@@ -530,13 +530,27 @@ def check_tbi_files(vcf_dir: str) -> List[Issue]:
 
 
 def check_pam_file(pamfile: str) -> List[Issue]:
-    """Checks that the PAM file has a valid sequence + length-offset format.
+    """Checks that the PAM file has a valid sequence + length-offset format,
+    and that its filename follows the naming convention `complete_search()`
+    requires.
 
     `crispritz.py` `indexGenome()` does `PAM.split()[1]` to get the signed
     length offset (line ~81) — an IndexError if there's no second token, a
     ValueError if it isn't numeric. No character validation is done at all,
     so an invalid IUPAC character is only caught much later inside the C
     search binary with no clear message.
+
+    Separately, `crisprme.py`'s `complete_search()` (~line 1227) parses the
+    nuclease name directly out of the filename --
+    `os.path.basename(pamfile).split(".")[0].split("-")[2]` -- requiring the
+    `<length>-<motif>-<CasName>.txt` convention (e.g. `20bp-NGG-SpCas9.txt`).
+    This is content-independent (a perfectly valid PAM sequence still fails
+    if the filename doesn't follow the convention), so it's checked here as
+    a separate condition, not folded into the sequence/offset checks above.
+    `complete_search()` itself already raises a clear `ValueError` for this
+    (hardened against a cryptic `IndexError` by the `fda-hardening` commit
+    91215f0) -- this check just catches it before the pipeline launches,
+    same "fail fast, fail clearly" reasoning as every other check here.
 
     Args:
         pamfile: Path to the PAM file.
@@ -545,14 +559,27 @@ def check_pam_file(pamfile: str) -> List[Issue]:
         A list of issues; empty if the file passes.
     """
     fname = os.path.basename(pamfile)
+    name_fields = fname.split(".")[0].split("-")
+    issues: List[Issue] = []
+    if len(name_fields) < 3:
+        issues.append(
+            Issue(
+                ERROR,
+                f"{fname}: filename doesn't follow the "
+                "'<length>-<motif>-<CasName>.txt' convention (e.g. "
+                "'20bp-NGG-SpCas9.txt') -- complete_search() parses the "
+                "nuclease name from it and will raise an error before "
+                "indexing even if the PAM file's own content is valid",
+            )
+        )
     try:
         with open(pamfile, "r") as fin:
             content = fin.read()
     except OSError as e:
-        return [Issue(ERROR, f"{fname}: could not read file ({e})")]
+        return issues + [Issue(ERROR, f"{fname}: could not read file ({e})")]
     tokens = content.split()
     if len(tokens) < 2:
-        return [
+        return issues + [
             Issue(
                 ERROR,
                 f"{fname}: expected '<PAM_SEQUENCE> <offset>', found "
@@ -560,7 +587,6 @@ def check_pam_file(pamfile: str) -> List[Issue]:
             )
         ]
     sequence, offset = tokens[0], tokens[1]
-    issues: List[Issue] = []
     try:
         int(offset)
     except ValueError:
