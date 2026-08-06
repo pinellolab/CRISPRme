@@ -24,8 +24,15 @@ RUN apt-get update \
         g++ make git unzip gsl-bin libgsl0-dev libgomp1 zlib1g-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Conda channel base. Defaults to the official Anaconda source; override with
+#   --build-arg CONDA_CHANNEL_BASE=https://prefix.dev
+# to build behind networks that block conda.anaconda.org (prefix.dev mirrors
+# both conda-forge and bioconda). The resulting environment is identical.
+ARG CONDA_CHANNEL_BASE=https://conda.anaconda.org
+
 # Python 3.11 environment: scoring stack + Dash 2.x web stack + pipeline tools.
-RUN micromamba install -y -n base -c conda-forge -c bioconda \
+RUN micromamba install -y -n base \
+        -c ${CONDA_CHANNEL_BASE}/conda-forge -c ${CONDA_CHANNEL_BASE}/bioconda \
         python=3.11 \
         scikit-learn=1.1.3 numpy=1.24.4 scipy=1.10.1 pandas=2.0.3 \
         "matplotlib-base<3.9" \
