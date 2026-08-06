@@ -1,0 +1,194 @@
+<svg width="100%" height="100%" viewBox="30 10 860 240" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <!-- Import a modern tech font directly so it renders perfectly -->
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@500;800&amp;display=swap');
+            .text-crispr { font-family: 'Outfit', system-ui, -apple-system, sans-serif; font-size: 104px; font-weight: 500; fill: #388396; letter-spacing: -1px; }
+            .text-me { font-family: 'Outfit', system-ui, -apple-system, sans-serif; font-size: 104px; font-weight: 800; fill: #e86a58; letter-spacing: -2px; }
+            .text-plus { font-family: 'Outfit', system-ui, -apple-system, sans-serif; font-size: 104px; font-weight: 800; fill: #e86a58; }
+        </style>
+
+        <!-- The mathematically exact shape of the person with corrected, thicker legs -->
+        <g id="person">
+            <circle cx="0" cy="-38" r="12.5"/>
+            <!-- Torso, Arms & Thick Legs -->
+            <path d="M -10 -22
+                     C -20 -22, -23 -16, -24 -6
+                     L -26 15
+                     C -26.5 19, -20.5 19, -20 15
+                     L -17 -2
+                     C -16.5 -5, -13.5 -5, -13 -2
+                     L -13 22
+                     L -13 56
+                     C -13 60, -2 60, -2 56
+                     L -2 22
+                     L 2 22
+                     L 2 56
+                     C 2 60, 13 60, 13 56
+                     L 13 22
+                     L 13 -2
+                     C 13.5 -5, 16.5 -5, 17 -2
+                     L 20 15
+                     C 20.5 19, 26.5 19, 26 15
+                     L 24 -6
+                     C 23 -16, 20 -22, 10 -22
+                     Z" />
+        </g>
+    </defs>
+
+    <!-- High-Density Background Crowd Swarm -->
+    <g id="crowd">
+        <use href="#person" transform="translate(175.3, 200.0) scale(0.21)" fill="#e86a58" opacity="0.15"/>
+        <use href="#person" transform="translate(168.0, 209.4) scale(0.15)" fill="#388396" opacity="0.14"/>
+        <use href="#person" transform="translate(192.3, 122.2) scale(0.14)" fill="#388396" opacity="0.21"/>
+        <use href="#person" transform="translate(89.5, 197.3) scale(0.15)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(165.4, 187.3) scale(0.15)" fill="#388396" opacity="0.16"/>
+        <use href="#person" transform="translate(109.6, 44.0) scale(0.21)" fill="#e86a58" opacity="0.09"/>
+        <use href="#person" transform="translate(99.3, 156.6) scale(0.19)" fill="#388396" opacity="0.16"/>
+        <use href="#person" transform="translate(87.1, 115.9) scale(0.12)" fill="#388396" opacity="0.22"/>
+        <use href="#person" transform="translate(126.3, 119.8) scale(0.12)" fill="#388396" opacity="0.28"/>
+        <use href="#person" transform="translate(167.9, 154.8) scale(0.19)" fill="#e86a58" opacity="0.30"/>
+        <use href="#person" transform="translate(70.5, 142.5) scale(0.21)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(114.2, 37.8) scale(0.12)" fill="#e86a58" opacity="0.08"/>
+        <use href="#person" transform="translate(134.3, 152.9) scale(0.21)" fill="#e86a58" opacity="0.40"/>
+        <use href="#person" transform="translate(140.4, 96.2) scale(0.20)" fill="#e86a58" opacity="0.36"/>
+        <use href="#person" transform="translate(166.0, 163.3) scale(0.19)" fill="#e86a58" opacity="0.37"/>
+        <use href="#person" transform="translate(198.4, 89.7) scale(0.22)" fill="#388396" opacity="0.24"/>
+        <use href="#person" transform="translate(198.9, 152.1) scale(0.19)" fill="#388396" opacity="0.21"/>
+        <use href="#person" transform="translate(144.6, 159.4) scale(0.13)" fill="#e86a58" opacity="0.40"/>
+        <use href="#person" transform="translate(163.1, 174.4) scale(0.22)" fill="#388396" opacity="0.33"/>
+        <use href="#person" transform="translate(193.0, 159.5) scale(0.21)" fill="#e86a58" opacity="0.17"/>
+        <use href="#person" transform="translate(199.0, 68.3) scale(0.18)" fill="#388396" opacity="0.16"/>
+        <use href="#person" transform="translate(143.4, 174.8) scale(0.18)" fill="#e86a58" opacity="0.27"/>
+        <use href="#person" transform="translate(199.3, 109.4) scale(0.19)" fill="#388396" opacity="0.29"/>
+        <use href="#person" transform="translate(205.7, 149.8) scale(0.13)" fill="#388396" opacity="0.17"/>
+        <use href="#person" transform="translate(130.7, 159.5) scale(0.16)" fill="#388396" opacity="0.34"/>
+        <use href="#person" transform="translate(118.3, 53.8) scale(0.19)" fill="#388396" opacity="0.12"/>
+        <use href="#person" transform="translate(115.6, 119.8) scale(0.19)" fill="#388396" opacity="0.35"/>
+        <use href="#person" transform="translate(108.3, 148.0) scale(0.15)" fill="#388396" opacity="0.19"/>
+        <use href="#person" transform="translate(179.2, 128.7) scale(0.16)" fill="#e86a58" opacity="0.37"/>
+        <use href="#person" transform="translate(138.2, 83.6) scale(0.20)" fill="#e86a58" opacity="0.25"/>
+        <use href="#person" transform="translate(245.9, 78.9) scale(0.16)" fill="#388396" opacity="0.10"/>
+        <use href="#person" transform="translate(114.1, 97.7) scale(0.19)" fill="#388396" opacity="0.31"/>
+        <use href="#person" transform="translate(139.2, 101.7) scale(0.18)" fill="#388396" opacity="0.37"/>
+        <use href="#person" transform="translate(182.1, 26.9) scale(0.19)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(75.7, 172.6) scale(0.14)" fill="#388396" opacity="0.09"/>
+        <use href="#person" transform="translate(226.3, 182.6) scale(0.14)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(75.7, 84.6) scale(0.21)" fill="#e86a58" opacity="0.10"/>
+        <use href="#person" transform="translate(160.5, 156.2) scale(0.19)" fill="#388396" opacity="0.40"/>
+        <use href="#person" transform="translate(159.9, 197.7) scale(0.21)" fill="#388396" opacity="0.16"/>
+        <use href="#person" transform="translate(235.7, 70.8) scale(0.17)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(183.3, 138.7) scale(0.19)" fill="#388396" opacity="0.40"/>
+        <use href="#person" transform="translate(226.2, 127.0) scale(0.13)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(101.4, 120.5) scale(0.15)" fill="#e86a58" opacity="0.21"/>
+        <use href="#person" transform="translate(83.9, 185.8) scale(0.14)" fill="#388396" opacity="0.13"/>
+        <use href="#person" transform="translate(153.3, 26.9) scale(0.15)" fill="#e86a58" opacity="0.07"/>
+        <use href="#person" transform="translate(190.8, 99.5) scale(0.14)" fill="#388396" opacity="0.19"/>
+        <use href="#person" transform="translate(113.9, 144.6) scale(0.21)" fill="#e86a58" opacity="0.34"/>
+        <use href="#person" transform="translate(182.4, 213.2) scale(0.14)" fill="#e86a58" opacity="0.10"/>
+        <use href="#person" transform="translate(171.7, 112.6) scale(0.18)" fill="#388396" opacity="0.37"/>
+        <use href="#person" transform="translate(117.1, 57.4) scale(0.20)" fill="#388396" opacity="0.17"/>
+        <use href="#person" transform="translate(226.8, 120.1) scale(0.13)" fill="#e86a58" opacity="0.15"/>
+        <use href="#person" transform="translate(132.7, 102.2) scale(0.21)" fill="#388396" opacity="0.23"/>
+        <use href="#person" transform="translate(251.5, 158.4) scale(0.12)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(205.5, 36.4) scale(0.14)" fill="#e86a58" opacity="0.11"/>
+        <use href="#person" transform="translate(136.6, 38.4) scale(0.22)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(132.1, 211.2) scale(0.20)" fill="#388396" opacity="0.12"/>
+        <use href="#person" transform="translate(208.2, 97.9) scale(0.21)" fill="#388396" opacity="0.13"/>
+        <use href="#person" transform="translate(133.9, 61.8) scale(0.19)" fill="#388396" opacity="0.15"/>
+        <use href="#person" transform="translate(94.1, 75.3) scale(0.21)" fill="#388396" opacity="0.12"/>
+        <use href="#person" transform="translate(115.7, 142.9) scale(0.13)" fill="#388396" opacity="0.35"/>
+        <use href="#person" transform="translate(117.8, 121.5) scale(0.17)" fill="#e86a58" opacity="0.38"/>
+        <use href="#person" transform="translate(198.9, 212.1) scale(0.20)" fill="#388396" opacity="0.12"/>
+        <use href="#person" transform="translate(128.3, 35.0) scale(0.22)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(226.3, 82.6) scale(0.19)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(149.1, 156.1) scale(0.17)" fill="#e86a58" opacity="0.36"/>
+        <use href="#person" transform="translate(104.9, 109.8) scale(0.22)" fill="#e86a58" opacity="0.26"/>
+        <use href="#person" transform="translate(224.4, 175.4) scale(0.18)" fill="#388396" opacity="0.12"/>
+        <use href="#person" transform="translate(171.1, 158.1) scale(0.15)" fill="#388396" opacity="0.24"/>
+        <use href="#person" transform="translate(115.8, 147.5) scale(0.14)" fill="#e86a58" opacity="0.35"/>
+        <use href="#person" transform="translate(149.8, 161.3) scale(0.12)" fill="#e86a58" opacity="0.29"/>
+        <use href="#person" transform="translate(154.7, 167.8) scale(0.14)" fill="#e86a58" opacity="0.34"/>
+        <use href="#person" transform="translate(152.5, 232.3) scale(0.15)" fill="#e86a58" opacity="0.12"/>
+        <use href="#person" transform="translate(106.1, 190.0) scale(0.19)" fill="#e86a58" opacity="0.14"/>
+        <use href="#person" transform="translate(129.7, 200.9) scale(0.21)" fill="#388396" opacity="0.20"/>
+        <use href="#person" transform="translate(183.3, 110.8) scale(0.12)" fill="#e86a58" opacity="0.23"/>
+        <use href="#person" transform="translate(197.2, 89.7) scale(0.15)" fill="#e86a58" opacity="0.20"/>
+        <use href="#person" transform="translate(176.0, 230.3) scale(0.16)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(220.9, 60.7) scale(0.14)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(87.2, 172.2) scale(0.18)" fill="#e86a58" opacity="0.16"/>
+        <use href="#person" transform="translate(173.3, 210.1) scale(0.21)" fill="#e86a58" opacity="0.14"/>
+        <use href="#person" transform="translate(192.8, 210.9) scale(0.16)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(178.6, 99.1) scale(0.19)" fill="#e86a58" opacity="0.28"/>
+        <use href="#person" transform="translate(163.8, 94.8) scale(0.17)" fill="#388396" opacity="0.35"/>
+        <use href="#person" transform="translate(157.0, 208.7) scale(0.15)" fill="#e86a58" opacity="0.13"/>
+        <use href="#person" transform="translate(131.3, 70.6) scale(0.18)" fill="#388396" opacity="0.20"/>
+        <use href="#person" transform="translate(88.1, 199.5) scale(0.22)" fill="#388396" opacity="0.07"/>
+        <use href="#person" transform="translate(59.5, 148.3) scale(0.15)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(178.4, 222.4) scale(0.17)" fill="#e86a58" opacity="0.09"/>
+        <use href="#person" transform="translate(70.1, 85.3) scale(0.13)" fill="#e86a58" opacity="0.11"/>
+        <use href="#person" transform="translate(161.1, 155.0) scale(0.15)" fill="#388396" opacity="0.30"/>
+        <use href="#person" transform="translate(148.6, 56.6) scale(0.17)" fill="#388396" opacity="0.18"/>
+        <use href="#person" transform="translate(194.2, 129.4) scale(0.16)" fill="#388396" opacity="0.33"/>
+        <use href="#person" transform="translate(128.1, 169.3) scale(0.22)" fill="#388396" opacity="0.33"/>
+        <use href="#person" transform="translate(119.0, 122.3) scale(0.12)" fill="#388396" opacity="0.27"/>
+        <use href="#person" transform="translate(66.6, 114.9) scale(0.18)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(194.1, 161.3) scale(0.16)" fill="#e86a58" opacity="0.26"/>
+        <use href="#person" transform="translate(103.9, 157.1) scale(0.15)" fill="#388396" opacity="0.24"/>
+        <use href="#person" transform="translate(231.0, 170.6) scale(0.12)" fill="#388396" opacity="0.10"/>
+        <use href="#person" transform="translate(115.9, 125.5) scale(0.17)" fill="#388396" opacity="0.27"/>
+        <use href="#person" transform="translate(185.5, 48.7) scale(0.17)" fill="#e86a58" opacity="0.12"/>
+        <use href="#person" transform="translate(99.5, 214.3) scale(0.22)" fill="#e86a58" opacity="0.08"/>
+        <use href="#person" transform="translate(115.9, 47.9) scale(0.19)" fill="#388396" opacity="0.09"/>
+        <use href="#person" transform="translate(133.2, 35.6) scale(0.22)" fill="#388396" opacity="0.11"/>
+        <use href="#person" transform="translate(179.1, 136.0) scale(0.19)" fill="#388396" opacity="0.38"/>
+        <use href="#person" transform="translate(227.4, 60.3) scale(0.14)" fill="#388396" opacity="0.08"/>
+        <use href="#person" transform="translate(98.4, 156.9) scale(0.20)" fill="#388396" opacity="0.23"/>
+        <use href="#person" transform="translate(210.6, 59.0) scale(0.17)" fill="#e86a58" opacity="0.09"/>
+        <use href="#person" transform="translate(81.7, 147.6) scale(0.21)" fill="#e86a58" opacity="0.19"/>
+        <use href="#person" transform="translate(107.1, 111.7) scale(0.13)" fill="#388396" opacity="0.20"/>
+        <use href="#person" transform="translate(209.0, 107.0) scale(0.13)" fill="#e86a58" opacity="0.25"/>
+        <use href="#person" transform="translate(81.1, 77.5) scale(0.15)" fill="#388396" opacity="0.09"/>
+        <use href="#person" transform="translate(197.3, 176.0) scale(0.18)" fill="#388396" opacity="0.20"/>
+        <use href="#person" transform="translate(87.3, 106.3) scale(0.20)" fill="#388396" opacity="0.22"/>
+        <use href="#person" transform="translate(160.6, 33.2) scale(0.15)" fill="#388396" opacity="0.07"/>
+        <use href="#person" transform="translate(208.4, 59.2) scale(0.18)" fill="#e86a58" opacity="0.12"/>
+        <use href="#person" transform="translate(220.3, 196.6) scale(0.21)" fill="#388396" opacity="0.13"/>
+        <use href="#person" transform="translate(87.2, 71.4) scale(0.21)" fill="#388396" opacity="0.09"/>
+        <use href="#person" transform="translate(159.8, 102.1) scale(0.19)" fill="#388396" opacity="0.36"/>
+        <use href="#person" transform="translate(118.3, 143.3) scale(0.20)" fill="#388396" opacity="0.36"/>
+        <use href="#person" transform="translate(180.0, 173.7) scale(0.16)" fill="#388396" opacity="0.25"/>
+    </g>
+
+    <!-- Main Hero Figure -->
+    <use href="#person" transform="translate(150, 127) scale(1.35)" fill="#388396"/>
+                 
+    <!-- Accurate DNA Overlay positioned at the hands, NO GREEN INFILL -->
+    <g transform="translate(150, 144) scale(1.35)">
+        <!-- Rungs (Drawn BEFORE the sine waves so their tips are perfectly masked underneath) -->
+        <g stroke="#6aa84f" stroke-width="2.3" stroke-linecap="round">
+            <!-- Carefully calculated to exactly 6.2px to fit inside the bezier curve bounds -->
+            <line x1="-45" y1="-6.2" x2="-45" y2="6.2"/>
+            <line x1="-36" y1="-6.2" x2="-36" y2="6.2"/>
+            <line x1="-18" y1="-6.2" x2="-18" y2="6.2"/>
+            <line x1="-9" y1="-6.2" x2="-9" y2="6.2"/>
+            <line x1="9" y1="-6.2" x2="9" y2="6.2"/>
+            <line x1="18" y1="-6.2" x2="18" y2="6.2"/>
+            <line x1="36" y1="-6.2" x2="36" y2="6.2"/>
+            <line x1="45" y1="-6.2" x2="45" y2="6.2"/>
+        </g>
+
+        <!-- Continuous Sine Waves on top -->
+        <g stroke="#6aa84f" stroke-width="2.3" stroke-linecap="round" fill="none">
+            <path d="M -54 0 Q -40.5 -14 -27 0 T 0 0 T 27 0 T 54 0" />
+            <path d="M -54 0 Q -40.5 14 -27 0 T 0 0 T 27 0 T 54 0" />
+        </g>
+    </g>
+
+    <!-- Typography updated to 'Outfit' with tight spacing -->
+    <text x="245" y="163">
+        <tspan class="text-crispr">CRISPR</tspan>
+        <tspan class="text-me">me</tspan>
+        <tspan class="text-plus" dx="2">+</tspan>
+    </text>
+</svg>

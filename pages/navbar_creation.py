@@ -10,7 +10,7 @@ from dash import html
 import os
 
 
-PLOTLY_LOGO = "assets/favicon.png"
+PLOTLY_LOGO = "assets/crisprme-icon.svg"
 DISPLAY_HISTORY = ""
 
 
