@@ -214,6 +214,70 @@ def _validate_name(name: str) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# Disk-usage helpers
+# ---------------------------------------------------------------------------
+def _dir_size(path: str) -> int:
+    """Total bytes under a path (following into subdirs, ignoring symlinks)."""
+    total = 0
+    if not os.path.exists(path):
+        return 0
+    for root, _dirs, files in os.walk(path):
+        for f in files:
+            fp = os.path.join(root, f)
+            try:
+                if not os.path.islink(fp):
+                    total += os.path.getsize(fp)
+            except OSError:
+                pass
+    return total
+
+
+def _fmt_size(n: float) -> str:
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if n < 1024 or unit == "TB":
+            return f"{int(n)} B" if unit == "B" else f"{n:.1f} {unit}"
+        n /= 1024
+    return f"{n:.1f} TB"
+
+
+# Rough "space required" hints for the download actions (uncompressed on disk).
+_SIZE_HINTS = {
+    "genome": "a reference genome is typically ~1-3 GB",
+    "index": "a genome-wide bulge index is typically ~5-10 GB",
+    "vcf": "a population VCF set (e.g. 1000G) is typically ~15-20 GB",
+}
+
+
+def _render_storage() -> html.Div:
+    """Per-category disk used by already-downloaded data, total, and free disk."""
+    cats = [
+        ("Genomes", "Genomes"),
+        ("VCF datasets", "VCFs"),
+        ("Indexes", "genome_library"),
+        ("Annotations", "Annotations"),
+    ]
+    rows = []
+    total = 0
+    for label, d in cats:
+        sz = _dir_size(os.path.join(current_working_directory, d))
+        total += sz
+        rows.append(html.Li(f"{label}: {_fmt_size(sz)}"))
+    try:
+        free = shutil.disk_usage(current_working_directory).free
+        free_str = _fmt_size(free)
+    except OSError:
+        free_str = "unknown"
+    return html.Div(
+        [
+            html.Ul(rows, style={"margin": "4px 0"}),
+            html.Div(f"Total data used: {_fmt_size(total)}", style={"fontWeight": "bold"}),
+            html.Div(f"Free disk available: {free_str}", style={"color": "#367"}),
+        ],
+        style={"fontSize": "0.9em"},
+    )
+
+
+# ---------------------------------------------------------------------------
 # Installed-data tables
 # ---------------------------------------------------------------------------
 def _table(rows: List[str], empty: str) -> html.Div:
@@ -253,6 +317,35 @@ def _render_all_tables() -> html.Div:
             ),
         ]
     )
+
+
+def _deletable_options() -> List:
+    """All removable data items, tagged by type: value='<type>:<name>'."""
+    opts = []
+    for g in get_available_genomes():
+        opts.append({"label": f"Genome: {g['value']}", "value": f"genome:{g['value']}"})
+    for i in get_available_indexes():
+        opts.append({"label": f"Index: {i['value']}", "value": f"index:{i['value']}"})
+    for v in get_all_vcf_datasets():
+        opts.append({"label": f"VCF dataset: {v['value']}", "value": f"vcf:{v['value']}"})
+    for a in get_custom_annotations():
+        opts.append({"label": f"Annotation: {a['value']}", "value": f"annotation:{a['value']}"})
+    return opts
+
+
+def _delete_path(kind: str, name: str) -> str:
+    """Resolve the on-disk path for a '<type>:<name>' deletable item."""
+    name = os.path.basename(name)  # never allow traversal
+    roots = {
+        "genome": ("Genomes", name),
+        "index": ("genome_library", name),
+        "vcf": ("VCFs", name),
+        "annotation": ("Annotations", name),
+    }
+    if kind not in roots:
+        raise ValueError(f"unknown data type {kind!r}")
+    sub, leaf = roots[kind]
+    return os.path.join(current_working_directory, sub, leaf)
 
 
 # ---------------------------------------------------------------------------
@@ -304,7 +397,8 @@ def settings_page() -> List:
     genome_card = _add_card(
         "Add a reference genome",
         "Download a reference assembly straight into your data folder. Example: "
-        "the pig genome susScr11 from UCSC.",
+        "the pig genome susScr11 from UCSC. Space required: "
+        f"{_SIZE_HINTS['genome']} (check 'Free disk available' on the right).",
         [
             dbc.Row(
                 [
@@ -352,7 +446,8 @@ def settings_page() -> List:
     index_card = _add_card(
         "Add a precomputed index / build one",
         "Bulge-enabled searches need a genome index. Download a ready-made one "
-        "from HuggingFace, or build one locally from an installed genome + PAM.",
+        "from HuggingFace, or build one locally from an installed genome + PAM. "
+        f"Space required: {_SIZE_HINTS['index']}.",
         [
             html.B("Download a prebuilt index (HuggingFace)"),
             dbc.Row(
@@ -443,7 +538,7 @@ def settings_page() -> List:
         "Add a VCF dataset",
         "Variant datasets are large, so they are fetched server-side (not "
         "uploaded through the browser): from HuggingFace, a URL, or an existing "
-        "folder already on this machine.",
+        f"folder already on this machine. Space required: {_SIZE_HINTS['vcf']}.",
         [
             dbc.Row(
                 [
@@ -569,6 +664,36 @@ def settings_page() -> List:
         ],
     )
 
+    # ---- Remove data -------------------------------------------------------
+    delete_card = _add_card(
+        "Remove installed data",
+        "Delete a downloaded reference to free disk space. Anything you remove "
+        "here can be downloaded again later.",
+        [
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dcc.Dropdown(
+                            id="delete-item",
+                            options=_deletable_options(),
+                            placeholder="select data to delete",
+                        ),
+                        width=8,
+                    ),
+                    dbc.Col(
+                        html.Button("Delete", id="delete-btn", style={"color": "#b00"}),
+                        width=4,
+                    ),
+                ]
+            ),
+            dcc.ConfirmDialog(
+                id="delete-confirm",
+                message="Delete this data? You can download it again later.",
+            ),
+            html.Div(id="delete-feedback", style={"margin-top": "0.4rem"}),
+        ],
+    )
+
     return [
         dbc.Container(
             [
@@ -586,11 +711,15 @@ def settings_page() -> List:
                                 vcf_card,
                                 annotation_card,
                                 pam_card,
+                                delete_card,
                             ],
                             width=8,
                         ),
                         dbc.Col(
                             [
+                                html.H5("Storage"),
+                                html.Div(id="settings-storage", children=_render_storage()),
+                                html.Hr(),
                                 html.H5("Installed data"),
                                 html.Div(id="settings-tables-container", children=_render_all_tables()),
                                 html.Hr(),
@@ -872,6 +1001,7 @@ if MAINTAINER_MODE:
         Output("settings-progress", "children"),
         Output("settings-check", "disabled"),
         Output("settings-tables-container", "children"),
+        Output("settings-storage", "children"),
     ],
     [Input("settings-check", "n_intervals")],
     [State("settings-active-job", "data")],
@@ -892,11 +1022,12 @@ def refresh_settings_job(n, job_id):
             stage = line.split("\t")[0]
             break
     if f"{stage}\tEnd" in log:
-        # success: stop polling and refresh the installed-data tables
+        # success: stop polling and refresh the installed-data tables + storage
         return (
             html.Div(f"{stage}: done.", style={"color": "green"}),
             True,
             _render_all_tables(),
+            _render_storage(),
         )
     if f"{stage}\tFAILED" in log:
         tail = ""
@@ -911,6 +1042,7 @@ def refresh_settings_job(n, job_id):
             ),
             True,
             no_update,
+            no_update,
         )
     # still running
     return (
@@ -922,4 +1054,67 @@ def refresh_settings_job(n, job_id):
         ),
         False,
         no_update,
+        no_update,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Delete installed data
+# ---------------------------------------------------------------------------
+@app.callback(
+    Output("delete-confirm", "displayed"),
+    [Input("delete-btn", "n_clicks")],
+    [State("delete-item", "value")],
+    prevent_initial_call=True,
+)
+def ask_delete(n, item):
+    if n is None or ONLINE or not item:
+        raise PreventUpdate
+    return True  # open the confirmation dialog
+
+
+@app.callback(
+    [
+        Output("delete-feedback", "children"),
+        Output("settings-tables-container", "children", allow_duplicate=True),
+        Output("settings-storage", "children", allow_duplicate=True),
+    ],
+    [Input("delete-confirm", "submit_n_clicks")],
+    [State("delete-item", "value")],
+    prevent_initial_call=True,
+)
+def do_delete(n, item):
+    if not n or ONLINE or not item:
+        raise PreventUpdate
+    kind, _sep, name = item.partition(":")
+    try:
+        path = _delete_path(kind, name)
+    except ValueError as e:
+        return html.Span(str(e), style={"color": "#b00"}), no_update, no_update
+    if not os.path.exists(path) and not os.path.islink(path):
+        return (
+            html.Span(f"{item} not found (already removed?).", style={"color": "#b00"}),
+            _render_all_tables(),
+            _render_storage(),
+        )
+    freed = 0
+    try:
+        if os.path.islink(path):
+            os.unlink(path)  # a registered server folder: only drop the symlink
+        elif os.path.isdir(path):
+            freed = _dir_size(path)
+            shutil.rmtree(path)
+        else:
+            freed = os.path.getsize(path)
+            os.remove(path)
+    except OSError as e:
+        return html.Span(f"Delete failed: {e}", style={"color": "#b00"}), no_update, no_update
+    return (
+        html.Span(
+            f"Deleted {item} (freed {_fmt_size(freed)}). You can download it again "
+            "later.",
+            style={"color": "green"},
+        ),
+        _render_all_tables(),
+        _render_storage(),
     )
