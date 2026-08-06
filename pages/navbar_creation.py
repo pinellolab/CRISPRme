@@ -46,6 +46,8 @@ def create_search_bar() -> dbc.Row:
                         "text-decoration": "none",
                         "color": "white",
                         "font-size": "1.5rem",
+                        "padding": "0 0.9rem",
+                        "white-space": "nowrap",
                     },
                 )
             ),
@@ -64,6 +66,8 @@ def create_search_bar() -> dbc.Row:
                         "text-decoration": "none",
                         "color": "white",
                         "font-size": "1.5rem",
+                        "padding": "0 0.9rem",
+                        "white-space": "nowrap",
                     },
                 )
             ),
@@ -82,6 +86,8 @@ def create_search_bar() -> dbc.Row:
                         "text-decoration": "none",
                         "color": "white",
                         "font-size": "1.5rem",
+                        "padding": "0 0.9rem",
+                        "white-space": "nowrap",
                     },
                 )
             ),
@@ -100,6 +106,8 @@ def create_search_bar() -> dbc.Row:
                         "text-decoration": "none",
                         "color": "white",
                         "font-size": "1.5rem",
+                        "padding": "0 0.9rem",
+                        "white-space": "nowrap",
                     },
                 )
             ),
@@ -118,6 +126,8 @@ def create_search_bar() -> dbc.Row:
                         "text-decoration": "none",
                         "color": "white",
                         "font-size": "1.5rem",
+                        "padding": "0 0.9rem",
+                        "white-space": "nowrap",
                     },
                 )
             ),

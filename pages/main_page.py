@@ -46,7 +46,7 @@ from app import (
 
 from dash.exceptions import PreventUpdate
 from dash import Input, Output, State, no_update
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
@@ -125,6 +125,7 @@ def split_filter_part(filter_part: str) -> Tuple:
         Output("radio-base_editor", "value"),
     ],
     [Input("load-example-button", "n_clicks")],
+    prevent_initial_call=True,
 )
 def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     """Load data for CRISPRme example run.
@@ -148,9 +149,9 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
         "20bp-NGG-SpCas9",  # Editor to use
         "hg38",  # ref genome to use
         ["1000G"],  # VCF to use
-        "4",  # MM
-        "1",  # DNA bulges
-        "1",  # RNA bulges
+        4,  # MM (int, to match the dropdown option values)
+        1,  # DNA bulges
+        1,  # RNA bulges
         "4",  # start window in base editor
         "8",  # stop window in base editor
         "A",  # nt to check in base editor
@@ -1596,6 +1597,35 @@ def limit_bulges_to_index(genome, pam, variants, vcf, cur_dna, cur_rna):
     return opts, opts, dna_v, rna_v, note
 
 
+def _default_genome() -> Optional[str]:
+    """Sensible default genome: hg38 if installed, else the first available."""
+    gs = [g["value"] for g in get_available_genomes()]
+    return "hg38" if "hg38" in gs else (gs[0] if gs else None)
+
+
+def _default_cas() -> Optional[str]:
+    """Default nuclease: SpCas9 if installed, else the first available."""
+    cs = [c["value"] for c in get_available_CAS()]
+    return "SpCas9" if "SpCas9" in cs else (cs[0] if cs else None)
+
+
+def _default_pam(cas: Optional[str]) -> Optional[str]:
+    """Default PAM for a nuclease: prefer an NGG PAM, else the first for that Cas."""
+    if not cas:
+        return None
+    pams = [
+        p["value"]
+        for p in get_available_PAM()
+        if p["value"].split(".")[0].split("-")[2] == cas
+    ]
+    if not pams:
+        return None
+    for p in pams:
+        if "-NGG-" in p:
+            return p
+    return pams[0]
+
+
 def index_page() -> html.Div:
     """Construct the layout of CRISPRme main page.
     When a new genome is added to /Genomes directory, reload genomes and PAMs
@@ -1614,6 +1644,21 @@ def index_page() -> html.Div:
 
     # begin main page construction
     final_list = []
+    # smart defaults, based on what is actually installed: hg38 + SpCas9/NGG +
+    # 1000G variants + the standard 4/1/1 thresholds, so a non-expert can submit
+    # a sensible search without configuring everything from scratch.
+    _def_genome = _default_genome()
+    _def_cas = _default_cas()
+    _def_pam = _default_pam(_def_cas)
+    _def_variants = ["1000G"] if _def_genome == "hg38" else []
+    # seed the PAM dropdown options for the default nuclease so the default PAM
+    # value is valid on first render (an empty options list makes Dash drop the
+    # preset value before the cas->pam callback can populate it)
+    _def_pam_options = [
+        p
+        for p in get_available_PAM()
+        if _def_cas and p["value"].split(".")[0].split("-")[2] == _def_cas
+    ]
     # page intro
     introduction_content = html.Div(
         [
@@ -1704,6 +1749,7 @@ def index_page() -> html.Div:
             html.Div(
                 dcc.Dropdown(
                     options=get_available_CAS(),
+                    value=_def_cas,
                     clearable=False,
                     id="available-cas",
                     style={"width": "300px"},
@@ -1717,7 +1763,8 @@ def index_page() -> html.Div:
             html.H4("Select PAM"),
             html.Div(
                 dcc.Dropdown(
-                    options=[],
+                    options=_def_pam_options,
+                    value=_def_pam,
                     clearable=False,
                     id="available-pam",
                     style={"width": "300px"},
@@ -1747,6 +1794,7 @@ def index_page() -> html.Div:
             html.Div(
                 dcc.Dropdown(
                     options=get_available_genomes(),
+                    value=_def_genome,
                     clearable=False,
                     id="available-genome",
                 ),
@@ -1772,7 +1820,7 @@ def index_page() -> html.Div:
                         },
                     ],
                     id="checklist-variants",
-                    value=[],
+                    value=_def_variants,
                 )
             ),
             html.Div(
@@ -1795,6 +1843,7 @@ def index_page() -> html.Div:
                     html.P("Mismatches"),
                     dcc.Dropdown(
                         options=AV_MISMATCHES,
+                        value=4,
                         clearable=False,
                         id="mms",
                         style={"width": "60px"},
@@ -1807,6 +1856,7 @@ def index_page() -> html.Div:
                     html.P(["DNA", html.Br(), "Bulges"]),
                     dcc.Dropdown(
                         options=AV_BULGES,
+                        value=1,
                         clearable=False,
                         id="dna",
                         style={"width": "60px"},
@@ -1819,6 +1869,7 @@ def index_page() -> html.Div:
                     html.P(["RNA", html.Br(), "Bulges"]),
                     dcc.Dropdown(
                         options=AV_BULGES,
+                        value=1,
                         clearable=False,
                         id="rna",
                         style={"width": "60px"},
