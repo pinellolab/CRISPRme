@@ -11,7 +11,7 @@ import os
 
 
 PLOTLY_LOGO = "assets/crisprme-icon.svg"
-CRISPRME_LOGO = "assets/crisprme-logo.png"  # full wordmark (correct Outfit font baked in)
+CRISPRME_LOGO = "assets/crisprme-logo.svg"  # self-contained SVG (embedded Outfit font, transparent)
 DISPLAY_HISTORY = ""
 
 
