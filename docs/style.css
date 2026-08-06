@@ -53,7 +53,7 @@ h1 {
 
 .logo {
   display: block;
-  max-width: 280px;
+  max-width: 440px;
   width: 100%;
   height: auto;
 }
@@ -227,7 +227,7 @@ footer {
 @media (max-width: 480px) {
   body { padding: 1.25rem 0.75rem 2rem; }
   h1 { font-size: 1.6rem; }
-  .logo { max-width: 220px; }
+  .logo { max-width: 300px; }
   section { padding: 0.85rem 0.9rem; }
   .cta-row { flex-direction: column; align-items: flex-start; }
   .button { width: 100%; text-align: center; }
