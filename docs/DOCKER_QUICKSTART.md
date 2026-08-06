@@ -100,6 +100,46 @@ To stop the web server, press **Ctrl+C** in the terminal.
 
 ---
 
+## Running on HPC with Singularity / Apptainer
+
+On a cluster you usually cannot run Docker, but Singularity/Apptainer runs the
+same image with no root and no daemon. Most clusters already have it (the command
+is `apptainer`, or `singularity` on older systems — they are interchangeable).
+
+```bash
+# 1. build the image once (a ~2 GB .sif file; no root needed)
+apptainer pull crisprme.sif docker://pinellolab/crisprme
+
+# 2. download data + a prebuilt index into a working folder
+mkdir -p ~/crisprme && cd ~/crisprme
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py download --what all --path /DATA
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py download --what index --index-name NGG_2_hg38 --path /DATA
+#   (and, for variant-aware searches:)
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py download --what vcf --dataset 1000G --path /DATA
+
+# 3. launch the web interface
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py web-interface
+# then open http://127.0.0.1:8080 (or the node's address on a cluster)
+```
+
+Two Singularity-specific notes:
+- **Use `apptainer run`, not `apptainer exec`.** `run` executes the image's
+  entrypoint, which activates the conda environment so `crisprme.py` is on the
+  PATH; `exec` skips it and you get `crisprme.py: not found`.
+- **Networking is the host's.** Apptainer shares the host network, so there is no
+  `-p` port mapping — the app is reachable directly at port **8080**, which must be
+  free on that node. On a shared login node, run on a compute node / interactive
+  session instead.
+
+Everything else (the web form, results, downloading more indexes) is identical to
+the Docker instructions above.
+
+---
+
 ## Installing more indexes (as you need them)
 
 An index is specific to a **PAM + bulge count + genome**. Download whichever you
