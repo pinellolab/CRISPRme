@@ -103,6 +103,24 @@ def create_search_bar() -> dbc.Row:
                     },
                 )
             ),
+            dbc.Col(
+                dbc.NavLink(
+                    html.A(
+                        # settings / data manager button
+                        "SETTINGS",
+                        href=os.path.join(URL, "settings"),
+                        target="",
+                        style={"text-decoration": "none", "color": "white"},
+                    ),
+                    active=True,
+                    className="testHover",
+                    style={
+                        "text-decoration": "none",
+                        "color": "white",
+                        "font-size": "1.5rem",
+                    },
+                )
+            ),
         ],
         className="g-0 ml-auto flex-nowrap mt-3 mt-md-0",
         align="center",
