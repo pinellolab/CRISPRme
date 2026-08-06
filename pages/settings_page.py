@@ -620,9 +620,11 @@ def settings_page() -> List:
     # ---- VCF datasets ------------------------------------------------------
     vcf_card = _add_card(
         "Add a VCF dataset",
-        "Variant datasets are large, so they are fetched server-side (not "
-        "uploaded through the browser): from HuggingFace, a URL, or an existing "
-        f"folder already on this machine. Space required: {_SIZE_HINTS['vcf']}.",
+        "Variant datasets are large, so they are fetched server-side (from "
+        "HuggingFace, a URL, or an existing folder on this machine) or chunk-"
+        "uploaded. CRISPRme works with the files kept COMPRESSED — provide "
+        "bgzip-compressed, per-chromosome files (the chromosome in the file name, "
+        f"e.g. mydata.chr1.vcf.gz); no flat .vcf. Space: {_SIZE_HINTS['vcf']}.",
         [
             dbc.Row(
                 [
