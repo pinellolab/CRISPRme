@@ -1221,6 +1221,36 @@ def index_max_bulges(genome: str, pam_value: str, vcf: Optional[str] = None) -> 
     return max(0, best - 1)
 
 
+def has_variant_index(genome: str, dataset: str) -> bool:
+    """True if a variant TST index exists for genome+dataset (bulge-search ready)."""
+    genome = (genome or "").replace(" ", "_")
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib):
+        return False
+    marker = f"_{genome}+{dataset}"
+    return any(
+        marker in d
+        and not d.endswith("_INDELS")
+        and os.path.isdir(os.path.join(lib, d))
+        for d in os.listdir(lib)
+    )
+
+
+def variant_dataset_present(genome: str, dataset: str) -> bool:
+    """True if a variant dataset's data exists for a genome: the VCF folder, an
+    enriched genome, or a built variant index. Used to only offer variant options
+    that are actually usable for the selected genome."""
+    cwd = current_working_directory
+    genome = (genome or "").replace(" ", "_")
+    if os.path.isdir(os.path.join(cwd, VCFS_DIR, dataset)) or os.path.isdir(
+        os.path.join(cwd, VCFS_DIR, f"{genome}_{dataset}")
+    ):
+        return True
+    if os.path.isdir(os.path.join(cwd, GENOMES_DIR, f"{genome}+{dataset}")):
+        return True
+    return has_variant_index(genome, dataset)
+
+
 def get_all_vcf_datasets() -> List:
     """List every VCF dataset directory under VCFs/ (no genome filtering).
 

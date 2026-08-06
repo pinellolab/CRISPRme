@@ -27,6 +27,8 @@ from .pages_utils import (
     get_available_PAM,
     get_available_CAS,
     index_max_bulges,
+    variant_dataset_present,
+    has_variant_index,
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
@@ -1530,20 +1532,29 @@ def change_variants_checklist_state(genome_value: str) -> List:
     List
     """
 
+    checklist_variants_options = []
     if genome_value is not None:
         if not isinstance(genome_value, str):
             raise TypeError(
                 f"Expected {str.__name__}, got {type(genome_value).__name__}"
             )
-        checklist_variants_options = [
-            {
-                "label": " plus 1000 Genome Project variants",
-                "value": "1000G",
-                "disabled": False,
-            },
-            {"label": " plus HGDP variants", "value": "HGDP", "disabled": False},
-            {"label": " plus personal variants*", "value": "PV", "disabled": ONLINE},
-        ]
+        # Only offer variant options that are actually compatible with, and
+        # available for, the selected genome. The built-in 1000G/HGDP datasets are
+        # human (hg38) resources, so they are shown only for hg38 and only when
+        # their data is present -- they no longer appear for e.g. a pig genome.
+        # Each is labelled with whether a bulge index is already built.
+        checklist_variants_options = []
+        genome_norm = (genome_value or "").replace(" ", "_")
+        for builtin, name in (("1000G", "1000 Genomes Project"), ("HGDP", "HGDP")):
+            if genome_norm == "hg38" and variant_dataset_present(genome_norm, builtin):
+                ready = has_variant_index(genome_norm, builtin)
+                suffix = "" if ready else "  (no bulge index yet — enrich/build in Settings)"
+                checklist_variants_options.append(
+                    {"label": f" plus {name} variants{suffix}", "value": builtin, "disabled": False}
+                )
+        checklist_variants_options.append(
+            {"label": " plus personal/custom variants*", "value": "PV", "disabled": ONLINE}
+        )
     personal_vcf = get_custom_VCF(genome_value)
     return [checklist_variants_options, personal_vcf]
 
@@ -1650,7 +1661,11 @@ def index_page() -> html.Div:
     _def_genome = _default_genome()
     _def_cas = _default_cas()
     _def_pam = _default_pam(_def_cas)
-    _def_variants = ["1000G"] if _def_genome == "hg38" else []
+    _def_variants = (
+        ["1000G"]
+        if (_def_genome == "hg38" and variant_dataset_present("hg38", "1000G"))
+        else []
+    )
     # seed the PAM dropdown options for the default nuclease so the default PAM
     # value is valid on first render (an empty options list makes Dash drop the
     # preset value before the cas->pam callback can populate it)

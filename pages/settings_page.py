@@ -534,47 +534,66 @@ def settings_page() -> List:
             dbc.Row(
                 [
                     dbc.Col(
-                        dcc.Dropdown(
-                            id="index-build-genome",
-                            options=installed_genomes,
-                            placeholder="genome",
-                        ),
+                        [
+                            html.Small("Genome"),
+                            dcc.Dropdown(
+                                id="index-build-genome",
+                                options=installed_genomes,
+                                placeholder="genome",
+                            ),
+                        ],
                         width=3,
                     ),
                     dbc.Col(
-                        dcc.Dropdown(
-                            id="index-build-pam",
-                            options=installed_pams,
-                            placeholder="PAM",
-                        ),
+                        [
+                            html.Small("PAM / nuclease"),
+                            dcc.Dropdown(
+                                id="index-build-pam",
+                                options=installed_pams,
+                                placeholder="PAM",
+                            ),
+                        ],
                         width=3,
                     ),
                     dbc.Col(
-                        dcc.Input(
-                            id="index-build-bdna",
-                            type="number",
-                            value=1,
-                            min=0,
-                            max=2,
-                            style={"width": "100%"},
-                        ),
+                        [
+                            html.Small("DNA bulges"),
+                            dcc.Input(
+                                id="index-build-bdna",
+                                type="number",
+                                value=1,
+                                min=0,
+                                max=2,
+                                style={"width": "100%"},
+                            ),
+                        ],
                         width=2,
                     ),
                     dbc.Col(
-                        dcc.Input(
-                            id="index-build-brna",
-                            type="number",
-                            value=1,
-                            min=0,
-                            max=2,
-                            style={"width": "100%"},
-                        ),
+                        [
+                            html.Small("RNA bulges"),
+                            dcc.Input(
+                                id="index-build-brna",
+                                type="number",
+                                value=1,
+                                min=0,
+                                max=2,
+                                style={"width": "100%"},
+                            ),
+                        ],
                         width=2,
                     ),
-                    dbc.Col(html.Button("Build", id="index-build-btn"), width=2),
-                ]
+                    dbc.Col(
+                        [html.Small(" "), html.Button("Build", id="index-build-btn")],
+                        width=2,
+                    ),
+                ],
+                align="start",
             ),
-            html.Small("DNA / RNA bulge counts shown above the Build button."),
+            html.Small(
+                "The index only needs bulge counts (max DNA/RNA bulges it will "
+                "support); mismatches are set later, at search time."
+            ),
             html.Div(id="index-feedback", style={"color": "#b00", "margin-top": "0.4rem"}),
         ]
         + _publish_index_section(),
