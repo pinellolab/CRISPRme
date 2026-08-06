@@ -4,7 +4,7 @@
 ![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
 
 <p align="center">
-  <img src="https://github.com/pinellolab/CRISPRme/blob/main/assets/readme/crisprme-logo.png" alt="crisprme-logo.png", width=700/>
+  <img src="assets/readme/crisprme-logo.png" alt="CRISPRme" width="700"/>
 </p>
 
 # CRISPRme
