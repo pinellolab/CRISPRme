@@ -14,6 +14,17 @@ and the `release-crisprme` skill.
 ## [2.2.0] - 2026-08-06
 
 ### Added
+- Graphical **Settings / Data Manager** page in the web interface: add reference
+  genomes (UCSC by assembly name — e.g. the pig `susScr11` — HuggingFace, or a
+  direct URL), precomputed indexes (download from HuggingFace or build locally
+  from an installed genome + PAM), VCF datasets (HuggingFace or register an
+  existing server folder), annotations (BED upload), and nucleases/PAMs (a small
+  form). New data lands in the local data folder and is auto-discovered by the
+  search form. Long operations run as detached jobs on a dedicated executor with
+  live progress, so they never starve the search slots. Mutations are local-mode
+  only; publishing an index to the shared HuggingFace repo is maintainer-only.
+  `download --what genome` gained `--source {hf,ucsc,url}` (+ `--url`) so the CLI
+  and web share one non-human-genome download path.
 - Python 3.11 modernization: pipeline fixes for pandas 2.x / matplotlib 3.x and
   a Dash 1.x → 2.x web-app migration, plus a Python-3.11 Docker image built from
   source (CRISPRitz 2.8.0) (#131).

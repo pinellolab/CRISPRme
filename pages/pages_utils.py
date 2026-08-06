@@ -1150,6 +1150,50 @@ def get_available_genomes() -> List:
     return genomes_dirs
 
 
+def get_available_indexes() -> List:
+    """Recover the precomputed CRISPRitz indexes under genome_library/.
+
+    Returns
+    -------
+    List
+        ``{"label", "value"}`` dicts, one per index directory (e.g.
+        ``NGG_2_hg38``). Empty if the directory does not exist yet.
+    """
+
+    idx_root = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(idx_root):
+        return []
+    indexes = [
+        d
+        for d in os.listdir(idx_root)
+        if not d.startswith(".") and os.path.isdir(os.path.join(idx_root, d))
+    ]
+    return [{"label": d, "value": d} for d in sorted(indexes)]
+
+
+def get_all_vcf_datasets() -> List:
+    """List every VCF dataset directory under VCFs/ (no genome filtering).
+
+    Unlike :func:`get_custom_VCF` (which hides the built-in datasets and those
+    matching the selected genome), this lists *all* installed datasets for the
+    Settings data-manager table.
+    """
+
+    vcf_root = os.path.join(current_working_directory, VCFS_DIR)
+    if not os.path.isdir(vcf_root):
+        return []
+    dirs = [
+        d
+        for d in os.listdir(vcf_root)
+        if (
+            not d.startswith(".")
+            and os.path.isdir(os.path.join(vcf_root, d))
+            and "None" not in d
+        )
+    ]
+    return [{"label": d, "value": d} for d in sorted(dirs)]
+
+
 def get_custom_annotations() -> List:
     """Recover user's annotation data.
 

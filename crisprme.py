@@ -61,6 +61,7 @@ from crisprme_hf import (  # noqa: E402  (huggingface_hub imported lazily inside
     resolve_repo,
     DEFAULT_HF_REPO,
 )
+from utils import download_reference_genome  # noqa: E402
 from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete, clean_incomplete_haplotype_output, haplotype_params_match  # noqa: E402
 
 cicd_test = False
@@ -1671,6 +1672,10 @@ def print_help_download() -> None:
         "\t--index-name, precomputed index directory name for --what index "
         "(e.g. NGG_2_hg38) [REQUIRED for --what index]\n"
         "\t--hf-repo, HuggingFace dataset repo id to fetch from [OPTIONAL]\n"
+        "\t--source, for --what genome: hf (HuggingFace, default) | ucsc "
+        "(UCSC goldenPath by assembly name, e.g. --ref susScr11) | url "
+        "(explicit --url link) [OPTIONAL]\n"
+        "\t--url, explicit genome download URL when --source url [OPTIONAL]\n"
         "\t--path, working directory the CRISPRme dir-tree lives under "
         "[OPTIONAL, default: current directory]\n"
     )
@@ -1693,6 +1698,10 @@ def download_data() -> None:
     ref = args[args.index("--ref") + 1] if "--ref" in args else "hg38"
     dataset = args[args.index("--dataset") + 1] if "--dataset" in args else None
     index_name = args[args.index("--index-name") + 1] if "--index-name" in args else None
+    # genome source: 'hf' (HuggingFace, default), 'ucsc' (goldenPath by assembly),
+    # or 'url' (explicit download link). Only meaningful for --what genome.
+    source = args[args.index("--source") + 1] if "--source" in args else "hf"
+    url = args[args.index("--url") + 1] if "--url" in args else None
     workdir = os.getcwd()
     if "--path" in args:
         workdir = os.path.abspath(args[args.index("--path") + 1])
@@ -1706,15 +1715,22 @@ def download_data() -> None:
         components = [what]
     for comp in components:
         try:
-            dest = download_component(
-                comp,
-                workdir,
-                repo=repo,
-                ref=ref,
-                dataset=dataset,
-                index_name=index_name,
-            )
-        except (ValueError, ImportError) as e:
+            if comp == "genome" and source in ("ucsc", "url"):
+                # non-HuggingFace reference genome (e.g. a UCSC assembly such as
+                # the pig susScr11) -> download straight into Genomes/<ref>/
+                dest = download_reference_genome(
+                    ref, os.path.join(workdir, "Genomes"), source=source, url=url
+                )
+            else:
+                dest = download_component(
+                    comp,
+                    workdir,
+                    repo=repo,
+                    ref=ref,
+                    dataset=dataset,
+                    index_name=index_name,
+                )
+        except (ValueError, ImportError, RuntimeError) as e:
             error(str(e))
         print(f"Downloaded {comp} -> {dest}", flush=True)
 

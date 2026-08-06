@@ -1680,11 +1680,11 @@ def index_page() -> html.Div:
             html.Br(),
             html.A(
                 html.Button(
-                    "Personal Data Management",
+                    "Settings / Data Manager",
                     id="add-genome",
                     style={"display": DISPLAY_OFFLINE},
                 ),
-                href=os.path.join(URL, "genome-dictionary-management"),
+                href=os.path.join(URL, "settings"),
                 target="",
                 style={"text-decoration": "none", "color": "#555"},
             ),

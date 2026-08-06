@@ -463,6 +463,117 @@ def gunzip(fname_gz: str, fname_out: str) -> str:
     return fname_out
 
 
+UCSC_GOLDENPATH = "https://hgdownload.soe.ucsc.edu/goldenPath"
+
+
+def _url_exists(url: str) -> bool:
+    """Return True if an HTTP(S) URL is reachable (status < 400) via HEAD."""
+    try:
+        resp = requests.head(url, allow_redirects=True, timeout=30)
+        return resp.status_code < 400
+    except requests.RequestException:
+        return False
+
+
+def download_reference_genome(
+    assembly: str,
+    genomes_dir: str,
+    source: str = "ucsc",
+    url: Optional[str] = None,
+) -> str:
+    """Download a reference genome into ``<genomes_dir>/<assembly>/`` as FASTA.
+
+    Handles UCSC assembly-layout variability: prefer the per-chromosome
+    ``bigZips/<assembly>.chromFa.tar.gz`` archive and, when it is absent (many
+    non-human assemblies such as the pig ``susScr11``), fall back to the single
+    multi-FASTA ``bigZips/<assembly>.fa.gz``. CRISPRitz indexes a *directory* of
+    FASTA files, so a single ``<assembly>.fa`` inside the assembly folder is a
+    valid genome. The download lands in a staging dir and is promoted only on
+    success, so a failed/partial download never leaves a half-written,
+    auto-discoverable ``Genomes/<assembly>`` folder.
+
+    Parameters
+    ----------
+    assembly : str
+        Assembly build name and destination folder name (e.g. "hg38",
+        "susScr11"). Rejected if it contains a path separator, space or "+", or
+        is "None" (the web discovery filters silently hide such names).
+    genomes_dir : str
+        The CRISPRme ``Genomes`` directory (created if missing).
+    source : str
+        "ucsc" (default) derives the UCSC goldenPath URL from ``assembly``;
+        "url" downloads ``url`` directly (a ``.fa.gz`` or ``.tar.gz``).
+    url : Optional[str]
+        Explicit URL when ``source == "url"``.
+
+    Returns
+    -------
+    str
+        Path to the populated ``<genomes_dir>/<assembly>`` directory.
+    """
+
+    if (
+        not assembly
+        or assembly == "None"
+        or any(ch in assembly for ch in ("/", "\\", " ", "+"))
+    ):
+        raise ValueError(
+            f"Invalid assembly name {assembly!r}: must be a plain build name "
+            "without spaces, '+', 'None' or path separators"
+        )
+    os.makedirs(genomes_dir, exist_ok=True)
+    dest_dir = os.path.join(genomes_dir, assembly)
+    staging = os.path.join(genomes_dir, f".stage_{assembly}")
+    if os.path.isdir(staging):
+        shutil.rmtree(staging, ignore_errors=True)
+    os.makedirs(staging)
+    try:
+        if source == "url":
+            if not url:
+                raise ValueError("source='url' requires a --url download link")
+            archive = download(staging, http_url=url)
+            if archive.endswith((".tar.gz", ".tgz")):
+                untar(archive, staging, "")
+            elif archive.endswith(".gz"):
+                gunzip(archive, os.path.join(staging, f"{assembly}.fa"))
+        elif source == "ucsc":
+            base = f"{UCSC_GOLDENPATH}/{assembly}/bigZips"
+            chromfa = f"{base}/{assembly}.chromFa.tar.gz"
+            singlefa = f"{base}/{assembly}.fa.gz"
+            if _url_exists(chromfa):
+                archive = download(staging, http_url=chromfa)
+                untar(archive, staging, "")
+            elif _url_exists(singlefa):
+                gz = download(staging, http_url=singlefa)
+                gunzip(gz, os.path.join(staging, f"{assembly}.fa"))
+            else:
+                raise RuntimeError(
+                    f"No genome archive found for assembly '{assembly}' at UCSC "
+                    f"(tried {chromfa} and {singlefa})"
+                )
+        else:
+            raise ValueError(f"Unknown genome source {source!r} (use ucsc|url)")
+        # collect every FASTA anywhere under staging into the assembly folder
+        fastas = [
+            os.path.join(root, f)
+            for root, _dirs, files in os.walk(staging)
+            for f in files
+            if f.endswith((".fa", ".fasta"))
+        ]
+        if not fastas:
+            raise RuntimeError(
+                f"No FASTA files found after downloading assembly '{assembly}'"
+            )
+        if os.path.isdir(dest_dir):
+            shutil.rmtree(dest_dir, ignore_errors=True)
+        os.makedirs(dest_dir)
+        for fa in fastas:
+            shutil.move(fa, os.path.join(dest_dir, os.path.basename(fa)))
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+    return dest_dir
+
+
 def compute_md5(fname: str) -> str:
     """Compute the MD5 hash of a file.
 

@@ -110,6 +110,22 @@ else:
     DISPLAY_ONLINE = "none"
 # set to execute multiple 2 jobs max at time
 pool_executor = concurrent.futures.ProcessPoolExecutor(max_workers=2)
+# A separate single-slot executor for Settings / Data-Manager operations
+# (genome/index/VCF downloads and local index builds). Keeping these off the
+# search `pool_executor` means a long download or index build never starves the
+# 2 search slots.
+settings_executor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
+# Maintainer-only actions (e.g. publishing an index to the shared HuggingFace
+# repo) are gated behind this flag: enabled only when a HuggingFace write token
+# is configured or CRISPRME_MAINTAINER is set. Never exposed to normal users.
+MAINTAINER_MODE = bool(
+    os.environ.get("CRISPRME_MAINTAINER")
+    or os.environ.get("HF_TOKEN")
+    or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+)
+# Guardrail for the small-file (annotation) browser uploads; large genomes/VCFs
+# never go through an in-memory upload (server-side fetch / chunked upload only).
+app.server.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024  # 200 MB
 # configure caching
 CACHE_CONFIG = {
     # try 'filesystem' if you don't want to setup redis

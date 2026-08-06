@@ -25,6 +25,7 @@ from pages import (
     history_page,
     help_page,
     contacts_page,
+    settings_page,
 )
 
 from dash import Dash
@@ -51,6 +52,7 @@ CRISPRME_DIRS = [
     "Annotations",
     "PAMs",
     "samplesIDs",
+    "Settings",
 ]  # crisprme directory tree
 
 
@@ -176,6 +178,8 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
         return contacts_page.contact_page(), os.path.join(URL, "load", search)
     if path == "/history":  # display results history page
         return history_page.history_page(), os.path.join(URL, "load", search)
+    if path == "/settings":  # display settings / data-manager page
+        return settings_page.settings_page(), os.path.join(URL, "load", search)
     return main_page.index_page(), "/index"  # display main page
 
 
