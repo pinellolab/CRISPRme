@@ -213,6 +213,44 @@ configuration, or SNP combination) and don't see it in the integrated results,
 check the alternative-alignments file — it was very likely merged into a
 higher-scoring representative rather than dropped.
 
+### Variant-driven PAM creation and disruption
+
+A core CRISPRme feature is finding off-targets that depend on genetic variants.
+A variant can **create** a PAM (a new off-target that does not exist in the
+reference) or **disrupt** a reference PAM (an off-target that disappears for
+carriers). CRISPRme treats the two differently, by design:
+
+- **PAM creation is reported.** When a variant turns a non-PAM site into a valid
+  PAM (e.g. reference `TGC` → `TGG` for an `NGG` search), the target is reported
+  with the created PAM flagged in the **`PAM_creation`** column, and both the
+  reference and alternative protospacer+PAM are shown
+  (`Aligned_protospacer+PAM_REF` / `Aligned_protospacer+PAM_ALT`). This is
+  computed during the variant analysis in `PostProcess/new_simple_analysis.py`
+  (the `found_creation` check): the search runs on the IUPAC-enriched variant
+  genome, so a variant-created PAM is indexed on the enriched genome and found.
+  Note this requires a **real PAM** at index/search time — a degenerate/“pamless”
+  `NNN` index cannot detect PAM creation (the `found_creation` test can never
+  fire when every PAM base is `N`), which is why CRISPRme uses per-PAM indices.
+
+- **PAM disruption is _not_ reported (known limitation).** When a variant
+  *removes* a reference PAM (e.g. `TGG` → `TGA`), the site is not flagged as a
+  disruption. Mechanistically, the variant analysis only emits alleles that
+  **satisfy** the requested PAM; an allele that breaks the PAM has no valid
+  target and is dropped (the historical disruption calculation was intentionally
+  removed — see the note in `PostProcess/cluster.dict.py`).
+
+  **Rationale for leaving this a documented gap.** For off-target *safety*
+  assessment, the direction that matters is the one that **adds** risk —
+  variants that *create* new off-targets — and that is fully covered. PAM
+  disruption *removes* a potential off-target (the site becomes non-targetable
+  in carriers), which *lowers* predicted risk rather than raising it. Reporting
+  it correctly would also require sample-specific “this off-target is absent in
+  these carriers” semantics with non-applicable scoring (no PAM → no CFD/CRISTA),
+  adding output complexity and potential confusion for limited safety benefit.
+  If your analysis specifically needs to know which variants *eliminate*
+  off-targets (and in which samples), please open an issue describing the use
+  case so it can be designed with the right semantics.
+
 ---
 
 ## 6. Chromosome naming

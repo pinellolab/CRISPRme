@@ -97,6 +97,11 @@ and the `release-crisprme` skill.
   "Prebuild, reuse, and share the reference index" section.
 - README: added a from-source install path and a reference-index /
   data-distribution commands section.
+- Documented the variant PAM behaviour in `docs/INPUT_FORMATS.md`: PAM *creation*
+  (variants that add an off-target) is reported; PAM *disruption* (variants that
+  remove a reference PAM for carriers) is a known, intentional gap — with the
+  rationale (disruption lowers rather than raises predicted risk and would need
+  sample-specific, non-scorable semantics).
 
 ## [2.1.13] - 2026-08-04
 
