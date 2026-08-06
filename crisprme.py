@@ -1567,6 +1567,11 @@ def print_help_build_index() -> None:
         "\t--bRNA, number of RNA bulges the index must support [OPTIONAL, "
         "default 0]\n"
         "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--vcf, a VCF dataset directory (e.g. VCFs/1000G). When given, also "
+        "pre-builds the variant-aware index: enriches the genome with the VCF "
+        "and indexes the enriched (SNP) and indels genomes, so the first "
+        "variant-aware search does not pay the enrichment/indexing cost "
+        "[OPTIONAL]\n"
         "\t--path, working directory under which genome_library/ is created "
         "[OPTIONAL, default: current directory]\n"
     )
@@ -1621,31 +1626,125 @@ def build_index_only() -> None:
     # complete-search indexes with bMax+1 ("for alignments starting with gaps")
     index_name = f"{pam_char}_{bMax + 1}_{genome_ref}"
     idx_folder = os.path.join(workdir, "genome_library", index_name)
+    vcf_given = "--vcf" in args
+    # ---- reference index ------------------------------------------------------
     if os.path.isdir(idx_folder):
-        sys.stderr.write(
-            f"Reference index already present: {idx_folder}\nNothing to do.\n"
+        print(f"Reference index already present: {idx_folder}", flush=True)
+    else:
+        os.makedirs(os.path.join(workdir, "genome_library"), exist_ok=True)
+        print(
+            f"Building reference index {index_name} (bMax {bMax + 1}, "
+            f"{thread} thread(s))...",
+            flush=True,
         )
-        sys.exit(0)
-    os.makedirs(os.path.join(workdir, "genome_library"), exist_ok=True)
-    print(
-        f"Building reference index {index_name} (bMax {bMax + 1}, "
-        f"{thread} thread(s))...",
-        flush=True,
+        # exactly the invocation complete-search uses, run from workdir so the
+        # index lands in <workdir>/genome_library/ under the expected name
+        index_cmd = (
+            f"crispritz.py index-genome {genome_ref} {genomedir}/ {pamfile} "
+            f"-bMax {bMax + 1} -th {thread}"
+        )
+        code = subprocess.call(index_cmd, shell=True, cwd=workdir)
+        if code != 0 or not os.path.isdir(idx_folder):
+            error(f"Reference genome indexing failed (expected {idx_folder})")
+        print(f"Index built: {idx_folder}", flush=True)
+    if not vcf_given:
+        print(
+            "It will be reused automatically by complete-search runs launched from "
+            "this working directory (or pointed here with --index-path) that use the "
+            "same genome, PAM and bulge settings.",
+            flush=True,
+        )
+        return
+    # ---- variant (enriched SNP + indels) index --------------------------------
+    # Pre-build the variant-aware index so the first variant search does not pay
+    # the (slow) enrichment + indexing cost. This mirrors STEP 1-2 of the search
+    # pipeline (submit_job_automated_new_multiple_vcfs.sh) exactly, producing the
+    # same folder names a later search looks for.
+    import shutil
+    import tempfile
+    from glob import glob as _glob
+
+    vcfdir = os.path.abspath(args[args.index("--vcf") + 1])
+    if not os.path.isdir(vcfdir):
+        error(f"The VCF dataset directory {vcfdir} does not exist")
+    vcf_name = os.path.basename(vcfdir.rstrip("/"))
+    enriched = os.path.join(workdir, "Genomes", f"{genome_ref}+{vcf_name}")
+    indels_out = os.path.join(workdir, "Genomes", f"{genome_ref}+{vcf_name}_INDELS")
+    dict_folder = os.path.join(workdir, "Dictionaries", f"dictionaries_{vcf_name}")
+    indel_dict = os.path.join(workdir, "Dictionaries", f"log_indels_{vcf_name}")
+    snp_idx = os.path.join(
+        workdir, "genome_library", f"{pam_char}_{bMax + 1}_{genome_ref}+{vcf_name}"
     )
-    # exactly the invocation complete-search uses, run from workdir so the index
-    # lands in <workdir>/genome_library/ under the expected name
-    index_cmd = (
-        f"crispritz.py index-genome {genome_ref} {genomedir}/ {pamfile} "
-        f"-bMax {bMax + 1} -th {thread}"
-    )
-    code = subprocess.call(index_cmd, shell=True, cwd=workdir)
-    if code != 0 or not os.path.isdir(idx_folder):
-        error(f"Reference genome indexing failed (expected {idx_folder})")
-    print(f"Index built: {idx_folder}", flush=True)
+    indels_idx = snp_idx + "_INDELS"
+    # STEP 1: enrich the genome with the VCF (crispritz add-variants). add-variants
+    # writes a fixed-name variants_genome/ in its cwd, so run it in a throwaway
+    # temp dir to avoid collisions, then move the outputs into place.
+    if not os.path.isdir(enriched):
+        print(f"Enriching {genome_ref} with {vcf_name} (add-variants)...", flush=True)
+        tmp = tempfile.mkdtemp(prefix="run_", dir=os.path.join(workdir, "Genomes"))
+        variants_tmp = os.path.join(tmp, "variants_genome")
+        code = subprocess.call(
+            f"crispritz.py add-variants {vcfdir}/ {genomedir}/ true",
+            shell=True,
+            cwd=tmp,
+        )
+        if code != 0:
+            shutil.rmtree(tmp, ignore_errors=True)
+            error(f"Genome enrichment (add-variants) failed on {vcf_name}")
+        os.makedirs(indels_out, exist_ok=True)
+        shutil.move(
+            os.path.join(variants_tmp, "SNPs_genome", f"{genome_ref}_enriched"),
+            enriched,
+        )
+        for f in _glob(os.path.join(variants_tmp, "fake*")):
+            shutil.move(f, indels_out)
+        os.makedirs(dict_folder, exist_ok=True)
+        os.makedirs(indel_dict, exist_ok=True)
+        for f in _glob(os.path.join(variants_tmp, "SNPs_genome", "*.json")):
+            shutil.move(f, dict_folder)
+        for f in _glob(os.path.join(variants_tmp, "SNPs_genome", "log*.txt")):
+            shutil.move(f, indel_dict)
+        shutil.rmtree(tmp, ignore_errors=True)
+    else:
+        print(f"Enriched genome already present: {enriched}", flush=True)
+    # STEP 2: index the enriched (SNP) genome
+    if not os.path.isdir(snp_idx):
+        print(f"Building variant index {os.path.basename(snp_idx)}...", flush=True)
+        code = subprocess.call(
+            f"crispritz.py index-genome {genome_ref}+{vcf_name} {enriched}/ "
+            f"{pamfile} -bMax {bMax + 1} -th {thread}",
+            shell=True,
+            cwd=workdir,
+        )
+        if code != 0 or not os.path.isdir(snp_idx):
+            error(f"Variant genome indexing failed (expected {snp_idx})")
+    else:
+        print(f"Variant index already present: {snp_idx}", flush=True)
+    # STEP 3: index the indels genome (pool_index_indels.py, as the pipeline does)
+    if not os.path.isdir(indels_idx):
+        print(f"Building indels index {os.path.basename(indels_idx)}...", flush=True)
+        pool = os.path.join(script_path, "pool_index_indels.py")
+        code = subprocess.call(
+            [
+                sys.executable,
+                pool,
+                f"{indels_out}/",
+                pamfile,
+                pam_char,
+                genome_ref,
+                vcf_name,
+                str(bMax + 1),
+                str(thread),
+            ],
+            cwd=workdir,
+        )
+        if code != 0 or not os.path.isdir(indels_idx):
+            error(f"Indels indexing failed (expected {indels_idx})")
+    else:
+        print(f"Indels index already present: {indels_idx}", flush=True)
     print(
-        "It will be reused automatically by complete-search runs launched from "
-        "this working directory (or pointed here with --index-path) that use the "
-        "same genome, PAM and bulge settings.",
+        f"Variant index ready: {os.path.basename(snp_idx)} (+ _INDELS). A later "
+        f"variant-aware search on {genome_ref} with {vcf_name} reuses it.",
         flush=True,
     )
 

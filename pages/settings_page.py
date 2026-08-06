@@ -372,6 +372,24 @@ def settings_page() -> List:
             html.Hr(),
             html.B("Build an index locally"),
             dbc.Row(
+                dbc.Col(
+                    dcc.Dropdown(
+                        id="index-build-vcf",
+                        options=[{"label": "(reference only — no variants)", "value": ""}]
+                        + get_all_vcf_datasets(),
+                        value="",
+                        clearable=False,
+                    ),
+                    width=6,
+                ),
+                style={"margin-bottom": "0.4rem"},
+            ),
+            html.Small(
+                "Pick a VCF dataset to pre-build a variant-aware index (genome "
+                "enrichment + SNP/indels indexing) so the first variant search is "
+                "fast — this build is slower and uses more disk."
+            ),
+            dbc.Row(
                 [
                     dbc.Col(
                         dcc.Dropdown(
@@ -686,10 +704,11 @@ def add_index_hf(n, name):
         State("index-build-pam", "value"),
         State("index-build-bdna", "value"),
         State("index-build-brna", "value"),
+        State("index-build-vcf", "value"),
     ],
     prevent_initial_call=True,
 )
-def build_index(n, genome, pam, bdna, brna):
+def build_index(n, genome, pam, bdna, brna, vcf):
     if n is None or ONLINE:
         raise PreventUpdate
     if not genome or not pam:
@@ -707,7 +726,11 @@ def build_index(n, genome, pam, bdna, brna):
         "--bRNA",
         str(int(brna or 0)),
     ]
-    return _start(launch_settings_job(argv, "Build index"))
+    stage = "Build index"
+    if vcf:  # pre-build a variant-aware index (enrichment + SNP/indels indexing)
+        argv += ["--vcf", os.path.join(current_working_directory, "VCFs", vcf)]
+        stage = "Build variant index"
+    return _start(launch_settings_job(argv, stage))
 
 
 @app.callback(
