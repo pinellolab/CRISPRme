@@ -41,11 +41,21 @@ ${CXX} -std=c++11 -O3 -fopenmp \
     sourceCode/CRISPRofiler/pre_computation.cpp \
     sourceCode/CRISPRofiler/reading.cpp \
     sourceCode/CRISPRofiler/analysis.cpp -o searchBruteForce
+${CXX} -std=c++11 -O3 -fopenmp \
+    sourceCode/Python_Scripts/Enrichment/enricher.cpp -o enricher -lz
 mkdir -p "${CONDA_PREFIX}/opt/crispritz"
 cp crispritz.py "${CONDA_PREFIX}/bin/crispritz.py"
 chmod +x "${CONDA_PREFIX}/bin/crispritz.py"
 cp buildTST searchTST searchBruteForce "${CONDA_PREFIX}/opt/crispritz/"
 cp -R sourceCode/Python_Scripts "${CONDA_PREFIX}/opt/crispritz/"
+# add-variants (sourceCode/Python_Scripts/Enrichment/add_variants.sh) requires
+# the compiled 'enricher' binary -- it has no Python fallback, only a
+# `command -v enricher` / same-directory check, and hard-exits if neither is
+# found. Install on PATH (satisfies the first check unconditionally) and also
+# drop it next to add_variants.sh (satisfies the same-directory fallback too).
+cp enricher "${CONDA_PREFIX}/bin/enricher"
+chmod +x "${CONDA_PREFIX}/bin/enricher"
+cp enricher "${CONDA_PREFIX}/opt/crispritz/Python_Scripts/Enrichment/enricher"
 cd "${REPO}"
 rm -rf "${TMP}"
 
