@@ -1080,27 +1080,62 @@ def get_available_CAS() -> List:
     return casprots_data
 
 
-def get_custom_VCF(genome_value: str) -> List:
-    """Recover user's VCFs.
+_BUILTIN_VCF_DATASETS = ("1000G", "HGDP", "hg38_1000G", "hg38_HGDP")
 
-    ...
 
-    Paramters
-    ---------
-    genome_value : str
-        Genome
+def vcf_reference_genome(dataset: str) -> Optional[str]:
+    """Best-effort reference genome a VCF dataset belongs to.
 
-    Returns
-    -------
-    List
-        User's VCFs.
+    A VCF is in a specific reference genome's coordinates and must only be paired
+    with that genome. Determined by, in order: (1) an explicit marker file
+    ``VCFs/<dataset>/.reference_genome`` written when the dataset is added; (2) an
+    enriched genome ``Genomes/<G>+<dataset>`` already built for some installed G;
+    (3) the built-in convention (1000G/HGDP are hg38); (4) a ``<G>_...`` dataset
+    name prefix matching an installed genome. Returns None if it cannot be
+    determined.
     """
+    cwd = current_working_directory
+    # marker lives *beside* the dataset dir (not inside), so it also covers
+    # server folders registered via a symlink
+    marker = os.path.join(cwd, VCFS_DIR, f".{dataset}.refgenome")
+    if os.path.isfile(marker):
+        try:
+            with open(marker) as fh:
+                g = fh.read().strip()
+            if g:
+                return g
+        except OSError:
+            pass
+    genomes_dir = os.path.join(cwd, GENOMES_DIR)
+    if os.path.isdir(genomes_dir):
+        suffix = f"+{dataset}"
+        for d in os.listdir(genomes_dir):
+            if d.endswith(suffix) and not d.endswith("_INDELS"):
+                return d[: -len(suffix)]
+    if dataset in _BUILTIN_VCF_DATASETS:
+        return "hg38"
+    installed = {g["value"].replace(" ", "_") for g in get_available_genomes()}
+    for g in installed:
+        if dataset.startswith(g + "_"):
+            return g
+    return None
 
+
+def get_custom_VCF(genome_value: str) -> List:
+    """Recover the user's custom VCF datasets **that match the selected genome**.
+
+    A VCF is only valid with the reference genome it was called against, so this
+    lists custom datasets whose reference genome (:func:`vcf_reference_genome`)
+    equals ``genome_value``. Datasets whose reference cannot be determined are
+    still shown but flagged, so the user can verify. The built-in 1000G/HGDP
+    datasets are excluded here (offered via the variant checklist instead).
+    """
     if genome_value is not None:
         if not isinstance(genome_value, str):
             raise TypeError(
                 f"Expected {str.__name__}, got {type(genome_value).__name__}"
             )
+    genome_value = (genome_value or "").replace(" ", "_")
     vcf_dirs = [
         d
         for d in os.listdir(os.path.join(current_working_directory, VCFS_DIR))
@@ -1109,17 +1144,16 @@ def get_custom_VCF(genome_value: str) -> List:
             and os.path.isdir(os.path.join(current_working_directory, VCFS_DIR, d))
         )
     ]
-    genome_value = genome_value.replace(" ", "_")
-    vcfs = [
-        {"label": d, "value": d}
-        for d in vcf_dirs
-        if (
-            "hg38_HGDP" not in d
-            and "hg38_1000G" not in d
-            and "None" not in d
-            and genome_value not in d
-        )
-    ]
+    vcfs = []
+    for d in vcf_dirs:
+        if d in _BUILTIN_VCF_DATASETS or "None" in d:
+            continue
+        ref = vcf_reference_genome(d)
+        if ref is None:  # unknown reference -> show but flag for verification
+            vcfs.append({"label": f"{d} (reference genome unverified)", "value": d})
+        elif ref == genome_value:  # matches the selected genome
+            vcfs.append({"label": d, "value": d})
+        # else: belongs to a different genome -> hide (prevents wrong pairing)
     return vcfs
 
 

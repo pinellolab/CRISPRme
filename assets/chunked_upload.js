@@ -10,7 +10,7 @@
 (function () {
   var CHUNK = 8 * 1024 * 1024; // 8 MB per chunk
 
-  function uploadFile(file, target, dataset, prog, btn) {
+  function uploadFile(file, target, dataset, genome, prog, btn) {
     var total = Math.max(1, Math.ceil(file.size / CHUNK));
     var idx = 0;
     btn.disabled = true;
@@ -25,6 +25,7 @@
           "X-Target": target,
           "X-File-Name": file.name,
           "X-Dataset": dataset,
+          "X-Genome": genome,
           "X-Chunk-Index": String(idx),
           "X-Total-Chunks": String(total)
         },
@@ -64,6 +65,7 @@
     widget.dataset.wired = "1";
     var target = widget.dataset.target || "";
     var datasetInputId = widget.dataset.datasetInput || "";
+    var genomeInputId = widget.dataset.genomeInput || "";
 
     var input = document.createElement("input");
     input.type = "file";
@@ -90,7 +92,18 @@
         var di = document.getElementById(datasetInputId);
         if (di) dataset = di.value || "";
       }
-      uploadFile(file, target, dataset, prog, btn);
+      var genome = "";
+      if (genomeInputId) {
+        // dcc.Dropdown renders its value in a hidden input inside the container
+        var gc = document.getElementById(genomeInputId);
+        if (gc) {
+          var gi = gc.querySelector("input");
+          if (gi && gi.value) genome = gi.value;
+          var sv = gc.querySelector("[class*=singleValue]");
+          if (!genome && sv) genome = sv.textContent || "";
+        }
+      }
+      uploadFile(file, target, dataset, genome, prog, btn);
     });
   }
 

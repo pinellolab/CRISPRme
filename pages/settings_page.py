@@ -65,7 +65,9 @@ def _uploads_dir() -> str:
     return d
 
 
-def _finalize_upload(target: str, part_path: str, name: str, dataset: str) -> str:
+def _finalize_upload(
+    target: str, part_path: str, name: str, dataset: str, genome: str = ""
+) -> str:
     """Move a completed upload into the correct data folder (unpacking FASTA)."""
     if target == "annotation":
         if not name.endswith(".bed"):
@@ -105,6 +107,7 @@ def _finalize_upload(target: str, part_path: str, name: str, dataset: str) -> st
         dest_dir = os.path.join(current_working_directory, "VCFs", dataset)
         os.makedirs(dest_dir, exist_ok=True)
         os.replace(part_path, os.path.join(dest_dir, name))
+        _write_vcf_marker(dataset, genome)  # record the reference genome
         return dataset
     raise ValueError(f"unknown upload target {target!r}")
 
@@ -116,6 +119,7 @@ def _settings_upload_chunk():
     target = request.headers.get("X-Target", "")
     raw_name = request.headers.get("X-File-Name", "")
     dataset = os.path.basename(request.headers.get("X-Dataset", "") or "")
+    genome = request.headers.get("X-Genome", "") or ""
     name = os.path.basename(raw_name)
     try:
         idx = int(request.headers.get("X-Chunk-Index", "0"))
@@ -129,7 +133,7 @@ def _settings_upload_chunk():
         fout.write(request.get_data())
     if idx + 1 >= total:  # last chunk -> finalize
         try:
-            result = _finalize_upload(target, part, name, dataset)
+            result = _finalize_upload(target, part, name, dataset, genome)
         except Exception as e:
             if os.path.exists(part):
                 os.remove(part)
@@ -211,6 +215,20 @@ def _validate_name(name: str) -> Optional[str]:
             "(these break auto-discovery)."
         )
     return None
+
+
+def _write_vcf_marker(dataset: str, genome: str) -> None:
+    """Record which reference genome a VCF dataset belongs to (a marker file
+    beside the dataset dir), so the search form only pairs it with that genome."""
+    if not dataset or not genome:
+        return
+    vdir = os.path.join(current_working_directory, "VCFs")
+    os.makedirs(vdir, exist_ok=True)
+    try:
+        with open(os.path.join(vdir, f".{dataset}.refgenome"), "w") as fh:
+            fh.write(genome.replace(" ", "_"))
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -633,6 +651,20 @@ def settings_page() -> List:
                 ]
             ),
             html.Div(
+                [
+                    html.Small(
+                        "Reference genome this VCF is called against (required — a "
+                        "VCF only works with its matching reference):"
+                    ),
+                    dcc.Dropdown(
+                        id="vcf-ref-genome",
+                        options=installed_genomes,
+                        placeholder="reference genome (e.g. hg38, susScr11)",
+                    ),
+                ],
+                style={"margin-top": "0.4rem"},
+            ),
+            html.Div(
                 dcc.Dropdown(
                     id="vcf-hf-name",
                     options=_hf_options(
@@ -655,7 +687,11 @@ def settings_page() -> List:
             html.Div(
                 className="crisprme-chunk-upload",
                 style={"margin-top": "0.3rem"},
-                **{"data-target": "vcf", "data-dataset-input": "vcf-name"},
+                **{
+                    "data-target": "vcf",
+                    "data-dataset-input": "vcf-name",
+                    "data-genome-input": "vcf-ref-genome",
+                },
             ),
             html.Div(id="vcf-feedback", style={"color": "#b00", "margin-top": "0.4rem"}),
         ],
@@ -956,10 +992,11 @@ def build_index(n, genome, pam, bdna, brna, vcf):
         State("vcf-source-dropdown", "value"),
         State("vcf-path-input", "value"),
         State("vcf-hf-name", "value"),
+        State("vcf-ref-genome", "value"),
     ],
     prevent_initial_call=True,
 )
-def add_vcf(n, name, source, path, hf_name):
+def add_vcf(n, name, source, path, hf_name, ref_genome):
     if n is None or ONLINE:
         raise PreventUpdate
     if source == "hf" and hf_name:  # a dataset picked from the HuggingFace catalog
@@ -967,7 +1004,15 @@ def add_vcf(n, name, source, path, hf_name):
     err = _validate_name(name or "")
     if err:
         return no_update, no_update, err
+    if not ref_genome:
+        return (
+            no_update,
+            no_update,
+            "Select the reference genome this VCF is called against.",
+        )
     name = name.strip()
+    # record the reference genome so the search form only pairs this VCF with it
+    _write_vcf_marker(name, ref_genome)
     if source == "hf":
         argv = ["download", "--what", "vcf", "--dataset", name]
         return _start(launch_settings_job(argv, "Download VCF"))
@@ -980,7 +1025,11 @@ def add_vcf(n, name, source, path, hf_name):
             os.symlink(os.path.abspath(path), dest)
     except OSError as e:
         return no_update, no_update, f"Could not register folder: {e}"
-    return no_update, no_update, f"Registered VCF dataset '{name}'."
+    return (
+        no_update,
+        no_update,
+        f"Registered VCF dataset '{name}' for {ref_genome}.",
+    )
 
 
 @app.callback(
