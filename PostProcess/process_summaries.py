@@ -23,6 +23,18 @@ genome_type = sys.argv[8]
 filter_criterion = sys.argv[9]
 
 
+def _new_distributions():
+    """Per-guide edit-distribution histogram.
+
+    Indexed below as [Bulge_Size + Total][Total] (splitted[8]+splitted[9], then
+    splitted[9]). Total can reach mms+bulge and the outer sum mms+2*bulge, so the
+    array must be sized accordingly — the historical fixed [10][bulge+1] overflowed
+    for high-edit targets (rare on PAM-constrained searches, common on pamless /
+    dense-variant ones), raising IndexError in summary processing.
+    """
+    return [[0] * (mms + bulge + 1) for _ in range(mms + 2 * bulge + 1)]
+
+
 def init_summary_by_sample(path_samplesID):
     dict_samples = {}
     dict_pop = {}
@@ -87,17 +99,13 @@ for guide in guides:
 
     dict_summary_by_guide = {}
     add_to_general_table[guide] = {}
-    add_to_general_table[guide]["distributions"] = [
-        [0] * (bulge + 1) for x in range(10)
-    ]
+    add_to_general_table[guide]["distributions"] = _new_distributions()
     if genome_type == "var":
         dict_samples, dict_pop, dict_superpop = init_summary_by_sample(path_samplesID)
         count_superpop[guide] = {}
         for superpop in dict_superpop.keys():
             count_superpop[guide][superpop] = {}
-            count_superpop[guide][superpop]["distributions"] = [
-                [0] * (bulge + 1) for x in range(10)
-            ]
+            count_superpop[guide][superpop]["distributions"] = _new_distributions()
 
     with open(f"{path_best}.{guide}", "r") as f:
         for line in f:
@@ -275,7 +283,7 @@ with open(
                         + "\t".join(
                             [
                                 ",".join(str(v) for v in t)
-                                for t in [[0] * (bulge + 1) for x in range(10)]
+                                for t in _new_distributions()
                             ]
                         )
                         + "\n"
