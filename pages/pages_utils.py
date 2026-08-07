@@ -1343,6 +1343,29 @@ def get_variant_dataset_options(genome: str) -> List:
     return options
 
 
+def get_annotation_options(genome: str) -> List:
+    """Annotation dropdown options for a selected genome.
+
+    Genome-driven, mirroring the variant selector: "No annotation" is always first;
+    the built-in ENCODE cCREs + GENCODE bundle is an hg38 resource so it is offered
+    only for hg38; and any installed custom annotation whose filename carries the
+    genome token (e.g. ``...susScr11.bed``) is listed for that genome. Annotations
+    that cannot apply to the selected genome are never shown.
+    """
+    genome_norm = (genome or "").replace(" ", "_")
+    options = [{"label": "No annotation", "value": "none"}]
+    if genome_norm == "hg38" and os.path.isfile(
+        os.path.join(current_working_directory, ANNOTATIONS_DIR, "dhs+encode+gencode.hg38.bed")
+    ):
+        options.append({"label": "ENCODE cCREs + GENCODE genes (hg38)", "value": "EN"})
+    for ann in get_custom_annotations():
+        val = ann["value"] if isinstance(ann, dict) else ann
+        # match the genome token in the filename; skip the built-in already covered
+        if genome_norm and genome_norm in val and "encode" not in val.lower():
+            options.append({"label": val, "value": val})
+    return options
+
+
 def get_custom_annotations() -> List:
     """Recover user's annotation data.
 

@@ -30,6 +30,7 @@ from .pages_utils import (
     variant_dataset_present,
     has_variant_index,
     get_variant_dataset_options,
+    get_annotation_options,
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
@@ -170,8 +171,7 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
         State("url", "href"),
         State("available-genome", "value"),
         State("variant-dataset", "value"),
-        State("checklist-annotations", "value"),
-        State("annotation-dropdown", "value"),
+        State("annotation-dataset", "value"),
         State("available-pam", "value"),
         State("radio-guide", "value"),
         State("text-guides", "value"),
@@ -194,8 +194,7 @@ def change_url(
     href: str,
     genome_selected: str,
     variant_choice: str,
-    annotation_var: List,
-    annotation_input: str,
+    annotation_choice: str,
     pam: str,
     guide_type: str,
     text_guides: List[str],
@@ -249,14 +248,10 @@ def change_url(
         URL
     genome_selected : str
         Selected genome
-    ref_var : List
-        Variants
-    annotation_var : str
-        Annotation variants
-    vcf_input : str
-        Input VCF
-    annotation_input : str
-        Annotation file
+    variant_choice : str
+        Selected variant dataset ("ref" / "1000G" / "1000G+HGDP")
+    annotation_choice : str
+        Selected annotation ("none" / "EN" / an installed .bed filename)
     pam : str
         Selected PAM
     guide_type : str
@@ -392,54 +387,19 @@ def change_url(
         raise ValueError(f"An error occurred while running {cmd}")
     # ---- Set search parameters
     # ANNOTATION CHECK
-    gencode_name = "gencode.protein_coding.bed"
-    annotation_name = "vuoto.txt"  # to proceed without annotation file
+    # ANNOTATION: the selector is now a single genome-driven dropdown whose value
+    # is "none" (no annotation), "EN" (built-in ENCODE cCREs + GENCODE, hg38), or an
+    # installed annotation .bed filename for the selected genome. Custom annotations
+    # are added via Settings and surface here for their genome (no personal-merge on
+    # the form). gencode is only meaningful for the built-in hg38 bundle.
+    gencode_name = "vuoto.txt"
+    annotation_name = "vuoto.txt"
     annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
-    if "EN" in annotation_var:
-        annotation_name = "dhs+encode+gencode.hg38.bed"  # use dhs annotation file
-        if "MA" in annotation_var:
-            annotation_name = "".join(
-                [
-                    f"{annotation_name}+",
-                    "".join(annotation_input.split(".")[:-1]),
-                    ".bed",
-                ]
-            )
-            annotation_tmp = os.path.join(annotation_dir, f"ann_tmp_{job_id}.bed")
-            cmd = f"cp {os.path.join(annotation_dir, annotation_name)} {annotation_tmp}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            annotation_input_tmp = (
-                f"{os.path.join(annotation_dir, annotation_input)}.tmp"
-            )
-            cmd = f"awk '$4 = $4\"_personal\"' {os.path.join(annotation_dir, annotation_input)} > {annotation_input_tmp}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            cmd = f"mv {annotation_input_tmp} {os.path.join(annotation_dir, annotation_input)}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            cmd = f"tail -n +1 {os.path.join(annotation_dir, annotation_input)} >> {annotation_tmp}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            cmd = f"mv {annotation_tmp} {os.path.join(annotation_dir, annotation_name)}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-    elif "MA" in annotation_var:
-        annotation_input_tmp = f"{os.path.join(annotation_dir, annotation_input)}.tmp"
-        cmd = f"awk '$4 = $4\"_personal\"' {os.path.join(annotation_dir, annotation_input)} > {annotation_input_tmp}"
-        code = subprocess.call(cmd, shell=True)
-        if code != 0:
-            raise ValueError(f"an error occurred while running {cmd}")
-        annotation_name = f"{annotation_input}.tmp"
-
-    if "EN" not in annotation_var:
-        annotation_name = "vuoto.txt"
-        gencode_name = "vuoto.txt"
+    if annotation_choice == "EN":
+        annotation_name = "dhs+encode+gencode.hg38.bed"
+        gencode_name = "gencode.protein_coding.bed"
+    elif annotation_choice and annotation_choice not in ("none", "None"):
+        annotation_name = annotation_choice
     # GENOME TYPE CHECK
     ref_comparison = False
     genome_type = "ref"  # search is 'ref' or 'both'
@@ -1414,30 +1374,24 @@ def disable_job_name(checklist_value: List) -> bool:
 
 
 @app.callback(
-    [Output("annotation-dropdown", "disabled"), Output("annotation-dropdown", "value")],
-    [Input("checklist-annotations", "value")],
+    [Output("annotation-dataset", "options"), Output("annotation-dataset", "value")],
+    [Input("available-genome", "value")],
 )
-def change_disabled_annotation_dropdown(checklist_value: List) -> Tuple[bool, str]:
-    """Disable annotation dropdown if not in the checklist.
+def change_annotation_dataset_options(genome_value: str) -> List:
+    """Repopulate the annotation dropdown for the selected genome.
 
-    ...
+    Genome-driven, like the variant selector: only annotations that apply to the
+    chosen genome are offered (built-in ENCODE+GENCODE for hg38, installed .bed
+    annotations carrying the genome token), always with "No annotation" first. The
+    value is reset to a still-valid option so a stale selection cannot leak across a
+    genome change."""
 
-    Parameters
-    ----------
-    checklist_value : List
-
-    Returns
-    -------
-    Tuple[bool, str]
-    """
-
-    if not isinstance(checklist_value, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
-        )
-    if "MA" in checklist_value:
-        return False, ""
-    return True, ""
+    if genome_value is not None and not isinstance(genome_value, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_value).__name__}")
+    options = get_annotation_options(genome_value)
+    valid = {o["value"] for o in options}
+    value = "EN" if "EN" in valid else "none"
+    return [options, value]
 
 
 # select Cas protein from dropdown
@@ -1611,6 +1565,7 @@ def index_page() -> html.Div:
         if (_def_genome == "hg38" and variant_dataset_present("hg38", "1000G"))
         else "ref"
     )
+    _def_annotation = "EN" if _def_genome == "hg38" else "none"
     # seed the PAM dropdown options for the default nuclease so the default PAM
     # value is valid on first render (an empty options list makes Dash drop the
     # preset value before the cas->pam callback can populate it)
@@ -1937,27 +1892,13 @@ def index_page() -> html.Div:
         [
             html.H4("Select annotation"),
             html.Div(
-                dcc.Checklist(
-                    options=[
-                        {"label": " ENCODE cCREs + GENCODE genes", "value": "EN"},
-                        {
-                            "label": " Personal annotations*",
-                            "value": "MA",
-                            "disabled": ONLINE,
-                        },
-                    ],
-                    id="checklist-annotations",
-                    value=["EN"],
-                )
-            ),
-            html.Div(
                 dcc.Dropdown(
-                    options=[i for i in get_custom_annotations()],
-                    id="annotation-dropdown",
-                    style={"width": "300px"},
-                    disabled=True,
+                    options=get_annotation_options(_def_genome),
+                    value=_def_annotation,
+                    clearable=False,
+                    id="annotation-dataset",
+                    style={"width": "300px", "margin": "0 auto"},
                 ),
-                id="div-browse-annotation",
             ),
         ]
     )
