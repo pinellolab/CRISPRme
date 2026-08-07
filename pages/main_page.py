@@ -29,6 +29,7 @@ from .pages_utils import (
     index_max_bulges,
     variant_dataset_present,
     has_variant_index,
+    get_variant_dataset_options,
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
@@ -116,7 +117,9 @@ def split_filter_part(filter_part: str) -> Tuple:
         Output("text-guides", "value"),
         Output("available-pam", "value"),
         Output("available-genome", "value"),
-        Output("checklist-variants", "value"),
+        # variant-dataset.value is also driven by change_variant_dataset_options
+        # (genome-change); load-example is the secondary writer.
+        Output("variant-dataset", "value", allow_duplicate=True),
         Output("mms", "value"),
         Output("dna", "value"),
         Output("rna", "value"),
@@ -148,7 +151,7 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
         "CTAACAGTTGCTTTTATCAC",  # guide to use
         "20bp-NGG-SpCas9",  # PAM/enzyme to use
         "hg38",  # ref genome to use
-        ["1000G"],  # VCF to use
+        "1000G",  # variant dataset (single dropdown value)
         4,  # MM (int, to match the dropdown option values)
         1,  # DNA bulges
         1,  # RNA bulges
@@ -166,9 +169,8 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     [
         State("url", "href"),
         State("available-genome", "value"),
-        State("checklist-variants", "value"),
+        State("variant-dataset", "value"),
         State("checklist-annotations", "value"),
-        State("vcf-dropdown", "value"),
         State("annotation-dropdown", "value"),
         State("available-pam", "value"),
         State("radio-guide", "value"),
@@ -191,9 +193,8 @@ def change_url(
     n: int,
     href: str,
     genome_selected: str,
-    ref_var: List,
+    variant_choice: str,
     annotation_var: List,
-    vcf_input: str,
     annotation_input: str,
     pam: str,
     guide_type: str,
@@ -291,8 +292,15 @@ def change_url(
             raise TypeError(
                 f"Expected {str.__name__}, got {type(genome_selected).__name__}"
             )
-    if not isinstance(ref_var, list):
-        raise TypeError(f"Expected {list.__name__}, got {type(ref_var).__name__}")
+    # The variant selector is now a single genome-driven dropdown whose value is a
+    # scalar token: "ref" (reference only) or a dataset / "+"-joined combo (e.g.
+    # "1000G", "1000G+HGDP"). Normalize it to the dataset list the search wiring
+    # expects. Custom-VCF ("PV") selection was removed from the form.
+    if variant_choice in (None, "", "ref"):
+        ref_var = []
+    else:
+        ref_var = str(variant_choice).split("+")
+    vcf_input = None  # personal/custom VCF path removed from the search form
     if pam is not None:
         if not isinstance(pam, str):
             raise TypeError(f"Exepcted {str.__name__}, got {type(pam).__name__}")
@@ -1401,31 +1409,8 @@ def disable_job_name(checklist_value: List) -> bool:
     return False
 
 
-@app.callback(
-    [Output("vcf-dropdown", "disabled"), Output("vcf-dropdown", "value")],
-    [Input("checklist-variants", "value")],
-)
-def change_disabled_vcf_dropdown(checklist_value: List) -> Tuple[bool, str]:
-    """Disable VCF dropdown if not in the checklist.
-
-    ...
-
-    Parameters
-    ----------
-    checklist_value : List
-
-    Returns
-    -------
-    Tuple[bool, str]
-    """
-
-    if not isinstance(checklist_value, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
-        )
-    if "PV" in checklist_value:
-        return False, ""
-    return True, ""
+# (change_disabled_vcf_dropdown removed with the personal-variant VCF picker: the
+# variant selector is now a single genome-driven dataset dropdown.)
 
 
 @app.callback(
@@ -1498,49 +1483,26 @@ def change_placeholder_guide_textbox(guide_type: str) -> List:
 
 # change variants options
 @app.callback(
-    [Output("checklist-variants", "options"), Output("vcf-dropdown", "options")],
+    [Output("variant-dataset", "options"), Output("variant-dataset", "value")],
     [Input("available-genome", "value")],
 )
-def change_variants_checklist_state(genome_value: str) -> List:
-    """Change available variants options, according to the selected genome.
+def change_variant_dataset_options(genome_value: str) -> List:
+    """Repopulate the variant-dataset dropdown for the selected genome.
 
-    ...
-
-    Parameters
-    ----------
-    genome_value : str
-        Genome
-
-    Returns
-    -------
-    List
+    Genome-driven: only datasets actually installed for this genome are offered
+    (built-in 1000G/HGDP for hg38, a combined entry when both are present), always
+    with "Reference only" first. A genome with no variant data shows only
+    "Reference only". The value is reset to a still-valid option so a stale
+    selection from a previous genome cannot leak into the search.
     """
 
-    checklist_variants_options = []
-    if genome_value is not None:
-        if not isinstance(genome_value, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(genome_value).__name__}"
-            )
-        # Only offer variant options that are actually compatible with, and
-        # available for, the selected genome. The built-in 1000G/HGDP datasets are
-        # human (hg38) resources, so they are shown only for hg38 and only when
-        # their data is present -- they no longer appear for e.g. a pig genome.
-        # Each is labelled with whether a bulge index is already built.
-        checklist_variants_options = []
-        genome_norm = (genome_value or "").replace(" ", "_")
-        for builtin, name in (("1000G", "1000 Genomes Project"), ("HGDP", "HGDP")):
-            if genome_norm == "hg38" and variant_dataset_present(genome_norm, builtin):
-                ready = has_variant_index(genome_norm, builtin)
-                suffix = "" if ready else "  (no bulge index yet — enrich/build in Settings)"
-                checklist_variants_options.append(
-                    {"label": f" plus {name} variants{suffix}", "value": builtin, "disabled": False}
-                )
-        checklist_variants_options.append(
-            {"label": " plus personal/custom variants*", "value": "PV", "disabled": ONLINE}
-        )
-    personal_vcf = get_custom_VCF(genome_value)
-    return [checklist_variants_options, personal_vcf]
+    if genome_value is not None and not isinstance(genome_value, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_value).__name__}")
+    options = get_variant_dataset_options(genome_value)
+    valid_values = {o["value"] for o in options}
+    # prefer 1000G if available, else reference only
+    value = "1000G" if "1000G" in valid_values else "ref"
+    return [options, value]
 
 
 # Limit the DNA/RNA bulge options to what a built index supports (hard cap).
@@ -1559,22 +1521,21 @@ def change_variants_checklist_state(genome_value: str) -> List:
     [
         Input("available-genome", "value"),
         Input("available-pam", "value"),
-        Input("checklist-variants", "value"),
-        Input("vcf-dropdown", "value"),
+        Input("variant-dataset", "value"),
     ],
     [State("dna", "value"), State("rna", "value")],
     prevent_initial_call=True,
 )
-def limit_bulges_to_index(genome, pam, variants, vcf, cur_dna, cur_rna):
+def limit_bulges_to_index(genome, pam, variant_choice, cur_dna, cur_rna):
     if not genome or not pam:
         return AV_BULGES, AV_BULGES, no_update, no_update, ""
     maxb = index_max_bulges(genome, pam, None)  # reference index (always needed)
-    selected = []
-    for v in variants or []:
-        if v in ("1000G", "HGDP"):
-            selected.append(v)
-        elif v == "PV" and vcf:
-            selected.append(vcf)
+    # scalar dropdown value -> list of datasets ("ref" -> none)
+    selected = (
+        []
+        if variant_choice in (None, "", "ref")
+        else [v for v in str(variant_choice).split("+") if v in ("1000G", "HGDP")]
+    )
     for v in selected:  # a variant bulge search also needs the variant index
         maxb = min(maxb, index_max_bulges(genome, pam, v))
     opts = [{"label": i, "value": i} for i in range(0, maxb + 1)]
@@ -1646,9 +1607,9 @@ def index_page() -> html.Div:
     _def_cas = _default_cas()
     _def_pam = _default_pam(_def_cas)
     _def_variants = (
-        ["1000G"]
+        "1000G"
         if (_def_genome == "hg38" and variant_dataset_present("hg38", "1000G"))
-        else []
+        else "ref"
     )
     # seed the PAM dropdown options for the default nuclease so the default PAM
     # value is valid on first render (an empty options list makes Dash drop the
@@ -1787,37 +1748,15 @@ def index_page() -> html.Div:
                 ),
                 style={"width": "300px"},
             ),
-            html.Div(
-                dcc.Checklist(
-                    options=[
-                        {
-                            "label": " plus 1000 Genomes Project variants",
-                            "value": "1000G",
-                            "disabled": True,
-                        },
-                        {
-                            "label": " plus HGDP variants",
-                            "value": "HGDP",
-                            "disabled": True,
-                        },
-                        {
-                            "label": " plus personal variants*",
-                            "value": "PV",
-                            "disabled": True,
-                        },
-                    ],
-                    id="checklist-variants",
-                    value=_def_variants,
-                )
-            ),
+            html.P("Variants", style={"margin": "8px 0 2px"}),
             html.Div(
                 dcc.Dropdown(
-                    options=[],
-                    id="vcf-dropdown",
-                    style={"width": "300px"},
-                    disabled=True,
+                    options=get_variant_dataset_options(_def_genome),
+                    value=_def_variants,
+                    clearable=False,
+                    id="variant-dataset",
+                    style={"width": "300px", "margin": "0 auto"},
                 ),
-                id="div-browse-PV",
             ),
         ]
     )

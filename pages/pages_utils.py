@@ -1317,6 +1317,32 @@ def get_all_vcf_datasets() -> List:
     return [{"label": d, "value": d} for d in sorted(dirs)]
 
 
+def get_variant_dataset_options(genome: str) -> List:
+    """Variant-dataset dropdown options for a selected genome.
+
+    A single self-describing list driven by what is installed for THAT genome:
+    "Reference only" is always first; then each built-in dataset present for the
+    genome (1000G, HGDP), and a combined entry when more than one is available
+    (e.g. "1000G + HGDP", value "1000G+HGDP"). For a genome with no variant data
+    (e.g. a freshly added non-human assembly) only "Reference only" is offered, so
+    the control never shows datasets that cannot apply. The combined value is
+    split on '+' by the search wiring back into the individual datasets.
+    """
+    genome_norm = (genome or "").replace(" ", "_")
+    options = [{"label": "Reference only (no variants)", "value": "ref"}]
+    present = [
+        ds for ds in ("1000G", "HGDP") if variant_dataset_present(genome_norm, ds)
+    ]
+    labels = {"1000G": "1000 Genomes Project (1000G)", "HGDP": "HGDP"}
+    for ds in present:
+        options.append({"label": labels.get(ds, ds), "value": ds})
+    if len(present) > 1:
+        options.append(
+            {"label": " + ".join(present), "value": "+".join(present)}
+        )
+    return options
+
+
 def get_custom_annotations() -> List:
     """Recover user's annotation data.
 
