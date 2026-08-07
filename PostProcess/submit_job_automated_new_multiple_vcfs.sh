@@ -268,6 +268,12 @@ while read vcf_f; do
 	idx_folder1="${ref_lib}/${true_pam}_${bMax}_${ref_name}"  # index for requested number of bulges
 	idx_folder2="${ref_lib}/${true_pam}_${bMax_}_${ref_name}"  # index for requested number of bulges + 1 (superset for required index)
 	idx_folder3="${ref_lib}/${true_pam}_1_${ref_name}"  # index for number of bulges = 1 (used also for 0 bulges)
+	# pamless (NNN) fallback: a degenerate NNN index contains all candidate sites,
+	# so it works for ANY PAM (the requested PAM is enforced by the post-search PAM
+	# filter, and applied for real in post-analysis). Used when no PAM-specific
+	# index exists, letting one index cover many PAMs.
+	idx_folder_nnn="${ref_lib}/NNN_${bMax}_${ref_name}"
+	idx_folder_nnn_="${ref_lib}/NNN_${bMax_}_${ref_name}"
 
 	# try to use an existing index
 	if [ -d "$idx_folder1" ]; then
@@ -282,6 +288,14 @@ while read vcf_f; do
 		echo "Reference Index already present"
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
 		idx_ref="$idx_folder3"
+	elif [ -d "$idx_folder_nnn" ]; then
+		echo "Using pamless (NNN) reference index"
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
+		idx_ref="$idx_folder_nnn"
+	elif [ -d "$idx_folder_nnn_" ]; then
+		echo "Using pamless (NNN) reference index (superset)"
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
+		idx_ref="$idx_folder_nnn_"
 	elif [ "$index_path" != "_" ] && [ -n "$index_path" ]; then
 		# an index location was explicitly provided but no matching index was
 		# found there: fail loudly instead of silently rebuilding elsewhere
@@ -320,6 +334,12 @@ while read vcf_f; do
 		idx_folder1="${basedir}/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
 		idx_folder2="${basedir}/${true_pam}_${bMax_}_${ref_name}+${vcf_name}"
 		idx_folder3="${basedir}/${true_pam}_1_${ref_name}+${vcf_name}"
+		# pamless (NNN) variant-index fallback (see the reference-index note): a
+		# single NNN variant index built on the enriched genome serves any PAM,
+		# with the requested PAM enforced by the post-search PAM filter and
+		# variant-created PAMs preserved (IUPAC-aware) for the creation analysis.
+		idx_folder_nnn="${basedir}/NNN_${bMax}_${ref_name}+${vcf_name}"
+		idx_folder_nnn_="${basedir}/NNN_${bMax_}_${ref_name}+${vcf_name}"
 
 		# try existing indexes in priority order
 		if [ -d "$idx_folder1" ]; then
@@ -334,6 +354,14 @@ while read vcf_f; do
 			echo "Variant Index already present"
 			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
 			idx_var="$idx_folder3"
+		elif [ -d "$idx_folder_nnn" ]; then
+			echo "Using pamless (NNN) variant index"
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder_nnn"
+		elif [ -d "$idx_folder_nnn_" ]; then
+			echo "Using pamless (NNN) variant index (superset)"
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder_nnn_"
 		else
 			# no index found, compute it; use mkdir lock to prevent concurrent builds
 			_lock="${idx_folder1}.lock"
@@ -490,6 +518,17 @@ while read vcf_f; do
 	# move all targets into targets directory
 	if [ -d "${output_folder}/crispritz_targets" ]; then
 		mv $output_folder/*.targets.txt $output_folder/crispritz_targets &>/dev/null
+	fi
+	# PAM filter: keep only raw targets whose PAM region can satisfy the requested
+	# PAM (IUPAC-aware, so variant-created PAMs survive for the creation analysis).
+	# Correct for any index -- essential when a pamless (NNN) index is reused for a
+	# specific PAM; a no-op for PAM-specific and direct (-r) searches.
+	if [ -d "${output_folder}/crispritz_targets" ]; then
+		for _tgt in "${output_folder}"/crispritz_targets/*.targets.txt; do
+			[ -f "$_tgt" ] || continue
+			python "$starting_dir/pam_filter.py" "$_tgt" "$pam_file"
+		done
+		echo -e "Applied PAM filter to raw targets" >>$log
 	fi
 	# optional --max-total-edits cap (issue #107): drop raw targets whose TOTAL
 	# edits (column 10 = Mismatches + Bulge_Size) exceed the cap, BEFORE the
