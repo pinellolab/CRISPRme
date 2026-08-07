@@ -2048,51 +2048,69 @@ def index_page() -> html.Div:
     # add other content
     final_list.append(
         html.Div(
-            [
-                dbc.Row(
+            [modal]
+            + [
+                # one numbered step-card per stage: a single centered column that
+                # reads top-to-bottom (Guide -> Genome+variants -> PAM -> Thresholds
+                # -> Annotation -> Run). Content blocks are reused verbatim, so all
+                # component ids / callbacks are unchanged.
+                html.Div(
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                html.Div(
+                                    str(_n),
+                                    style={
+                                        "width": "34px",
+                                        "height": "34px",
+                                        "borderRadius": "50%",
+                                        "backgroundColor": "#388396",
+                                        "color": "white",
+                                        "fontWeight": "700",
+                                        "fontSize": "1.1rem",
+                                        "display": "flex",
+                                        "alignItems": "center",
+                                        "justifyContent": "center",
+                                    },
+                                ),
+                                width="auto",
+                            ),
+                            dbc.Col(_content),
+                        ],
+                        align="start",
+                    ),
+                    style={
+                        "backgroundColor": "white",
+                        "border": "1px solid #e2e8ec",
+                        "borderRadius": "10px",
+                        "padding": "16px 22px",
+                        "marginBottom": "14px",
+                        "boxShadow": "0 1px 4px rgba(0,0,0,0.05)",
+                    },
+                )
+                for _n, _content in enumerate(
                     [
-                        dbc.Col(  # first column of the box
+                        tab_guides_content,
+                        genome_content,
+                        pam_content,
+                        html.Div([thresholds_content, base_editing_content]),
+                        annotation_content,
+                        html.Div(
                             [
-                                modal,
-                                dbc.Row(dbc.Col(tab_guides_content)),
-                                dbc.Row(dbc.Col(pam_content)),
-                            ],
-                            width="auto",
-                            style={"textAlign": "center"},
-                        ),
-                        dbc.Col(  # second column of the box
-                            [
-                                dbc.Row(dbc.Col(genome_content)),
-                                dbc.Row(dbc.Col(thresholds_content)),
-                                dbc.Row(dbc.Col(base_editing_content)),
+                                mail_content,
+                                job_name_content,
                                 html.Br(),
-                                dbc.Row(dbc.Col(example_content)),
-                            ],
-                            width="auto",
-                            style={"textAlign": "center"},
-                        ),
-                        dbc.Col(  # third column of the box
-                            [
-                                dbc.Row(annotation_content),
-                                dbc.Row(mail_content),
-                                dbc.Row(job_name_content),
+                                submit_content,
                                 html.Br(),
-                                dbc.Row(dbc.Col(submit_content)),
-                                dbc.Row(terms_and_conditions_content),
-                            ],
-                            width="auto",
-                            style={"textAlign": "center"},
+                                example_content,
+                                terms_and_conditions_content,
+                            ]
                         ),
                     ],
-                    justify="center",
-                    style={"margin-bottom": "1%"},
+                    start=1,
                 )
             ],
-            style={
-                "background-color": "rgba(157, 195, 230, 0.39)",
-                "border-radius": "5px",
-                "border": "1px solid black",
-            },
+            style={"maxWidth": "680px", "margin": "0 auto"},
             id="steps-background",
         )
     )
