@@ -41,11 +41,24 @@ ${CXX} -std=c++11 -O3 -fopenmp \
     sourceCode/CRISPRofiler/pre_computation.cpp \
     sourceCode/CRISPRofiler/reading.cpp \
     sourceCode/CRISPRofiler/analysis.cpp -o searchBruteForce
+${CXX} -std=c++11 -O3 -fopenmp \
+    sourceCode/Python_Scripts/Enrichment/enricher.cpp -o enricher -lz
 mkdir -p "${CONDA_PREFIX}/opt/crispritz"
 cp crispritz.py "${CONDA_PREFIX}/bin/crispritz.py"
 chmod +x "${CONDA_PREFIX}/bin/crispritz.py"
 cp buildTST searchTST searchBruteForce "${CONDA_PREFIX}/opt/crispritz/"
 cp -R sourceCode/Python_Scripts "${CONDA_PREFIX}/opt/crispritz/"
+# Install the compiled binary in both places _enricher_command() (crispritz.py)
+# checks, in this order: PATH first, else same-directory as this install
+# (corrected_origin_path + "Python_Scripts/Enrichment/enricher"). Without a
+# compiled binary in either spot it silently falls back to the pure-Python
+# enricher.py -- no error, ~15x slower, see this commit's message for the
+# consequence. (add_variants.sh, a separate, not-actually-invoked script, has
+# its own unconditional hard-exit if 'enricher' isn't on PATH or beside it --
+# same two paths, so satisfied as a side effect regardless.)
+cp enricher "${CONDA_PREFIX}/bin/enricher"
+chmod +x "${CONDA_PREFIX}/bin/enricher"
+cp enricher "${CONDA_PREFIX}/opt/crispritz/Python_Scripts/Enrichment/enricher"
 cd "${REPO}"
 rm -rf "${TMP}"
 

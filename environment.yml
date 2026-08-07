@@ -52,3 +52,4 @@ dependencies:
   - cxx-compiler
   - make
   - git
+  - zlib               # enricher.cpp #includes <zlib.h>; not on cxx-compiler's own include path
