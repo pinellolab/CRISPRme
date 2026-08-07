@@ -2051,7 +2051,7 @@ def index_page() -> html.Div:
                     start=1,
                 )
             ],
-            style={"maxWidth": "680px", "margin": "0 auto"},
+            style={"width": "100%"},
             id="steps-background",
         )
     )
@@ -2068,7 +2068,12 @@ def index_page() -> html.Div:
             )
         )
     )
-    index_page = html.Div(final_list, style={"margin": "1%"})
+    # constrain the whole page to the same centered width as the step-cards so the
+    # intro text and footer line up with the submitting form
+    index_page = html.Div(
+        final_list,
+        style={"maxWidth": "680px", "margin": "0 auto", "padding": "24px 12px"},
+    )
     return index_page
 
 

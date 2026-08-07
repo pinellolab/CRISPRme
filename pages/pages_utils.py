@@ -1330,16 +1330,26 @@ def get_variant_dataset_options(genome: str) -> List:
     """
     genome_norm = (genome or "").replace(" ", "_")
     options = [{"label": "Reference only (no variants)", "value": "ref"}]
-    present = [
-        ds for ds in ("1000G", "HGDP") if variant_dataset_present(genome_norm, ds)
-    ]
+    # Each option is ONE dataset = ONE enriched-genome/index = ONE search. A combined
+    # panel (e.g. 1000G+HGDP) must be a single *merged* VCF dataset, not two datasets
+    # searched separately and merged after -- the merged VCF is both what the shipped
+    # combined index is built from and the only way cross-dataset haplotypes (a target
+    # created by a 1000G variant next to an HGDP variant) are found. So we simply list
+    # the dataset folders that exist for the genome; a merged panel appears once it is
+    # registered as its own dataset (no synthetic "A+B" two-run option).
     labels = {"1000G": "1000 Genomes Project (1000G)", "HGDP": "HGDP"}
-    for ds in present:
-        options.append({"label": labels.get(ds, ds), "value": ds})
-    if len(present) > 1:
-        options.append(
-            {"label": " + ".join(present), "value": "+".join(present)}
-        )
+    for ds in ("1000G", "HGDP"):
+        if variant_dataset_present(genome_norm, ds):
+            options.append({"label": labels.get(ds, ds), "value": ds})
+    # any additional installed dataset folder for this genome (e.g. a merged panel or
+    # a custom VCF registered via Settings), matched by the genome token in its name
+    seen = {o["value"] for o in options}
+    for ds in get_all_vcf_datasets():
+        val = ds["value"] if isinstance(ds, dict) else ds
+        core = val[len(genome_norm) + 1:] if val.startswith(genome_norm + "_") else val
+        if genome_norm and genome_norm in val and core not in seen:
+            options.append({"label": core, "value": core})
+            seen.add(core)
     return options
 
 
