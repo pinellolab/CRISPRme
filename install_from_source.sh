@@ -48,11 +48,14 @@ cp crispritz.py "${CONDA_PREFIX}/bin/crispritz.py"
 chmod +x "${CONDA_PREFIX}/bin/crispritz.py"
 cp buildTST searchTST searchBruteForce "${CONDA_PREFIX}/opt/crispritz/"
 cp -R sourceCode/Python_Scripts "${CONDA_PREFIX}/opt/crispritz/"
-# add-variants (sourceCode/Python_Scripts/Enrichment/add_variants.sh) requires
-# the compiled 'enricher' binary -- it has no Python fallback, only a
-# `command -v enricher` / same-directory check, and hard-exits if neither is
-# found. Install on PATH (satisfies the first check unconditionally) and also
-# drop it next to add_variants.sh (satisfies the same-directory fallback too).
+# Install the compiled binary in both places _enricher_command() (crispritz.py)
+# checks, in this order: PATH first, else same-directory as this install
+# (corrected_origin_path + "Python_Scripts/Enrichment/enricher"). Without a
+# compiled binary in either spot it silently falls back to the pure-Python
+# enricher.py -- no error, ~15x slower, see this commit's message for the
+# consequence. (add_variants.sh, a separate, not-actually-invoked script, has
+# its own unconditional hard-exit if 'enricher' isn't on PATH or beside it --
+# same two paths, so satisfied as a side effect regardless.)
 cp enricher "${CONDA_PREFIX}/bin/enricher"
 chmod +x "${CONDA_PREFIX}/bin/enricher"
 cp enricher "${CONDA_PREFIX}/opt/crispritz/Python_Scripts/Enrichment/enricher"
