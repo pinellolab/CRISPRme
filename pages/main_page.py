@@ -31,6 +31,7 @@ from .pages_utils import (
     has_variant_index,
     get_variant_dataset_options,
     get_annotation_options,
+    get_pam_options,
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
@@ -1507,6 +1508,31 @@ def limit_bulges_to_index(genome, pam, variant_choice, cur_dna, cur_rna):
     return opts, opts, dna_v, rna_v, note
 
 
+@app.callback(
+    [
+        Output("available-pam", "options"),
+        Output("available-pam", "value", allow_duplicate=True),
+    ],
+    [Input("available-genome", "value"), Input("variant-dataset", "value")],
+    [State("available-pam", "value")],
+    prevent_initial_call=True,
+)
+def update_pam_options(genome, variant_choice, current_pam):
+    """Restrict the PAM list to what is searchable for the current genome + variant
+    selection: all PAMs for a reference-only search, but only PAMs with a variant
+    index (pamless NNN counts for all) when a variant dataset is included. Keeps the
+    current PAM if it is still valid, else falls back to a sensible default."""
+    options = get_pam_options(genome, variant_choice)
+    valid = {o["value"] for o in options}
+    if current_pam in valid:
+        value = current_pam
+    else:
+        value = _default_pam(_default_cas()) if any(
+            o["value"] == _default_pam(_default_cas()) for o in options
+        ) else (options[0]["value"] if options else None)
+    return options, value
+
+
 def _default_genome() -> Optional[str]:
     """Sensible default genome: hg38 if installed, else the first available."""
     gs = [g["value"] for g in get_available_genomes()]
@@ -1816,7 +1842,6 @@ def index_page() -> html.Div:
                 is_open=False,
             ),
         ],
-        style={"margin-top": "10%"},
     )
     # base editing boxes
     base_editing_content = html.Div(
@@ -1885,7 +1910,7 @@ def index_page() -> html.Div:
                 style={"display": "none"},
             ),
         ],
-        style={"margin-top": "10%"},
+        style={"margin-top": "16px", "border-top": "1px solid #eef2f4", "padding-top": "12px"},
     )
     # annotations dropdown
     annotation_content = html.Div(

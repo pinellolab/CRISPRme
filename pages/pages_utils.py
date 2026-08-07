@@ -1376,6 +1376,41 @@ def get_annotation_options(genome: str) -> List:
     return options
 
 
+def get_pam_options(genome: str, variant_choice: Optional[str]) -> List:
+    """PAM dropdown options for the current genome + variant selection.
+
+    Reference-only searches can use ANY installed PAM (a PAM lacking a per-PAM
+    index just runs index-free via ``-r``), so all PAMs are offered. When a variant
+    dataset is included, a variant search needs a variant index for that PAM, so the
+    list is restricted to PAMs that actually have one for genome+dataset -- except a
+    pamless ``NNN`` variant index, which serves every PAM (the requested PAM is
+    enforced by the post-search filter), so its presence unlocks all PAMs again.
+    """
+    all_pams = get_available_PAM()
+    if variant_choice in (None, "", "ref"):
+        return all_pams
+    genome_norm = (genome or "").replace(" ", "_")
+    datasets = [d for d in str(variant_choice).split("+") if d]
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib) or not datasets:
+        return all_pams
+    # collect variant-index motifs available for EVERY selected dataset
+    per_dataset_motifs = []
+    for ds in datasets:
+        marker = f"_{genome_norm}+{ds}"
+        motifs = set()
+        for d in os.listdir(lib):
+            if marker in d and not d.endswith("_INDELS") and os.path.isdir(
+                os.path.join(lib, d)
+            ):
+                motifs.add(d.split("_")[0])  # <motif>_<N>_<genome>+<ds>
+        per_dataset_motifs.append(motifs)
+    usable = set.intersection(*per_dataset_motifs) if per_dataset_motifs else set()
+    if any(m == "N" * len(m) for m in usable):  # pamless NNN index -> any PAM
+        return all_pams
+    return [p for p in all_pams if pam_motif(p["value"]) in usable] or all_pams
+
+
 def get_custom_annotations() -> List:
     """Recover user's annotation data.
 
