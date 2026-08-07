@@ -34,17 +34,15 @@ GZIP_MAGIC = b"\x1f\x8b"
 MIN_VCF_HEADER_FIELDS = 10
 # #CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO
 MIN_VCF_DATA_FIELDS = 8
-# FILTER value the officially-released crispritz enricher.py hardcodes as
-# "passing" (enricher.py:363: `if line[6] != 'PASS': continue`) — verified
-# against GitHub pinellolab/CRISPRitz master. CRISPRme's own
-# --vcf-filter-pass-values defaults to "PASS,." (intending to also accept
-# '.', e.g. HPRC vcfwave output), but that flag isn't actually wired through
-# to crispritz's add-variants call (see validate_inputs_plan.md's "Known
-# separate bug" section), so today only literal 'PASS' passes regardless of
-# the flag. (A local, not-yet-submitted CRISPRitz patch accepting '.' exists
-# only in one developer's own conda env for HPRC testing — not part of any
-# officially shipped crispritz release, so not assumed here.)
-ENRICHER_PASS_VALUES = ("PASS",)
+# FILTER values the crispritz enricher treats as "passing". Mirrors CRISPRitz
+# PR #36 "enricher AF/FILTER robustness" (enricher.py: `if line[6] not in
+# ('PASS', '.')`), which accepts '.' (no filter applied, e.g. HPRC vcfwave
+# output) in addition to 'PASS'. PR #36 also fixes AF-key lookup to an exact
+# "AF=" match (not a 2-char prefix that mis-hit "AF_afr=" etc.). Kept in lockstep
+# with that PR: when it merges upstream and the crispritz pin is bumped, this
+# already matches; on an older crispritz that only accepts 'PASS', '.' records
+# are simply enriched-out (a superset warning here, never a false pass).
+ENRICHER_PASS_VALUES = ("PASS", ".")
 STRUCTURAL_VARIANT_LEN = 50
 # enricher.py:302 builds indel context as genomeStr[pos-26 : pos+26+len(ref)];
 # a negative start silently wraps via Python slicing instead of erroring
