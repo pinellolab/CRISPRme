@@ -330,10 +330,11 @@ def print_help_complete_search() -> None:
         "instead of building the index under the working directory; a missing "
         "matching index is a hard error [OPTIONAL]\n"
         "\t--max-total-edits, cap the TOTAL edits (mismatches + bulges) per "
-        "reported alignment; targets exceeding the cap are dropped right after "
-        "the search, shrinking intermediate files and post-analysis time. E.g. "
-        "with --mm 6 --bDNA 2 --bRNA 2 --max-total-edits 6, a 4mm+1+1 alignment "
-        "is kept but a 6mm+2+2 (=10) one is dropped [OPTIONAL]\n"
+        "reported alignment, pruned INSIDE the TST search so excess alignments "
+        "are never generated (much faster + smaller intermediates). E.g. with "
+        "--mm 6 --bDNA 2 --bRNA 2 --max-total-edits 6, a 4mm+1+1 alignment is "
+        "kept but a 6mm+2+2 (=10) one is skipped. Default 5; set it >= "
+        "mm+bDNA+bRNA to effectively disable [OPTIONAL]\n"
         "\t--full_input_validate, also run a full per-VCF-record scan (chromosome "
         "coverage, AF/FILTER consistency, POS bounds, multiallelic/breakend/"
         "duplicate/phasing survey) before launching the search; slower than the "
@@ -1282,11 +1283,13 @@ def complete_search() -> None:
         if not os.path.isdir(index_path):
             error(f"The index path {index_path} does not exist or is not a directory")
 
-    # optional cap on TOTAL edits per alignment (--max-total-edits): drops raw
-    # targets whose mismatches+bulges exceed the cap right after the search, so
-    # combined-edit alignments (e.g. 6mm+2+2 bulges = 10) don't bloat the
-    # intermediate files, scoring and post-analysis (issue #107). -1 = disabled.
-    max_total_edits = -1
+    # cap on TOTAL edits per alignment (--max-total-edits, issue #107): prevents
+    # combined-edit alignments (e.g. 6mm+2+2 bulges = 10) from bloating the
+    # intermediate files, scoring and post-analysis. Enforced INSIDE the TST
+    # search (pruned before generation, --max-edits) with a post-search awk drop
+    # as a backstop for the -r/brute-force path. Default 5 (a real off-target
+    # rarely stacks many mismatches AND several bulges); -1 disables it.
+    max_total_edits = 5
     if "--max-total-edits" in args:
         try:
             max_total_edits = int(args[args.index("--max-total-edits") + 1])

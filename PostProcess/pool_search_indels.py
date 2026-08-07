@@ -40,6 +40,8 @@ output_folder = sys.argv[10]
 true_pam = sys.argv[11]
 current_working_directory = sys.argv[12]
 threads = int(sys.argv[13])
+# optional total-edits cap (mm+bulges), forwarded to the in-search TST prune (#107)
+max_edits = sys.argv[14] if len(sys.argv) > 14 else "-1"
 
 
 def search_indels(f):
@@ -47,7 +49,7 @@ def search_indels(f):
     print("Searching for INDELs in", chrom)
     if bDNA != "0" or bRNA != "0":
         os.system(
-            f"crispritz.py search {current_working_directory}/genome_library/{true_pam}_{bMax}_{ref_name}+{vcf_name}_INDELS/{true_pam}_{bMax}_fake{chrom}/ {pam_file} {guide_file} fake{chrom}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -index -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -t -th 1 >/dev/null"
+            f"crispritz.py search {current_working_directory}/genome_library/{true_pam}_{bMax}_{ref_name}+{vcf_name}_INDELS/{true_pam}_{bMax}_fake{chrom}/ {pam_file} {guide_file} fake{chrom}_{pam_name}_{guide_name}_{mm}_{bDNA}_{bRNA} -index -mm {mm} -bDNA {bDNA} -bRNA {bRNA} -t -th 1 --max-edits {max_edits} >/dev/null"
         )
     else:
         os.system(

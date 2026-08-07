@@ -81,7 +81,7 @@ index_path="${25:-_}"
 # Optional cap on total edits (mismatches + bulges) per reported alignment
 # (complete-search --max-total-edits). Raw targets exceeding it are dropped
 # right after the search. "-1" (or unset) means no cap.
-max_total_edits="${26:--1}"
+max_total_edits="${26:-5}"  # default cap on total edits (mm+bulges); pruned in-search (#107)
 
 # log files
 log="$output_folder/log.txt"
@@ -448,7 +448,7 @@ while read vcf_f; do
 	if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 		echo -e 'Search Reference Start'  # off-targets search on reference genome
 		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulges 
-			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
+			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result --max-edits $max_total_edits &
 			pid_search_ref=$!
 			pids+=("$pid_search_ref")  # add reference search pid
 			names+=("Reference")  # add pid identifier
@@ -468,7 +468,7 @@ while read vcf_f; do
 		if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 			echo -e 'Search Variant Start'  # search off-targets on alternative genomes (snps only)
 			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulge
-				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var &
+				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var --max-edits $max_total_edits &
 				pid_search_var=$!
 				pids+=("$pid_search_var")  # add variants search pid
 				names+=("Variant")  # add pid identifier
@@ -487,7 +487,7 @@ while read vcf_f; do
 			echo -e "Search INDELs Start"
 			cd $starting_dir
 			# TODO: REMOVE POOL SCRIPT FROM PROCESSING
-			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus"
+			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus" "$max_total_edits"
 			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp"
 			mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp" "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
 		else
