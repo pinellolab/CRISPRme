@@ -524,9 +524,14 @@ for nline, line in enumerate(inCrispritzResults):
     saveDict["Variant_info_genome_(highest_CFD)"] = str(target[18])
 
     # remove 0 MAF
+    # a blank "" AF value (CRISPRitz PR #36: AF-not-found/out-of-range now
+    # degrades to "" instead of crashing) must be treated the same as the
+    # existing "NA" case here and at the two mirrored blocks below (fewest_mm+b,
+    # highest_CRISTA) -- bare float("") raises ValueError, unlike pandas'
+    # pd.to_numeric("") which the final CRISPRme_plots.py consumer relies on
     maf_list = list()
     for elem in target[17].strip().split(","):
-        if elem != "NA":
+        if elem not in ("", "NA"):
             if float(elem) == 0:
                 maf_list.append(str(0.00001))
             else:
@@ -576,7 +581,7 @@ for nline, line in enumerate(inCrispritzResults):
 
     maf_list = list()
     for elem in target[41].strip().split(","):
-        if elem != "NA":
+        if elem not in ("", "NA"):
             if float(elem) == 0:
                 maf_list.append(str(0.00001))
             else:
@@ -624,7 +629,7 @@ for nline, line in enumerate(inCrispritzResults):
 
     maf_list = list()
     for elem in target[65].strip().split(","):
-        if elem != "NA":
+        if elem not in ("", "NA"):
             if float(elem) == 0:
                 maf_list.append(str(0.00001))
             else:
