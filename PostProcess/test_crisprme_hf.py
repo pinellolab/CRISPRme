@@ -10,6 +10,7 @@ import gzip
 import os
 import tarfile
 import unittest
+from unittest import mock
 
 import crisprme_hf as hf
 
@@ -48,7 +49,10 @@ class TestResolveRepo(unittest.TestCase):
         self.assertEqual(hf.resolve_token(None), "tok_alt")
 
     def test_token_none(self):
-        self.assertIsNone(hf.resolve_token(None))
+        # neutralize a cached `huggingface-cli login` token so the no-token path
+        # is exercised even on a machine that is logged into HuggingFace
+        with mock.patch("huggingface_hub.get_token", return_value=None):
+            self.assertIsNone(hf.resolve_token(None))
 
 
 class TestDecompress(unittest.TestCase):
@@ -105,11 +109,14 @@ class TestPublishValidation(unittest.TestCase):
         idx = os.path.join(d, "NGG_2_hg38")
         os.makedirs(idx)
         open(os.path.join(idx, "chr1.bin"), "wb").close()
-        # no token in env, none passed -> must raise before any network call
+        # no token in env, none passed, and no cached login -> must raise before
+        # any network call (patch get_token so a logged-in machine can't cause a
+        # real upload during the test)
         for k in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"):
             os.environ.pop(k, None)
-        with self.assertRaises(ValueError):
-            hf.publish_index(idx, token=None)
+        with mock.patch("huggingface_hub.get_token", return_value=None):
+            with self.assertRaises(ValueError):
+                hf.publish_index(idx, token=None)
 
 
 class TestIndexTarRoundTrip(unittest.TestCase):

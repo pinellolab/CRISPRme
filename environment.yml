@@ -53,3 +53,5 @@ dependencies:
   - make
   - git
   - zlib               # enricher.cpp #includes <zlib.h>; not on cxx-compiler's own include path
+  # --- test suite
+  - pytest             # PostProcess/test_*.py unit tests
