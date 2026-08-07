@@ -186,6 +186,8 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
         State("checklist-mail", "value"),
         State("example-email", "value"),
         State("job-name", "value"),
+        State("max-edits-slider", "value"),
+        State("advanced-thresholds-collapse", "is_open"),
     ],
 )
 def change_url(
@@ -210,6 +212,8 @@ def change_url(
     adv_opts: List,
     dest_email: str,
     job_name: str,
+    max_edits_val: int,
+    advanced_open: bool,
 ) -> Tuple[str, str]:
     """Launch the targets search and generates the input files for
     post-processing operations, and results visualization.
@@ -985,7 +989,16 @@ def change_url(
         if not os.path.isfile(gencode):
             code = subprocess.call(f"touch {gencode}", shell=True)
 
-    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} 1> {log_verbose} 2>{log_error}"
+    # total-edits cap (submit_job arg 26). Simple mode: the slider governs. Advanced
+    # ("old") mode: the per-type mm/bulge caps govern, so disable the total cap by
+    # setting it to their sum (== unbounded, 2.1.x behavior).
+    if advanced_open:
+        max_total_edits = int(mms) + int(dna) + int(rna)
+    else:
+        max_total_edits = int(max_edits_val) if max_edits_val is not None else 5
+    # args 23-25 keep submit_job's defaults (cicd_test, vcf-filter-pass-values,
+    # index_path) so that arg 26 (max_total_edits) lands in the right position.
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} False PASS,. _ {max_total_edits} 1> {log_verbose} 2>{log_error}"
     # run job
     pool_executor.submit(subprocess.run, cmd, shell=True)
     return ("/load", f"?job={job_id}")
@@ -1853,48 +1866,101 @@ def index_page() -> html.Div:
     thresholds_content = html.Div(
         [
             html.H4("Select thresholds"),
-            html.Div(  # mismatches box
-                [
-                    html.P("Mismatches"),
-                    dcc.Dropdown(
-                        options=AV_MISMATCHES,
-                        value=4,
-                        clearable=False,
-                        id="mms",
-                        style={"width": "60px"},
-                    ),
-                ],
-                style={"display": "inline-block", "margin-right": "20px"},
-            ),
-            html.Div(  # DNA bulges box
-                [
-                    html.P(["DNA", html.Br(), "Bulges"]),
-                    dcc.Dropdown(
-                        options=AV_BULGES,
-                        value=1,
-                        clearable=False,
-                        id="dna",
-                        style={"width": "60px"},
-                    ),
-                ],
-                style={"display": "inline-block", "margin-right": "20px"},
-            ),
-            html.Div(  # RNA bulges box
-                [
-                    html.P(["RNA", html.Br(), "Bulges"]),
-                    dcc.Dropdown(
-                        options=AV_BULGES,
-                        value=1,
-                        clearable=False,
-                        id="rna",
-                        style={"width": "60px"},
-                    ),
-                ],
-                style={"display": "inline-block"},
-            ),
+            # PRIMARY control: a single "maximum total edits" slider (mismatches +
+            # bulges). This is the simple, non-expert knob; the per-type mismatch /
+            # bulge limits live under "Advanced" below and stay wide open by default
+            # so the slider is the governing constraint (CRISPRme issue #107).
             html.Div(
-                id="bulge-guard-note",
-                style={"font-size": "0.8rem", "color": "#666", "margin-top": "6px"},
+                [
+                    html.P(
+                        "Maximum edits (mismatches + bulges)",
+                        style={"margin-bottom": "2px", "font-weight": "600"},
+                    ),
+                    dcc.Slider(
+                        id="max-edits-slider",
+                        min=0,
+                        max=5,
+                        step=1,
+                        value=5,
+                        marks={i: str(i) for i in range(6)},
+                        tooltip={"placement": "bottom", "always_visible": False},
+                    ),
+                    html.P(
+                        "Total number of differences (mismatches + DNA/RNA bulges) "
+                        "allowed between a guide and an off-target. 5 is recommended.",
+                        style={"font-size": "0.8rem", "color": "#666"},
+                    ),
+                ],
+                style={"max-width": "420px", "margin-bottom": "12px"},
+            ),
+            # ADVANCED: per-type mismatch / bulge caps, hidden by default.
+            dbc.Button(
+                "Advanced options ▾",
+                id="advanced-thresholds-toggle",
+                color="link",
+                n_clicks=0,
+                style={"padding": "0", "font-size": "0.9rem"},
+            ),
+            dbc.Collapse(
+                html.Div(
+                    [
+                        html.P(
+                            "Per-type caps. Left at their maxima the slider above "
+                            "governs; lower them to further restrict a single type.",
+                            style={"font-size": "0.8rem", "color": "#666"},
+                        ),
+                        html.Div(  # mismatches box
+                            [
+                                html.P("Mismatches"),
+                                dcc.Dropdown(
+                                    options=AV_MISMATCHES,
+                                    value=6,
+                                    clearable=False,
+                                    id="mms",
+                                    style={"width": "60px"},
+                                ),
+                            ],
+                            style={"display": "inline-block", "margin-right": "20px"},
+                        ),
+                        html.Div(  # DNA bulges box
+                            [
+                                html.P(["DNA", html.Br(), "Bulges"]),
+                                dcc.Dropdown(
+                                    options=AV_BULGES,
+                                    value=2,
+                                    clearable=False,
+                                    id="dna",
+                                    style={"width": "60px"},
+                                ),
+                            ],
+                            style={"display": "inline-block", "margin-right": "20px"},
+                        ),
+                        html.Div(  # RNA bulges box
+                            [
+                                html.P(["RNA", html.Br(), "Bulges"]),
+                                dcc.Dropdown(
+                                    options=AV_BULGES,
+                                    value=2,
+                                    clearable=False,
+                                    id="rna",
+                                    style={"width": "60px"},
+                                ),
+                            ],
+                            style={"display": "inline-block"},
+                        ),
+                        html.Div(
+                            id="bulge-guard-note",
+                            style={
+                                "font-size": "0.8rem",
+                                "color": "#666",
+                                "margin-top": "6px",
+                            },
+                        ),
+                    ],
+                    style={"margin-top": "8px"},
+                ),
+                id="advanced-thresholds-collapse",
+                is_open=False,
             ),
         ],
         style={"margin-top": "10%"},
@@ -2168,6 +2234,26 @@ def update_visibility_base_editor_dropdowns(radio_value: str) -> Dict:
         return {"display": ""}
     else:
         return {"display": "none"}
+
+
+@app.callback(
+    [
+        Output("advanced-thresholds-collapse", "is_open"),
+        Output("max-edits-slider", "disabled"),
+        Output("advanced-thresholds-toggle", "children"),
+    ],
+    [Input("advanced-thresholds-toggle", "n_clicks")],
+    [State("advanced-thresholds-collapse", "is_open")],
+    prevent_initial_call=True,
+)
+def toggle_advanced_thresholds(n_clicks: int, is_open: bool) -> Tuple:
+    """Toggle the Advanced (per-type mismatch/bulge) panel. Opening it switches to
+    the explicit per-type mode and GRAYS OUT the max-edits slider to make clear the
+    total-edits cap no longer governs; closing it restores the simple slider mode."""
+    new_open = not is_open
+    label = "Advanced options ▴" if new_open else "Advanced options ▾"
+    # slider disabled (grayed out) exactly when the advanced panel is open
+    return new_open, new_open, label
 
 
 @app.callback(
