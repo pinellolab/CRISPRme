@@ -114,7 +114,6 @@ def split_filter_part(filter_part: str) -> Tuple:
 @app.callback(
     [
         Output("text-guides", "value"),
-        Output("available-cas", "value"),
         Output("available-pam", "value"),
         Output("available-genome", "value"),
         Output("checklist-variants", "value"),
@@ -147,8 +146,7 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
 
     return [
         "CTAACAGTTGCTTTTATCAC",  # guide to use
-        "SpCas9",  # Cas protein to use
-        "20bp-NGG-SpCas9",  # Editor to use
+        "20bp-NGG-SpCas9",  # PAM/enzyme to use
         "hg38",  # ref genome to use
         ["1000G"],  # VCF to use
         4,  # MM (int, to match the dropdown option values)
@@ -167,7 +165,6 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     [Input("submit-job", "n_clicks")],
     [
         State("url", "href"),
-        State("available-cas", "value"),
         State("available-genome", "value"),
         State("checklist-variants", "value"),
         State("checklist-annotations", "value"),
@@ -193,7 +190,6 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
 def change_url(
     n: int,
     href: str,
-    nuclease: str,
     genome_selected: str,
     ref_var: List,
     annotation_var: List,
@@ -250,8 +246,6 @@ def change_url(
         Clicks
     href : str
         URL
-    nuclease : str
-        Selected nuclease
     genome_selected : str
         Selected genome
     ref_var : List
@@ -292,9 +286,6 @@ def change_url(
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(href, str):
         raise TypeError(f"Expected {str.__name__}, got {type(href).__name__}")
-    if nuclease is not None:
-        if not isinstance(nuclease, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(nuclease).__name__}")
     if genome_selected is not None:
         if not isinstance(genome_selected, str):
             raise TypeError(
@@ -661,6 +652,10 @@ def change_url(
             handle_params.write(f"DNA\t{dna}\n")
             handle_params.write(f"RNA\t{rna}\n")
             handle_params.write(f"Annotation\t{annotation_name}\n")
+            # nuclease is derived from the PAM token (<len>bp-<motif>-<enzyme>),
+            # since the separate Cas-protein selector was removed
+            _pam_parts = str(pam).split("-")
+            nuclease = "-".join(_pam_parts[2:]) if len(_pam_parts) >= 3 else str(pam)
             handle_params.write(f"Nuclease\t{nuclease}\n")
             handle_params.write(f"Ref_comp\t{ref_comparison}\n")
             handle_params.write(f"BE_nucleotide\t{be_nt}\n")
@@ -1461,32 +1456,8 @@ def change_disabled_annotation_dropdown(checklist_value: List) -> Tuple[bool, st
 
 
 # select Cas protein from dropdown
-@app.callback([Output("available-pam", "options")], [Input("available-cas", "value")])
-def select_cas_pam_dropdown(casprot: str) -> List:
-    """Select the available Cas proteins and their corresponding PAMs.
-
-    ...
-
-    Parameters
-    ----------
-    casprot : str
-        Cas protein
-
-    Returns
-    -------
-    List
-    """
-
-    if not isinstance(casprot, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(casprot).__name__}")
-    available_pams = get_available_PAM()
-    options = [
-        {"label": pam["label"], "value": pam["value"]}
-        for pam in available_pams
-        # match on the raw value (the label may be a friendly alias now)
-        if casprot == pam["value"].split(".")[0].split("-")[2]
-    ]
-    return [options]
+# (select_cas_pam_dropdown removed: the Cas-protein selector was dropped, so the PAM
+# dropdown lists all available PAMs directly with an enzyme-aware label.)
 
 
 # add place holder to guide box
@@ -1771,31 +1742,19 @@ def index_page() -> html.Div:
         style={"width": "300px"},  # NOTE same as text-area
     )
     # cas protein dropdown
-    cas_protein_content = html.Div(
-        [
-            html.H4("Select Cas protein"),
-            html.Div(
-                dcc.Dropdown(
-                    options=get_available_CAS(),
-                    value=_def_cas,
-                    clearable=False,
-                    id="available-cas",
-                    style={"width": "300px"},
-                )
-            ),
-        ]
-    )
-    # PAM dropdown
+    # PAM dropdown. The Cas-protein selector was removed as redundant: the PAM value
+    # already encodes the enzyme (e.g. 20bp-NGG-SpCas9) and the label now shows it
+    # (e.g. "SpCas9 · NGG"), so a single self-describing PAM dropdown suffices.
     pam_content = html.Div(
         [
             html.H4("Select PAM"),
             html.Div(
                 dcc.Dropdown(
-                    options=_def_pam_options,
+                    options=get_available_PAM(),
                     value=_def_pam,
                     clearable=False,
                     id="available-pam",
-                    style={"width": "300px"},
+                    style={"width": "300px", "margin": "0 auto"},
                 )
             ),
         ],
@@ -1881,13 +1840,13 @@ def index_page() -> html.Div:
                         min=0,
                         max=5,
                         step=1,
-                        value=5,
+                        value=3,
                         marks={i: str(i) for i in range(6)},
                         tooltip={"placement": "bottom", "always_visible": False},
                     ),
                     html.P(
                         "Total number of differences (mismatches + DNA/RNA bulges) "
-                        "allowed between a guide and an off-target. 5 is recommended.",
+                        "allowed between a guide and an off-target. 3 is recommended (raise for a deeper, slower search).",
                         style={"font-size": "0.8rem", "color": "#666"},
                     ),
                 ],
@@ -2157,10 +2116,10 @@ def index_page() -> html.Div:
                             [
                                 modal,
                                 dbc.Row(dbc.Col(tab_guides_content)),
-                                dbc.Row(dbc.Col(cas_protein_content)),
                                 dbc.Row(dbc.Col(pam_content)),
                             ],
                             width="auto",
+                            style={"textAlign": "center"},
                         ),
                         dbc.Col(  # second column of the box
                             [
@@ -2171,6 +2130,7 @@ def index_page() -> html.Div:
                                 dbc.Row(dbc.Col(example_content)),
                             ],
                             width="auto",
+                            style={"textAlign": "center"},
                         ),
                         dbc.Col(  # third column of the box
                             [
@@ -2182,6 +2142,7 @@ def index_page() -> html.Div:
                                 dbc.Row(terms_and_conditions_content),
                             ],
                             width="auto",
+                            style={"textAlign": "center"},
                         ),
                     ],
                     justify="center",

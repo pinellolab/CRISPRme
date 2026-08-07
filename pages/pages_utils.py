@@ -985,14 +985,23 @@ def select_same_len_guides(guides: str) -> str:
 def friendly_pam_label(raw: str) -> str:
     """Human-readable label for a PAM/nuclease token.
 
-    Filenames like ``20bp-NNN-NO-PAM`` (and the nuclease token ``NO`` parsed from
-    them) are shown to users; ``NO`` on its own is cryptic. Map the known
-    "no PAM" case to a clear label; everything else is returned unchanged. The
-    dropdown *value* stays the raw token, so search behaviour is unaffected.
+    PAM filenames look like ``<len>bp-<motif>-<enzyme>`` (e.g. ``20bp-NGG-SpCas9``,
+    ``23bp-TTTV-Cas12a``, ``20bp-NNN-NO-PAM``). Since the Cas-protein selector was
+    removed, the PAM dropdown must be self-describing: show the enzyme and the PAM
+    motif together (e.g. "SpCas9 · NGG"), with the pamless case spelled out. The
+    dropdown *value* stays the raw token, so search behaviour is unaffected. Bare
+    tokens (e.g. a plain "NO"/"SpCas9") are still handled gracefully.
     """
 
     if raw in ("NO", "NO-PAM"):
         return "No PAM (search all sites)"
+    parts = raw.split("-")
+    if len(parts) >= 3 and parts[0].endswith("bp"):
+        motif = parts[1]
+        enzyme = "-".join(parts[2:])
+        if enzyme in ("NO-PAM", "NO") or motif == "N" * len(motif):
+            return f"No PAM — search all sites ({motif})"
+        return f"{enzyme} · {motif}"
     if raw.endswith("-NO-PAM"):
         prefix = raw.split("-")[0]  # e.g. "20bp"
         return f"{prefix} - No PAM (search all sites)"
