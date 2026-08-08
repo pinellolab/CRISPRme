@@ -997,6 +997,15 @@ def build_index(n, genome, pam, bdna, brna, vcf):
         raise PreventUpdate
     if not genome or not pam:
         return no_update, no_update, "Select an installed genome and PAM."
+    if int(bdna or 0) == 0 and int(brna or 0) == 0:
+        # build-index-only no-ops for zero bulges; tell the user up front rather
+        # than launching a job that reports "done" without producing an index.
+        return (
+            no_update,
+            no_update,
+            "Zero-bulge searches run directly on the FASTA — no index is needed. "
+            "Set DNA and/or RNA bulges to 1 or more to build a bulge index.",
+        )
     genome_dir = os.path.join(current_working_directory, "Genomes", genome.replace(" ", "_"))
     pam_file = os.path.join(current_working_directory, "PAMs", f"{pam}.txt")
     argv = [
