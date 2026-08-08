@@ -435,6 +435,19 @@ def change_url(
                 # custom samples
                 sample_list.append(f"{vcf_input}.samplesID.txt")
                 handle_vcf.write(f"{vcf_folder}\n")
+            # merged/combined or other registered panel (e.g. "1000G_HGDP"): the
+            # dropdown value maps to a single VCF folder "<genome>_<token>" scanned
+            # ONCE (the combined index is built from that one merged VCF). Additive
+            # and existence-guarded, so the 1000G/HGDP/PV paths above are unchanged.
+            _gpref = genome_selected[:-4] if genome_selected.endswith("_ref") else genome_selected
+            for _tok in ref_var:
+                if _tok in VARIANTS_DATA or not _tok:
+                    continue
+                _folder = f"{_gpref}_{_tok}"
+                if os.path.isdir(os.path.join(current_working_directory, "VCFs", _folder)):
+                    vcf_folder = _folder
+                    sample_list.append(f"{_folder}.samplesID.txt")
+                    handle_vcf.write(f"{vcf_folder}\n")
     except OSError as e:
         raise e
     try:
@@ -605,6 +618,18 @@ def change_url(
         if VARIANTS_DATA[2] in ref_var:
             genome_idx = f"{pam_char}_{max_bulges}_{genome_selected}+{vcf_input}"
             genome_idx_list.append(genome_idx)
+        # merged/combined or other registered panel: mirror the VCF-folder mapping
+        # above so the index name matches the built index (e.g.
+        # "NNN_3_hg38+hg38_1000G_HGDP"). Additive + existence-guarded.
+        _gpref = genome_selected[:-4] if genome_selected.endswith("_ref") else genome_selected
+        for _tok in ref_var:
+            if _tok in VARIANTS_DATA or not _tok:
+                continue
+            _folder = f"{_gpref}_{_tok}"
+            if os.path.isdir(os.path.join(current_working_directory, "VCFs", _folder)):
+                genome_idx_list.append(
+                    f"{pam_char}_{max_bulges}_{genome_selected}+{_folder}"
+                )
     genome_idx = ",".join(genome_idx_list)
     # Create .Params.txt file
     try:
