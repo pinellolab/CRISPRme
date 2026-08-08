@@ -4,7 +4,7 @@
 ![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
 
 <p align="center">
-  <img src="https://github.com/pinellolab/CRISPRme/blob/main/assets/readme/crisprme-logo.png" alt="crisprme-logo.png", width=700/>
+  <img src="assets/readme/crisprme-logo.png" alt="CRISPRme" width="700"/>
 </p>
 
 # CRISPRme
@@ -25,6 +25,24 @@ through an interactive web-based interface.
 > All functionalities are now accessible via the command-line interface or the 
 locally hosted web interface. Visit https://pinellolab.github.io/CRISPRme/ for a
 quick guide on deploying locally the web interface.
+
+## ⚡ Quickstart — web interface in Docker (no conda, no 410 GB)
+
+New to CRISPRme? Get the point-and-click web interface running in a few commands
+— just install Docker, then:
+
+```bash
+mkdir -p ~/crisprme && cd ~/crisprme
+# 1) fast-download the reference data (minutes, via the HuggingFace CDN)
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what all --path /DATA
+# 2) grab a prebuilt SpCas9 (NGG) index so no long index build is needed
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what index --index-name NGG_2_hg38 --path /DATA
+# 3) launch the web interface, then open http://127.0.0.1:8080
+docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme crisprme.py web-interface
+```
+
+**Full step-by-step (with variants, more indexes, troubleshooting):
+[`docs/DOCKER_QUICKSTART.md`](docs/DOCKER_QUICKSTART.md).**
 
 ## Table Of Contents
 
@@ -334,6 +352,44 @@ pinellolab/crisprme latest    <image_id>     <timestamp>    <size>
 ```
 
 You are now ready to run CRISPRme using Docker.
+
+### 1.3 Install CRISPRme from source (without Bioconda)
+
+Use this to run an unreleased line (e.g. **2.2.0**, Python 3.11 + Dash 2.x) before it is published to Bioconda, or for development. It installs the runtime dependencies into a conda environment, **builds CRISPRitz 2.8.0 from source**, and installs CRISPRme from the checkout — using the same layout the Bioconda/Docker builds use, so `crisprme.py` and `crispritz.py` end up on your `PATH` and resolve their support files correctly.
+
+**Prerequisites:** `conda`/`mamba`, `git`, and internet access. A C++ compiler with OpenMP and every Python dependency are provided by the environment file below (no `apt`/system packages required).
+
+```bash
+# 1. clone the branch you want to run (2.2.0 development lives on python3.11)
+git clone --branch python3.11 https://github.com/pinellolab/CRISPRme.git
+cd CRISPRme
+
+# 2. create + activate the runtime environment (pinned deps from environment.yml)
+mamba env create -f environment.yml
+mamba activate crisprme-2.2.0
+
+# 3. build CRISPRitz 2.8.0 from source and install both tools into the env
+bash install_from_source.sh
+
+# 4. verify (both tools are now on your PATH)
+crisprme.py --version
+command -v crispritz.py
+```
+
+The `install_from_source.sh` script compiles the CRISPRitz C++ binaries, then copies `crisprme.py`/`crispritz.py` into `$CONDA_PREFIX/bin` and their support trees into `$CONDA_PREFIX/opt/…`, and unzips the CRISTA scoring model. Override the CRISPRitz tag with `CRISPRITZ_REF=<tag> bash install_from_source.sh` if needed.
+
+**Smoke-test the install** (downloads a small chr22 dataset, runs the full pipeline, and compares against the committed ground truth):
+
+```bash
+mkdir crisprme_test && cd crisprme_test
+crisprme.py complete-test --chrom chr22 --thread 4
+crisprme.py validate-test --chrom chr22        # expect: 2 passed, 0 failed
+```
+
+Notes:
+- This is exactly the recipe the project `Dockerfile` automates — if you prefer full isolation, build the image instead (Section 1.2).
+- The `assembly-search` subcommand uses the UCSC `liftOver` binary, which is included in `environment.yml` (`ucsc-liftover`).
+- To launch the web interface after installing: `crisprme.py web-interface` (serves on port 8080).
 
 ## 2 Usage
 
@@ -1438,6 +1494,35 @@ users to interactively explore and run CRISPRme analyses. All results are
 displayed dynamically within the web interface itself, offering an interactive 
 experience for viewing CRISPRme data and outputs (see [Section 2.2.1](#221-complete-search)
 for details).
+
+#### 2.2.9 Reference-Index and Data-Distribution Commands
+
+Bulge-enabled searches build a CRISPRitz index of the reference genome. `complete-search` does this automatically on the first run and reuses it afterward, but three commands let you control it explicitly — useful for batch jobs, shared clusters, and skipping the build via prebuilt indexes.
+
+**`build-index-only`** — build the reusable reference index (into `genome_library/<PAM>_<bulges+1>_<genome>`) without running a search. Pass the same `--genome`/`--pam`/`--bDNA`/`--bRNA` you will search with:
+
+```bash
+crisprme.py build-index-only --genome Genomes/hg38 --pam PAMs/20bp-NGG-SpCas9.txt \
+  --bDNA 1 --bRNA 1 --thread 16 --path /data/crisprme
+```
+
+**`complete-search --index-path <dir>`** — reuse a prebuilt/staged index library instead of building one under the working directory. A missing matching index is a hard error (rather than a silent rebuild), which is what you want on a read-only shared mount.
+
+**`download`** — fetch reference data from a HuggingFace dataset repository over HF's CDN (typically much faster than the FTP/UCSC sources). `--what` selects the component: `genome`, `annotations`, `pams`, `samples`, `vcf` (with `--dataset`), `index` (with `--index-name`), or `all` (genome + annotations + PAMs + samples). Default repo `lucapinello/crisprme-data`, overridable with `--hf-repo` or `CRISPRME_HF_REPO`:
+
+```bash
+crisprme.py download --what all --path /data/crisprme
+crisprme.py download --what vcf --dataset 1000G --path /data/crisprme
+crisprme.py download --what index --index-name NGG_2_hg38 --path /data/crisprme
+```
+
+**`publish-index`** — upload a locally built index to a HuggingFace dataset repository so other machines can skip the build (needs an HF write token via `--token` or `HF_TOKEN`):
+
+```bash
+crisprme.py publish-index --index genome_library/NGG_2_hg38
+```
+
+See the companion data-setup guide (`docs/crisprme_data_setup_051826.md`, Sections 2d and 3½) for the end-to-end workflow.
 
 ## 3 Test
 

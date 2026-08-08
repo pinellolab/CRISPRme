@@ -1,0 +1,47 @@
+name: unit tests
+
+# Fast, hermetic Python checks that run on every PR touching the code: byte-
+# compile the whole pipeline (syntax) and run the network-free unit tests for
+# the HuggingFace download/publish + reference-index layer. No Docker build and
+# no genome download, so this gives quick signal independent of the heavier
+# validate-benchmarks (chr22) and Docker workflows.
+#
+# Only `requests` is installed (utils.py imports it at module load). We do NOT
+# install huggingface_hub: the fallback-contract test then exercises the
+# "huggingface_hub absent -> ImportError -> caller falls back" path with no
+# network access, keeping CI deterministic.
+
+on:
+  pull_request:
+    paths:
+      - "crisprme.py"
+      - "PostProcess/**"
+      - ".github/workflows/unit-tests.yml"
+  push:
+    branches: [ "main", "python3.11", "2.2.0-dev" ]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install light deps
+        run: python -m pip install --upgrade pip requests
+
+      - name: Byte-compile the pipeline (syntax check)
+        run: python -m py_compile crisprme.py PostProcess/*.py
+
+      - name: HuggingFace download/publish + index unit tests (network-free)
+        working-directory: PostProcess
+        run: python -m unittest test_crisprme_hf -v
+
+      - name: HF fallback contract (hf_fetch must raise so callers fall back)
+        working-directory: PostProcess
+        run: python -m unittest test_hf_downloads.TestHfFetchFallbackContract -v

@@ -1,14 +1,16 @@
 # CRISPRme: Local Web Interface User Guide
 
 This guide covers how to launch, navigate, and operate CRISPRme's locally hosted web
-interface. Installation (Section 1 of the CLI Setup Guide) and reference data setup
-(Section 2 of the CLI Setup Guide) need to be completed only once before using either
-interface. Once your data is in place, the web interface provides a point-and-click
+interface. Getting CRISPRme and its reference data in place is a one-time step — the
+simplest route is the [Docker Quickstart](DOCKER_QUICKSTART.md) (a few commands, no
+conda, no multi-hour setup), summarised in Section 2 below. Once your data is in
+place, the web interface provides a point-and-click
 alternative to the command line for running searches and exploring results.
 
-> **Prerequisite:** This guide assumes CRISPRme is already installed and your reference
-> data is configured. If you have not yet completed those steps, work through the
-> *CRISPRme CLI Setup and Usage Guide* (Sections 1 and 2) before proceeding here.
+> **New here?** The quickest way to run everything below is the
+> [Docker Quickstart](DOCKER_QUICKSTART.md): install Docker, fast-download the data
+> and a prebuilt index, and launch the interface — a few commands, no conda and no
+> multi-hour setup. Section 2 gives the short version.
 
 ---
 
@@ -52,63 +54,55 @@ remain CLI-only operations. For those workflows, refer to Section 2.2 of the
 
 ## Section 2. Prerequisites and Launching the Interface
 
-*Estimated time: under 1 minute once CRISPRme is installed.*
+*Estimated time: a few minutes of downloads, then the interface starts in seconds.*
 
-### 2a. Confirm the working directory is set up
+The interface needs two things: **CRISPRme** (we recommend Docker — the only thing
+you install is Docker itself) and a **working directory** holding the reference
+data. The full setup is the [Docker Quickstart](DOCKER_QUICKSTART.md); the short
+version is here.
 
-The web server must be started from a directory that contains the CRISPRme folder
-structure. Run the following command to verify:
+### 2a. Get the data (one time)
 
-```bash
-ls
-```
-
-You should see the directories created during setup:
-
-```
-Annotations/   Dictionaries/  Genomes/  PAMs/  Results/  VCFs/  samplesIDs/
-```
-
-If any of these directories are missing, complete the setup step described in Section 2
-of the CLI guide before continuing.
-
-### 2b. Activate the CRISPRme environment
+Make a folder for your data and results, then fast-download the reference data and
+a prebuilt SpCas9 (NGG) index from the CRISPRme mirror (minutes, not the multi-hour
+legacy setup):
 
 ```bash
-mamba activate crisprme
+mkdir -p ~/crisprme && cd ~/crisprme
+
+# reference genome, annotations, PAMs and sample lists
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
+  crisprme.py download --what all --path /DATA
+
+# a ready-made SpCas9 (NGG) index (skips a long index build)
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
+  crisprme.py download --what index --index-name NGG_2_hg38 --path /DATA
 ```
 
-> **Note:** If you are using `Conda` rather than `Mamba`, replace `mamba` with `conda`
-> throughout this guide.
+This creates the CRISPRme folder structure (`Genomes/`, `PAMs/`, `Annotations/`,
+`VCFs/`, `samplesIDs/`, `genome_library/`, `Results/`) inside `~/crisprme`. For
+variant-aware searches, also run
+`… crisprme.py download --what vcf --dataset 1000G --path /DATA`.
 
-### 2c. Start the local server
+### 2b. Start the local server
 
-#### Via Conda/Mamba
-
-Navigate to your CRISPRme working directory and start the server:
-
-```bash
-cd "$CRISPRME_DIR"           # the directory you chose during setup
-crisprme.py web-interface    # starts the local server on port 8080
-```
-
-The terminal will display log output confirming the server has started. Keep this
-terminal window open for the duration of your session — closing it will stop the server.
-
-#### Via Docker
-
-If you are running CRISPRme inside Docker, the port must be forwarded explicitly so
-your browser can reach the server:
+From the same folder, launch the web interface. `-p 8080:8080` connects the app to
+your browser, and `-v "${PWD}:/DATA"` keeps your data and results on your own
+computer:
 
 ```bash
-docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 \
+docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it \
   pinellolab/crisprme crisprme.py web-interface
 ```
 
-The `-p 8080:8080` flag maps port 8080 inside the container to port 8080 on your
-host machine.
+Keep this terminal open for the session; press **Ctrl+C** to stop the server.
 
-### 2d. Open the interface in a browser
+> **Using a Conda/Mamba install instead?** Activate your environment
+> (`mamba activate crisprme`, or `conda` if you use conda), `cd` into your working
+> directory, and run `crisprme.py web-interface`. Everything else in this guide is
+> identical.
+
+### 2c. Open the interface in a browser
 
 Once the server is running, open one of the following supported browsers and navigate
 to the address below:
@@ -345,10 +339,11 @@ interface navigates automatically to the Job Status page.
 > start the server inside a `tmux` or `screen` session before opening the browser:
 > ```bash
 > tmux new -s crisprme
-> mamba activate crisprme
-> cd "$CRISPRME_DIR"
-> crisprme.py web-interface
+> cd ~/crisprme      # your data folder
+> docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it \
+>   pinellolab/crisprme crisprme.py web-interface
 > # Detach with Ctrl+B then D — the server continues running.
+> # (Conda users: mamba activate crisprme && crisprme.py web-interface)
 > ```
 
 ---

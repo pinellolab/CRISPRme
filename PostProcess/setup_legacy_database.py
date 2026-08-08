@@ -60,6 +60,8 @@ from utils import (
     check_crisprme_directory_tree,
     compute_md5,
     download,
+    hf_fetch,
+    HF_DATA_REPO,
     gunzip,
     rename,
     untar,
@@ -234,6 +236,17 @@ def _download_chrom_genome_data(chrom: str, genomes_dir: Path, force: bool) -> N
     if not force and _file_is_valid(fa_path):
         sys.stderr.write(f"Genome FASTA already valid, skipping: {fa_path}\n")
         return
+    # fast path: fetch the extracted FASTA from HuggingFace; fall back to UCSC
+    try:
+        os.makedirs(chrom_dir, exist_ok=True)
+        hf_fetch(f"genomes/hg38/{chrom}.fa", str(fa_path))
+        sys.stderr.write(f"Fetched {chrom}.fa from HuggingFace ({HF_DATA_REPO})\n")
+        if Path(fa_path).is_file():
+            return
+    except Exception as e:
+        sys.stderr.write(
+            f"HuggingFace fetch failed for {chrom}.fa ({e}); falling back to UCSC\n"
+        )
     gz_path = download(
         str(genomes_dir),
         http_url=f"{HG38_BASE_URL}/chromosomes/{archive_basename}",
@@ -316,6 +329,20 @@ def _download_vcf_data(chrom: str, vcfs_dir: Path, force: bool) -> None:
             if not force and _file_is_valid(local_vcf, md5_map):
                 sys.stderr.write(f"VCF already valid, skipping: {local_vcf}\n")
                 continue
+            # fast path: fetch the bgzipped VCF from HuggingFace, MD5-verify, then
+            # fall back to the original FTP source on any failure
+            try:
+                hf_fetch(f"vcfs/{ds_label}/{remote_basename}", str(local_vcf))
+                _verify_md5(str(local_vcf), md5_map)
+                sys.stderr.write(
+                    f"Fetched {remote_basename} from HuggingFace ({HF_DATA_REPO})\n"
+                )
+                continue
+            except Exception as e:
+                sys.stderr.write(
+                    f"HuggingFace fetch failed for {remote_basename} ({e}); "
+                    "falling back to original source\n"
+                )
             vcf_path = download(
                 str(vcf_dataset_dir),
                 ftp_conn=True,
@@ -354,6 +381,22 @@ def _download_samples_ids_data(base_dir: Path, force: bool) -> None:
         if not force and _file_is_valid(renamed_target):
             sys.stderr.write(f"Sample IDs already valid, skipping: {renamed_target}\n")
             continue
+        # fast path: HuggingFace (MD5-verify + rename), fall back to source
+        try:
+            hf_local = os.path.join(str(samplesids_dir), fname)
+            hf_fetch(f"samplesIDs/{fname}", hf_local)
+            _verify_md5(hf_local, MD5SAMPLES)
+            rename(
+                hf_local,
+                os.path.join(samplesids_dir, f"hg38_{ds_label}.samplesID.txt"),
+            )
+            sys.stderr.write(f"Fetched {fname} from HuggingFace ({HF_DATA_REPO})\n")
+            continue
+        except Exception as e:
+            sys.stderr.write(
+                f"HuggingFace fetch failed for {fname} ({e}); "
+                "falling back to original source\n"
+            )
         local_path = download(
             str(samplesids_dir),
             http_url=f"{TEST_DATA_BASE_URL}/samplesIDs/{fname}",

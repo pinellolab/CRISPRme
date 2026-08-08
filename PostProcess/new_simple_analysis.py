@@ -198,6 +198,29 @@ def retrieveFromDict(chr_pos):
     return snp_list, sample_list, rsID_list, AF_list, snp_info_list
 
 
+def _aligned_mm(seq_prerevert, realTarget, guide_no_pam, revert):
+    """Mismatch count of an ungapped, pre-revert candidate sequence against the
+    guide, mirroring the finalization below: reverse-complement on the minus
+    strand, re-insert bulge gaps at realTarget's '-' positions, then compare the
+    protospacer window to guide_no_pam. Used by the high-variant-density greedy
+    representative (validated == brute-force argmin over all allele combinations)."""
+    seq = (
+        reverse_complement_table("".join(seq_prerevert))
+        if revert
+        else "".join(seq_prerevert)
+    )
+    t = list(seq)
+    for pos, ch in enumerate(realTarget):
+        if ch == "-":
+            t.insert(pos, "-")
+    window = t[pos_beg:pos_end]
+    mm = 0
+    for i, ch in enumerate(window):
+        if i < len(guide_no_pam) and ch != "-" and ch.upper() != guide_no_pam[i]:
+            mm += 1
+    return mm
+
+
 def iupac_decomposition(split, guide_no_bulge, guide_no_pam, cluster_to_save):
     realTarget = split[2]
     replaceTarget = split[2].replace("-", "")
@@ -256,11 +279,72 @@ def iupac_decomposition(split, guide_no_bulge, guide_no_pam, cluster_to_save):
                     ]
 
     if countIUPAC > 0:  # if found valid alternative targets
+        # High-variant-density cap: above IUPAC_CAP ambiguity codes the multi-SNP
+        # combination below would enumerate up to 2^countIUPAC sequences. Instead
+        # report a single GREEDY representative per haplotype -- at each ambiguity
+        # position pick the min-mismatch allele (preferring an alt on ties, which
+        # keeps PAM-region variant alleles so PAM-creation is preserved). This is the
+        # exact min-mismatch / max-CFD haplotype (mismatch is additive per position,
+        # so the greedy equals the argmin over all 2^k combinations) without the
+        # blow-up. The region is logged to <out>.high_variant_density_regions.bed.
+        capped = IUPAC_CAP >= 0 and countIUPAC > IUPAC_CAP
+        if capped:
+            _samples = set()
+            for _cnt in totalDict:
+                for _v in totalDict[_cnt][0].values():
+                    _samples |= _v[1]
+            _start = int(split[4])
+            hvdr_bed.write(
+                "%s\t%d\t%d\t%s\t%d\t%s\n"
+                % (
+                    split[3],
+                    _start,
+                    _start + len(replaceTarget),
+                    split[1].replace("-", ""),
+                    countIUPAC,
+                    ",".join(sorted(_samples)) if _samples else ".",
+                )
+            )
+            # Build the greedy representative per haplotype and REPLACE the per-SNP
+            # level-0 entries with that single entry, so the finalization below scores
+            # exactly one row (bulges/PAM/creation/CFD via the existing code path).
+            for count in totalDict:
+                # group candidate alt alleles by ambiguity position
+                by_pos = {}
+                for (pos_c, elem), v in totalDict[count][0].items():
+                    by_pos.setdefault(pos_c, []).append((elem, v))
+                greedy_seq = list(refSeq)  # pre-revert reference
+                greedy_samples, greedy_info = set(), []
+                for pos_c, cands in by_pos.items():
+                    ref_allele = refSeq[pos_c]
+                    ref_mm = _aligned_mm(greedy_seq, realTarget, guide_no_pam, revert)
+                    best_elem, best_mm, best_v = ref_allele, ref_mm, None
+                    for elem, v in cands:
+                        trial = list(greedy_seq)
+                        trial[pos_c] = elem
+                        m = _aligned_mm(trial, realTarget, guide_no_pam, revert)
+                        # strict improvement, or tie preferring an alt (keeps PAM-
+                        # creating / present variants where mismatch is unaffected)
+                        if m < best_mm or (m == best_mm and best_v is None):
+                            best_mm, best_elem, best_v = m, elem, v
+                    if best_v is not None:
+                        greedy_seq[pos_c] = best_elem
+                        greedy_samples |= best_v[1]
+                        greedy_info.extend(best_v[2])
+                if not greedy_info:  # no allele changed anything: document the region anyway
+                    any_v = next(iter(totalDict[count][0].values()), None)
+                    if any_v is not None:
+                        greedy_info = list(any_v[2])
+                        greedy_samples = set(any_v[1])
+                totalDict[count][0] = {
+                    ("greedy", 0): [greedy_seq, greedy_samples, greedy_info]
+                }
         if revert:
             refSeq = reverse_complement_table(refSeq)
         for count in totalDict:
             createdNewLayer = True
-            for size in range(countIUPAC):  # the time of the universe
+            # capped -> range(0): the single greedy entry is already in level 0
+            for size in range(0 if capped else countIUPAC):  # else: full enumeration
                 if createdNewLayer:
                     createdNewLayer = False
                 else:
@@ -721,6 +805,15 @@ mmblg_best.write(header + "\tCFD\n")  # Write header
 crista_best = open(outputFile + ".bestCRISTA.txt", "w+")
 crista_best.write(header + "\tCFD\n")  # Write header
 
+# High-variant-density cap: a protospacer window overlapping many ambiguity codes
+# (dense/hypervariable regions, e.g. MHC, and unbounded for unphased VCFs) would
+# otherwise enumerate up to 2^k haplotype sequences. Above CRISPRME_IUPAC_CAP codes
+# we report only the single-variant targets (k rows, not 2^k) and log the region,
+# so a real off-target risk is still surfaced without the combinatorial blow-up.
+IUPAC_CAP = int(os.environ.get("CRISPRME_IUPAC_CAP", "10"))
+hvdr_bed = open(outputFile + ".high_variant_density_regions.bed", "w")
+hvdr_bed.write("#chrom\tstart\tend\tguide\tn_variants\tsamples_with_alt\n")
+
 # check if dictionaries has haplotypes
 haplotype_check = False
 try:
@@ -839,6 +932,7 @@ else:
     cfd_best.close()
     mmblg_best.close()
     crista_best.close()
+    hvdr_bed.close()
     # rewrite header file
     os.system(
         "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "
@@ -884,6 +978,7 @@ for count, cluster in enumerate(clusters_with_scores):
 cfd_best.close()
 mmblg_best.close()
 crista_best.close()
+hvdr_bed.close()
 
 os.system(
     "sed -i '1s/.*/#Bulge_type\tcrRNA\tDNA\tChromosome\tPosition\tCluster_Position\tDirection\tMismatches\tBulge_Size\tTotal\tPAM_gen\tVar_uniq\tSamples\tAnnotation_Type\tReal_Guide\trsID\tAF\tSNP\tReference\tCFD_ref\tCFD\t#Seq_in_cluster/' "

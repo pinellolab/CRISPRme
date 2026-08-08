@@ -78,10 +78,10 @@ result_private.to_csv(integrated_private, sep="\t", index=False)
 # print('fatto files')
 # generated plots
 os.system(
-    f"python {script_path}/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
+    f"{sys.executable} {script_path}/CRISPRme_plots_personal.py {integrated_personal} {current_working_directory}/imgs/ {guide}.{sample}.personal > /dev/null 2>&1"
 )
 os.system(
-    f"python {script_path}/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
+    f"{sys.executable} {script_path}/CRISPRme_plots_personal.py {integrated_private} {current_working_directory}/imgs/ {guide}.{sample}.private > /dev/null 2>&1"
 )
 os.system(f"rm -f {integrated_personal}")
 # print('fatto plots')

@@ -7,7 +7,7 @@ from app import operators, current_working_directory
 from typing import Dict, List, Optional, Tuple
 from glob import glob
 
-import dash_html_components as html
+from dash import html
 import pandas as pd
 
 import subprocess
@@ -982,6 +982,32 @@ def select_same_len_guides(guides: str) -> str:
     return same_len_guides
 
 
+def friendly_pam_label(raw: str) -> str:
+    """Human-readable label for a PAM/nuclease token.
+
+    PAM filenames look like ``<len>bp-<motif>-<enzyme>`` (e.g. ``20bp-NGG-SpCas9``,
+    ``23bp-TTTV-Cas12a``, ``20bp-NNN-NO-PAM``). Since the Cas-protein selector was
+    removed, the PAM dropdown must be self-describing: show the enzyme and the PAM
+    motif together (e.g. "SpCas9 · NGG"), with the pamless case spelled out. The
+    dropdown *value* stays the raw token, so search behaviour is unaffected. Bare
+    tokens (e.g. a plain "NO"/"SpCas9") are still handled gracefully.
+    """
+
+    if raw in ("NO", "NO-PAM"):
+        return "No PAM (search all sites)"
+    parts = raw.split("-")
+    if len(parts) >= 3 and parts[0].endswith("bp"):
+        motif = parts[1]
+        enzyme = "-".join(parts[2:])
+        if enzyme in ("NO-PAM", "NO") or motif == "N" * len(motif):
+            return f"No PAM — search all sites ({motif})"
+        return f"{enzyme} · {motif}"
+    if raw.endswith("-NO-PAM"):
+        prefix = raw.split("-")[0]  # e.g. "20bp"
+        return f"{prefix} - No PAM (search all sites)"
+    return raw
+
+
 def get_available_PAM() -> List:
     """Recover the PAMs currently available in the /PAMs directory.
 
@@ -1007,8 +1033,13 @@ def get_available_PAM() -> List:
     ]
     # remove '.txt' from filenames
     pams_files = [f.replace(".txt", "") for f in pams_files]
-    # skip temporary PAMs (used during dictionary updating)
-    pams = [{"label": pam, "value": pam} for pam in pams_files if "tempPAM" not in pam]
+    # skip temporary PAMs (used during dictionary updating). The label is
+    # user-friendly; the value stays the raw filename so searches are unaffected.
+    pams = [
+        {"label": friendly_pam_label(pam), "value": pam}
+        for pam in pams_files
+        if "tempPAM" not in pam
+    ]
     return pams
 
 
@@ -1038,40 +1069,82 @@ def get_available_CAS() -> List:
     # removed .txt from filenames
     cas_files = [f.replace(".txt", "") for f in cas_files]
     # skip temporary PAMs (used during dictionary updating)
-    casprots = [
+    casprots = sorted(
         casprot.split(".")[0].split("-")[2]
         for casprot in cas_files
         if "tempPAM" not in casprot
-    ]
-    # remove potential duplicates
-    casprots = set(casprots)
+    )
+    # Collapse case-variant duplicates: the distributed PAMs can ship the same
+    # nuclease twice differing only in case (e.g. 20bp-NGG-SpCas9.txt and
+    # 20bp-NGG-spCas9.txt), which otherwise shows the nuclease twice in the
+    # dropdown. Keep one spelling per nuclease (uppercase sorts first, so the
+    # canonical "SpCas9" wins over "spCas9").
+    seen = {}
+    for casprot in casprots:
+        seen.setdefault(casprot.lower(), casprot)
     casprots_data = [
-        {"label": casprot, "value": casprot} for casprot in sorted(casprots)
+        {"label": friendly_pam_label(casprot), "value": casprot}
+        for casprot in sorted(seen.values(), key=str.lower)
     ]
     return casprots_data
 
 
-def get_custom_VCF(genome_value: str) -> List:
-    """Recover user's VCFs.
+_BUILTIN_VCF_DATASETS = ("1000G", "HGDP", "hg38_1000G", "hg38_HGDP")
 
-    ...
 
-    Paramters
-    ---------
-    genome_value : str
-        Genome
+def vcf_reference_genome(dataset: str) -> Optional[str]:
+    """Best-effort reference genome a VCF dataset belongs to.
 
-    Returns
-    -------
-    List
-        User's VCFs.
+    A VCF is in a specific reference genome's coordinates and must only be paired
+    with that genome. Determined by, in order: (1) an explicit marker file
+    ``VCFs/<dataset>/.reference_genome`` written when the dataset is added; (2) an
+    enriched genome ``Genomes/<G>+<dataset>`` already built for some installed G;
+    (3) the built-in convention (1000G/HGDP are hg38); (4) a ``<G>_...`` dataset
+    name prefix matching an installed genome. Returns None if it cannot be
+    determined.
     """
+    cwd = current_working_directory
+    # marker lives *beside* the dataset dir (not inside), so it also covers
+    # server folders registered via a symlink
+    marker = os.path.join(cwd, VCFS_DIR, f".{dataset}.refgenome")
+    if os.path.isfile(marker):
+        try:
+            with open(marker) as fh:
+                g = fh.read().strip()
+            if g:
+                return g
+        except OSError:
+            pass
+    genomes_dir = os.path.join(cwd, GENOMES_DIR)
+    if os.path.isdir(genomes_dir):
+        suffix = f"+{dataset}"
+        for d in os.listdir(genomes_dir):
+            if d.endswith(suffix) and not d.endswith("_INDELS"):
+                return d[: -len(suffix)]
+    if dataset in _BUILTIN_VCF_DATASETS:
+        return "hg38"
+    installed = {g["value"].replace(" ", "_") for g in get_available_genomes()}
+    for g in installed:
+        if dataset.startswith(g + "_"):
+            return g
+    return None
 
+
+def get_custom_VCF(genome_value: str) -> List:
+    """Recover the user's custom VCF datasets **that match the selected genome**.
+
+    A VCF is only valid with the reference genome it was called against, so this
+    lists custom datasets whose reference genome (:func:`vcf_reference_genome`)
+    equals ``genome_value``. Datasets whose reference cannot be determined are
+    still shown but flagged, so the user can verify. The built-in 1000G/HGDP
+    datasets are excluded here (offered via the variant checklist instead).
+    """
     if genome_value is not None:
         if not isinstance(genome_value, str):
             raise TypeError(
                 f"Expected {str.__name__}, got {type(genome_value).__name__}"
             )
+    genome_value = (genome_value or "").replace(" ", "_")
     vcf_dirs = [
         d
         for d in os.listdir(os.path.join(current_working_directory, VCFS_DIR))
@@ -1080,17 +1153,16 @@ def get_custom_VCF(genome_value: str) -> List:
             and os.path.isdir(os.path.join(current_working_directory, VCFS_DIR, d))
         )
     ]
-    genome_value = genome_value.replace(" ", "_")
-    vcfs = [
-        {"label": d, "value": d}
-        for d in vcf_dirs
-        if (
-            "hg38_HGDP" not in d
-            and "hg38_1000G" not in d
-            and "None" not in d
-            and genome_value not in d
-        )
-    ]
+    vcfs = []
+    for d in vcf_dirs:
+        if d in _BUILTIN_VCF_DATASETS or "None" in d:
+            continue
+        ref = vcf_reference_genome(d)
+        if ref is None:  # unknown reference -> show but flag for verification
+            vcfs.append({"label": f"{d} (reference genome unverified)", "value": d})
+        elif ref == genome_value:  # matches the selected genome
+            vcfs.append({"label": d, "value": d})
+        # else: belongs to a different genome -> hide (prevents wrong pairing)
     return vcfs
 
 
@@ -1119,6 +1191,224 @@ def get_available_genomes() -> List:
         {"label": d, "value": d} for d in genomes if ("+" not in d and "None" not in d)
     ]
     return genomes_dirs
+
+
+def get_available_indexes() -> List:
+    """Recover the precomputed CRISPRitz indexes under genome_library/.
+
+    Returns
+    -------
+    List
+        ``{"label", "value"}`` dicts, one per index directory (e.g.
+        ``NGG_2_hg38``). Empty if the directory does not exist yet.
+    """
+
+    idx_root = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(idx_root):
+        return []
+    indexes = [
+        d
+        for d in os.listdir(idx_root)
+        if not d.startswith(".") and os.path.isdir(os.path.join(idx_root, d))
+    ]
+    return [{"label": d, "value": d} for d in sorted(indexes)]
+
+
+def pam_motif(pam_value: str) -> Optional[str]:
+    """The PAM motif (e.g. 'NGG') for a PAM dropdown value, matching how index
+    folders are named. Reads PAMs/<value>.txt and extracts the PAM substring the
+    same way ``build-index-only`` / ``index-genome`` do. Returns None on error.
+    """
+    try:
+        with open(os.path.join(current_working_directory, PAMS_DIR, pam_value + ".txt")) as fh:
+            line = fh.readline()
+        seq = line.split()[0]
+        pos = int(line.split()[1])
+        n = abs(pos)
+        return seq[:n] if pos < 0 else seq[-n:]
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def index_max_bulges(genome: str, pam_value: str, vcf: Optional[str] = None) -> int:
+    """Max bulges an existing TST index supports for this genome+PAM(+VCF).
+
+    Index folders are named ``<motif>_<N>_<genome>[+<vcf>]`` where N = bMax+1, so
+    the usable bulge count is N-1. Returns 0 if no matching index exists (only a
+    0-bulge, index-free search is possible). A variant search also needs the
+    variant index, so callers should take the min with the reference result.
+    """
+    motif = pam_motif(pam_value)
+    if not motif or not genome:
+        return 0
+    genome = genome.replace(" ", "_")
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib):
+        return 0
+    tail = f"_{genome}+{vcf}" if vcf else f"_{genome}"
+    best = 0
+    for d in os.listdir(lib):
+        if not os.path.isdir(os.path.join(lib, d)) or d.endswith("_INDELS"):
+            continue
+        if vcf:
+            if not d.endswith(tail):
+                continue
+        else:
+            if "+" in d or not d.endswith(tail):
+                continue
+        head = d[: -len(tail)]  # '<motif>_<N>'
+        parts = head.rsplit("_", 1)
+        if len(parts) != 2 or parts[0] != motif or not parts[1].isdigit():
+            continue
+        best = max(best, int(parts[1]))
+    return max(0, best - 1)
+
+
+def has_variant_index(genome: str, dataset: str) -> bool:
+    """True if a variant TST index exists for genome+dataset (bulge-search ready)."""
+    genome = (genome or "").replace(" ", "_")
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib):
+        return False
+    marker = f"_{genome}+{dataset}"
+    return any(
+        marker in d
+        and not d.endswith("_INDELS")
+        and os.path.isdir(os.path.join(lib, d))
+        for d in os.listdir(lib)
+    )
+
+
+def variant_dataset_present(genome: str, dataset: str) -> bool:
+    """True if a variant dataset's data exists for a genome: the VCF folder, an
+    enriched genome, or a built variant index. Used to only offer variant options
+    that are actually usable for the selected genome."""
+    cwd = current_working_directory
+    genome = (genome or "").replace(" ", "_")
+    if os.path.isdir(os.path.join(cwd, VCFS_DIR, dataset)) or os.path.isdir(
+        os.path.join(cwd, VCFS_DIR, f"{genome}_{dataset}")
+    ):
+        return True
+    if os.path.isdir(os.path.join(cwd, GENOMES_DIR, f"{genome}+{dataset}")):
+        return True
+    return has_variant_index(genome, dataset)
+
+
+def get_all_vcf_datasets() -> List:
+    """List every VCF dataset directory under VCFs/ (no genome filtering).
+
+    Unlike :func:`get_custom_VCF` (which hides the built-in datasets and those
+    matching the selected genome), this lists *all* installed datasets for the
+    Settings data-manager table.
+    """
+
+    vcf_root = os.path.join(current_working_directory, VCFS_DIR)
+    if not os.path.isdir(vcf_root):
+        return []
+    dirs = [
+        d
+        for d in os.listdir(vcf_root)
+        if (
+            not d.startswith(".")
+            and os.path.isdir(os.path.join(vcf_root, d))
+            and "None" not in d
+        )
+    ]
+    return [{"label": d, "value": d} for d in sorted(dirs)]
+
+
+def get_variant_dataset_options(genome: str) -> List:
+    """Variant-dataset dropdown options for a selected genome.
+
+    A single self-describing list driven by what is installed for THAT genome:
+    "Reference only" is always first; then each built-in dataset present for the
+    genome (1000G, HGDP), and a combined entry when more than one is available
+    (e.g. "1000G + HGDP", value "1000G+HGDP"). For a genome with no variant data
+    (e.g. a freshly added non-human assembly) only "Reference only" is offered, so
+    the control never shows datasets that cannot apply. The combined value is
+    split on '+' by the search wiring back into the individual datasets.
+    """
+    genome_norm = (genome or "").replace(" ", "_")
+    options = [{"label": "Reference only (no variants)", "value": "ref"}]
+    # Each option is ONE dataset = ONE enriched-genome/index = ONE search. A combined
+    # panel (e.g. 1000G+HGDP) must be a single *merged* VCF dataset, not two datasets
+    # searched separately and merged after -- the merged VCF is both what the shipped
+    # combined index is built from and the only way cross-dataset haplotypes (a target
+    # created by a 1000G variant next to an HGDP variant) are found. So we simply list
+    # the dataset folders that exist for the genome; a merged panel appears once it is
+    # registered as its own dataset (no synthetic "A+B" two-run option).
+    labels = {"1000G": "1000 Genomes Project (1000G)", "HGDP": "HGDP"}
+    for ds in ("1000G", "HGDP"):
+        if variant_dataset_present(genome_norm, ds):
+            options.append({"label": labels.get(ds, ds), "value": ds})
+    # any additional installed dataset folder for this genome (e.g. a merged panel or
+    # a custom VCF registered via Settings), matched by the genome token in its name
+    seen = {o["value"] for o in options}
+    for ds in get_all_vcf_datasets():
+        val = ds["value"] if isinstance(ds, dict) else ds
+        core = val[len(genome_norm) + 1:] if val.startswith(genome_norm + "_") else val
+        if genome_norm and genome_norm in val and core not in seen:
+            options.append({"label": core, "value": core})
+            seen.add(core)
+    return options
+
+
+def get_annotation_options(genome: str) -> List:
+    """Annotation dropdown options for a selected genome.
+
+    Genome-driven, mirroring the variant selector: "No annotation" is always first;
+    the built-in ENCODE cCREs + GENCODE bundle is an hg38 resource so it is offered
+    only for hg38; and any installed custom annotation whose filename carries the
+    genome token (e.g. ``...susScr11.bed``) is listed for that genome. Annotations
+    that cannot apply to the selected genome are never shown.
+    """
+    genome_norm = (genome or "").replace(" ", "_")
+    options = [{"label": "No annotation", "value": "none"}]
+    if genome_norm == "hg38" and os.path.isfile(
+        os.path.join(current_working_directory, ANNOTATIONS_DIR, "dhs+encode+gencode.hg38.bed")
+    ):
+        options.append({"label": "ENCODE cCREs + GENCODE genes (hg38)", "value": "EN"})
+    for ann in get_custom_annotations():
+        val = ann["value"] if isinstance(ann, dict) else ann
+        # match the genome token in the filename; skip the built-in already covered
+        if genome_norm and genome_norm in val and "encode" not in val.lower():
+            options.append({"label": val, "value": val})
+    return options
+
+
+def get_pam_options(genome: str, variant_choice: Optional[str]) -> List:
+    """PAM dropdown options for the current genome + variant selection.
+
+    Reference-only searches can use ANY installed PAM (a PAM lacking a per-PAM
+    index just runs index-free via ``-r``), so all PAMs are offered. When a variant
+    dataset is included, a variant search needs a variant index for that PAM, so the
+    list is restricted to PAMs that actually have one for genome+dataset -- except a
+    pamless ``NNN`` variant index, which serves every PAM (the requested PAM is
+    enforced by the post-search filter), so its presence unlocks all PAMs again.
+    """
+    all_pams = get_available_PAM()
+    if variant_choice in (None, "", "ref"):
+        return all_pams
+    genome_norm = (genome or "").replace(" ", "_")
+    datasets = [d for d in str(variant_choice).split("+") if d]
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib) or not datasets:
+        return all_pams
+    # collect variant-index motifs available for EVERY selected dataset
+    per_dataset_motifs = []
+    for ds in datasets:
+        marker = f"_{genome_norm}+{ds}"
+        motifs = set()
+        for d in os.listdir(lib):
+            if marker in d and not d.endswith("_INDELS") and os.path.isdir(
+                os.path.join(lib, d)
+            ):
+                motifs.add(d.split("_")[0])  # <motif>_<N>_<genome>+<ds>
+        per_dataset_motifs.append(motifs)
+    usable = set.intersection(*per_dataset_motifs) if per_dataset_motifs else set()
+    if any(m == "N" * len(m) for m in usable):  # pamless NNN index -> any PAM
+        return all_pams
+    return [p for p in all_pams if pam_motif(p["value"]) in usable] or all_pams
 
 
 def get_custom_annotations() -> List:

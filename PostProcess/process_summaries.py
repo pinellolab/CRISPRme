@@ -23,6 +23,18 @@ genome_type = sys.argv[8]
 filter_criterion = sys.argv[9]
 
 
+def _new_distributions():
+    """Per-guide edit-distribution histogram.
+
+    Indexed below as [Bulge_Size + Total][Total] (splitted[8]+splitted[9], then
+    splitted[9]). Total can reach mms+bulge and the outer sum mms+2*bulge, so the
+    array must be sized accordingly — the historical fixed [10][bulge+1] overflowed
+    for high-edit targets (rare on PAM-constrained searches, common on pamless /
+    dense-variant ones), raising IndexError in summary processing.
+    """
+    return [[0] * (mms + bulge + 1) for _ in range(mms + 2 * bulge + 1)]
+
+
 def init_summary_by_sample(path_samplesID):
     dict_samples = {}
     dict_pop = {}
@@ -87,17 +99,13 @@ for guide in guides:
 
     dict_summary_by_guide = {}
     add_to_general_table[guide] = {}
-    add_to_general_table[guide]["distributions"] = [
-        [0] * (bulge + 1) for x in range(10)
-    ]
+    add_to_general_table[guide]["distributions"] = _new_distributions()
     if genome_type == "var":
         dict_samples, dict_pop, dict_superpop = init_summary_by_sample(path_samplesID)
         count_superpop[guide] = {}
         for superpop in dict_superpop.keys():
             count_superpop[guide][superpop] = {}
-            count_superpop[guide][superpop]["distributions"] = [
-                [0] * (bulge + 1) for x in range(10)
-            ]
+            count_superpop[guide][superpop]["distributions"] = _new_distributions()
 
     with open(f"{path_best}.{guide}", "r") as f:
         for line in f:
@@ -207,8 +215,13 @@ for guide in guides:
             acfd.write(guide + "\t" + str(100 / (100 + sum_cfds)) + "\tNA\tNA\n")
 
     df_general_count = pd.DataFrame(general_table[guide]["ref"])
-    df_general_count = df_general_count.append(
-        pd.DataFrame(general_table[guide]["var"])
+    # py3.11-readiness: DataFrame.append was removed in pandas 2.0. pd.concat
+    # with ignore_index=True reproduces the same row order/columns; the index is
+    # dropped anyway by the subsequent to_csv(index=False). No-op on the current
+    # image (identical output).
+    df_general_count = pd.concat(
+        [df_general_count, pd.DataFrame(general_table[guide]["var"])],
+        ignore_index=True,
     )
     df_general_count.to_csv(
         f"{path_output}/.{name_job}.general_target_count."
@@ -270,7 +283,7 @@ with open(
                         + "\t".join(
                             [
                                 ",".join(str(v) for v in t)
-                                for t in [[0] * (bulge + 1) for x in range(10)]
+                                for t in _new_distributions()
                             ]
                         )
                         + "\n"

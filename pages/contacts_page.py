@@ -26,7 +26,7 @@ from .pages_utils import GITHUB_LINK
 
 from typing import List
 
-import dash_html_components as html
+from dash import html
 
 
 # NOTE: the following list could be changed during time

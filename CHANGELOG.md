@@ -11,8 +11,97 @@ and the `release-crisprme` skill.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-06
+
 ### Added
-- (nothing yet)
+- Graphical **Settings / Data Manager** page in the web interface: add reference
+  genomes (UCSC by assembly name — e.g. the pig `susScr11` — HuggingFace, or a
+  direct URL), precomputed indexes (download from HuggingFace or build locally
+  from an installed genome + PAM), VCF datasets (HuggingFace or register an
+  existing server folder), annotations (BED upload), and nucleases/PAMs (a small
+  form). New data lands in the local data folder and is auto-discovered by the
+  search form. Long operations run as detached jobs on a dedicated executor with
+  live progress, so they never starve the search slots. Mutations are local-mode
+  only; publishing an index to the shared HuggingFace repo is maintainer-only.
+  `download --what genome` gained `--source {hf,ucsc,url}` (+ `--url`) so the CLI
+  and web share one non-human-genome download path.
+- Python 3.11 modernization: pipeline fixes for pandas 2.x / matplotlib 3.x and
+  a Dash 1.x → 2.x web-app migration, plus a Python-3.11 Docker image built from
+  source (CRISPRitz 2.8.0) (#131).
+- `assembly-search` subcommand: off-target search on a personal diploid genome
+  assembly (two haplotypes, no VCF), reconciled to hg38 via liftOver (#113).
+- Reference-index UX: `build-index-only` pre-builds the reusable CRISPRitz
+  reference index without running a search, and `complete-search --index-path`
+  reuses a prebuilt/staged index library (a missing index is a hard error rather
+  than a silent rebuild).
+- HuggingFace data distribution: `download` fetches reference data (genome,
+  annotations, PAMs, sample IDs, VCFs, precomputed indexes) from a HuggingFace
+  dataset repository over its CDN, and `publish-index` uploads a locally built
+  index for reuse. Default repo `lucapinello/crisprme-data`, overridable via
+  `--hf-repo` / `CRISPRME_HF_REPO`. `setup`/`complete-test` also try HuggingFace
+  first and fall back transparently to the original UCSC/EBI/Sanger sources
+  (#140, #141).
+- `complete-search --max-total-edits N`: cap the total edits (mismatches +
+  bulges) per reported alignment; over-cap targets are dropped right after the
+  search, shrinking intermediate files and post-analysis time (#107).
+
+### CI
+- New `unit tests` workflow: fast, hermetic byte-compile + network-free HF/index
+  unit tests on every code PR.
+- New `web e2e (playwright)` workflow: builds the py3.11 image, serves the web
+  app, and drives Chromium to assert every Dash 2.x page renders (no blank pages
+  / JS errors).
+- `validate-benchmarks` gained a new-subcommand dispatch + unit-test smoke step.
+
+### Changed
+- Clearer failure reporting: when a search fails, CRISPRme now prints *which
+  stage* failed (from the per-stage log) and the last lines of the error log,
+  instead of only "run failed — see log_error.txt". Makes failures actionable
+  for non-expert users.
+
+### Fixed
+- Web interface (Dash 2.x) hardening, from a full Playwright stress test of the
+  running app:
+  - The web server no longer crashes on a from-source install. Dash 2.x's
+    `app.run()` lets the `HOST` environment variable override the host argument,
+    and the from-source conda env sets `HOST` to a non-bindable compiler build
+    triple (`x86_64-conda-linux-gnu`); the server now forces the intended host/
+    port so it binds correctly.
+  - The **Query Genomic Region** and **Personal Risk Cards** result tabs no
+    longer return HTTP 500. Both callbacks type-checked their inputs before the
+    "no click yet" guard, so Dash's initial (empty) render raised a `TypeError`;
+    the guard now runs first, and Filter/Generate with nothing selected is a
+    graceful no-op.
+  - Removed the dead cross-origin "skeleton" stylesheet (blocked by browsers on
+    every page); the layout already uses the Bootstrap grid.
+  - The nuclease dropdown collapses case-variant duplicate PAM files so each
+    nuclease is listed once.
+- Zero-hit searches now complete cleanly with an empty result instead of
+  aborting. A search that finds no off-targets (e.g. a very stringent
+  guide/parameter combination) previously failed part-way through post-analysis
+  ("off-targets post-analysis (reference) failed", then a cascade through the
+  rsID / summary / integration steps, all of which assumed at least one target).
+  Added a zero-target guard to the reference SNP post-analysis (mirroring the
+  INDELs one), made `remove_n_and_dots.py` tolerate a header-only report, and
+  added a high-level short-circuit that emits an empty-but-valid result and exits
+  0 when no off-targets are found. Verified end-to-end on ml007 (empty result
+  exits 0; a normal with-hits search is unaffected).
+
+### Documentation
+- New `docs/DOCKER_QUICKSTART.md` + a README quickstart callout: a few-command,
+  no-conda / no-410 GB path to the web interface for non-experts — fast HF data
+  download, a prebuilt index, then `web-interface` in the browser, with
+  troubleshooting and "install more indexes as needed".
+- Data-setup guide: documented what `setup` produces (including the combined
+  1000G+HGDP config files), the HuggingFace fast-download path, and a new
+  "Prebuild, reuse, and share the reference index" section.
+- README: added a from-source install path and a reference-index /
+  data-distribution commands section.
+- Documented the variant PAM behaviour in `docs/INPUT_FORMATS.md`: PAM *creation*
+  (variants that add an off-target) is reported; PAM *disruption* (variants that
+  remove a reference PAM for carriers) is a known, intentional gap — with the
+  rationale (disruption lowers rather than raises predicted risk and would need
+  sample-specific, non-scorable semantics).
 
 ## [2.1.13] - 2026-08-04
 
