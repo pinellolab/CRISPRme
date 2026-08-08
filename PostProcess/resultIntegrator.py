@@ -329,10 +329,41 @@ if "#" in inCrispritzResults.readline():
 else:
     inCrispritzResults.seek(0)
 
+# issue #143: guard against malformed / column-shifted intermediate rows. The
+# integrator parses several columns as floats (MAF lists and CFD scores); a
+# schema drift for certain records (e.g. a multi-rsID dbSNP ID from a
+# `bcftools norm -m-`-split personal callset) shifts a non-numeric value into
+# one of them, which used to raise ValueError mid-integration and crash the run
+# — after which the driver DELETED the entire completed output. Skip such rows
+# and report a count instead.
+_INTEGRATOR_NUMERIC_COLS = (17, 20, 21, 41, 44, 45, 65, 68, 69)
+skipped_malformed_rows = 0
+
 for nline, line in enumerate(inCrispritzResults):
     target = line.strip().split("\t")
     # file annotation reported after gencode association with gene
     annotationLine = inAnnotationFile.readline().strip().split("\t")
+    # issue #143: skip rows whose float-parsed columns are non-numeric. Placed
+    # AFTER the annotation readline above so the annotation reader stays in sync
+    # on skip; the count is reported to stdout (stderr is treated as fatal).
+    _row_ok = True
+    for _idx in _INTEGRATOR_NUMERIC_COLS:
+        if _idx >= len(target):
+            _row_ok = False
+            break
+        for _piece in str(target[_idx]).strip().split(","):
+            if _piece in ("", "NA"):
+                continue
+            try:
+                float(_piece)
+            except ValueError:
+                _row_ok = False
+                break
+        if not _row_ok:
+            break
+    if not _row_ok:
+        skipped_malformed_rows += 1
+        continue
     # reset dict to save new line
     for key in saveDict:
         saveDict[key] = "NA"
@@ -1048,6 +1079,16 @@ for nline, line in enumerate(inCrispritzResults):
 
 # close integrated file
 outFile.close()
+
+# issue #143: surface any rows skipped by the malformed-row guard (stdout, since
+# stderr is treated as a fatal error by the caller).
+if skipped_malformed_rows:
+    print(
+        f"WARNING: results integration skipped {skipped_malformed_rows} "
+        "malformed/column-shifted row(s) (non-numeric value in a MAF/CFD column; "
+        "see issue #143). All other results were integrated normally.",
+        flush=True,
+    )
 
 
 # remove unused columns from final integrated file

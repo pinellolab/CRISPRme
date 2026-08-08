@@ -974,22 +974,29 @@ if [ $gene_proximity != "_" ]; then
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	if [ -s $logerror ]; then
-		printf  "ERROR: targets integration failed on primary results\n" >&2
-		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		# issue #143: a post-search integration failure must NOT delete the run's
+		# completed output. Preserve the merged/annotated results; only set aside a
+		# partially written integrated file so it is not mistaken for complete.
+		printf  "ERROR: results integration failed on primary results. The completed search/merge output in %s is PRESERVED (issue #143); any partial integrated file was renamed to *.partial.\n" "$output_folder" >&2
+		for _tsv in "$output_folder"/*.integrated_results.tsv; do [ -f "$_tsv" ] && mv -f "$_tsv" "$_tsv.partial"; done
 		exit 1
 	fi
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	if [ -s $logerror ]; then
-		printf  "ERROR: targets integration failed on primary results\n" >&2
-		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		# issue #143: a post-search integration failure must NOT delete the run's
+		# completed output. Preserve the merged/annotated results; only set aside a
+		# partially written integrated file so it is not mistaken for complete.
+		printf  "ERROR: results integration failed on primary results. The completed search/merge output in %s is PRESERVED (issue #143); any partial integrated file was renamed to *.partial.\n" "$output_folder" >&2
+		for _tsv in "$output_folder"/*.integrated_results.tsv; do [ -f "$_tsv" ] && mv -f "$_tsv" "$_tsv.partial"; done
 		exit 1
 	fi
 	rm "${output_folder}/dummy.txt"
 	python $starting_dir/CRISPRme_plots.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/imgs/" &>"${output_folder}/warnings.txt"
 	if [ -s $logerror ]; then
-		printf  "ERROR: score plots generation failed\n" >&2
-		rm -r "${output_folder}/imgs"
-		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		# issue #143: plots are supplementary and the integrated results are already
+		# complete at this point; preserve them and drop only the incomplete imgs/.
+		printf  "ERROR: score plots generation failed — results are PRESERVED (issue #143); removing only the incomplete imgs/.\n" >&2
+		rm -rf "${output_folder}/imgs"
 		exit 1
 	fi
 	rm -f "${output_folder}/warnings.txt" # delete warnings file
@@ -1010,8 +1017,9 @@ if [ -f "${output_folder}/$(basename ${output_folder}).db" ]; then
 fi
 python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/.$(basename ${output_folder})"
 if [ -s $logerror ]; then
-	printf "ERROR: database creation failed\n" >&2 
-	rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+	# issue #143: database creation is the last step and the integrated results
+	# are already complete; preserve them (a failed .db must not delete output).
+	printf "ERROR: database creation failed — results are PRESERVED (issue #143).\n" >&2
 	exit 1
 fi
 echo -e 'Creating database\tEnd\t'$(date) >>$log
