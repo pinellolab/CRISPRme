@@ -217,6 +217,41 @@ def _validate_name(name: str) -> Optional[str]:
     return None
 
 
+# Benign stderr lines that must not mask the real error in the failure banner.
+_BENIGN_ERR_PATTERNS = (
+    "BiopythonWarning",
+    "warnings.warn",
+    "DtypeWarning",
+    "SyntaxWarning",
+    "FutureWarning",
+    "DeprecationWarning",
+    "importing Biopython",
+    "This is bad practice",
+    "pyproject.toml",
+)
+
+
+def _error_tail(logerr_path: str, n: int = 3) -> str:
+    """Most relevant tail of a job's log_error.txt for the failure banner.
+
+    Subprocesses emit benign warnings (Biopython import notes, pandas dtype
+    warnings, ...) to stderr; showing only the last few raw lines can bury the
+    real error under them. Prefer the last ``n`` NON-benign lines; fall back to
+    the raw tail if everything looks benign.
+    """
+    if not os.path.isfile(logerr_path):
+        return ""
+    try:
+        with open(logerr_path) as eh:
+            lines = [ln.strip() for ln in eh.read().splitlines() if ln.strip()]
+    except OSError:
+        return ""
+    if not lines:
+        return ""
+    meaningful = [ln for ln in lines if not any(p in ln for p in _BENIGN_ERR_PATTERNS)]
+    return "  ".join((meaningful or lines)[-n:])
+
+
 def _write_vcf_marker(dataset: str, genome: str) -> None:
     """Record which reference genome a VCF dataset belongs to (a marker file
     beside the dataset dir), so the search form only pairs it with that genome."""
@@ -1166,12 +1201,8 @@ def refresh_settings_job(n, job_id):
             _render_storage(),
         )
     if f"{stage}\tFAILED" in log:
-        tail = ""
         logerr = os.path.join(current_working_directory, SETTINGS_DIR, job_id, "log_error.txt")
-        if os.path.isfile(logerr):
-            with open(logerr) as eh:
-                tail = eh.read().strip().splitlines()[-3:]
-            tail = "  ".join(tail) if tail else ""
+        tail = _error_tail(logerr)
         return (
             html.Div(
                 [html.Div(f"{stage}: failed.", style={"color": "#b00"}), html.Small(tail)]
