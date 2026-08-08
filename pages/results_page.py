@@ -3822,8 +3822,8 @@ def update_images_tabs(
 
     Returns
     -------
-    Tuple[List, List, List, List]
-        HTML page containing the plots
+    Tuple[List, List]
+        The ENCODE+GENCODE radar chart and the population barplot containers
     """
 
     if not isinstance(mm, str):
