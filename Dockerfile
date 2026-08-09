@@ -1,6 +1,6 @@
 # CRISPRme 2.2.0 — Python 3.11 image, built FROM SOURCE.
 #
-# crispritz 2.8.0 is compiled from source (it is not yet on Bioconda for
+# crispritz 2.8.1 is compiled from source (it is not yet on Bioconda for
 # Python 3.11) and crisprme is installed from this build context. The dependency
 # pins mirror the from-scratch Python-3.11 validation on ml007 (see PR #131):
 #   - azimuth/CRISTA scoring stack: scikit-learn 1.1.3 / numpy 1.24.4 /
@@ -13,7 +13,7 @@ FROM mambaorg/micromamba
 
 LABEL org.opencontainers.image.authors="ManuelTgn, lucapinello"
 
-ARG crispritz_ref=v2.8.0
+ARG crispritz_ref=v2.8.1
 ENV SHELL=bash
 ENV PREFIX=/opt/conda
 USER root
@@ -47,7 +47,7 @@ RUN micromamba install -y -n base \
 
 ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
-# ---- Build crispritz 2.8.0 from source and install into the env ------------
+# ---- Build crispritz 2.8.1 from source and install into the env ------------
 RUN git clone --depth 1 --branch ${crispritz_ref} \
         https://github.com/pinellolab/CRISPRitz.git /opt/crispritz-src \
     && cd /opt/crispritz-src \

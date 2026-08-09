@@ -12,11 +12,11 @@
 #   mamba activate crisprme-2.2.0
 #   bash install_from_source.sh
 #
-# Override the CRISPRitz tag with CRISPRITZ_REF (default v2.8.0).
+# Override the CRISPRitz tag with CRISPRITZ_REF (default v2.8.1).
 set -euo pipefail
 
 : "${CONDA_PREFIX:?Activate the conda env first: 'mamba activate crisprme-2.2.0'}"
-CRISPRITZ_REF="${CRISPRITZ_REF:-v2.8.0}"
+CRISPRITZ_REF="${CRISPRITZ_REF:-v2.8.1}"
 CXX="${CXX:-g++}"
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # this crisprme checkout
 
