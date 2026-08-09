@@ -1,7 +1,9 @@
 # Combined multi-source VCF panels for CRISPRme (single-scan enrichment)
 
-**Status:** proposal + working prototype, validated on chr22 (1000G + HGDP). Opening
-this to compare with Ann's merge/provenance approach and converge on one.
+**Status:** validated **genome-wide** (1000G + HGDP) — the full AF-provenance panel
+was built and both the **NGG** and **pamless NNN** combined indexes were produced
+from a single enrichment, with pooled AF confirmed correct. Opening this to compare
+with Ann's merge/provenance approach and converge on one.
 
 ## Motivation
 CRISPRme enriches a reference with a VCF's variants and scans once. Running N
@@ -30,7 +32,26 @@ fields. `build_combined_panel.sh` runs this over all chromosomes (parallel,
 resumable), assembles the panel `samplesID` (union), and calls
 `crisprme.py build-index-only` to enrich + index.
 
-## Validation (chr22, 1000G + HGDP)
+## Validation
+
+### Genome-wide (1000G + HGDP) — the full build
+- **All 23 chromosomes merged** (chr1–22 + chrX), 3,477 samples each, AF-provenance
+  intact (`AF` pooled + `AF_1000G`/`AF_HGDP` + `SRC`).
+- **Both combined indexes built from ONE shared enrichment:**
+  `NGG_3_hg38+hg38_1000G_HGDP` (8.7 GB + 730 MB INDELS) and the pamless
+  `NNN_3_hg38+hg38_1000G_HGDP` (144 GB + 15 GB INDELS).
+- **Pooled AF correct at scale:** `chr22:10516173 → AF=0.024992` (`AF_1000G=0.02`,
+  `AF_HGDP=0.030541`, `SRC=1000G,HGDP`).
+- **Why this matters — the earlier plain merge was wrong:** a naive
+  `bcftools merge` (no `+fill-tags`) leaves shared 1000G∩HGDP variants carrying only
+  ONE source's AF (e.g. the HGDP 0.0305 instead of the pooled 0.0250 above) — 15/1000
+  sampled sites mismatched. This tooling recomputes the pooled AF, so the shipped
+  combined index reports correct frequencies.
+- **max-edits tolerance:** the pamless index is searched with `--max-total-edits 5`
+  (CRISPRitz ≥2.8.1); this bounds the pamless search-space explosion in
+  variant-dense regions (validated separately).
+
+### chr22 detail (provenance cross-check)
 - **Samples:** 3,477 = 2,548 (1000G) + 929 (HGDP); cohorts disjoint (0 shared).
 - **Record provenance cross-checks exactly:** SRC = 572,013 `1000G` + 697,942 `HGDP`
   + 487,066 `1000G,HGDP` = 1,757,021 total; and 572,013+487,066 = **1,059,079**
@@ -55,9 +76,14 @@ resumable), assembles the panel `samplesID` (union), and calls
 
 ## Dependencies
 - `bcftools >= 1.18` with the `+fill-tags` plugin; `htslib` (`bgzip`/`tabix`).
-- **CRISPRitz PR #36** (`fix/enricher-af-filter-robustness`) is REQUIRED for
-  enrichment of merged panels — both for the exact-key AF read (pooled AF) and the
-  multiallelic AF-count guard.
+- **CRISPRitz #36** (enricher AF/FILTER robustness) for enrichment (exact-key pooled
+  AF read + multiallelic AF-count guard) and **#37/#38** (`--max-edits`) for the
+  bounded pamless search — both shipped in **CRISPRitz ≥ 2.8.1**.
+- **Scratch space:** the per-chromosome intermediates are multi-GB and a genome-wide
+  N-way-parallel run writes tens–hundreds of GB of temp. `merge_vcf_panels.sh` now
+  puts its work dir on `$TMPDIR` (fall back: the output volume) rather than `/tmp` —
+  point `TMPDIR` at a volume with ample free space (a genome-wide 1000G+HGDP run
+  needs well over 100 GB of temp + ~160 GB for the final pamless index).
 
 ## Reproduce
 ```bash

@@ -58,7 +58,12 @@ mkdir -p "$OUTDIR"
 OUT="$OUTDIR/merged.$CHR.vcf.gz"
 [ -f "$OUT.tbi" ] && { echo "[skip] $CHR already merged"; exit 0; }
 
-WORK=$(mktemp -d)
+# Per-chromosome intermediates (renamed source copies + merged.noSRC) are multi-GB
+# each; a whole-genome, N-way-parallel run writes tens–hundreds of GB of temp. The
+# default mktemp location is /tmp (often a small root volume) and overruns it, so
+# put WORK on the same (large) volume as the output — honor $TMPDIR if the caller
+# points it at a big volume, else fall back to the output directory itself.
+WORK=$(mktemp -d -p "${TMPDIR:-$OUTDIR}")
 trap 'rm -rf "$WORK"' EXIT
 # contig rename map (bare -> chr-prefixed), matches the hg38 reference convention
 for c in $(seq 1 22) X Y MT; do echo "$c chr$c"; done > "$WORK/rename_chr.txt"
