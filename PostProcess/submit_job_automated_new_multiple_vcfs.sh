@@ -1047,13 +1047,16 @@ if [ "$email" != "_" ]; then
 	python $starting_dir/../pages/send_mail.py $output_folder
 fi
 
-# restore unzipped annotation files
+# restore an unzipped copy of the annotation files, but KEEP the .gz (-k): the
+# pipeline entry + input validation require the bgzipped .bed.gz, so consuming it
+# here (plain `gunzip -f` removes the .gz) broke every re-run that referenced the
+# same .bed.gz ("--annotation does not exist"). Keep both.
 if [ "$annotation_file" != "vuoto.txt" ]; then
-    gunzip -f "$annotation_file"
+    gunzip -kf "$annotation_file"
 fi
 
 if [ "$gene_proximity" != "vuoto.txt" ]; then
-	gunzip -f "$gene_proximity"
+	gunzip -kf "$gene_proximity"
 fi
 
 # keep log_error but no block visualization
