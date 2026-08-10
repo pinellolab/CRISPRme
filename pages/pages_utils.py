@@ -1194,24 +1194,63 @@ def get_available_genomes() -> List:
 
 
 def get_available_indexes() -> List:
-    """Recover the precomputed CRISPRitz indexes under genome_library/.
+    """Recover the USER-FACING precomputed CRISPRitz indexes under genome_library/.
+
+    Only the logical variant/reference indexes are returned — NOT:
+      * ``*_INDELS`` companions (the indel-genome index is an internal part of a
+        variant index, built + used automatically; never a standalone choice), and
+      * symlink aliases (naming-reconciliation links point at an index already
+        listed — dedupe by real path so each index appears once).
+    Labels are friendly (parsed from ``<motif>_<bMax+1>_<genome>[+<dataset>]``) so
+    the list reads in the same vocabulary as the search form.
 
     Returns
     -------
     List
-        ``{"label", "value"}`` dicts, one per index directory (e.g.
-        ``NGG_2_hg38``). Empty if the directory does not exist yet.
+        ``{"label", "value"}`` dicts, one per real index (value = directory name).
     """
 
     idx_root = os.path.join(current_working_directory, "genome_library")
     if not os.path.isdir(idx_root):
         return []
-    indexes = [
-        d
-        for d in os.listdir(idx_root)
-        if not d.startswith(".") and os.path.isdir(os.path.join(idx_root, d))
-    ]
-    return [{"label": d, "value": d} for d in sorted(indexes)]
+    seen_real = set()
+    indexes = []
+    for d in sorted(os.listdir(idx_root)):
+        p = os.path.join(idx_root, d)
+        if d.startswith(".") or not os.path.isdir(p):
+            continue
+        if d.endswith("_INDELS"):  # internal indel companion — auto-used, not a choice
+            continue
+        real = os.path.realpath(p)  # collapse symlink aliases onto their target
+        if real in seen_real:
+            continue
+        seen_real.add(real)
+        indexes.append({"label": _friendly_index_label(d), "value": d})
+    return indexes
+
+
+def _friendly_index_label(name: str) -> str:
+    """Human label for a genome_library index dir ``<motif>_<bMax+1>_<genome>[+<dataset>]``.
+
+    e.g. ``NGG_3_hg38+hg38_1000G_HGDP`` -> "NGG · hg38 + 1000G_HGDP (≤2 bulges)";
+    ``NNN_3_hg38+...`` adds "pamless — serves any PAM". Falls back to the raw name.
+    """
+    parts = name.split("_", 2)
+    if len(parts) < 3 or not parts[1].isdigit():
+        return name
+    motif, nstr, rest = parts[0], parts[1], parts[2]
+    bulges = int(nstr) - 1
+    genome, dataset = (rest.split("+", 1) + [""])[:2]
+    if dataset.startswith(genome + "_"):  # strip redundant genome prefix on the dataset
+        dataset = dataset[len(genome) + 1:]
+    label = motif
+    if motif and set(motif) == {"N"}:
+        label += " (pamless — serves any PAM)"
+    label += f" · {genome}"
+    if dataset:
+        label += f" + {dataset}"
+    label += f" (≤{bulges} bulge{'s' if bulges != 1 else ''})"
+    return label
 
 
 def pam_motif(pam_value: str) -> Optional[str]:
