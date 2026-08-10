@@ -1694,6 +1694,13 @@ def build_index_only() -> None:
         if code != 0:
             shutil.rmtree(tmp, ignore_errors=True)
             error(f"Genome enrichment (add-variants) failed on {vcf_name}")
+        # This block only runs on a FRESH enrichment (enriched was absent), so any
+        # pre-existing dataset-specific output dirs are stale/partial from a prior
+        # aborted build. Clear them first, else shutil.move onto an existing
+        # fake_chrN / dict raises "Destination path already exists" (issue #54).
+        for _d in (indels_out, dict_folder, indel_dict):
+            if os.path.isdir(_d):
+                shutil.rmtree(_d)
         os.makedirs(indels_out, exist_ok=True)
         shutil.move(
             os.path.join(variants_tmp, "SNPs_genome", f"{genome_ref}_enriched"),

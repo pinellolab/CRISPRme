@@ -41,7 +41,12 @@ ${CXX} -std=c++11 -O3 -fopenmp \
     sourceCode/CRISPRofiler/pre_computation.cpp \
     sourceCode/CRISPRofiler/reading.cpp \
     sourceCode/CRISPRofiler/analysis.cpp -o searchBruteForce
+# enricher.cpp #includes <zlib.h>; the conda `zlib` pkg installs it under
+# $CONDA_PREFIX/include, which is NOT on a system g++'s default path — add it
+# explicitly (and the matching lib dir) so the compiled (fast) enricher builds
+# regardless of whether $CXX is the conda cxx-compiler or system g++.
 ${CXX} -std=c++11 -O3 -fopenmp \
+    -I"${CONDA_PREFIX}/include" -L"${CONDA_PREFIX}/lib" \
     sourceCode/Python_Scripts/Enrichment/enricher.cpp -o enricher -lz
 mkdir -p "${CONDA_PREFIX}/opt/crispritz"
 cp crispritz.py "${CONDA_PREFIX}/bin/crispritz.py"
