@@ -1397,13 +1397,25 @@ def get_pam_options(genome: str, variant_choice: Optional[str]) -> List:
     # collect variant-index motifs available for EVERY selected dataset
     per_dataset_motifs = []
     for ds in datasets:
-        marker = f"_{genome_norm}+{ds}"
+        # An index is named <motif>_<N>_<genome>+<vcf_folder>. The dropdown value
+        # is the genome-stripped folder (e.g. "1000G_HGDP" for VCFs/hg38_1000G_HGDP,
+        # "1000G" for VCFs/hg38_1000G), so match BOTH the short form
+        # (<genome>+<ds>, e.g. hg38+1000G) and the full-folder form
+        # (<genome>+<genome>_<ds>, e.g. hg38+hg38_1000G_HGDP) — otherwise a combined
+        # panel's index (built under the full name) is missed and the PAM list
+        # wrongly falls back to "all".
+        # The vcf_folder is the SUFFIX after '+', so match on endswith (not
+        # substring) — else "1000G" spuriously matches "1000G_HGDP" indexes and a
+        # 1000G-alone search wrongly inherits the combined panel's pamless (=all
+        # PAMs). Accept both the genome-stripped dropdown value ("+1000G") and the
+        # full-folder form ("+hg38_1000G_HGDP").
+        suffixes = (f"+{ds}", f"+{genome_norm}_{ds}")
         motifs = set()
         for d in os.listdir(lib):
-            if marker in d and not d.endswith("_INDELS") and os.path.isdir(
-                os.path.join(lib, d)
-            ):
-                motifs.add(d.split("_")[0])  # <motif>_<N>_<genome>+<ds>
+            if d.endswith("_INDELS") or not os.path.isdir(os.path.join(lib, d)):
+                continue
+            if any(d.endswith(sfx) for sfx in suffixes):
+                motifs.add(d.split("_")[0])  # <motif>_<N>_<genome>+<vcf_folder>
         per_dataset_motifs.append(motifs)
     usable = set.intersection(*per_dataset_motifs) if per_dataset_motifs else set()
     if any(m == "N" * len(m) for m in usable):  # pamless NNN index -> any PAM

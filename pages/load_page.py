@@ -125,22 +125,22 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                             done += 1
                         elif "Index-genome Variant\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Enriched Genome... Step [4/4]",
+                                "Preparing enriched-genome index... [4/4]",
                                 style={"color": "orange"},
                             )
                         elif "Index-genome Reference\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Reference Genome... Step [3/4]",
+                                "Preparing reference-genome index... [3/4]",
                                 style={"color": "orange"},
                             )
                         elif "Indexing Indels\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Indels Genome... Step [2/4]",
+                                "Preparing indel-genome index... [2/4]",
                                 style={"color": "orange"},
                             )
                         elif "Add-variants\tStart" in current_log:
                             index_status = html.P(
-                                "Adding variants... Step [1/4]",
+                                "Enriching genome with variants... [1/4]",
                                 style={"color": "orange"},
                             )
                         elif "Search Reference\tStart" in current_log:
@@ -152,7 +152,7 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                             done += 1
                         elif "Index-genome Reference\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Reference Genome... Step [1/1]",
+                                "Preparing reference-genome index... [1/1]",
                                 style={"color": "orange"},
                             )
                         elif "Search Reference\tStart" in current_log:
@@ -509,10 +509,10 @@ def load_page(job_link: str = "link") -> List:
                         html.Div(
                             html.Ul(
                                 [
-                                    html.Li("Indexing genome(s)"),
-                                    html.Li("Searching spacer"),
+                                    html.Li("Preparing genome index (instant when precomputed)"),
+                                    html.Li("Searching off-targets"),
                                     html.Li("Post processing"),
-                                    html.Li("Merge targets"),
+                                    html.Li("Merging targets"),
                                     html.Li("Annotating and generating images"),
                                     html.Li("Integrating results"),
                                     html.Li("Populating database"),
