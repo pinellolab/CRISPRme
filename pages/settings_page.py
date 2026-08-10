@@ -567,16 +567,35 @@ def settings_page() -> List:
             html.Hr(),
             html.B("Build an index locally"),
             dbc.Row(
-                dbc.Col(
-                    dcc.Dropdown(
-                        id="index-build-vcf",
-                        options=[{"label": "(reference only — no variants)", "value": ""}]
-                        + get_all_vcf_datasets(),
-                        value="",
-                        clearable=False,
+                [
+                    dbc.Col(
+                        [
+                            html.Small("Variants"),
+                            dcc.Dropdown(
+                                id="index-build-vcf",
+                                options=[
+                                    {"label": "(reference only — no variants)", "value": ""}
+                                ]
+                                + get_all_vcf_datasets(),
+                                value="",
+                                clearable=False,
+                            ),
+                        ],
+                        width=6,
                     ),
-                    width=6,
-                ),
+                    dbc.Col(
+                        [
+                            html.Small("Display name (optional)"),
+                            dcc.Input(
+                                id="index-build-name",
+                                type="text",
+                                placeholder="e.g. SpCas9 · hg38 (leave blank for auto)",
+                                style={"width": "100%"},
+                            ),
+                        ],
+                        width=6,
+                    ),
+                ],
                 style={"margin-bottom": "0.4rem"},
             ),
             html.Small(
@@ -989,10 +1008,11 @@ def add_index_hf(n, name):
         State("index-build-bdna", "value"),
         State("index-build-brna", "value"),
         State("index-build-vcf", "value"),
+        State("index-build-name", "value"),
     ],
     prevent_initial_call=True,
 )
-def build_index(n, genome, pam, bdna, brna, vcf):
+def build_index(n, genome, pam, bdna, brna, vcf, display_name):
     if n is None or ONLINE:
         raise PreventUpdate
     if not genome or not pam:
@@ -1023,6 +1043,11 @@ def build_index(n, genome, pam, bdna, brna, vcf):
     if vcf:  # pre-build a variant-aware index (enrichment + SNP/indels indexing)
         argv += ["--vcf", os.path.join(current_working_directory, "VCFs", vcf)]
         stage = "Build variant index"
+    if display_name and display_name.strip():
+        # optional human label; build_index_only writes it to a .display_label
+        # sidecar so the index list / search form shows it instead of the
+        # auto-generated <motif>_<N>_<genome> convention.
+        argv += ["--name", display_name.strip()]
     return _start(launch_settings_job(argv, stage))
 
 
