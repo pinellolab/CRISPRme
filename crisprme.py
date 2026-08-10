@@ -1864,6 +1864,8 @@ def print_help_publish_index() -> None:
         "[REQUIRED]\n"
         "\t--hf-repo, HuggingFace dataset repo id to upload to [OPTIONAL]\n"
         "\t--token, HuggingFace write token [OPTIONAL if HF_TOKEN is set]\n"
+        "\t--name, optional human-friendly display name for the index (else a "
+        "clear convention label is derived from the folder name) [OPTIONAL]\n"
     )
     sys.exit(1)
 
@@ -1876,8 +1878,10 @@ def publish_index_cmd() -> None:
     index_dir = os.path.abspath(args[args.index("--index") + 1])
     repo = args[args.index("--hf-repo") + 1] if "--hf-repo" in args else None
     token = args[args.index("--token") + 1] if "--token" in args else None
+    # optional human-friendly display name (else the UI parses a convention label)
+    name = args[args.index("--name") + 1] if "--name" in args else None
     try:
-        remote_path = publish_index(index_dir, repo=repo, token=token)
+        remote_path = publish_index(index_dir, repo=repo, token=token, display_name=name)
     except (ValueError, ImportError) as e:
         error(str(e))
     print(f"Published index to {resolve_repo(repo)}:{remote_path}", flush=True)

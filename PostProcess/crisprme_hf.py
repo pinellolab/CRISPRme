@@ -298,6 +298,16 @@ def download_component(
                         f"Downloaded index {index_name} "
                         f"(built {meta.get('created_at', 'unknown')})\n"
                     )
+                    # restore the friendly display name so the UI shows it
+                    label = meta.get("display_label")
+                    if label:
+                        try:
+                            with open(
+                                os.path.join(local_dir, index_name, ".display_label"), "w"
+                            ) as lf:
+                                lf.write(label)
+                        except OSError:
+                            pass
             except (KeyError, json.JSONDecodeError):
                 pass  # no/!invalid manifest — proceed, the index itself is what matters
         shutil.rmtree(staging, ignore_errors=True)
@@ -328,6 +338,7 @@ def publish_index(
     index_dir: str,
     repo: Optional[str] = None,
     token: Optional[str] = None,
+    display_name: Optional[str] = None,
 ) -> str:
     """Tar a locally built genome_library index and upload it to HF.
 
@@ -362,9 +373,26 @@ def publish_index(
             parts[1],
             parts[2],
         )
+    # optional human-friendly name: explicit arg wins, else a .display_label sidecar
+    # written at build time; travels in the manifest so download can restore it.
+    if not display_name:
+        sidecar = os.path.join(index_dir, ".display_label")
+        if os.path.isfile(sidecar):
+            try:
+                display_name = open(sidecar).read().strip()
+            except OSError:
+                display_name = None
+    if display_name:
+        manifest["display_label"] = display_name
+    # ONE tarball per index: bundle the indel-genome companion (<name>_INDELS) into
+    # the same archive so an index is a single file on HF (indels are part of the
+    # index, not a separate artifact). download extracts both dirs into genome_library.
+    indels_dir = index_dir + "_INDELS"
     tarball = f"{index_dir}.tar.gz"
     with tarfile.open(tarball, "w:gz") as tf:
         tf.add(index_dir, arcname=index_name)  # -> genome_library/<name>/ on unpack
+        if os.path.isdir(indels_dir):
+            tf.add(indels_dir, arcname=index_name + "_INDELS")  # -> genome_library/<name>_INDELS/
         manifest_bytes = json.dumps(manifest, indent=2).encode()
         info = tarfile.TarInfo(name="manifest.json")
         info.size = len(manifest_bytes)

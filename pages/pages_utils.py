@@ -1225,7 +1225,16 @@ def get_available_indexes() -> List:
         if real in seen_real:
             continue
         seen_real.add(real)
-        indexes.append({"label": _friendly_index_label(d), "value": d})
+        # custom name if the user set one (general: any index may carry a
+        # .display_label sidecar), else the parsed convention label
+        custom = ""
+        lf = os.path.join(p, ".display_label")
+        if os.path.isfile(lf):
+            try:
+                custom = open(lf).read().strip()
+            except OSError:
+                custom = ""
+        indexes.append({"label": custom or _friendly_index_label(d), "value": d})
     return indexes
 
 
