@@ -477,19 +477,72 @@ def _deletable_options() -> List:
     return opts
 
 
-def _delete_path(kind: str, name: str) -> str:
-    """Resolve the on-disk path for a '<type>:<name>' deletable item."""
+def _delete_targets(kind: str, name: str) -> List[str]:
+    """All on-disk paths to remove for a '<type>:<name>' item, incl. companions.
+
+    Deleting an INDEX also removes its ``_INDELS`` indel-genome companion (which the
+    UI hides but which can be many GB — e.g. ~15 GB for the pamless index) and any
+    naming-alias symlinks that resolve into either, so no orphaned index is left
+    behind. Deleting a VCF dataset also drops its ``.refgenome`` marker. Names are
+    basename-guarded against path traversal.
+    """
     name = os.path.basename(name)  # never allow traversal
-    roots = {
-        "genome": ("Genomes", name),
-        "index": ("genome_library", name),
-        "vcf": ("VCFs", name),
-        "annotation": ("Annotations", name),
-    }
-    if kind not in roots:
-        raise ValueError(f"unknown data type {kind!r}")
-    sub, leaf = roots[kind]
-    return os.path.join(current_working_directory, sub, leaf)
+    cwd = current_working_directory
+    if kind == "genome":
+        return [os.path.join(cwd, "Genomes", name)]
+    if kind == "index":
+        lib = os.path.join(cwd, "genome_library")
+        targets = [os.path.join(lib, name), os.path.join(lib, name + "_INDELS")]
+        # also drop any sibling symlink that aliases one of these (naming
+        # reconciliation links), computed BEFORE deletion so realpath still resolves
+        real = {os.path.realpath(t) for t in targets}
+        try:
+            for d in os.listdir(lib):
+                p = os.path.join(lib, d)
+                if os.path.islink(p) and p not in targets and os.path.realpath(p) in real:
+                    targets.append(p)
+        except OSError:
+            pass
+        return targets
+    if kind == "vcf":
+        return [
+            os.path.join(cwd, "VCFs", name),
+            os.path.join(cwd, "VCFs", f".{name}.refgenome"),  # marker sidecar
+        ]
+    if kind == "annotation":
+        return [os.path.join(cwd, "Annotations", name)]
+    if kind == "pam":
+        leaf = name if name.endswith(".txt") else name + ".txt"
+        return [os.path.join(cwd, "PAMs", leaf)]
+    raise ValueError(f"unknown data type {kind!r}")
+
+
+def _delete_summary(item: str) -> str:
+    """Human confirmation message for a '<type>:<name>' item: what + how much."""
+    kind, _sep, name = item.partition(":")
+    try:
+        targets = _delete_targets(kind, name)
+    except ValueError:
+        return "Delete this item? This cannot be undone."
+    total, has_indels = 0, False
+    for t in targets:
+        if os.path.islink(t) or not os.path.exists(t):
+            continue
+        if t.endswith("_INDELS"):
+            has_indels = True
+        total += _dir_size(t) if os.path.isdir(t) else os.path.getsize(t)
+    label = {
+        "genome": "reference genome",
+        "index": "index",
+        "vcf": "VCF dataset",
+        "annotation": "annotation",
+        "pam": "PAM",
+    }.get(kind, kind)
+    extra = " (with its _INDELS companion)" if kind == "index" and has_indels else ""
+    return (
+        f"Delete {label} “{name}”{extra}?\n\nThis frees about {_fmt_size(total)} and "
+        f"cannot be undone — you can download or rebuild it later."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1410,7 +1463,10 @@ def _lock_buttons_while_busy(active_job):
 # Delete installed data
 # ---------------------------------------------------------------------------
 @app.callback(
-    Output("delete-confirm", "displayed"),
+    [
+        Output("delete-confirm", "displayed"),
+        Output("delete-confirm", "message"),
+    ],
     [Input("delete-btn", "n_clicks")],
     [State("delete-item", "value")],
     prevent_initial_call=True,
@@ -1418,7 +1474,8 @@ def _lock_buttons_while_busy(active_job):
 def ask_delete(n, item):
     if n is None or ONLINE or not item:
         raise PreventUpdate
-    return True  # open the confirmation dialog
+    # open the confirmation dialog with a message naming the item + size to free
+    return True, _delete_summary(item)
 
 
 @app.callback(
@@ -1436,31 +1493,35 @@ def do_delete(n, item):
         raise PreventUpdate
     kind, _sep, name = item.partition(":")
     try:
-        path = _delete_path(kind, name)
+        targets = _delete_targets(kind, name)
     except ValueError as e:
         return html.Span(str(e), style={"color": "#b00"}), no_update, no_update
-    if not os.path.exists(path) and not os.path.islink(path):
+    freed, removed = 0, 0
+    try:
+        for path in targets:
+            if os.path.islink(path):
+                os.unlink(path)  # registered folder / alias: drop only the link
+                removed += 1
+            elif os.path.isdir(path):
+                freed += _dir_size(path)
+                shutil.rmtree(path)
+                removed += 1
+            elif os.path.isfile(path):
+                freed += os.path.getsize(path)
+                os.remove(path)
+                removed += 1
+    except OSError as e:
+        return html.Span(f"Delete failed: {e}", style={"color": "#b00"}), no_update, no_update
+    if not removed:
         return (
             html.Span(f"{item} not found (already removed?).", style={"color": "#b00"}),
             _render_all_tables(),
             _render_storage(),
         )
-    freed = 0
-    try:
-        if os.path.islink(path):
-            os.unlink(path)  # a registered server folder: only drop the symlink
-        elif os.path.isdir(path):
-            freed = _dir_size(path)
-            shutil.rmtree(path)
-        else:
-            freed = os.path.getsize(path)
-            os.remove(path)
-    except OSError as e:
-        return html.Span(f"Delete failed: {e}", style={"color": "#b00"}), no_update, no_update
     return (
         html.Span(
-            f"Deleted {item} (freed {_fmt_size(freed)}). You can download it again "
-            "later.",
+            f"Deleted {item} (freed {_fmt_size(freed)}). You can download or rebuild "
+            "it later.",
             style={"color": "green"},
         ),
         _render_all_tables(),
