@@ -52,6 +52,9 @@ SETTINGS_DIR = "Settings"
 # a running job with no log activity for this long is treated as dead (worker
 # killed/OOM without writing End/FAILED) so the progress panel stops spinning.
 _JOB_STALE_SECONDS = 1800
+# per-file browser-upload ceiling — bounds a chunked upload so it can't fill the
+# disk (large VCF panels should come server-side via HF, not the browser).
+_MAX_UPLOAD_BYTES = 50 * 1024**3
 
 
 # ---------------------------------------------------------------------------
@@ -132,9 +135,22 @@ def _settings_upload_chunk():
         return ("bad chunk headers", 400)
     if target not in ("genome", "vcf", "annotation") or not name or ".." in name:
         return ("bad target or file name", 400)
+    # validate the destination name on the FIRST chunk so a bad name fails now,
+    # not after a multi-GB upload has already streamed to disk
+    if idx == 0 and target == "vcf":
+        verr = _validate_name(dataset)
+        if verr:
+            return (f"invalid dataset name: {verr}", 400)
     part = os.path.join(_uploads_dir(), name + ".part")
     with open(part, "wb" if idx == 0 else "ab") as fout:
         fout.write(request.get_data())
+    # size ceiling: never let an unbounded upload fill the disk
+    try:
+        if os.path.getsize(part) > _MAX_UPLOAD_BYTES:
+            os.remove(part)
+            return (f"upload exceeds the {_fmt_size(_MAX_UPLOAD_BYTES)} limit", 413)
+    except OSError:
+        pass
     if idx + 1 >= total:  # last chunk -> finalize
         try:
             result = _finalize_upload(target, part, name, dataset, genome)

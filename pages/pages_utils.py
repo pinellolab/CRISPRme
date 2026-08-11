@@ -1109,7 +1109,10 @@ def vcf_reference_genome(dataset: str) -> Optional[str]:
     # marker lives *beside* the dataset dir (not inside), so it also covers
     # server folders registered via a symlink
     marker = os.path.join(cwd, VCFS_DIR, f".{dataset}.refgenome")
-    if os.path.isfile(marker):
+    # honor the marker only if the dataset dir actually exists — a marker left
+    # behind by a failed/aborted download (before the VCFs/<dataset>/ dir was
+    # created) must not pair a stale genome with a later dataset of the same name.
+    if os.path.isfile(marker) and os.path.exists(os.path.join(cwd, VCFS_DIR, dataset)):
         try:
             with open(marker) as fh:
                 g = fh.read().strip()
