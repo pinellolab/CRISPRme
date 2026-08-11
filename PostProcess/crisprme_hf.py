@@ -37,7 +37,9 @@ import io
 import json
 import gzip
 import shutil
+import subprocess
 import tarfile
+import tempfile
 from datetime import datetime, timezone
 
 # Default HuggingFace dataset repo. Overridable per-invocation with --hf-repo or
@@ -334,6 +336,58 @@ def download_component(
     return local_dir
 
 
+def _make_index_tarball(
+    tarball: str,
+    index_dir: str,
+    index_name: str,
+    indels_dir: str,
+    manifest: Dict,
+) -> None:
+    """Builds the one-file-per-index ``.tar.gz`` (index + _INDELS + manifest).
+
+    Prefers ``pigz`` (parallel gzip) via GNU ``tar`` so a large index compresses
+    across all cores instead of one — a 170GB pamless index tars in minutes with
+    pigz vs ~a day with single-threaded gzip. Falls back to Python's (single-
+    threaded) ``tarfile`` when ``pigz``/``tar`` are unavailable. Both paths write
+    an identical archive layout: ``<index_name>/``, optional ``<index_name>_INDELS/``,
+    and ``manifest.json`` at the archive root (see download_component's extractor).
+    """
+    manifest_bytes = json.dumps(manifest, indent=2).encode()
+    pigz = shutil.which("pigz")
+    tar = shutil.which("tar")
+    if pigz and tar:
+        # stage manifest.json in a temp dir so tar can add it at the archive root
+        # with the same "manifest.json" name the extractor expects
+        tmpd = tempfile.mkdtemp(prefix="hfpub_")
+        try:
+            with open(os.path.join(tmpd, "manifest.json"), "wb") as mf:
+                mf.write(manifest_bytes)
+            parent = os.path.dirname(index_dir)
+            # -C <dir> <name> stores <name> under its basename == the desired arcname
+            inputs = ["-C", parent, index_name]
+            if os.path.isdir(indels_dir):
+                inputs += ["-C", parent, os.path.basename(indels_dir)]
+            inputs += ["-C", tmpd, "manifest.json"]
+            subprocess.check_call(
+                ["tar", "--use-compress-program", pigz, "-cf", tarball, *inputs]
+            )
+        finally:
+            shutil.rmtree(tmpd, ignore_errors=True)
+        return
+    # fallback: single-threaded Python tarfile (identical layout)
+    sys.stderr.write(
+        "Note: pigz/tar not found — compressing with single-threaded gzip "
+        "(slow for large indexes). Install pigz for parallel compression.\n"
+    )
+    with tarfile.open(tarball, "w:gz") as tf:
+        tf.add(index_dir, arcname=index_name)  # -> genome_library/<name>/ on unpack
+        if os.path.isdir(indels_dir):
+            tf.add(indels_dir, arcname=os.path.basename(indels_dir))
+        info = tarfile.TarInfo(name="manifest.json")
+        info.size = len(manifest_bytes)
+        tf.addfile(info, io.BytesIO(manifest_bytes))
+
+
 def publish_index(
     index_dir: str,
     repo: Optional[str] = None,
@@ -389,14 +443,7 @@ def publish_index(
     # index, not a separate artifact). download extracts both dirs into genome_library.
     indels_dir = index_dir + "_INDELS"
     tarball = f"{index_dir}.tar.gz"
-    with tarfile.open(tarball, "w:gz") as tf:
-        tf.add(index_dir, arcname=index_name)  # -> genome_library/<name>/ on unpack
-        if os.path.isdir(indels_dir):
-            tf.add(indels_dir, arcname=index_name + "_INDELS")  # -> genome_library/<name>_INDELS/
-        manifest_bytes = json.dumps(manifest, indent=2).encode()
-        info = tarfile.TarInfo(name="manifest.json")
-        info.size = len(manifest_bytes)
-        tf.addfile(info, io.BytesIO(manifest_bytes))
+    _make_index_tarball(tarball, index_dir, index_name, indels_dir, manifest)
     remote_path = f"indexes/{index_name}.tar.gz"
     api = hf.HfApi()
     api.upload_file(
