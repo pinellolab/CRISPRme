@@ -1069,8 +1069,10 @@ def get_available_CAS() -> List:
     # removed .txt from filenames
     cas_files = [f.replace(".txt", "") for f in cas_files]
     # skip temporary PAMs (used during dictionary updating)
+    # nuclease is everything after "<len>bp-<motif>-", joined back so multi-hyphen
+    # names survive (e.g. "20bp-NNN-NO-PAM" -> "NO-PAM", not "NO").
     casprots = sorted(
-        casprot.split(".")[0].split("-")[2]
+        "-".join(casprot.split(".")[0].split("-")[2:])
         for casprot in cas_files
         if "tempPAM" not in casprot
     )

@@ -46,8 +46,12 @@ import base64
 import shutil
 import gzip
 import os
+import time
 
 SETTINGS_DIR = "Settings"
+# a running job with no log activity for this long is treated as dead (worker
+# killed/OOM without writing End/FAILED) so the progress panel stops spinning.
+_JOB_STALE_SECONDS = 1800
 
 
 # ---------------------------------------------------------------------------
@@ -169,6 +173,10 @@ def _run_settings_job(cmd: str, jobdir: str, stage: str) -> None:
     logerr = os.path.join(jobdir, "log_error.txt")
     logverb = os.path.join(jobdir, "log_verbose.txt")
     try:
+        # mark the actual subprocess start (launch_settings_job wrote "Queued" at
+        # submit time; the single-slot executor may hold it queued for a while).
+        with open(logtxt, "a") as lt:
+            lt.write(f"{stage}\tStart\n")
         with open(logverb, "w") as vout, open(logerr, "w") as eout:
             rc = subprocess.call(cmd, shell=True, stdout=vout, stderr=eout)
         with open(logtxt, "a") as lt:
@@ -188,8 +196,10 @@ def launch_settings_job(argv: List[str], stage: str) -> str:
     job_id = _new_job_id()
     jobdir = os.path.join(current_working_directory, SETTINGS_DIR, job_id)
     os.makedirs(jobdir, exist_ok=True)
+    # "Queued" at submit time; _run_settings_job appends "Start" when the single-slot
+    # executor actually begins running it, so the banner can distinguish the two.
     with open(os.path.join(jobdir, "log.txt"), "w") as lt:
-        lt.write(f"{stage}\tStart\n")
+        lt.write(f"{stage}\tQueued\n")
     # crisprme.py is on PATH inside the activated env; append --path so data
     # lands under the app's working directory.
     quoted = " ".join(_shlex_quote(a) for a in argv)
@@ -291,6 +301,35 @@ def _fmt_size(n: float) -> str:
             return f"{int(n)} B" if unit == "B" else f"{n:.1f} {unit}"
         n /= 1024
     return f"{n:.1f} TB"
+
+
+def _catalog_size(component: str, name: str) -> int:
+    """Download size (bytes) of a HuggingFace catalog item, 0 if unknown."""
+    for item in _hf_catalog(component):
+        if item.get("name") == name:
+            return int(item.get("size", 0) or 0)
+    return 0
+
+
+def _preflight_disk(need_bytes: int) -> Optional[str]:
+    """Error string if free disk can't fit a download + its unpack, else None.
+
+    Index/genome/VCF archives unpack to ~2x their compressed size, so require ~3x
+    the download size (plus a 5 GB floor for unknown sizes) — refusing up front
+    beats an opaque mid-download 'disk full'. Never blocks when free space can't be
+    determined.
+    """
+    try:
+        free = shutil.disk_usage(current_working_directory).free
+    except OSError:
+        return None
+    required = max(int(need_bytes) * 3, 5 * 1024**3) if need_bytes else 5 * 1024**3
+    if free < required:
+        return (
+            f"Not enough free disk for this download: need ~{_fmt_size(required)}, "
+            f"have {_fmt_size(free)} free. Free up space and try again."
+        )
+    return None
 
 
 # HuggingFace catalog (what is available to download), fetched once per app run.
@@ -969,6 +1008,9 @@ def add_genome(n, assembly, source, url, hf_name):
         if not url:
             return no_update, no_update, "Direct URL source requires a URL."
         argv += ["--url", url.strip()]
+    derr = _preflight_disk(_catalog_size("genome", assembly.strip()) if source == "hf" else 0)
+    if derr:
+        return no_update, no_update, derr
     return _start(launch_settings_job(argv, "Download genome"))
 
 
@@ -991,6 +1033,9 @@ def add_index_hf(n, name):
         return no_update, no_update, "Pick an index from the HuggingFace list."
     if any(c in name for c in ("/", "\\", " ", "..")):
         return no_update, no_update, "Invalid index name."
+    derr = _preflight_disk(_catalog_size("index", name.strip()))
+    if derr:
+        return no_update, no_update, derr
     argv = ["download", "--what", "index", "--index-name", name.strip()]
     return _start(launch_settings_job(argv, "Download index"))
 
@@ -1082,6 +1127,10 @@ def add_vcf(n, name, source, path, hf_name, ref_genome):
             "Select the reference genome this VCF is called against.",
         )
     name = name.strip()
+    if source == "hf":
+        derr = _preflight_disk(_catalog_size("vcf", name))
+        if derr:  # refuse before writing the marker so nothing is orphaned
+            return no_update, no_update, derr
     # record the reference genome so the search form only pairs this VCF with it
     _write_vcf_marker(name, ref_genome)
     if source == "hf":
@@ -1207,6 +1256,7 @@ if MAINTAINER_MODE:
         Output("settings-check", "disabled"),
         Output("settings-tables-container", "children"),
         Output("settings-storage", "children"),
+        Output("settings-active-job", "data", allow_duplicate=True),
     ],
     [Input("settings-check", "n_intervals")],
     [State("settings-active-job", "data")],
@@ -1215,28 +1265,29 @@ if MAINTAINER_MODE:
 def refresh_settings_job(n, job_id):
     if not job_id:
         raise PreventUpdate
-    logtxt = os.path.join(current_working_directory, SETTINGS_DIR, job_id, "log.txt")
+    jobdir = os.path.join(current_working_directory, SETTINGS_DIR, job_id)
+    logtxt = os.path.join(jobdir, "log.txt")
     if not os.path.isfile(logtxt):
         raise PreventUpdate
     with open(logtxt) as handle:
         log = handle.read()
-    # find the stage name from the Start marker
+    # stage name comes from the first marker (Queued or Start)
     stage = "Operation"
     for line in log.splitlines():
-        if "\tStart" in line:
+        if "\t" in line:
             stage = line.split("\t")[0]
             break
     if f"{stage}\tEnd" in log:
-        # success: stop polling and refresh the installed-data tables + storage
+        # success: stop polling, clear the active job, refresh tables + storage
         return (
             html.Div(f"{stage}: done.", style={"color": "green"}),
             True,
             _render_all_tables(),
             _render_storage(),
+            None,
         )
     if f"{stage}\tFAILED" in log:
-        logerr = os.path.join(current_working_directory, SETTINGS_DIR, job_id, "log_error.txt")
-        tail = _error_tail(logerr)
+        tail = _error_tail(os.path.join(jobdir, "log_error.txt"))
         return (
             html.Div(
                 [html.Div(f"{stage}: failed.", style={"color": "#b00"}), html.Small(tail)]
@@ -1244,8 +1295,41 @@ def refresh_settings_job(n, job_id):
             True,
             no_update,
             no_update,
+            None,
         )
-    # still running
+    if f"{stage}\tStart" not in log:
+        # submitted but the single-slot executor hasn't started it yet
+        return (
+            html.Div([dbc.Spinner(size="sm"), html.Span(f"  {stage}: queued...")]),
+            False,
+            no_update,
+            no_update,
+            no_update,
+        )
+    # running: guard against a worker that died without writing End/FAILED (OOM /
+    # killed) — if none of the job's log files have been touched for a long while,
+    # stop polling and point the user at the logs instead of spinning forever.
+    newest = 0.0
+    for fn in ("log.txt", "log_verbose.txt", "log_error.txt"):
+        fp = os.path.join(jobdir, fn)
+        if os.path.isfile(fp):
+            newest = max(newest, os.path.getmtime(fp))
+    if newest and (time.time() - newest) > _JOB_STALE_SECONDS:
+        return (
+            html.Div(
+                [
+                    html.Div(f"{stage}: no recent activity.", style={"color": "#b00"}),
+                    html.Small(
+                        "The job may have stopped. Check the logs under Settings/; "
+                        "re-launch if needed."
+                    ),
+                ]
+            ),
+            True,
+            no_update,
+            no_update,
+            None,
+        )
     return (
         html.Div(
             [
@@ -1256,7 +1340,31 @@ def refresh_settings_job(n, job_id):
         False,
         no_update,
         no_update,
+        no_update,
     )
+
+
+# Disable the data-mutating buttons while a job is active (single-slot executor;
+# a second launch would queue behind the first and overwrite its progress view).
+# Buttons re-enable when refresh_settings_job clears settings-active-job on
+# completion. index-publish-btn is omitted (only present in maintainer mode).
+_LOCKABLE_BUTTON_IDS = [
+    "genome-add-btn",
+    "index-hf-btn",
+    "index-build-btn",
+    "vcf-add-btn",
+    "pam-add-btn",
+    "delete-btn",
+]
+
+
+@app.callback(
+    [Output(bid, "disabled") for bid in _LOCKABLE_BUTTON_IDS],
+    [Input("settings-active-job", "data")],
+    prevent_initial_call=True,
+)
+def _lock_buttons_while_busy(active_job):
+    return [bool(active_job)] * len(_LOCKABLE_BUTTON_IDS)
 
 
 # ---------------------------------------------------------------------------
