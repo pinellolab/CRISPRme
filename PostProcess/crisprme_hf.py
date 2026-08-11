@@ -287,32 +287,61 @@ def download_component(
                 f"build-index-only' — the repo may not have it uploaded yet."
             )
         os.makedirs(local_dir, exist_ok=True)
-        with tarfile.open(tarball) as tf:
-            # surface the provenance manifest (if present) without dropping it
-            # into genome_library/; extract only the index folder members
-            members = [m for m in tf.getmembers() if m.name != "manifest.json"]
-            tf.extractall(local_dir, members=members)  # -> genome_library/<index_name>/
-            try:
-                mf = tf.extractfile("manifest.json")
-                if mf is not None:
-                    meta = json.load(mf)
-                    sys.stderr.write(
-                        f"Downloaded index {index_name} "
-                        f"(built {meta.get('created_at', 'unknown')})\n"
-                    )
-                    # restore the friendly display name so the UI shows it
-                    label = meta.get("display_label")
-                    if label:
-                        try:
-                            with open(
-                                os.path.join(local_dir, index_name, ".display_label"), "w"
-                            ) as lf:
-                                lf.write(label)
-                        except OSError:
-                            pass
-            except (KeyError, json.JSONDecodeError):
-                pass  # no/!invalid manifest — proceed, the index itself is what matters
-        shutil.rmtree(staging, ignore_errors=True)
+        # Extract into a HIDDEN staging dir on the SAME filesystem as
+        # genome_library, validate, then atomically rename into place. This keeps
+        # the install atomic: a partial/failed extract never leaves a discoverable
+        # <index_name>/ dir (get_available_indexes skips dot-prefixed dirs), so the
+        # UI only ever sees a complete index.
+        extract_tmp = os.path.join(local_dir, f".extract_{index_name}")
+        shutil.rmtree(extract_tmp, ignore_errors=True)
+        os.makedirs(extract_tmp)
+        try:
+            label = None
+            with tarfile.open(tarball) as tf:
+                # surface the provenance manifest (if present) without unpacking it
+                # alongside the index; extract only the index folder members
+                members = [m for m in tf.getmembers() if m.name != "manifest.json"]
+                tf.extractall(extract_tmp, members=members)
+                try:
+                    mf = tf.extractfile("manifest.json")
+                    if mf is not None:
+                        meta = json.load(mf)
+                        sys.stderr.write(
+                            f"Downloaded index {index_name} "
+                            f"(built {meta.get('created_at', 'unknown')})\n"
+                        )
+                        label = meta.get("display_label")
+                except (KeyError, json.JSONDecodeError):
+                    pass  # no/invalid manifest — the index itself is what matters
+            # validate: the archive must contain the expected index folder
+            produced = os.path.join(extract_tmp, index_name)
+            if not os.path.isdir(produced) or not os.listdir(produced):
+                raise ValueError(
+                    f"Downloaded archive for '{index_name}' did not contain the "
+                    f"expected index folder — nothing installed."
+                )
+            # restore the friendly display name into the staged index before swap
+            if label:
+                try:
+                    with open(os.path.join(produced, ".display_label"), "w") as lf:
+                        lf.write(label)
+                except OSError:
+                    pass
+            # atomically swap the index and its _INDELS companion into place
+            for sub in (index_name, index_name + "_INDELS"):
+                src = os.path.join(extract_tmp, sub)
+                if not os.path.isdir(src):
+                    continue  # reference-only indexes have no _INDELS companion
+                dst = os.path.join(local_dir, sub)
+                backup = os.path.join(local_dir, f".{sub}.replaced")  # hidden -> unlisted
+                shutil.rmtree(backup, ignore_errors=True)
+                if os.path.exists(dst):
+                    os.rename(dst, backup)  # move any existing index aside (same FS)
+                os.rename(src, dst)  # move the new one into place (atomic, same FS)
+                shutil.rmtree(backup, ignore_errors=True)
+        finally:
+            shutil.rmtree(extract_tmp, ignore_errors=True)
+            shutil.rmtree(staging, ignore_errors=True)
         return os.path.join(local_dir, index_name)
 
     # flat components: annotations, pams, samples
