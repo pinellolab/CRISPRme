@@ -1577,7 +1577,7 @@ def _default_pam(cas: Optional[str]) -> Optional[str]:
     pams = [
         p["value"]
         for p in get_available_PAM()
-        if p["value"].split(".")[0].split("-")[2] == cas
+        if "-".join(p["value"].split(".")[0].split("-")[2:]) == cas
     ]
     if not pams:
         return None
@@ -1623,7 +1623,7 @@ def index_page() -> html.Div:
     _def_pam_options = [
         p
         for p in get_available_PAM()
-        if _def_cas and p["value"].split(".")[0].split("-")[2] == _def_cas
+        if _def_cas and "-".join(p["value"].split(".")[0].split("-")[2:]) == _def_cas
     ]
     # page intro
     introduction_content = html.Div(

@@ -1327,9 +1327,26 @@ def index_build_pam(index_dir: str) -> "tuple":
             parts = fh.readline().split()
         return parts[0], int(parts[1]), int(parts[2])
     except (OSError, ValueError, IndexError):
-        # no sidecar: assume the canonical 20bp-guide, 3' geometry for the motif
-        motif = os.path.basename(index_dir).split("_")[0]
-        return None, 20 + len(motif), len(motif)
+        pass
+    # no sidecar (e.g. an index built by the search pipeline, which doesn't write
+    # one): recover the geometry from an installed PAM whose motif matches this
+    # index's motif — correct for ANY shipped PAM including 5' Cas12a and 21bp
+    # SaCas9, unlike a hardcoded 20bp/3' guess. Fall back to that convention only
+    # if no PAM matches.
+    motif = os.path.basename(index_dir).split("_")[0]
+    try:
+        pams_dir = os.path.join(current_working_directory, PAMS_DIR)
+        for f in sorted(os.listdir(pams_dir)):
+            if not f.endswith(".txt") or f.startswith("."):
+                continue
+            seq, pos = open(os.path.join(pams_dir, f)).readline().split()[:2]
+            pos = int(pos)
+            region = seq[: abs(pos)] if pos < 0 else seq[-abs(pos) :]
+            if region == motif:
+                return os.path.splitext(f)[0], len(seq), pos
+    except (OSError, ValueError, IndexError):
+        pass
+    return None, 20 + len(motif), len(motif)
 
 
 def index_max_bulges(genome: str, pam_value: str, vcf: Optional[str] = None) -> int:
@@ -1431,6 +1448,31 @@ def get_variant_dataset_options(genome: str) -> List:
     split on '+' by the search wiring back into the individual datasets.
     """
     genome_norm = (genome or "").replace(" ", "_")
+
+    def _pam_note(dataset: str) -> str:
+        """' — PAM(s): …' suffix listing the PAM(s) this dataset's prebuilt indexes
+        were built with, so the user sees WHY only some PAMs are compatible (a
+        pamless index serves any same-length/orientation PAM; a specific index only
+        its own motif). Empty when no prebuilt index exists (any PAM is built on
+        demand)."""
+        lib = os.path.join(current_working_directory, "genome_library")
+        if not os.path.isdir(lib):
+            return ""
+        suffixes = (f"+{dataset}", f"+{genome_norm}_{dataset}")
+        tags = set()
+        for d in sorted(os.listdir(lib)):
+            if d.endswith("_INDELS") or not os.path.isdir(os.path.join(lib, d)):
+                continue
+            if not any(d.endswith(s) for s in suffixes):
+                continue
+            motif = d.split("_")[0]
+            pam_name, _ilen, _ipos = index_build_pam(os.path.join(lib, d))
+            tag = pam_name or motif
+            if motif == "N" * len(motif):
+                tag += " (pamless)"
+            tags.add(tag)
+        return f" — PAM(s): {', '.join(sorted(tags))}" if tags else ""
+
     options = [{"label": "Reference only (no variants)", "value": "ref"}]
     # Each option is ONE dataset = ONE enriched-genome/index = ONE search. A combined
     # panel (e.g. 1000G+HGDP) must be a single *merged* VCF dataset, not two datasets
@@ -1442,7 +1484,7 @@ def get_variant_dataset_options(genome: str) -> List:
     labels = {"1000G": "1000 Genomes Project (1000G)", "HGDP": "HGDP"}
     for ds in ("1000G", "HGDP"):
         if variant_dataset_present(genome_norm, ds):
-            options.append({"label": labels.get(ds, ds), "value": ds})
+            options.append({"label": labels.get(ds, ds) + _pam_note(ds), "value": ds})
     # any additional installed dataset folder for this genome (e.g. a merged panel or
     # a custom VCF registered via Settings), matched by the genome token in its name
     seen = {o["value"] for o in options}
@@ -1450,7 +1492,7 @@ def get_variant_dataset_options(genome: str) -> List:
         val = ds["value"] if isinstance(ds, dict) else ds
         core = val[len(genome_norm) + 1:] if val.startswith(genome_norm + "_") else val
         if genome_norm and genome_norm in val and core not in seen:
-            options.append({"label": core, "value": core})
+            options.append({"label": core + _pam_note(core), "value": core})
             seen.add(core)
     return options
 

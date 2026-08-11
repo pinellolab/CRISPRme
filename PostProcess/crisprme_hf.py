@@ -334,6 +334,12 @@ def download_component(
                     continue  # reference-only indexes have no _INDELS companion
                 dst = os.path.join(local_dir, sub)
                 backup = os.path.join(local_dir, f".{sub}.replaced")  # hidden -> unlisted
+                # roll forward an interrupted prior swap: if a backup exists but the
+                # live dir is gone, a previous run died between the two renames below
+                # -> restore it before we would otherwise delete it (avoids losing
+                # the only surviving copy of the index).
+                if os.path.isdir(backup) and not os.path.exists(dst):
+                    os.rename(backup, dst)
                 shutil.rmtree(backup, ignore_errors=True)
                 if os.path.exists(dst):
                     os.rename(dst, backup)  # move any existing index aside (same FS)
@@ -386,7 +392,8 @@ def _make_index_tarball(
     tar = shutil.which("tar")
     if pigz and tar:
         # stage manifest.json in a temp dir so tar can add it at the archive root
-        # with the same "manifest.json" name the extractor expects
+        # with the same "manifest.json" name the extractor expects. All three -C
+        # paths are absolute, so the multi -C chaining is order-independent.
         tmpd = tempfile.mkdtemp(prefix="hfpub_")
         try:
             with open(os.path.join(tmpd, "manifest.json"), "wb") as mf:
@@ -398,16 +405,27 @@ def _make_index_tarball(
                 inputs += ["-C", parent, os.path.basename(indels_dir)]
             inputs += ["-C", tmpd, "manifest.json"]
             subprocess.check_call(
-                ["tar", "--use-compress-program", pigz, "-cf", tarball, *inputs]
+                [tar, "--use-compress-program", pigz, "-cf", tarball, *inputs]
             )
+            return
+        except (subprocess.CalledProcessError, OSError) as exc:
+            # this tar may not support --use-compress-program (busybox / very old),
+            # or pigz died mid-stream -> drop any partial tarball and fall through
+            # to the single-threaded Python path so publish still succeeds.
+            sys.stderr.write(
+                f"Note: parallel (pigz) compression failed ({exc}); falling back "
+                f"to single-threaded gzip.\n"
+            )
+            if os.path.exists(tarball):
+                os.remove(tarball)
         finally:
             shutil.rmtree(tmpd, ignore_errors=True)
-        return
+    else:
+        sys.stderr.write(
+            "Note: pigz/tar not found — compressing with single-threaded gzip "
+            "(slow for large indexes). Install pigz for parallel compression.\n"
+        )
     # fallback: single-threaded Python tarfile (identical layout)
-    sys.stderr.write(
-        "Note: pigz/tar not found — compressing with single-threaded gzip "
-        "(slow for large indexes). Install pigz for parallel compression.\n"
-    )
     with tarfile.open(tarball, "w:gz") as tf:
         tf.add(index_dir, arcname=index_name)  # -> genome_library/<name>/ on unpack
         if os.path.isdir(indels_dir):
