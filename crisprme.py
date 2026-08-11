@@ -1609,6 +1609,30 @@ def _write_display_label(index_dir: str, label: "str | None") -> None:
         sys.stderr.write(f"Warning: could not write index display label: {exc}\n")
 
 
+def _write_pam_build(index_dir: str, pamfile: str) -> None:
+    """Records the PAM an index was built with, into ``<index_dir>/.pam_build``.
+
+    A CRISPRitz index is built over k-mers of an exact length + PAM orientation, so
+    it can only search PAMs of matching geometry. Persisting the source PAM's name
+    and geometry (``<pam_name> <seq_len> <pam_pos>``) lets the web PAM selector
+    (pages_utils.get_pam_options / index_build_pam) offer only compatible PAMs —
+    critical for pamless (NNN) indexes, which otherwise look like they serve every
+    PAM. The sidecar lives inside the index dir, so it travels in the publish
+    tarball and download automatically. Non-fatal on any error.
+    """
+    if not os.path.isdir(index_dir):
+        return
+    try:
+        with open(pamfile) as fh:
+            parts = fh.readline().split()
+        seq, pos = parts[0], int(parts[1])
+        name = os.path.splitext(os.path.basename(pamfile))[0]
+        with open(os.path.join(index_dir, ".pam_build"), "w") as fd:
+            fd.write(f"{name} {len(seq)} {pos}\n")
+    except (OSError, ValueError, IndexError) as exc:
+        sys.stderr.write(f"Warning: could not write index PAM provenance: {exc}\n")
+
+
 def build_index_only() -> None:
     """Pre-builds the CRISPRitz reference index for a genome+PAM+bulge combo.
 
@@ -1685,6 +1709,7 @@ def build_index_only() -> None:
         if code != 0 or not os.path.isdir(idx_folder):
             error(f"Reference genome indexing failed (expected {idx_folder})")
         print(f"Index built: {idx_folder}", flush=True)
+    _write_pam_build(idx_folder, pamfile)
     if not vcf_given:
         _write_display_label(idx_folder, display_name)
         print(
@@ -1788,6 +1813,7 @@ def build_index_only() -> None:
             error(f"Indels indexing failed (expected {indels_idx})")
     else:
         print(f"Indels index already present: {indels_idx}", flush=True)
+    _write_pam_build(snp_idx, pamfile)
     _write_display_label(snp_idx, display_name)
     print(
         f"Variant index ready: {os.path.basename(snp_idx)} (+ _INDELS). A later "
