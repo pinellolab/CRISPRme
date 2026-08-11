@@ -1794,6 +1794,14 @@ def index_page() -> html.Div:
                         "allowed between a guide and an off-target. 3 is recommended (raise for a deeper, slower search).",
                         style={"font-size": "0.8rem", "color": "#666"},
                     ),
+                    html.P(
+                        "Note: this limit is applied during the search against the "
+                        "variant-enriched genome. A variant off-target can therefore "
+                        "appear with a slightly higher mismatch+bulge count in the "
+                        "results (its count is reported against the reference); "
+                        "reference off-targets always stay within the limit.",
+                        style={"font-size": "0.75rem", "color": "#888", "font-style": "italic"},
+                    ),
                 ],
                 style={"max-width": "420px", "margin-bottom": "12px"},
             ),
