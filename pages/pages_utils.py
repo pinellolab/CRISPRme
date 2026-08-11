@@ -1249,7 +1249,7 @@ def _friendly_index_label(name: str) -> str:
     """Human label for a genome_library index dir ``<motif>_<bMax+1>_<genome>[+<dataset>]``.
 
     e.g. ``NGG_3_hg38+hg38_1000G_HGDP`` -> "NGG · hg38 + 1000G_HGDP (≤2 bulges)";
-    ``NNN_3_hg38+...`` adds "pamless — serves any PAM". Falls back to the raw name.
+    ``NNN_3_hg38+...`` adds "pamless — any same-length PAM". Falls back to the raw name.
     """
     parts = name.split("_", 2)
     if len(parts) < 3 or not parts[1].isdigit():
@@ -1261,7 +1261,10 @@ def _friendly_index_label(name: str) -> str:
         dataset = dataset[len(genome) + 1:]
     label = motif
     if motif and set(motif) == {"N"}:
-        label += " (pamless — serves any PAM)"
+        # pamless serves any PAM *of the same length + orientation* it was built
+        # for (a k-mer index can't search a longer / opposite-orientation PAM) —
+        # the exact source PAM is appended separately as "· PAM: <name>".
+        label += " (pamless — any same-length PAM)"
     label += f" · {genome}"
     if dataset:
         label += f" + {dataset}"
