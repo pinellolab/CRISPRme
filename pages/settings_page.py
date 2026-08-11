@@ -996,6 +996,19 @@ def _start(job_id: str):
     return job_id, False, ""
 
 
+def _fb_refresh(msg, refresh: bool = False):
+    """(feedback, tables, storage) triple for a synchronous add.
+
+    On success (``refresh=True``) re-renders the installed-data tables + storage so
+    the new item shows immediately without a page reload; otherwise leaves them
+    untouched. (The search form + these tables also rebuild whenever the page is
+    revisited, so navigation alone already surfaces new data.)
+    """
+    if refresh:
+        return msg, _render_all_tables(), _render_storage()
+    return msg, no_update, no_update
+
+
 @app.callback(
     [
         Output("settings-active-job", "data", allow_duplicate=True),
@@ -1169,7 +1182,11 @@ def add_vcf(n, name, source, path, hf_name, ref_genome):
 
 
 @app.callback(
-    Output("annotation-feedback", "children"),
+    [
+        Output("annotation-feedback", "children"),
+        Output("settings-tables-container", "children", allow_duplicate=True),
+        Output("settings-storage", "children", allow_duplicate=True),
+    ],
     [Input("annotation-upload", "contents")],
     [State("annotation-upload", "filename")],
     prevent_initial_call=True,
@@ -1178,10 +1195,10 @@ def add_annotation(contents, filename):
     if contents is None or ONLINE:
         raise PreventUpdate
     if not filename or not filename.endswith(".bed"):
-        return "Please upload a .bed file."
+        return _fb_refresh("Please upload a .bed file.")
     err = _validate_name(filename[:-4])
     if err:
-        return err
+        return _fb_refresh(err)
     try:
         _content_type, content_string = contents.split(",", 1)
         data = base64.b64decode(content_string)
@@ -1190,12 +1207,19 @@ def add_annotation(contents, filename):
         with open(dest, "wb") as fout:
             fout.write(data)
     except Exception as e:
-        return f"Upload failed: {e}"
-    return f"Added annotation '{filename}'. Reload the page to see it in the list."
+        return _fb_refresh(f"Upload failed: {e}")
+    return _fb_refresh(
+        html.Span(f"Added annotation '{filename}'.", style={"color": "green"}),
+        refresh=True,
+    )
 
 
 @app.callback(
-    Output("pam-feedback", "children"),
+    [
+        Output("pam-feedback", "children"),
+        Output("settings-tables-container", "children", allow_duplicate=True),
+        Output("settings-storage", "children", allow_duplicate=True),
+    ],
     [Input("pam-add-btn", "n_clicks")],
     [
         State("pam-name", "value"),
@@ -1210,17 +1234,17 @@ def add_pam(n, name, length, motif, position):
         raise PreventUpdate
     err = _validate_name(name or "")
     if err:
-        return err
+        return _fb_refresh(err)
     name = name.strip()
     if "-" in name:
-        return "Nuclease name must not contain a hyphen."
+        return _fb_refresh("Nuclease name must not contain a hyphen.")
     if not motif or any(c not in "ACGTRYSWKMBDHVN" for c in motif.upper()):
-        return "Motif must be IUPAC nucleotide letters (e.g. NGG, TTTV)."
+        return _fb_refresh("Motif must be IUPAC nucleotide letters (e.g. NGG, TTTV).")
     motif = motif.upper()
     try:
         glen = int(length)
     except (TypeError, ValueError):
-        return "Guide length must be a number."
+        return _fb_refresh("Guide length must be a number.")
     # compose the CRISPRme PAM token exactly like the built-in PAM files
     if position == "3":  # PAM at 3' end (Cas9-like): guide then motif
         token = "N" * glen + motif
@@ -1234,10 +1258,9 @@ def add_pam(n, name, length, motif, position):
         with open(os.path.join(current_working_directory, "PAMs", filename), "w") as fout:
             fout.write(f"{token} {pos}\n")
     except OSError as e:
-        return f"Could not write PAM: {e}"
-    return html.Span(
-        f"Added PAM '{filename}'. Reload the page to use it in a search.",
-        style={"color": "green"},
+        return _fb_refresh(f"Could not write PAM: {e}")
+    return _fb_refresh(
+        html.Span(f"Added PAM '{filename}'.", style={"color": "green"}), refresh=True
     )
 
 
