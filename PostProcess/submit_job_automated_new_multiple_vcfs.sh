@@ -432,6 +432,70 @@ while read vcf_f; do
 	fi
 	# END STEP 2 - genome indexing
 
+	# --- RAM safety guard on the search thread count ---------------------------
+	# A CRISPRitz search holds ~per-thread alignment state in RAM; a pamless
+	# (all-N PAM, e.g. NNN) genome-wide search is far heavier (empirically ~5GB
+	# base + ~2.1GB/thread; 96 threads peaked at ~208GB) because every position is
+	# a candidate. On a machine with less RAM than the requested threads imply,
+	# that OOM-kills the search. Cap $ncpus to what available memory supports so a
+	# user can't accidentally request more threads than they have memory for.
+	# Escape hatches: CRISPRME_MAX_SEARCH_THREADS=<n> forces a ceiling;
+	# CRISPRME_NO_THREAD_GUARD=1 disables the guard entirely.
+	if [ "${CRISPRME_NO_THREAD_GUARD:-0}" != "1" ] && [ -r /proc/meminfo ]; then
+		avail_mb=$(awk '/MemAvailable/{printf "%d", $2/1024}' /proc/meminfo)
+		if ! [ "${avail_mb:-0}" -gt 0 ] 2>/dev/null; then
+			# no MemAvailable field (old kernels / some containers): we can't size a
+			# safe cap, so DON'T mis-cap to 1 thread -- skip the guard, run as asked.
+			echo -e "Thread guard\tskipped (MemAvailable unreadable); running at requested $ncpus thread(s)" >>$log
+		else
+			# detect a pamless PAM: the PAM portion of the motif is all N
+			pam_line=$(head -1 "$pam_file")
+			pam_seq=$(echo "$pam_line" | awk '{print $1}')
+			pam_pos=$(echo "$pam_line" | awk '{print $2}')
+			if [ "$pam_pos" -lt 0 ]; then
+				n=$((-pam_pos)); motif=${pam_seq:0:n}
+			else
+				motif=${pam_seq: -pam_pos}
+			fi
+			case "$motif" in
+				*[!Nn]*) pamless=0 ;;   # has a real PAM base -> constrained search
+				*)       pamless=1 ;;   # all-N PAM -> pamless (memory-heavy)
+			esac
+			# per-thread + fixed (index-load) footprint estimates (MB)
+			if [ "$pamless" -eq 1 ]; then
+				per_thread_mb=2200; base_mb=12000
+			else
+				per_thread_mb=800;  base_mb=4000
+			fi
+			# ref + variant searches run in PARALLEL, each loading its own index, so
+			# count the fixed footprint once per concurrent search (2x for a variant
+			# search, 1x for reference-only).
+			base_total=$base_mb
+			[ "$vcf_name" != "_" ] && base_total=$((base_mb * 2))
+			reserve_mb=4000  # headroom for the OS + downstream post-analysis
+			budget_mb=$((avail_mb - reserve_mb - base_total))
+			if [ "$budget_mb" -lt "$per_thread_mb" ]; then
+				safe_ncpus=1
+			else
+				safe_ncpus=$((budget_mb / per_thread_mb))
+			fi
+			[ "$safe_ncpus" -lt 1 ] && safe_ncpus=1
+			if [ "$safe_ncpus" -lt "$ncpus" ]; then
+				kind="standard"; [ "$pamless" -eq 1 ] && kind="pamless (memory-heavy)"
+				echo -e "Thread guard\tCapping search threads $ncpus -> $safe_ncpus to fit available memory (~$((avail_mb/1024))GB free, $kind PAM)" >>$log
+				echo "NOTE: capping search threads $ncpus -> $safe_ncpus to fit ~$((avail_mb/1024))GB free RAM ($kind PAM). Override with CRISPRME_MAX_SEARCH_THREADS / CRISPRME_NO_THREAD_GUARD=1."
+				ncpus=$safe_ncpus
+			fi
+		fi
+	fi
+	# hard user-supplied ceiling (applies with or without the RAM guard)
+	if [ -n "${CRISPRME_MAX_SEARCH_THREADS:-}" ] && [ "$CRISPRME_MAX_SEARCH_THREADS" -ge 1 ] 2>/dev/null; then
+		if [ "$CRISPRME_MAX_SEARCH_THREADS" -lt "$ncpus" ]; then
+			echo "NOTE: capping search threads $ncpus -> $CRISPRME_MAX_SEARCH_THREADS (CRISPRME_MAX_SEARCH_THREADS)."
+			ncpus=$CRISPRME_MAX_SEARCH_THREADS
+		fi
+	fi
+
 	#ceil npcus to use 1/2 of cpus per search
 	ceiling_result=$((($ncpus) / 2))
 	#if ceiling is 0, set ceiling to 1

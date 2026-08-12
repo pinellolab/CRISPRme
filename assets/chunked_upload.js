@@ -46,7 +46,7 @@
           var pct = Math.round((idx / total) * 100);
           prog.textContent = "Uploading... " + pct + "%";
           if (res.text.indexOf("complete") === 0) {
-            prog.textContent = "Upload complete. Reload the page to see it.";
+            prog.textContent = "Upload complete. It appears in the search form and in Settings when you revisit the page.";
             btn.disabled = false;
             return;
           }

@@ -30,6 +30,7 @@ from .pages_utils import (
     get_available_CAS,
     get_all_vcf_datasets,
     get_custom_annotations,
+    index_build_pam,
 )
 
 from dash import Input, Output, State, html, dcc, no_update
@@ -46,8 +47,15 @@ import base64
 import shutil
 import gzip
 import os
+import time
 
 SETTINGS_DIR = "Settings"
+# a running job with no log activity for this long is treated as dead (worker
+# killed/OOM without writing End/FAILED) so the progress panel stops spinning.
+_JOB_STALE_SECONDS = 1800
+# per-file browser-upload ceiling — bounds a chunked upload so it can't fill the
+# disk (large VCF panels should come server-side via HF, not the browser).
+_MAX_UPLOAD_BYTES = 50 * 1024**3
 
 
 # ---------------------------------------------------------------------------
@@ -128,9 +136,22 @@ def _settings_upload_chunk():
         return ("bad chunk headers", 400)
     if target not in ("genome", "vcf", "annotation") or not name or ".." in name:
         return ("bad target or file name", 400)
+    # validate the destination name on the FIRST chunk so a bad name fails now,
+    # not after a multi-GB upload has already streamed to disk
+    if idx == 0 and target == "vcf":
+        verr = _validate_name(dataset)
+        if verr:
+            return (f"invalid dataset name: {verr}", 400)
     part = os.path.join(_uploads_dir(), name + ".part")
     with open(part, "wb" if idx == 0 else "ab") as fout:
         fout.write(request.get_data())
+    # size ceiling: never let an unbounded upload fill the disk
+    try:
+        if os.path.getsize(part) > _MAX_UPLOAD_BYTES:
+            os.remove(part)
+            return (f"upload exceeds the {_fmt_size(_MAX_UPLOAD_BYTES)} limit", 413)
+    except OSError:
+        pass
     if idx + 1 >= total:  # last chunk -> finalize
         try:
             result = _finalize_upload(target, part, name, dataset, genome)
@@ -169,8 +190,25 @@ def _run_settings_job(cmd: str, jobdir: str, stage: str) -> None:
     logerr = os.path.join(jobdir, "log_error.txt")
     logverb = os.path.join(jobdir, "log_verbose.txt")
     try:
+        # mark the actual subprocess start (launch_settings_job wrote "Queued" at
+        # submit time; the single-slot executor may hold it queued for a while).
+        with open(logtxt, "a") as lt:
+            lt.write(f"{stage}\tStart\n")
         with open(logverb, "w") as vout, open(logerr, "w") as eout:
-            rc = subprocess.call(cmd, shell=True, stdout=vout, stderr=eout)
+            proc = subprocess.Popen(cmd, shell=True, stdout=vout, stderr=eout)
+            # heartbeat: bump log.txt's mtime every 60s while the subprocess runs
+            # so refresh_settings_job's stale detector doesn't mistake a long,
+            # output-quiet stage (e.g. a big extraction) for a dead worker.
+            while True:
+                try:
+                    proc.wait(timeout=60)
+                    break
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.utime(logtxt, None)
+                    except OSError:
+                        pass
+            rc = proc.returncode
         with open(logtxt, "a") as lt:
             lt.write(f"{stage}\tEnd\n" if rc == 0 else f"{stage}\tFAILED\n")
     except Exception as e:  # pragma: no cover - defensive
@@ -188,8 +226,10 @@ def launch_settings_job(argv: List[str], stage: str) -> str:
     job_id = _new_job_id()
     jobdir = os.path.join(current_working_directory, SETTINGS_DIR, job_id)
     os.makedirs(jobdir, exist_ok=True)
+    # "Queued" at submit time; _run_settings_job appends "Start" when the single-slot
+    # executor actually begins running it, so the banner can distinguish the two.
     with open(os.path.join(jobdir, "log.txt"), "w") as lt:
-        lt.write(f"{stage}\tStart\n")
+        lt.write(f"{stage}\tQueued\n")
     # crisprme.py is on PATH inside the activated env; append --path so data
     # lands under the app's working directory.
     quoted = " ".join(_shlex_quote(a) for a in argv)
@@ -291,6 +331,35 @@ def _fmt_size(n: float) -> str:
             return f"{int(n)} B" if unit == "B" else f"{n:.1f} {unit}"
         n /= 1024
     return f"{n:.1f} TB"
+
+
+def _catalog_size(component: str, name: str) -> int:
+    """Download size (bytes) of a HuggingFace catalog item, 0 if unknown."""
+    for item in _hf_catalog(component):
+        if item.get("name") == name:
+            return int(item.get("size", 0) or 0)
+    return 0
+
+
+def _preflight_disk(need_bytes: int) -> Optional[str]:
+    """Error string if free disk can't fit a download + its unpack, else None.
+
+    Index/genome/VCF archives unpack to ~2x their compressed size, so require ~3x
+    the download size (plus a 5 GB floor for unknown sizes) — refusing up front
+    beats an opaque mid-download 'disk full'. Never blocks when free space can't be
+    determined.
+    """
+    try:
+        free = shutil.disk_usage(current_working_directory).free
+    except OSError:
+        return None
+    required = max(int(need_bytes) * 3, 5 * 1024**3) if need_bytes else 5 * 1024**3
+    if free < required:
+        return (
+            f"Not enough free disk for this download: need ~{_fmt_size(required)}, "
+            f"have {_fmt_size(free)} free. Free up space and try again."
+        )
+    return None
 
 
 # HuggingFace catalog (what is available to download), fetched once per app run.
@@ -419,22 +488,124 @@ def _deletable_options() -> List:
         opts.append({"label": f"VCF dataset: {v['value']}", "value": f"vcf:{v['value']}"})
     for a in get_custom_annotations():
         opts.append({"label": f"Annotation: {a['value']}", "value": f"annotation:{a['value']}"})
+    for pm in get_available_PAM():
+        opts.append({"label": f"PAM: {pm['value']}", "value": f"pam:{pm['value']}"})
     return opts
 
 
-def _delete_path(kind: str, name: str) -> str:
-    """Resolve the on-disk path for a '<type>:<name>' deletable item."""
+def _delete_targets(kind: str, name: str) -> List[str]:
+    """All on-disk paths to remove for a '<type>:<name>' item, incl. companions.
+
+    Deleting an INDEX also removes its ``_INDELS`` indel-genome companion (which the
+    UI hides but which can be many GB — e.g. ~15 GB for the pamless index) and any
+    naming-alias symlinks that resolve into either, so no orphaned index is left
+    behind. Deleting a VCF dataset also drops its ``.refgenome`` marker. Names are
+    basename-guarded against path traversal.
+    """
     name = os.path.basename(name)  # never allow traversal
-    roots = {
-        "genome": ("Genomes", name),
-        "index": ("genome_library", name),
-        "vcf": ("VCFs", name),
-        "annotation": ("Annotations", name),
-    }
-    if kind not in roots:
-        raise ValueError(f"unknown data type {kind!r}")
-    sub, leaf = roots[kind]
-    return os.path.join(current_working_directory, sub, leaf)
+    cwd = current_working_directory
+    if kind == "genome":
+        return [os.path.join(cwd, "Genomes", name)]
+    if kind == "index":
+        lib = os.path.join(cwd, "genome_library")
+        targets = [os.path.join(lib, name), os.path.join(lib, name + "_INDELS")]
+        # also drop any sibling symlink that aliases one of these (naming
+        # reconciliation links), computed BEFORE deletion so realpath still resolves
+        real = {os.path.realpath(t) for t in targets}
+        try:
+            for d in os.listdir(lib):
+                p = os.path.join(lib, d)
+                if os.path.islink(p) and p not in targets and os.path.realpath(p) in real:
+                    targets.append(p)
+        except OSError:
+            pass
+        return targets
+    if kind == "vcf":
+        return [
+            os.path.join(cwd, "VCFs", name),
+            os.path.join(cwd, "VCFs", f".{name}.refgenome"),  # marker sidecar
+        ]
+    if kind == "annotation":
+        return [os.path.join(cwd, "Annotations", name)]
+    if kind == "pam":
+        leaf = name if name.endswith(".txt") else name + ".txt"
+        return [os.path.join(cwd, "PAMs", leaf)]
+    raise ValueError(f"unknown data type {kind!r}")
+
+
+def _delete_dependents(kind: str, name: str) -> str:
+    """Warning about installed data that DEPENDS ON this item and would break.
+
+    The data types are linked: an index is built with a PAM and against a genome;
+    a variant index is built against a VCF dataset. Deleting the thing they depend
+    on breaks searches that use them, so surface it in the confirmation. Returns ''
+    when nothing depends on the item.
+    """
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib):
+        return ""
+    idx_dirs = [
+        d
+        for d in sorted(os.listdir(lib))
+        if not d.endswith("_INDELS") and os.path.isdir(os.path.join(lib, d))
+    ]
+    dependents = []
+    if kind == "pam":
+        # indexes whose .pam_build provenance names this PAM
+        dependents = [
+            d for d in idx_dirs if index_build_pam(os.path.join(lib, d))[0] == name
+        ]
+        what = "built with this PAM"
+    elif kind == "genome":
+        # indexes for this genome (<motif>_<N>_<genome>[+<vcf>])
+        dependents = [
+            d
+            for d in idx_dirs
+            if len(d.split("_", 2)) == 3 and d.split("_", 2)[2].split("+")[0] == name
+        ]
+        what = "built on this genome"
+    elif kind == "vcf":
+        # variant indexes for this dataset (…+<vcf> or …+<genome>_<vcf>)
+        # exact match on the index's vcf segment (the folder name after '+'), so
+        # deleting "1000G" doesn't over-warn on an index built from "HGDP_1000G"
+        dependents = [d for d in idx_dirs if "+" in d and d.split("+", 1)[1] == name]
+        what = "built from this VCF dataset"
+    if not dependents:
+        return ""
+    shown = ", ".join(dependents[:3]) + ("…" if len(dependents) > 3 else "")
+    return (
+        f"\n\n⚠ {len(dependents)} installed index(es) were {what} "
+        f"({shown}); searches using them will break until you re-add it."
+    )
+
+
+def _delete_summary(item: str) -> str:
+    """Human confirmation message for a '<type>:<name>' item: what + how much."""
+    kind, _sep, name = item.partition(":")
+    try:
+        targets = _delete_targets(kind, name)
+    except ValueError:
+        return "Delete this item? This cannot be undone."
+    total, has_indels = 0, False
+    for t in targets:
+        if os.path.islink(t) or not os.path.exists(t):
+            continue
+        if t.endswith("_INDELS"):
+            has_indels = True
+        total += _dir_size(t) if os.path.isdir(t) else os.path.getsize(t)
+    label = {
+        "genome": "reference genome",
+        "index": "index",
+        "vcf": "VCF dataset",
+        "annotation": "annotation",
+        "pam": "PAM",
+    }.get(kind, kind)
+    extra = " (with its _INDELS companion)" if kind == "index" and has_indels else ""
+    return (
+        f"Delete {label} “{name}”{extra}?\n\nThis frees about {_fmt_size(total)} and "
+        f"cannot be undone — you can download or rebuild it later."
+        + _delete_dependents(kind, name)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -567,16 +738,35 @@ def settings_page() -> List:
             html.Hr(),
             html.B("Build an index locally"),
             dbc.Row(
-                dbc.Col(
-                    dcc.Dropdown(
-                        id="index-build-vcf",
-                        options=[{"label": "(reference only — no variants)", "value": ""}]
-                        + get_all_vcf_datasets(),
-                        value="",
-                        clearable=False,
+                [
+                    dbc.Col(
+                        [
+                            html.Small("Variants"),
+                            dcc.Dropdown(
+                                id="index-build-vcf",
+                                options=[
+                                    {"label": "(reference only — no variants)", "value": ""}
+                                ]
+                                + get_all_vcf_datasets(),
+                                value="",
+                                clearable=False,
+                            ),
+                        ],
+                        width=6,
                     ),
-                    width=6,
-                ),
+                    dbc.Col(
+                        [
+                            html.Small("Display name (optional)"),
+                            dcc.Input(
+                                id="index-build-name",
+                                type="text",
+                                placeholder="e.g. SpCas9 · hg38 (leave blank for auto)",
+                                style={"width": "100%"},
+                            ),
+                        ],
+                        width=6,
+                    ),
+                ],
                 style={"margin-bottom": "0.4rem"},
             ),
             html.Small(
@@ -922,6 +1112,19 @@ def _start(job_id: str):
     return job_id, False, ""
 
 
+def _fb_refresh(msg, refresh: bool = False):
+    """(feedback, tables, storage) triple for a synchronous add.
+
+    On success (``refresh=True``) re-renders the installed-data tables + storage so
+    the new item shows immediately without a page reload; otherwise leaves them
+    untouched. (The search form + these tables also rebuild whenever the page is
+    revisited, so navigation alone already surfaces new data.)
+    """
+    if refresh:
+        return msg, _render_all_tables(), _render_storage()
+    return msg, no_update, no_update
+
+
 @app.callback(
     [
         Output("settings-active-job", "data", allow_duplicate=True),
@@ -950,6 +1153,9 @@ def add_genome(n, assembly, source, url, hf_name):
         if not url:
             return no_update, no_update, "Direct URL source requires a URL."
         argv += ["--url", url.strip()]
+    derr = _preflight_disk(_catalog_size("genome", assembly.strip()) if source == "hf" else 0)
+    if derr:
+        return no_update, no_update, derr
     return _start(launch_settings_job(argv, "Download genome"))
 
 
@@ -972,6 +1178,9 @@ def add_index_hf(n, name):
         return no_update, no_update, "Pick an index from the HuggingFace list."
     if any(c in name for c in ("/", "\\", " ", "..")):
         return no_update, no_update, "Invalid index name."
+    derr = _preflight_disk(_catalog_size("index", name.strip()))
+    if derr:
+        return no_update, no_update, derr
     argv = ["download", "--what", "index", "--index-name", name.strip()]
     return _start(launch_settings_job(argv, "Download index"))
 
@@ -989,10 +1198,11 @@ def add_index_hf(n, name):
         State("index-build-bdna", "value"),
         State("index-build-brna", "value"),
         State("index-build-vcf", "value"),
+        State("index-build-name", "value"),
     ],
     prevent_initial_call=True,
 )
-def build_index(n, genome, pam, bdna, brna, vcf):
+def build_index(n, genome, pam, bdna, brna, vcf, display_name):
     if n is None or ONLINE:
         raise PreventUpdate
     if not genome or not pam:
@@ -1023,6 +1233,11 @@ def build_index(n, genome, pam, bdna, brna, vcf):
     if vcf:  # pre-build a variant-aware index (enrichment + SNP/indels indexing)
         argv += ["--vcf", os.path.join(current_working_directory, "VCFs", vcf)]
         stage = "Build variant index"
+    if display_name and display_name.strip():
+        # optional human label; build_index_only writes it to a .display_label
+        # sidecar so the index list / search form shows it instead of the
+        # auto-generated <motif>_<N>_<genome> convention.
+        argv += ["--name", display_name.strip()]
     return _start(launch_settings_job(argv, stage))
 
 
@@ -1031,6 +1246,8 @@ def build_index(n, genome, pam, bdna, brna, vcf):
         Output("settings-active-job", "data", allow_duplicate=True),
         Output("settings-check", "disabled", allow_duplicate=True),
         Output("vcf-feedback", "children"),
+        Output("settings-tables-container", "children", allow_duplicate=True),
+        Output("settings-storage", "children", allow_duplicate=True),
     ],
     [Input("vcf-add-btn", "n_clicks")],
     [
@@ -1049,37 +1266,59 @@ def add_vcf(n, name, source, path, hf_name, ref_genome):
         name = hf_name
     err = _validate_name(name or "")
     if err:
-        return no_update, no_update, err
+        return no_update, no_update, err, no_update, no_update
     if not ref_genome:
         return (
             no_update,
             no_update,
             "Select the reference genome this VCF is called against.",
+            no_update,
+            no_update,
         )
     name = name.strip()
+    if source == "hf":
+        derr = _preflight_disk(_catalog_size("vcf", name))
+        if derr:  # refuse before writing the marker so nothing is orphaned
+            return no_update, no_update, derr, no_update, no_update
     # record the reference genome so the search form only pairs this VCF with it
     _write_vcf_marker(name, ref_genome)
     if source == "hf":
+        # a background download job; its tables refresh when refresh_settings_job
+        # sees it finish
         argv = ["download", "--what", "vcf", "--dataset", name]
-        return _start(launch_settings_job(argv, "Download VCF"))
+        job, disabled, feedback = _start(launch_settings_job(argv, "Download VCF"))
+        return job, disabled, feedback, no_update, no_update
     # register an existing server folder by symlinking it under VCFs/<name>
     if not path or not os.path.isdir(path):
-        return no_update, no_update, "Provide an absolute path to an existing folder."
+        return (
+            no_update,
+            no_update,
+            "Provide an absolute path to an existing folder.",
+            no_update,
+            no_update,
+        )
     try:
         dest = os.path.join(current_working_directory, "VCFs", name)
         if not os.path.exists(dest):
             os.symlink(os.path.abspath(path), dest)
     except OSError as e:
-        return no_update, no_update, f"Could not register folder: {e}"
+        return no_update, no_update, f"Could not register folder: {e}", no_update, no_update
+    # synchronous register -> refresh the installed tables + storage immediately
     return (
         no_update,
         no_update,
         f"Registered VCF dataset '{name}' for {ref_genome}.",
+        _render_all_tables(),
+        _render_storage(),
     )
 
 
 @app.callback(
-    Output("annotation-feedback", "children"),
+    [
+        Output("annotation-feedback", "children"),
+        Output("settings-tables-container", "children", allow_duplicate=True),
+        Output("settings-storage", "children", allow_duplicate=True),
+    ],
     [Input("annotation-upload", "contents")],
     [State("annotation-upload", "filename")],
     prevent_initial_call=True,
@@ -1088,10 +1327,10 @@ def add_annotation(contents, filename):
     if contents is None or ONLINE:
         raise PreventUpdate
     if not filename or not filename.endswith(".bed"):
-        return "Please upload a .bed file."
+        return _fb_refresh("Please upload a .bed file.")
     err = _validate_name(filename[:-4])
     if err:
-        return err
+        return _fb_refresh(err)
     try:
         _content_type, content_string = contents.split(",", 1)
         data = base64.b64decode(content_string)
@@ -1100,12 +1339,19 @@ def add_annotation(contents, filename):
         with open(dest, "wb") as fout:
             fout.write(data)
     except Exception as e:
-        return f"Upload failed: {e}"
-    return f"Added annotation '{filename}'. Reload the page to see it in the list."
+        return _fb_refresh(f"Upload failed: {e}")
+    return _fb_refresh(
+        html.Span(f"Added annotation '{filename}'.", style={"color": "green"}),
+        refresh=True,
+    )
 
 
 @app.callback(
-    Output("pam-feedback", "children"),
+    [
+        Output("pam-feedback", "children"),
+        Output("settings-tables-container", "children", allow_duplicate=True),
+        Output("settings-storage", "children", allow_duplicate=True),
+    ],
     [Input("pam-add-btn", "n_clicks")],
     [
         State("pam-name", "value"),
@@ -1120,17 +1366,17 @@ def add_pam(n, name, length, motif, position):
         raise PreventUpdate
     err = _validate_name(name or "")
     if err:
-        return err
+        return _fb_refresh(err)
     name = name.strip()
     if "-" in name:
-        return "Nuclease name must not contain a hyphen."
+        return _fb_refresh("Nuclease name must not contain a hyphen.")
     if not motif or any(c not in "ACGTRYSWKMBDHVN" for c in motif.upper()):
-        return "Motif must be IUPAC nucleotide letters (e.g. NGG, TTTV)."
+        return _fb_refresh("Motif must be IUPAC nucleotide letters (e.g. NGG, TTTV).")
     motif = motif.upper()
     try:
         glen = int(length)
     except (TypeError, ValueError):
-        return "Guide length must be a number."
+        return _fb_refresh("Guide length must be a number.")
     # compose the CRISPRme PAM token exactly like the built-in PAM files
     if position == "3":  # PAM at 3' end (Cas9-like): guide then motif
         token = "N" * glen + motif
@@ -1144,10 +1390,9 @@ def add_pam(n, name, length, motif, position):
         with open(os.path.join(current_working_directory, "PAMs", filename), "w") as fout:
             fout.write(f"{token} {pos}\n")
     except OSError as e:
-        return f"Could not write PAM: {e}"
-    return html.Span(
-        f"Added PAM '{filename}'. Reload the page to use it in a search.",
-        style={"color": "green"},
+        return _fb_refresh(f"Could not write PAM: {e}")
+    return _fb_refresh(
+        html.Span(f"Added PAM '{filename}'.", style={"color": "green"}), refresh=True
     )
 
 
@@ -1182,6 +1427,7 @@ if MAINTAINER_MODE:
         Output("settings-check", "disabled"),
         Output("settings-tables-container", "children"),
         Output("settings-storage", "children"),
+        Output("settings-active-job", "data", allow_duplicate=True),
     ],
     [Input("settings-check", "n_intervals")],
     [State("settings-active-job", "data")],
@@ -1190,28 +1436,29 @@ if MAINTAINER_MODE:
 def refresh_settings_job(n, job_id):
     if not job_id:
         raise PreventUpdate
-    logtxt = os.path.join(current_working_directory, SETTINGS_DIR, job_id, "log.txt")
+    jobdir = os.path.join(current_working_directory, SETTINGS_DIR, job_id)
+    logtxt = os.path.join(jobdir, "log.txt")
     if not os.path.isfile(logtxt):
         raise PreventUpdate
     with open(logtxt) as handle:
         log = handle.read()
-    # find the stage name from the Start marker
+    # stage name comes from the first marker (Queued or Start)
     stage = "Operation"
     for line in log.splitlines():
-        if "\tStart" in line:
+        if "\t" in line:
             stage = line.split("\t")[0]
             break
     if f"{stage}\tEnd" in log:
-        # success: stop polling and refresh the installed-data tables + storage
+        # success: stop polling, clear the active job, refresh tables + storage
         return (
             html.Div(f"{stage}: done.", style={"color": "green"}),
             True,
             _render_all_tables(),
             _render_storage(),
+            None,
         )
     if f"{stage}\tFAILED" in log:
-        logerr = os.path.join(current_working_directory, SETTINGS_DIR, job_id, "log_error.txt")
-        tail = _error_tail(logerr)
+        tail = _error_tail(os.path.join(jobdir, "log_error.txt"))
         return (
             html.Div(
                 [html.Div(f"{stage}: failed.", style={"color": "#b00"}), html.Small(tail)]
@@ -1219,8 +1466,41 @@ def refresh_settings_job(n, job_id):
             True,
             no_update,
             no_update,
+            None,
         )
-    # still running
+    if f"{stage}\tStart" not in log:
+        # submitted but the single-slot executor hasn't started it yet
+        return (
+            html.Div([dbc.Spinner(size="sm"), html.Span(f"  {stage}: queued...")]),
+            False,
+            no_update,
+            no_update,
+            no_update,
+        )
+    # running: guard against a worker that died without writing End/FAILED (OOM /
+    # killed) — if none of the job's log files have been touched for a long while,
+    # stop polling and point the user at the logs instead of spinning forever.
+    newest = 0.0
+    for fn in ("log.txt", "log_verbose.txt", "log_error.txt"):
+        fp = os.path.join(jobdir, fn)
+        if os.path.isfile(fp):
+            newest = max(newest, os.path.getmtime(fp))
+    if newest and (time.time() - newest) > _JOB_STALE_SECONDS:
+        return (
+            html.Div(
+                [
+                    html.Div(f"{stage}: no recent activity.", style={"color": "#b00"}),
+                    html.Small(
+                        "The job may have stopped. Check the logs under Settings/; "
+                        "re-launch if needed."
+                    ),
+                ]
+            ),
+            True,
+            no_update,
+            no_update,
+            None,
+        )
     return (
         html.Div(
             [
@@ -1231,14 +1511,41 @@ def refresh_settings_job(n, job_id):
         False,
         no_update,
         no_update,
+        no_update,
     )
+
+
+# Disable the data-mutating buttons while a job is active (single-slot executor;
+# a second launch would queue behind the first and overwrite its progress view).
+# Buttons re-enable when refresh_settings_job clears settings-active-job on
+# completion. index-publish-btn is omitted (only present in maintainer mode).
+_LOCKABLE_BUTTON_IDS = [
+    "genome-add-btn",
+    "index-hf-btn",
+    "index-build-btn",
+    "vcf-add-btn",
+    "pam-add-btn",
+    "delete-btn",
+]
+
+
+@app.callback(
+    [Output(bid, "disabled") for bid in _LOCKABLE_BUTTON_IDS],
+    [Input("settings-active-job", "data")],
+    prevent_initial_call=True,
+)
+def _lock_buttons_while_busy(active_job):
+    return [bool(active_job)] * len(_LOCKABLE_BUTTON_IDS)
 
 
 # ---------------------------------------------------------------------------
 # Delete installed data
 # ---------------------------------------------------------------------------
 @app.callback(
-    Output("delete-confirm", "displayed"),
+    [
+        Output("delete-confirm", "displayed"),
+        Output("delete-confirm", "message"),
+    ],
     [Input("delete-btn", "n_clicks")],
     [State("delete-item", "value")],
     prevent_initial_call=True,
@@ -1246,7 +1553,8 @@ def refresh_settings_job(n, job_id):
 def ask_delete(n, item):
     if n is None or ONLINE or not item:
         raise PreventUpdate
-    return True  # open the confirmation dialog
+    # open the confirmation dialog with a message naming the item + size to free
+    return True, _delete_summary(item)
 
 
 @app.callback(
@@ -1264,31 +1572,35 @@ def do_delete(n, item):
         raise PreventUpdate
     kind, _sep, name = item.partition(":")
     try:
-        path = _delete_path(kind, name)
+        targets = _delete_targets(kind, name)
     except ValueError as e:
         return html.Span(str(e), style={"color": "#b00"}), no_update, no_update
-    if not os.path.exists(path) and not os.path.islink(path):
+    freed, removed = 0, 0
+    try:
+        for path in targets:
+            if os.path.islink(path):
+                os.unlink(path)  # registered folder / alias: drop only the link
+                removed += 1
+            elif os.path.isdir(path):
+                freed += _dir_size(path)
+                shutil.rmtree(path)
+                removed += 1
+            elif os.path.isfile(path):
+                freed += os.path.getsize(path)
+                os.remove(path)
+                removed += 1
+    except OSError as e:
+        return html.Span(f"Delete failed: {e}", style={"color": "#b00"}), no_update, no_update
+    if not removed:
         return (
             html.Span(f"{item} not found (already removed?).", style={"color": "#b00"}),
             _render_all_tables(),
             _render_storage(),
         )
-    freed = 0
-    try:
-        if os.path.islink(path):
-            os.unlink(path)  # a registered server folder: only drop the symlink
-        elif os.path.isdir(path):
-            freed = _dir_size(path)
-            shutil.rmtree(path)
-        else:
-            freed = os.path.getsize(path)
-            os.remove(path)
-    except OSError as e:
-        return html.Span(f"Delete failed: {e}", style={"color": "#b00"}), no_update, no_update
     return (
         html.Span(
-            f"Deleted {item} (freed {_fmt_size(freed)}). You can download it again "
-            "later.",
+            f"Deleted {item} (freed {_fmt_size(freed)}). You can download or rebuild "
+            "it later.",
             style={"color": "green"},
         ),
         _render_all_tables(),

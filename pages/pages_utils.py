@@ -1069,8 +1069,10 @@ def get_available_CAS() -> List:
     # removed .txt from filenames
     cas_files = [f.replace(".txt", "") for f in cas_files]
     # skip temporary PAMs (used during dictionary updating)
+    # nuclease is everything after "<len>bp-<motif>-", joined back so multi-hyphen
+    # names survive (e.g. "20bp-NNN-NO-PAM" -> "NO-PAM", not "NO").
     casprots = sorted(
-        casprot.split(".")[0].split("-")[2]
+        "-".join(casprot.split(".")[0].split("-")[2:])
         for casprot in cas_files
         if "tempPAM" not in casprot
     )
@@ -1107,7 +1109,10 @@ def vcf_reference_genome(dataset: str) -> Optional[str]:
     # marker lives *beside* the dataset dir (not inside), so it also covers
     # server folders registered via a symlink
     marker = os.path.join(cwd, VCFS_DIR, f".{dataset}.refgenome")
-    if os.path.isfile(marker):
+    # honor the marker only if the dataset dir actually exists — a marker left
+    # behind by a failed/aborted download (before the VCFs/<dataset>/ dir was
+    # created) must not pair a stale genome with a later dataset of the same name.
+    if os.path.isfile(marker) and os.path.exists(os.path.join(cwd, VCFS_DIR, dataset)):
         try:
             with open(marker) as fh:
                 g = fh.read().strip()
@@ -1234,7 +1239,14 @@ def get_available_indexes() -> List:
                 custom = open(lf).read().strip()
             except OSError:
                 custom = ""
-        indexes.append({"label": custom or _friendly_index_label(d), "value": d})
+        label = custom or _friendly_index_label(d)
+        # provenance: report the PAM the index was actually built with (from the
+        # .pam_build sidecar), so a pamless index makes clear which PAM geometry it
+        # serves rather than looking like it serves everything.
+        pam_name, _ilen, _ipos = index_build_pam(p)
+        if pam_name and pam_name not in label:
+            label = f"{label} · PAM: {pam_name}"
+        indexes.append({"label": label, "value": d})
     return indexes
 
 
@@ -1242,7 +1254,7 @@ def _friendly_index_label(name: str) -> str:
     """Human label for a genome_library index dir ``<motif>_<bMax+1>_<genome>[+<dataset>]``.
 
     e.g. ``NGG_3_hg38+hg38_1000G_HGDP`` -> "NGG · hg38 + 1000G_HGDP (≤2 bulges)";
-    ``NNN_3_hg38+...`` adds "pamless — serves any PAM". Falls back to the raw name.
+    ``NNN_3_hg38+...`` adds "pamless — any same-length PAM". Falls back to the raw name.
     """
     parts = name.split("_", 2)
     if len(parts) < 3 or not parts[1].isdigit():
@@ -1254,7 +1266,10 @@ def _friendly_index_label(name: str) -> str:
         dataset = dataset[len(genome) + 1:]
     label = motif
     if motif and set(motif) == {"N"}:
-        label += " (pamless — serves any PAM)"
+        # pamless serves any PAM *of the same length + orientation* it was built
+        # for (a k-mer index can't search a longer / opposite-orientation PAM) —
+        # the exact source PAM is appended separately as "· PAM: <name>".
+        label += " (pamless — any same-length PAM)"
     label += f" · {genome}"
     if dataset:
         label += f" + {dataset}"
@@ -1276,6 +1291,63 @@ def pam_motif(pam_value: str) -> Optional[str]:
         return seq[:n] if pos < 0 else seq[-n:]
     except (OSError, ValueError, IndexError):
         return None
+
+
+def pam_geometry(pam_value: str) -> "tuple":
+    """The search geometry (seq_len, pam_pos) of a PAM dropdown value.
+
+    A CRISPRitz index is built over k-mers of an EXACT length (guide+PAM) and a
+    fixed PAM orientation (``pos`` > 0 = 3', < 0 = 5'). Two PAMs are search-
+    compatible with the same index only if their total sequence length and
+    orientation agree. Reads PAMs/<value>.txt; returns ``(None, None)`` on error.
+    """
+    try:
+        with open(os.path.join(current_working_directory, PAMS_DIR, pam_value + ".txt")) as fh:
+            line = fh.readline()
+        seq = line.split()[0]
+        pos = int(line.split()[1])
+        return len(seq), pos
+    except (OSError, ValueError, IndexError):
+        return None, None
+
+
+def index_build_pam(index_dir: str) -> "tuple":
+    """Provenance of the PAM an index was built with, from its ``.pam_build`` sidecar.
+
+    ``build-index-only`` / the search pipeline write ``.pam_build`` into each index
+    directory as ``<pam_name> <seq_len> <pam_pos>`` so the index self-describes the
+    PAM geometry it can actually serve (see get_pam_options). Falls back to the
+    canonical 20bp-guide, 3' convention (seq_len = 20 + len(motif), pos = len(motif))
+    when the sidecar is absent — correct for the shipped indexes and any index built
+    the standard way. Returns ``(pam_name_or_None, seq_len, pam_pos)``.
+    """
+    p = os.path.join(index_dir, ".pam_build")
+    try:
+        with open(p) as fh:
+            parts = fh.readline().split()
+        return parts[0], int(parts[1]), int(parts[2])
+    except (OSError, ValueError, IndexError):
+        pass
+    # no sidecar (e.g. an index built by the search pipeline, which doesn't write
+    # one): recover the geometry from an installed PAM whose motif matches this
+    # index's motif — correct for ANY shipped PAM including 5' Cas12a and 21bp
+    # SaCas9, unlike a hardcoded 20bp/3' guess. Fall back to that convention only
+    # if no PAM matches.
+    motif = os.path.basename(index_dir).split("_")[0]
+    try:
+        pams_dir = os.path.join(current_working_directory, PAMS_DIR)
+        for f in sorted(os.listdir(pams_dir)):
+            if not f.endswith(".txt") or f.startswith("."):
+                continue
+            with open(os.path.join(pams_dir, f)) as _pf:
+                seq, pos = _pf.readline().split()[:2]
+            pos = int(pos)
+            region = seq[: abs(pos)] if pos < 0 else seq[-abs(pos) :]
+            if region == motif:
+                return os.path.splitext(f)[0], len(seq), pos
+    except (OSError, ValueError, IndexError):
+        pass
+    return None, 20 + len(motif), len(motif)
 
 
 def index_max_bulges(genome: str, pam_value: str, vcf: Optional[str] = None) -> int:
@@ -1377,6 +1449,31 @@ def get_variant_dataset_options(genome: str) -> List:
     split on '+' by the search wiring back into the individual datasets.
     """
     genome_norm = (genome or "").replace(" ", "_")
+
+    def _pam_note(dataset: str) -> str:
+        """' — PAM(s): …' suffix listing the PAM(s) this dataset's prebuilt indexes
+        were built with, so the user sees WHY only some PAMs are compatible (a
+        pamless index serves any same-length/orientation PAM; a specific index only
+        its own motif). Empty when no prebuilt index exists (any PAM is built on
+        demand)."""
+        lib = os.path.join(current_working_directory, "genome_library")
+        if not os.path.isdir(lib):
+            return ""
+        suffixes = (f"+{dataset}", f"+{genome_norm}_{dataset}")
+        tags = set()
+        for d in sorted(os.listdir(lib)):
+            if d.endswith("_INDELS") or not os.path.isdir(os.path.join(lib, d)):
+                continue
+            if not any(d.endswith(s) for s in suffixes):
+                continue
+            motif = d.split("_")[0]
+            pam_name, _ilen, _ipos = index_build_pam(os.path.join(lib, d))
+            tag = pam_name or motif
+            if motif == "N" * len(motif):
+                tag += " (pamless)"
+            tags.add(tag)
+        return f" — PAM(s): {', '.join(sorted(tags))}" if tags else ""
+
     options = [{"label": "Reference only (no variants)", "value": "ref"}]
     # Each option is ONE dataset = ONE enriched-genome/index = ONE search. A combined
     # panel (e.g. 1000G+HGDP) must be a single *merged* VCF dataset, not two datasets
@@ -1388,7 +1485,7 @@ def get_variant_dataset_options(genome: str) -> List:
     labels = {"1000G": "1000 Genomes Project (1000G)", "HGDP": "HGDP"}
     for ds in ("1000G", "HGDP"):
         if variant_dataset_present(genome_norm, ds):
-            options.append({"label": labels.get(ds, ds), "value": ds})
+            options.append({"label": labels.get(ds, ds) + _pam_note(ds), "value": ds})
     # any additional installed dataset folder for this genome (e.g. a merged panel or
     # a custom VCF registered via Settings), matched by the genome token in its name
     seen = {o["value"] for o in options}
@@ -1396,7 +1493,7 @@ def get_variant_dataset_options(genome: str) -> List:
         val = ds["value"] if isinstance(ds, dict) else ds
         core = val[len(genome_norm) + 1:] if val.startswith(genome_norm + "_") else val
         if genome_norm and genome_norm in val and core not in seen:
-            options.append({"label": core, "value": core})
+            options.append({"label": core + _pam_note(core), "value": core})
             seen.add(core)
     return options
 
@@ -1442,33 +1539,46 @@ def get_pam_options(genome: str, variant_choice: Optional[str]) -> List:
     lib = os.path.join(current_working_directory, "genome_library")
     if not os.path.isdir(lib) or not datasets:
         return all_pams
-    # collect variant-index motifs available for EVERY selected dataset
-    per_dataset_motifs = []
+    # precompute each candidate PAM's (seq_len, pos) geometry once
+    geom = {p["value"]: pam_geometry(p["value"]) for p in all_pams}
+    # For each dataset, the set of PAM values usable via SOME variant index.
+    per_dataset_ok = []
     for ds in datasets:
-        # An index is named <motif>_<N>_<genome>+<vcf_folder>. The dropdown value
-        # is the genome-stripped folder (e.g. "1000G_HGDP" for VCFs/hg38_1000G_HGDP,
-        # "1000G" for VCFs/hg38_1000G), so match BOTH the short form
-        # (<genome>+<ds>, e.g. hg38+1000G) and the full-folder form
-        # (<genome>+<genome>_<ds>, e.g. hg38+hg38_1000G_HGDP) — otherwise a combined
-        # panel's index (built under the full name) is missed and the PAM list
-        # wrongly falls back to "all".
-        # The vcf_folder is the SUFFIX after '+', so match on endswith (not
-        # substring) — else "1000G" spuriously matches "1000G_HGDP" indexes and a
-        # 1000G-alone search wrongly inherits the combined panel's pamless (=all
-        # PAMs). Accept both the genome-stripped dropdown value ("+1000G") and the
-        # full-folder form ("+hg38_1000G_HGDP").
+        # An index is named <motif>_<N>_<genome>+<vcf_folder>. The dropdown value is
+        # the genome-stripped folder (e.g. "1000G_HGDP" for VCFs/hg38_1000G_HGDP),
+        # so match BOTH the short form (<genome>+<ds>) and the full-folder form
+        # (<genome>+<genome>_<ds>) on ENDSWITH (not substring — else "1000G" would
+        # spuriously match "1000G_HGDP" indexes).
         suffixes = (f"+{ds}", f"+{genome_norm}_{ds}")
-        motifs = set()
+        ok = set()
         for d in os.listdir(lib):
             if d.endswith("_INDELS") or not os.path.isdir(os.path.join(lib, d)):
                 continue
-            if any(d.endswith(sfx) for sfx in suffixes):
-                motifs.add(d.split("_")[0])  # <motif>_<N>_<genome>+<vcf_folder>
-        per_dataset_motifs.append(motifs)
-    usable = set.intersection(*per_dataset_motifs) if per_dataset_motifs else set()
-    if any(m == "N" * len(m) for m in usable):  # pamless NNN index -> any PAM
-        return all_pams
-    return [p for p in all_pams if pam_motif(p["value"]) in usable] or all_pams
+            if not any(d.endswith(sfx) for sfx in suffixes):
+                continue
+            motif = d.split("_")[0]  # <motif>_<N>_<genome>+<vcf_folder>
+            if motif == "N" * len(motif):
+                # PAMLESS index: it serves any PAM SEQUENCE, but only of the SAME
+                # geometry it was built for — a k-mer index cannot search a longer
+                # (or 5' vs 3') PAM. So unlock only PAMs whose total length and
+                # orientation match, and whose PAM window fits (|pos| <= the index
+                # window). Geometry comes from the index's .pam_build sidecar.
+                _name, ilen, ipos = index_build_pam(os.path.join(lib, d))
+                for pv, (slen, spos) in geom.items():
+                    if slen is None:
+                        continue
+                    same_orient = (spos < 0) == (ipos < 0)
+                    if slen == ilen and same_orient and abs(spos) <= abs(ipos):
+                        ok.add(pv)
+            else:
+                # SPECIFIC index: serves exactly the PAM(s) whose motif matches (the
+                # index length matches that PAM by construction).
+                for pv in geom:
+                    if pam_motif(pv) == motif:
+                        ok.add(pv)
+        per_dataset_ok.append(ok)
+    usable = set.intersection(*per_dataset_ok) if per_dataset_ok else set()
+    return [p for p in all_pams if p["value"] in usable] or all_pams
 
 
 def get_custom_annotations() -> List:

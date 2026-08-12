@@ -37,7 +37,9 @@ import io
 import json
 import gzip
 import shutil
+import subprocess
 import tarfile
+import tempfile
 from datetime import datetime, timezone
 
 # Default HuggingFace dataset repo. Overridable per-invocation with --hf-repo or
@@ -285,32 +287,78 @@ def download_component(
                 f"build-index-only' — the repo may not have it uploaded yet."
             )
         os.makedirs(local_dir, exist_ok=True)
-        with tarfile.open(tarball) as tf:
-            # surface the provenance manifest (if present) without dropping it
-            # into genome_library/; extract only the index folder members
-            members = [m for m in tf.getmembers() if m.name != "manifest.json"]
-            tf.extractall(local_dir, members=members)  # -> genome_library/<index_name>/
-            try:
-                mf = tf.extractfile("manifest.json")
-                if mf is not None:
-                    meta = json.load(mf)
-                    sys.stderr.write(
-                        f"Downloaded index {index_name} "
-                        f"(built {meta.get('created_at', 'unknown')})\n"
+        # Extract into a HIDDEN staging dir on the SAME filesystem as
+        # genome_library, validate, then atomically rename into place. This keeps
+        # the install atomic: a partial/failed extract never leaves a discoverable
+        # <index_name>/ dir (get_available_indexes skips dot-prefixed dirs), so the
+        # UI only ever sees a complete index.
+        extract_tmp = os.path.join(local_dir, f".extract_{index_name}")
+        shutil.rmtree(extract_tmp, ignore_errors=True)
+        os.makedirs(extract_tmp)
+        try:
+            label = None
+            with tarfile.open(tarball) as tf:
+                # surface the provenance manifest (if present) without unpacking it
+                # alongside the index; extract only the index folder members
+                members = [m for m in tf.getmembers() if m.name != "manifest.json"]
+                tf.extractall(extract_tmp, members=members)
+                try:
+                    mf = tf.extractfile("manifest.json")
+                    if mf is not None:
+                        meta = json.load(mf)
+                        sys.stderr.write(
+                            f"Downloaded index {index_name} "
+                            f"(built {meta.get('created_at', 'unknown')})\n"
+                        )
+                        label = meta.get("display_label")
+                except (KeyError, json.JSONDecodeError):
+                    pass  # no/invalid manifest — the index itself is what matters
+            # validate: the archive must contain the expected index folder
+            produced = os.path.join(extract_tmp, index_name)
+            if not os.path.isdir(produced) or not os.listdir(produced):
+                raise ValueError(
+                    f"Downloaded archive for '{index_name}' did not contain the "
+                    f"expected index folder — nothing installed."
+                )
+            # a variant index (name has '+') must ship a non-empty _INDELS
+            # companion; a truncated/corrupt archive missing it would otherwise
+            # install a half-index whose indel search silently fails.
+            if "+" in index_name:
+                indels_produced = os.path.join(extract_tmp, index_name + "_INDELS")
+                if not os.path.isdir(indels_produced) or not os.listdir(indels_produced):
+                    raise ValueError(
+                        f"Downloaded archive for variant index '{index_name}' is "
+                        f"missing its _INDELS companion (incomplete/corrupt download) "
+                        f"— nothing installed."
                     )
-                    # restore the friendly display name so the UI shows it
-                    label = meta.get("display_label")
-                    if label:
-                        try:
-                            with open(
-                                os.path.join(local_dir, index_name, ".display_label"), "w"
-                            ) as lf:
-                                lf.write(label)
-                        except OSError:
-                            pass
-            except (KeyError, json.JSONDecodeError):
-                pass  # no/!invalid manifest — proceed, the index itself is what matters
-        shutil.rmtree(staging, ignore_errors=True)
+            # restore the friendly display name into the staged index before swap
+            if label:
+                try:
+                    with open(os.path.join(produced, ".display_label"), "w") as lf:
+                        lf.write(label)
+                except OSError:
+                    pass
+            # atomically swap the index and its _INDELS companion into place
+            for sub in (index_name, index_name + "_INDELS"):
+                src = os.path.join(extract_tmp, sub)
+                if not os.path.isdir(src):
+                    continue  # reference-only indexes have no _INDELS companion
+                dst = os.path.join(local_dir, sub)
+                backup = os.path.join(local_dir, f".{sub}.replaced")  # hidden -> unlisted
+                # roll forward an interrupted prior swap: if a backup exists but the
+                # live dir is gone, a previous run died between the two renames below
+                # -> restore it before we would otherwise delete it (avoids losing
+                # the only surviving copy of the index).
+                if os.path.isdir(backup) and not os.path.exists(dst):
+                    os.rename(backup, dst)
+                shutil.rmtree(backup, ignore_errors=True)
+                if os.path.exists(dst):
+                    os.rename(dst, backup)  # move any existing index aside (same FS)
+                os.rename(src, dst)  # move the new one into place (atomic, same FS)
+                shutil.rmtree(backup, ignore_errors=True)
+        finally:
+            shutil.rmtree(extract_tmp, ignore_errors=True)
+            shutil.rmtree(staging, ignore_errors=True)
         return os.path.join(local_dir, index_name)
 
     # flat components: annotations, pams, samples
@@ -332,6 +380,70 @@ def download_component(
             decompress_gz(moved)
     shutil.rmtree(staging, ignore_errors=True)
     return local_dir
+
+
+def _make_index_tarball(
+    tarball: str,
+    index_dir: str,
+    index_name: str,
+    indels_dir: str,
+    manifest: Dict,
+) -> None:
+    """Builds the one-file-per-index ``.tar.gz`` (index + _INDELS + manifest).
+
+    Prefers ``pigz`` (parallel gzip) via GNU ``tar`` so a large index compresses
+    across all cores instead of one — a 170GB pamless index tars in minutes with
+    pigz vs ~a day with single-threaded gzip. Falls back to Python's (single-
+    threaded) ``tarfile`` when ``pigz``/``tar`` are unavailable. Both paths write
+    an identical archive layout: ``<index_name>/``, optional ``<index_name>_INDELS/``,
+    and ``manifest.json`` at the archive root (see download_component's extractor).
+    """
+    manifest_bytes = json.dumps(manifest, indent=2).encode()
+    pigz = shutil.which("pigz")
+    tar = shutil.which("tar")
+    if pigz and tar:
+        # stage manifest.json in a temp dir so tar can add it at the archive root
+        # with the same "manifest.json" name the extractor expects. All three -C
+        # paths are absolute, so the multi -C chaining is order-independent.
+        tmpd = tempfile.mkdtemp(prefix="hfpub_")
+        try:
+            with open(os.path.join(tmpd, "manifest.json"), "wb") as mf:
+                mf.write(manifest_bytes)
+            parent = os.path.dirname(index_dir)
+            # -C <dir> <name> stores <name> under its basename == the desired arcname
+            inputs = ["-C", parent, index_name]
+            if os.path.isdir(indels_dir):
+                inputs += ["-C", parent, os.path.basename(indels_dir)]
+            inputs += ["-C", tmpd, "manifest.json"]
+            subprocess.check_call(
+                [tar, "--use-compress-program", pigz, "-cf", tarball, *inputs]
+            )
+            return
+        except (subprocess.CalledProcessError, OSError) as exc:
+            # this tar may not support --use-compress-program (busybox / very old),
+            # or pigz died mid-stream -> drop any partial tarball and fall through
+            # to the single-threaded Python path so publish still succeeds.
+            sys.stderr.write(
+                f"Note: parallel (pigz) compression failed ({exc}); falling back "
+                f"to single-threaded gzip.\n"
+            )
+            if os.path.exists(tarball):
+                os.remove(tarball)
+        finally:
+            shutil.rmtree(tmpd, ignore_errors=True)
+    else:
+        sys.stderr.write(
+            "Note: pigz/tar not found — compressing with single-threaded gzip "
+            "(slow for large indexes). Install pigz for parallel compression.\n"
+        )
+    # fallback: single-threaded Python tarfile (identical layout)
+    with tarfile.open(tarball, "w:gz") as tf:
+        tf.add(index_dir, arcname=index_name)  # -> genome_library/<name>/ on unpack
+        if os.path.isdir(indels_dir):
+            tf.add(indels_dir, arcname=os.path.basename(indels_dir))
+        info = tarfile.TarInfo(name="manifest.json")
+        info.size = len(manifest_bytes)
+        tf.addfile(info, io.BytesIO(manifest_bytes))
 
 
 def publish_index(
@@ -389,14 +501,7 @@ def publish_index(
     # index, not a separate artifact). download extracts both dirs into genome_library.
     indels_dir = index_dir + "_INDELS"
     tarball = f"{index_dir}.tar.gz"
-    with tarfile.open(tarball, "w:gz") as tf:
-        tf.add(index_dir, arcname=index_name)  # -> genome_library/<name>/ on unpack
-        if os.path.isdir(indels_dir):
-            tf.add(indels_dir, arcname=index_name + "_INDELS")  # -> genome_library/<name>_INDELS/
-        manifest_bytes = json.dumps(manifest, indent=2).encode()
-        info = tarfile.TarInfo(name="manifest.json")
-        info.size = len(manifest_bytes)
-        tf.addfile(info, io.BytesIO(manifest_bytes))
+    _make_index_tarball(tarball, index_dir, index_name, indels_dir, manifest)
     remote_path = f"indexes/{index_name}.tar.gz"
     api = hf.HfApi()
     api.upload_file(

@@ -1577,7 +1577,7 @@ def _default_pam(cas: Optional[str]) -> Optional[str]:
     pams = [
         p["value"]
         for p in get_available_PAM()
-        if p["value"].split(".")[0].split("-")[2] == cas
+        if "-".join(p["value"].split(".")[0].split("-")[2:]) == cas
     ]
     if not pams:
         return None
@@ -1623,7 +1623,7 @@ def index_page() -> html.Div:
     _def_pam_options = [
         p
         for p in get_available_PAM()
-        if _def_cas and p["value"].split(".")[0].split("-")[2] == _def_cas
+        if _def_cas and "-".join(p["value"].split(".")[0].split("-")[2:]) == _def_cas
     ]
     # page intro
     introduction_content = html.Div(
@@ -1793,6 +1793,14 @@ def index_page() -> html.Div:
                         "Total number of differences (mismatches + DNA/RNA bulges) "
                         "allowed between a guide and an off-target. 3 is recommended (raise for a deeper, slower search).",
                         style={"font-size": "0.8rem", "color": "#666"},
+                    ),
+                    html.P(
+                        "Note: this limit is applied during the search against the "
+                        "variant-enriched genome. A variant off-target can therefore "
+                        "appear with a slightly higher mismatch+bulge count in the "
+                        "results (its count is reported against the reference); "
+                        "reference off-targets always stay within the limit.",
+                        style={"font-size": "0.75rem", "color": "#888", "font-style": "italic"},
                     ),
                 ],
                 style={"max-width": "420px", "margin-bottom": "12px"},

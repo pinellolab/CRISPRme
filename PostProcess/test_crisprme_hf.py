@@ -6,13 +6,36 @@ network-facing calls (snapshot_download / upload_file) are covered separately by
 an end-to-end test against a populated repo once one exists.
 """
 
+import contextlib
 import gzip
+import importlib.util
 import os
 import tarfile
 import unittest
 from unittest import mock
 
 import crisprme_hf as hf
+
+# The network-free CI deliberately does NOT install huggingface_hub (see
+# unit-tests.yml). Patching "huggingface_hub.get_token" is only possible when the
+# module is importable; when it is absent, resolve_token already yields None via
+# its own ImportError fallback, so no patch is needed.
+_HAS_HF = importlib.util.find_spec("huggingface_hub") is not None
+
+
+@contextlib.contextmanager
+def _no_cached_hf_token():
+    """Neutralize a cached ``huggingface-cli login`` token for the no-token path.
+
+    A no-op when huggingface_hub is absent (resolve_token returns None on its own);
+    patches get_token to None when it is present so a logged-in dev machine can't
+    leak a real token into these tests.
+    """
+    if _HAS_HF:
+        with mock.patch("huggingface_hub.get_token", return_value=None):
+            yield
+    else:
+        yield
 
 
 class TestResolveRepo(unittest.TestCase):
@@ -51,7 +74,7 @@ class TestResolveRepo(unittest.TestCase):
     def test_token_none(self):
         # neutralize a cached `huggingface-cli login` token so the no-token path
         # is exercised even on a machine that is logged into HuggingFace
-        with mock.patch("huggingface_hub.get_token", return_value=None):
+        with _no_cached_hf_token():
             self.assertIsNone(hf.resolve_token(None))
 
 
@@ -114,7 +137,7 @@ class TestPublishValidation(unittest.TestCase):
         # real upload during the test)
         for k in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"):
             os.environ.pop(k, None)
-        with mock.patch("huggingface_hub.get_token", return_value=None):
+        with _no_cached_hf_token():
             with self.assertRaises(ValueError):
                 hf.publish_index(idx, token=None)
 
