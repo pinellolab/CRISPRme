@@ -195,7 +195,20 @@ def _run_settings_job(cmd: str, jobdir: str, stage: str) -> None:
         with open(logtxt, "a") as lt:
             lt.write(f"{stage}\tStart\n")
         with open(logverb, "w") as vout, open(logerr, "w") as eout:
-            rc = subprocess.call(cmd, shell=True, stdout=vout, stderr=eout)
+            proc = subprocess.Popen(cmd, shell=True, stdout=vout, stderr=eout)
+            # heartbeat: bump log.txt's mtime every 60s while the subprocess runs
+            # so refresh_settings_job's stale detector doesn't mistake a long,
+            # output-quiet stage (e.g. a big extraction) for a dead worker.
+            while True:
+                try:
+                    proc.wait(timeout=60)
+                    break
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.utime(logtxt, None)
+                    except OSError:
+                        pass
+            rc = proc.returncode
         with open(logtxt, "a") as lt:
             lt.write(f"{stage}\tEnd\n" if rc == 0 else f"{stage}\tFAILED\n")
     except Exception as e:  # pragma: no cover - defensive
@@ -1231,6 +1244,8 @@ def build_index(n, genome, pam, bdna, brna, vcf, display_name):
         Output("settings-active-job", "data", allow_duplicate=True),
         Output("settings-check", "disabled", allow_duplicate=True),
         Output("vcf-feedback", "children"),
+        Output("settings-tables-container", "children", allow_duplicate=True),
+        Output("settings-storage", "children", allow_duplicate=True),
     ],
     [Input("vcf-add-btn", "n_clicks")],
     [
@@ -1249,36 +1264,50 @@ def add_vcf(n, name, source, path, hf_name, ref_genome):
         name = hf_name
     err = _validate_name(name or "")
     if err:
-        return no_update, no_update, err
+        return no_update, no_update, err, no_update, no_update
     if not ref_genome:
         return (
             no_update,
             no_update,
             "Select the reference genome this VCF is called against.",
+            no_update,
+            no_update,
         )
     name = name.strip()
     if source == "hf":
         derr = _preflight_disk(_catalog_size("vcf", name))
         if derr:  # refuse before writing the marker so nothing is orphaned
-            return no_update, no_update, derr
+            return no_update, no_update, derr, no_update, no_update
     # record the reference genome so the search form only pairs this VCF with it
     _write_vcf_marker(name, ref_genome)
     if source == "hf":
+        # a background download job; its tables refresh when refresh_settings_job
+        # sees it finish
         argv = ["download", "--what", "vcf", "--dataset", name]
-        return _start(launch_settings_job(argv, "Download VCF"))
+        job, disabled, feedback = _start(launch_settings_job(argv, "Download VCF"))
+        return job, disabled, feedback, no_update, no_update
     # register an existing server folder by symlinking it under VCFs/<name>
     if not path or not os.path.isdir(path):
-        return no_update, no_update, "Provide an absolute path to an existing folder."
+        return (
+            no_update,
+            no_update,
+            "Provide an absolute path to an existing folder.",
+            no_update,
+            no_update,
+        )
     try:
         dest = os.path.join(current_working_directory, "VCFs", name)
         if not os.path.exists(dest):
             os.symlink(os.path.abspath(path), dest)
     except OSError as e:
-        return no_update, no_update, f"Could not register folder: {e}"
+        return no_update, no_update, f"Could not register folder: {e}", no_update, no_update
+    # synchronous register -> refresh the installed tables + storage immediately
     return (
         no_update,
         no_update,
         f"Registered VCF dataset '{name}' for {ref_genome}.",
+        _render_all_tables(),
+        _render_storage(),
     )
 
 

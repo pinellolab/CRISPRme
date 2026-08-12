@@ -320,6 +320,17 @@ def download_component(
                     f"Downloaded archive for '{index_name}' did not contain the "
                     f"expected index folder — nothing installed."
                 )
+            # a variant index (name has '+') must ship a non-empty _INDELS
+            # companion; a truncated/corrupt archive missing it would otherwise
+            # install a half-index whose indel search silently fails.
+            if "+" in index_name:
+                indels_produced = os.path.join(extract_tmp, index_name + "_INDELS")
+                if not os.path.isdir(indels_produced) or not os.listdir(indels_produced):
+                    raise ValueError(
+                        f"Downloaded archive for variant index '{index_name}' is "
+                        f"missing its _INDELS companion (incomplete/corrupt download) "
+                        f"— nothing installed."
+                    )
             # restore the friendly display name into the staged index before swap
             if label:
                 try:
