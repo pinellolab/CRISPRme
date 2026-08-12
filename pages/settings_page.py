@@ -566,7 +566,9 @@ def _delete_dependents(kind: str, name: str) -> str:
         what = "built on this genome"
     elif kind == "vcf":
         # variant indexes for this dataset (…+<vcf> or …+<genome>_<vcf>)
-        dependents = [d for d in idx_dirs if d.split("+", 1)[-1].endswith(name)]
+        # exact match on the index's vcf segment (the folder name after '+'), so
+        # deleting "1000G" doesn't over-warn on an index built from "HGDP_1000G"
+        dependents = [d for d in idx_dirs if "+" in d and d.split("+", 1)[1] == name]
         what = "built from this VCF dataset"
     if not dependents:
         return ""

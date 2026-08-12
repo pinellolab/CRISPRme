@@ -1339,7 +1339,8 @@ def index_build_pam(index_dir: str) -> "tuple":
         for f in sorted(os.listdir(pams_dir)):
             if not f.endswith(".txt") or f.startswith("."):
                 continue
-            seq, pos = open(os.path.join(pams_dir, f)).readline().split()[:2]
+            with open(os.path.join(pams_dir, f)) as _pf:
+                seq, pos = _pf.readline().split()[:2]
             pos = int(pos)
             region = seq[: abs(pos)] if pos < 0 else seq[-abs(pos) :]
             if region == motif:
