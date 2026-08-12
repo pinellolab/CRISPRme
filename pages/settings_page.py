@@ -30,6 +30,7 @@ from .pages_utils import (
     get_available_CAS,
     get_all_vcf_datasets,
     get_custom_annotations,
+    index_build_pam,
 )
 
 from dash import Input, Output, State, html, dcc, no_update
@@ -474,6 +475,8 @@ def _deletable_options() -> List:
         opts.append({"label": f"VCF dataset: {v['value']}", "value": f"vcf:{v['value']}"})
     for a in get_custom_annotations():
         opts.append({"label": f"Annotation: {a['value']}", "value": f"annotation:{a['value']}"})
+    for pm in get_available_PAM():
+        opts.append({"label": f"PAM: {pm['value']}", "value": f"pam:{pm['value']}"})
     return opts
 
 
@@ -517,6 +520,50 @@ def _delete_targets(kind: str, name: str) -> List[str]:
     raise ValueError(f"unknown data type {kind!r}")
 
 
+def _delete_dependents(kind: str, name: str) -> str:
+    """Warning about installed data that DEPENDS ON this item and would break.
+
+    The data types are linked: an index is built with a PAM and against a genome;
+    a variant index is built against a VCF dataset. Deleting the thing they depend
+    on breaks searches that use them, so surface it in the confirmation. Returns ''
+    when nothing depends on the item.
+    """
+    lib = os.path.join(current_working_directory, "genome_library")
+    if not os.path.isdir(lib):
+        return ""
+    idx_dirs = [
+        d
+        for d in sorted(os.listdir(lib))
+        if not d.endswith("_INDELS") and os.path.isdir(os.path.join(lib, d))
+    ]
+    dependents = []
+    if kind == "pam":
+        # indexes whose .pam_build provenance names this PAM
+        dependents = [
+            d for d in idx_dirs if index_build_pam(os.path.join(lib, d))[0] == name
+        ]
+        what = "built with this PAM"
+    elif kind == "genome":
+        # indexes for this genome (<motif>_<N>_<genome>[+<vcf>])
+        dependents = [
+            d
+            for d in idx_dirs
+            if len(d.split("_", 2)) == 3 and d.split("_", 2)[2].split("+")[0] == name
+        ]
+        what = "built on this genome"
+    elif kind == "vcf":
+        # variant indexes for this dataset (…+<vcf> or …+<genome>_<vcf>)
+        dependents = [d for d in idx_dirs if d.split("+", 1)[-1].endswith(name)]
+        what = "built from this VCF dataset"
+    if not dependents:
+        return ""
+    shown = ", ".join(dependents[:3]) + ("…" if len(dependents) > 3 else "")
+    return (
+        f"\n\n⚠ {len(dependents)} installed index(es) were {what} "
+        f"({shown}); searches using them will break until you re-add it."
+    )
+
+
 def _delete_summary(item: str) -> str:
     """Human confirmation message for a '<type>:<name>' item: what + how much."""
     kind, _sep, name = item.partition(":")
@@ -542,6 +589,7 @@ def _delete_summary(item: str) -> str:
     return (
         f"Delete {label} “{name}”{extra}?\n\nThis frees about {_fmt_size(total)} and "
         f"cannot be undone — you can download or rebuild it later."
+        + _delete_dependents(kind, name)
     )
 
 
