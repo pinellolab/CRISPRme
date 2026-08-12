@@ -14,6 +14,17 @@ and the `release-crisprme` skill.
 ### Added
 - (nothing yet)
 
+## [2.1.14] - 2026-08-12
+
+### Deprecated
+- **Final 2.1.x maintenance release.** Active development has moved to CRISPRme+
+  (https://github.com/pinellolab/crisprme-plus). This repository is now maintenance-only.
+
+### Security
+- Removed a hardcoded SMTP app password from `pages/send_mail.py`; the notifier now reads
+  `CRISPRME_SMTP_PSW` / `CRISPRME_SMTP_SENDER` from the environment and no-ops when unset.
+  The previously committed credential must be revoked at the provider.
+
 ## [2.1.13] - 2026-08-04
 
 ### Added

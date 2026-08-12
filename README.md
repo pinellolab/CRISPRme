@@ -1,3 +1,13 @@
+> ## ⚠️ CRISPRme has moved — see **[CRISPRme+](https://github.com/pinellolab/crisprme-plus)**
+>
+> **`pinellolab/CRISPRme` is now maintenance-only.** `v2.1.14` is the final 2.1.x release.
+> All active development — the Dash-2 web app, the browser Settings/Data-Manager, precomputed-
+> index download from HuggingFace, PAM-geometry-aware search, merged VCF panels, and performance
+> work — continues at **[pinellolab/crisprme-plus](https://github.com/pinellolab/crisprme-plus)**
+> (still installed and run as `crisprme`). Please migrate there for new features and support.
+
+---
+
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/crisprme/README.html)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/pinellolab/crisprme)
 ![Conda](https://img.shields.io/conda/dn/bioconda/crisprme)
