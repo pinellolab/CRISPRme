@@ -16,7 +16,14 @@ import ssl
 import smtplib
 from email.message import EmailMessage
 
-PSW = "tlgylyubfalteffs"
+# SMTP credentials come from the environment — NEVER hardcode/commit them:
+#   CRISPRME_SMTP_PSW    - app password for the notification sender account
+#   CRISPRME_SMTP_SENDER - sender address (default: the CRISPRme job mailbox)
+# Email notifications are OPTIONAL: with no password configured, send_mail()
+# no-ops gracefully so a completed search is never lost just because mail isn't
+# set up on this host.
+SMTP_PSW = os.environ.get("CRISPRME_SMTP_PSW")
+SMTP_SENDER = os.environ.get("CRISPRME_SMTP_SENDER", "crisprme.job@gmail.com")
 
 
 # from .pages_utils import MAIL_SUBJECT, MAIL_SENDER, SSL_PORT
@@ -38,6 +45,12 @@ def send_mail() -> None:
     None
     """
 
+    if not SMTP_PSW:
+        print(
+            "Email notifications not configured (set CRISPRME_SMTP_PSW to enable) "
+            "- skipping notification."
+        )
+        return
     with open(sys.argv[1] + "/email.txt", "r") as e:
         # message building
         all_content = e.read().strip().split("--OTHEREMAIL--")
@@ -50,7 +63,7 @@ def send_mail() -> None:
             date_submission = em[2]
             msg["Subject"] = "CRISPRme - Job completed"
 
-            msg["From"] = "crisprme.job@gmail.com"
+            msg["From"] = SMTP_SENDER
             content_email = (
                 "The requested job is completed, visit the following link "
                 + job_link
@@ -66,7 +79,7 @@ def send_mail() -> None:
             # Create a secure SSL context
             context = ssl.create_default_context()
             with smtplib.SMTP_SSL("smtp.gmail.com", port, context=context) as server:
-                server.login("crisprme.job@gmail.com", PSW)
+                server.login(SMTP_SENDER, SMTP_PSW)
                 server.send_message(msg)
 
 
