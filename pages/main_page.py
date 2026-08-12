@@ -26,6 +26,12 @@ from .pages_utils import (
     select_same_len_guides,
     get_available_PAM,
     get_available_CAS,
+    index_max_bulges,
+    variant_dataset_present,
+    has_variant_index,
+    get_variant_dataset_options,
+    get_annotation_options,
+    get_pam_options,
     get_custom_VCF,
     get_available_genomes,
     get_custom_annotations,
@@ -44,13 +50,13 @@ from app import (
 )
 
 from dash.exceptions import PreventUpdate
-from dash.dependencies import Input, Output, State
-from typing import Dict, List, Tuple, Union
+from dash import Input, Output, State, no_update
+from typing import Dict, List, Optional, Tuple, Union
 from datetime import datetime
 
 import dash_bootstrap_components as dbc
-import dash_html_components as html
-import dash_core_components as dcc
+from dash import html
+from dash import dcc
 
 import collections
 import subprocess
@@ -111,10 +117,11 @@ def split_filter_part(filter_part: str) -> Tuple:
 @app.callback(
     [
         Output("text-guides", "value"),
-        Output("available-cas", "value"),
         Output("available-pam", "value"),
         Output("available-genome", "value"),
-        Output("checklist-variants", "value"),
+        # variant-dataset.value is also driven by change_variant_dataset_options
+        # (genome-change); load-example is the secondary writer.
+        Output("variant-dataset", "value", allow_duplicate=True),
         Output("mms", "value"),
         Output("dna", "value"),
         Output("rna", "value"),
@@ -124,6 +131,7 @@ def split_filter_part(filter_part: str) -> Tuple:
         Output("radio-base_editor", "value"),
     ],
     [Input("load-example-button", "n_clicks")],
+    prevent_initial_call=True,
 )
 def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     """Load data for CRISPRme example run.
@@ -143,13 +151,12 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
 
     return [
         "CTAACAGTTGCTTTTATCAC",  # guide to use
-        "SpCas9",  # Cas protein to use
-        "20bp-NGG-SpCas9",  # Editor to use
+        "20bp-NGG-SpCas9",  # PAM/enzyme to use
         "hg38",  # ref genome to use
-        ["1000G"],  # VCF to use
-        "4",  # MM
-        "1",  # DNA bulges
-        "1",  # RNA bulges
+        "1000G",  # variant dataset (single dropdown value)
+        4,  # MM (int, to match the dropdown option values)
+        1,  # DNA bulges
+        1,  # RNA bulges
         "4",  # start window in base editor
         "8",  # stop window in base editor
         "A",  # nt to check in base editor
@@ -163,12 +170,9 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
     [Input("submit-job", "n_clicks")],
     [
         State("url", "href"),
-        State("available-cas", "value"),
         State("available-genome", "value"),
-        State("checklist-variants", "value"),
-        State("checklist-annotations", "value"),
-        State("vcf-dropdown", "value"),
-        State("annotation-dropdown", "value"),
+        State("variant-dataset", "value"),
+        State("annotation-dataset", "value"),
         State("available-pam", "value"),
         State("radio-guide", "value"),
         State("text-guides", "value"),
@@ -182,17 +186,16 @@ def load_example_data(load_button_click: int) -> List[Union[str, List[str]]]:
         State("checklist-mail", "value"),
         State("example-email", "value"),
         State("job-name", "value"),
+        State("max-edits-slider", "value"),
+        State("advanced-thresholds-collapse", "is_open"),
     ],
 )
 def change_url(
     n: int,
     href: str,
-    nuclease: str,
     genome_selected: str,
-    ref_var: List,
-    annotation_var: List,
-    vcf_input: str,
-    annotation_input: str,
+    variant_choice: str,
+    annotation_choice: str,
     pam: str,
     guide_type: str,
     text_guides: List[str],
@@ -206,6 +209,8 @@ def change_url(
     adv_opts: List,
     dest_email: str,
     job_name: str,
+    max_edits_val: int,
+    advanced_open: bool,
 ) -> Tuple[str, str]:
     """Launch the targets search and generates the input files for
     post-processing operations, and results visualization.
@@ -242,18 +247,12 @@ def change_url(
         Clicks
     href : str
         URL
-    nuclease : str
-        Selected nuclease
     genome_selected : str
         Selected genome
-    ref_var : List
-        Variants
-    annotation_var : str
-        Annotation variants
-    vcf_input : str
-        Input VCF
-    annotation_input : str
-        Annotation file
+    variant_choice : str
+        Selected variant dataset ("ref" / "1000G" / "1000G+HGDP")
+    annotation_choice : str
+        Selected annotation ("none" / "EN" / an installed .bed filename)
     pam : str
         Selected PAM
     guide_type : str
@@ -284,16 +283,20 @@ def change_url(
             raise TypeError(f"Expected {int.__name__}, got {type(n).__name__}")
     if not isinstance(href, str):
         raise TypeError(f"Expected {str.__name__}, got {type(href).__name__}")
-    if nuclease is not None:
-        if not isinstance(nuclease, str):
-            raise TypeError(f"Expected {str.__name__}, got {type(nuclease).__name__}")
     if genome_selected is not None:
         if not isinstance(genome_selected, str):
             raise TypeError(
                 f"Expected {str.__name__}, got {type(genome_selected).__name__}"
             )
-    if not isinstance(ref_var, list):
-        raise TypeError(f"Expected {list.__name__}, got {type(ref_var).__name__}")
+    # The variant selector is now a single genome-driven dropdown whose value is a
+    # scalar token: "ref" (reference only) or a dataset / "+"-joined combo (e.g.
+    # "1000G", "1000G+HGDP"). Normalize it to the dataset list the search wiring
+    # expects. Custom-VCF ("PV") selection was removed from the form.
+    if variant_choice in (None, "", "ref"):
+        ref_var = []
+    else:
+        ref_var = str(variant_choice).split("+")
+    vcf_input = None  # personal/custom VCF path removed from the search form
     if pam is not None:
         if not isinstance(pam, str):
             raise TypeError(f"Exepcted {str.__name__}, got {type(pam).__name__}")
@@ -385,54 +388,19 @@ def change_url(
         raise ValueError(f"An error occurred while running {cmd}")
     # ---- Set search parameters
     # ANNOTATION CHECK
-    gencode_name = "gencode.protein_coding.bed"
-    annotation_name = "vuoto.txt"  # to proceed without annotation file
+    # ANNOTATION: the selector is now a single genome-driven dropdown whose value
+    # is "none" (no annotation), "EN" (built-in ENCODE cCREs + GENCODE, hg38), or an
+    # installed annotation .bed filename for the selected genome. Custom annotations
+    # are added via Settings and surface here for their genome (no personal-merge on
+    # the form). gencode is only meaningful for the built-in hg38 bundle.
+    gencode_name = "vuoto.txt"
+    annotation_name = "vuoto.txt"
     annotation_dir = os.path.join(current_working_directory, ANNOTATIONS_DIR)
-    if "EN" in annotation_var:
-        annotation_name = "dhs+encode+gencode.hg38.bed"  # use dhs annotation file
-        if "MA" in annotation_var:
-            annotation_name = "".join(
-                [
-                    f"{annotation_name}+",
-                    "".join(annotation_input.split(".")[:-1]),
-                    ".bed",
-                ]
-            )
-            annotation_tmp = os.path.join(annotation_dir, f"ann_tmp_{job_id}.bed")
-            cmd = f"cp {os.path.join(annotation_dir, annotation_name)} {annotation_tmp}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            annotation_input_tmp = (
-                f"{os.path.join(annotation_dir, annotation_input)}.tmp"
-            )
-            cmd = f"awk '$4 = $4\"_personal\"' {os.path.join(annotation_dir, annotation_input)} > {annotation_input_tmp}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            cmd = f"mv {annotation_input_tmp} {os.path.join(annotation_dir, annotation_input)}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            cmd = f"tail -n +1 {os.path.join(annotation_dir, annotation_input)} >> {annotation_tmp}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-            cmd = f"mv {annotation_tmp} {os.path.join(annotation_dir, annotation_name)}"
-            code = subprocess.call(cmd, shell=True)
-            if code != 0:
-                raise ValueError(f"An error occurred while running {cmd}")
-    elif "MA" in annotation_var:
-        annotation_input_tmp = f"{os.path.join(annotation_dir, annotation_input)}.tmp"
-        cmd = f"awk '$4 = $4\"_personal\"' {os.path.join(annotation_dir, annotation_input)} > {annotation_input_tmp}"
-        code = subprocess.call(cmd, shell=True)
-        if code != 0:
-            raise ValueError(f"an error occurred while running {cmd}")
-        annotation_name = f"{annotation_input}.tmp"
-
-    if "EN" not in annotation_var:
-        annotation_name = "vuoto.txt"
-        gencode_name = "vuoto.txt"
+    if annotation_choice == "EN":
+        annotation_name = "dhs+encode+gencode.hg38.bed"
+        gencode_name = "gencode.protein_coding.bed"
+    elif annotation_choice and annotation_choice not in ("none", "None"):
+        annotation_name = annotation_choice
     # GENOME TYPE CHECK
     ref_comparison = False
     genome_type = "ref"  # search is 'ref' or 'both'
@@ -467,6 +435,19 @@ def change_url(
                 # custom samples
                 sample_list.append(f"{vcf_input}.samplesID.txt")
                 handle_vcf.write(f"{vcf_folder}\n")
+            # merged/combined or other registered panel (e.g. "1000G_HGDP"): the
+            # dropdown value maps to a single VCF folder "<genome>_<token>" scanned
+            # ONCE (the combined index is built from that one merged VCF). Additive
+            # and existence-guarded, so the 1000G/HGDP/PV paths above are unchanged.
+            _gpref = genome_selected[:-4] if genome_selected.endswith("_ref") else genome_selected
+            for _tok in ref_var:
+                if _tok in VARIANTS_DATA or not _tok:
+                    continue
+                _folder = f"{_gpref}_{_tok}"
+                if os.path.isdir(os.path.join(current_working_directory, "VCFs", _folder)):
+                    vcf_folder = _folder
+                    sample_list.append(f"{_folder}.samplesID.txt")
+                    handle_vcf.write(f"{vcf_folder}\n")
     except OSError as e:
         raise e
     try:
@@ -637,6 +618,18 @@ def change_url(
         if VARIANTS_DATA[2] in ref_var:
             genome_idx = f"{pam_char}_{max_bulges}_{genome_selected}+{vcf_input}"
             genome_idx_list.append(genome_idx)
+        # merged/combined or other registered panel: mirror the VCF-folder mapping
+        # above so the index name matches the built index (e.g.
+        # "NNN_3_hg38+hg38_1000G_HGDP"). Additive + existence-guarded.
+        _gpref = genome_selected[:-4] if genome_selected.endswith("_ref") else genome_selected
+        for _tok in ref_var:
+            if _tok in VARIANTS_DATA or not _tok:
+                continue
+            _folder = f"{_gpref}_{_tok}"
+            if os.path.isdir(os.path.join(current_working_directory, "VCFs", _folder)):
+                genome_idx_list.append(
+                    f"{pam_char}_{max_bulges}_{genome_selected}+{_folder}"
+                )
     genome_idx = ",".join(genome_idx_list)
     # Create .Params.txt file
     try:
@@ -653,6 +646,10 @@ def change_url(
             handle_params.write(f"DNA\t{dna}\n")
             handle_params.write(f"RNA\t{rna}\n")
             handle_params.write(f"Annotation\t{annotation_name}\n")
+            # nuclease is derived from the PAM token (<len>bp-<motif>-<enzyme>),
+            # since the separate Cas-protein selector was removed
+            _pam_parts = str(pam).split("-")
+            nuclease = "-".join(_pam_parts[2:]) if len(_pam_parts) >= 3 else str(pam)
             handle_params.write(f"Nuclease\t{nuclease}\n")
             handle_params.write(f"Ref_comp\t{ref_comparison}\n")
             handle_params.write(f"BE_nucleotide\t{be_nt}\n")
@@ -981,7 +978,16 @@ def change_url(
         if not os.path.isfile(gencode):
             code = subprocess.call(f"touch {gencode}", shell=True)
 
-    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} 1> {log_verbose} 2>{log_error}"
+    # total-edits cap (submit_job arg 26). Simple mode: the slider governs. Advanced
+    # ("old") mode: the per-type mm/bulge caps govern, so disable the total cap by
+    # setting it to their sum (== unbounded, 2.1.x behavior).
+    if advanced_open:
+        max_total_edits = int(mms) + int(dna) + int(rna)
+    else:
+        max_total_edits = int(max_edits_val) if max_edits_val is not None else 5
+    # args 23-25 keep submit_job's defaults (cicd_test, vcf-filter-pass-values,
+    # index_path) so that arg 26 (max_total_edits) lands in the right position.
+    cmd = f"{run_job_sh} {genome} {vcfs} {guides_file} {pam_file} {annotation} {samples_ids} {max(dna, rna)} {mms} {dna} {rna} {merge_default} {result_dir} {postprocess} {4} {current_working_directory} {gencode} {dest_email} {be_start} {be_stop} {be_nt} {sorting_criteria_scoring} {sorting_criteria} False PASS,. _ {max_total_edits} 1> {log_verbose} 2>{log_error}"
     # run job
     pool_executor.submit(subprocess.run, cmd, shell=True)
     return ("/load", f"?job={job_id}")
@@ -998,7 +1004,6 @@ def change_url(
         Output("mms", "className"),
         Output("dna", "className"),
         Output("rna", "className"),
-        Output("len-guide-sequence-ver", "className"),
         Output("warning-list", "children"),
     ],
     [Input("check-job", "n_clicks"), Input("close", "n_clicks")],
@@ -1084,7 +1089,6 @@ def check_input(
     rna_update = None
     be_start_update = None
     be_stop_update = None
-    len_guide_update = None
     update_style = False
     miss_input_list = []  # recover missing inputs
     # display missing genome
@@ -1262,7 +1266,6 @@ def check_input(
             mms_update,
             dna_update,
             rna_update,
-            len_guide_update,
             miss_input,
         )
     return (
@@ -1274,7 +1277,6 @@ def check_input(
         mms_update,
         dna_update,
         rna_update,
-        len_guide_update,
         miss_input,
     )
 
@@ -1393,86 +1395,34 @@ def disable_job_name(checklist_value: List) -> bool:
     return False
 
 
-@app.callback(
-    [Output("vcf-dropdown", "disabled"), Output("vcf-dropdown", "value")],
-    [Input("checklist-variants", "value")],
-)
-def change_disabled_vcf_dropdown(checklist_value: List) -> Tuple[bool, str]:
-    """Disable VCF dropdown if not in the checklist.
-
-    ...
-
-    Parameters
-    ----------
-    checklist_value : List
-
-    Returns
-    -------
-    Tuple[bool, str]
-    """
-
-    if not isinstance(checklist_value, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
-        )
-    if "PV" in checklist_value:
-        return False, ""
-    return True, ""
+# (change_disabled_vcf_dropdown removed with the personal-variant VCF picker: the
+# variant selector is now a single genome-driven dataset dropdown.)
 
 
 @app.callback(
-    [Output("annotation-dropdown", "disabled"), Output("annotation-dropdown", "value")],
-    [Input("checklist-annotations", "value")],
+    [Output("annotation-dataset", "options"), Output("annotation-dataset", "value")],
+    [Input("available-genome", "value")],
 )
-def change_disabled_annotation_dropdown(checklist_value: List) -> Tuple[bool, str]:
-    """Disable annotation dropdown if not in the checklist.
+def change_annotation_dataset_options(genome_value: str) -> List:
+    """Repopulate the annotation dropdown for the selected genome.
 
-    ...
+    Genome-driven, like the variant selector: only annotations that apply to the
+    chosen genome are offered (built-in ENCODE+GENCODE for hg38, installed .bed
+    annotations carrying the genome token), always with "No annotation" first. The
+    value is reset to a still-valid option so a stale selection cannot leak across a
+    genome change."""
 
-    Parameters
-    ----------
-    checklist_value : List
-
-    Returns
-    -------
-    Tuple[bool, str]
-    """
-
-    if not isinstance(checklist_value, list):
-        raise TypeError(
-            f"Expected {list.__name__}, got {type(checklist_value).__name__}"
-        )
-    if "MA" in checklist_value:
-        return False, ""
-    return True, ""
+    if genome_value is not None and not isinstance(genome_value, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_value).__name__}")
+    options = get_annotation_options(genome_value)
+    valid = {o["value"] for o in options}
+    value = "EN" if "EN" in valid else "none"
+    return [options, value]
 
 
 # select Cas protein from dropdown
-@app.callback([Output("available-pam", "options")], [Input("available-cas", "value")])
-def select_cas_pam_dropdown(casprot: str) -> List:
-    """Select the available Cas proteins and their corresponding PAMs.
-
-    ...
-
-    Parameters
-    ----------
-    casprot : str
-        Cas protein
-
-    Returns
-    -------
-    List
-    """
-
-    if not isinstance(casprot, str):
-        raise TypeError(f"Expected {str.__name__}, got {type(casprot).__name__}")
-    available_pams = get_available_PAM()
-    options = [
-        {"label": pam["label"], "value": pam["value"]}
-        for pam in available_pams
-        if casprot == pam["label"].split(".")[0].split("-")[2]
-    ]
-    return [options]
+# (select_cas_pam_dropdown removed: the Cas-protein selector was dropped, so the PAM
+# dropdown lists all available PAMs directly with an enzyme-aware label.)
 
 
 # add place holder to guide box
@@ -1513,40 +1463,128 @@ def change_placeholder_guide_textbox(guide_type: str) -> List:
 
 # change variants options
 @app.callback(
-    [Output("checklist-variants", "options"), Output("vcf-dropdown", "options")],
+    [Output("variant-dataset", "options"), Output("variant-dataset", "value")],
     [Input("available-genome", "value")],
 )
-def change_variants_checklist_state(genome_value: str) -> List:
-    """Change available variants options, according to the selected genome.
+def change_variant_dataset_options(genome_value: str) -> List:
+    """Repopulate the variant-dataset dropdown for the selected genome.
 
-    ...
-
-    Parameters
-    ----------
-    genome_value : str
-        Genome
-
-    Returns
-    -------
-    List
+    Genome-driven: only datasets actually installed for this genome are offered
+    (built-in 1000G/HGDP for hg38, a combined entry when both are present), always
+    with "Reference only" first. A genome with no variant data shows only
+    "Reference only". The value is reset to a still-valid option so a stale
+    selection from a previous genome cannot leak into the search.
     """
 
-    if genome_value is not None:
-        if not isinstance(genome_value, str):
-            raise TypeError(
-                f"Expected {str.__name__}, got {type(genome_value).__name__}"
-            )
-        checklist_variants_options = [
-            {
-                "label": " plus 1000 Genome Project variants",
-                "value": "1000G",
-                "disabled": False,
-            },
-            {"label": " plus HGDP variants", "value": "HGDP", "disabled": False},
-            {"label": " plus personal variants*", "value": "PV", "disabled": ONLINE},
-        ]
-    personal_vcf = get_custom_VCF(genome_value)
-    return [checklist_variants_options, personal_vcf]
+    if genome_value is not None and not isinstance(genome_value, str):
+        raise TypeError(f"Expected {str.__name__}, got {type(genome_value).__name__}")
+    options = get_variant_dataset_options(genome_value)
+    valid_values = {o["value"] for o in options}
+    # prefer 1000G if available, else reference only
+    value = "1000G" if "1000G" in valid_values else "ref"
+    return [options, value]
+
+
+# Limit the DNA/RNA bulge options to what a built index supports (hard cap).
+# Bulge searches need a per-PAM TST index; 0-bulge searches run index-free, so 0
+# is always available. A variant search also needs the variant index for each
+# selected dataset, so the cap is the min across the reference and variant
+# indexes. Mismatches are never index-limited, so they are left untouched.
+@app.callback(
+    [
+        Output("dna", "options"),
+        Output("rna", "options"),
+        Output("dna", "value", allow_duplicate=True),
+        Output("rna", "value", allow_duplicate=True),
+        Output("bulge-guard-note", "children"),
+    ],
+    [
+        Input("available-genome", "value"),
+        Input("available-pam", "value"),
+        Input("variant-dataset", "value"),
+    ],
+    [State("dna", "value"), State("rna", "value")],
+    prevent_initial_call=True,
+)
+def limit_bulges_to_index(genome, pam, variant_choice, cur_dna, cur_rna):
+    if not genome or not pam:
+        return AV_BULGES, AV_BULGES, no_update, no_update, ""
+    maxb = index_max_bulges(genome, pam, None)  # reference index (always needed)
+    # scalar dropdown value -> list of datasets ("ref" -> none)
+    selected = (
+        []
+        if variant_choice in (None, "", "ref")
+        else [v for v in str(variant_choice).split("+") if v in ("1000G", "HGDP")]
+    )
+    for v in selected:  # a variant bulge search also needs the variant index
+        maxb = min(maxb, index_max_bulges(genome, pam, v))
+    opts = [{"label": i, "value": i} for i in range(0, maxb + 1)]
+    dna_v = cur_dna if (isinstance(cur_dna, int) and cur_dna <= maxb) else 0
+    rna_v = cur_rna if (isinstance(cur_rna, int) and cur_rna <= maxb) else 0
+    if maxb == 0:
+        note = (
+            "No bulge index for this genome/PAM"
+            + (" + selected variant set" if selected else "")
+            + " yet — only a fast 0-bulge search is available. Build an index in "
+            "Settings to enable bulges."
+        )
+    else:
+        note = f"Up to {maxb} DNA/RNA bulge(s) available (limited by the built index)."
+    return opts, opts, dna_v, rna_v, note
+
+
+@app.callback(
+    [
+        Output("available-pam", "options"),
+        Output("available-pam", "value", allow_duplicate=True),
+    ],
+    [Input("available-genome", "value"), Input("variant-dataset", "value")],
+    [State("available-pam", "value")],
+    prevent_initial_call=True,
+)
+def update_pam_options(genome, variant_choice, current_pam):
+    """Restrict the PAM list to what is searchable for the current genome + variant
+    selection: all PAMs for a reference-only search, but only PAMs with a variant
+    index (pamless NNN counts for all) when a variant dataset is included. Keeps the
+    current PAM if it is still valid, else falls back to a sensible default."""
+    options = get_pam_options(genome, variant_choice)
+    valid = {o["value"] for o in options}
+    if current_pam in valid:
+        value = current_pam
+    else:
+        value = _default_pam(_default_cas()) if any(
+            o["value"] == _default_pam(_default_cas()) for o in options
+        ) else (options[0]["value"] if options else None)
+    return options, value
+
+
+def _default_genome() -> Optional[str]:
+    """Sensible default genome: hg38 if installed, else the first available."""
+    gs = [g["value"] for g in get_available_genomes()]
+    return "hg38" if "hg38" in gs else (gs[0] if gs else None)
+
+
+def _default_cas() -> Optional[str]:
+    """Default nuclease: SpCas9 if installed, else the first available."""
+    cs = [c["value"] for c in get_available_CAS()]
+    return "SpCas9" if "SpCas9" in cs else (cs[0] if cs else None)
+
+
+def _default_pam(cas: Optional[str]) -> Optional[str]:
+    """Default PAM for a nuclease: prefer an NGG PAM, else the first for that Cas."""
+    if not cas:
+        return None
+    pams = [
+        p["value"]
+        for p in get_available_PAM()
+        if "-".join(p["value"].split(".")[0].split("-")[2:]) == cas
+    ]
+    if not pams:
+        return None
+    for p in pams:
+        if "-NGG-" in p:
+            return p
+    return pams[0]
 
 
 def index_page() -> html.Div:
@@ -1567,6 +1605,26 @@ def index_page() -> html.Div:
 
     # begin main page construction
     final_list = []
+    # smart defaults, based on what is actually installed: hg38 + SpCas9/NGG +
+    # 1000G variants + the standard 4/1/1 thresholds, so a non-expert can submit
+    # a sensible search without configuring everything from scratch.
+    _def_genome = _default_genome()
+    _def_cas = _default_cas()
+    _def_pam = _default_pam(_def_cas)
+    _def_variants = (
+        "1000G"
+        if (_def_genome == "hg38" and variant_dataset_present("hg38", "1000G"))
+        else "ref"
+    )
+    _def_annotation = "EN" if _def_genome == "hg38" else "none"
+    # seed the PAM dropdown options for the default nuclease so the default PAM
+    # value is valid on first render (an empty options list makes Dash drop the
+    # preset value before the cas->pam callback can populate it)
+    _def_pam_options = [
+        p
+        for p in get_available_PAM()
+        if _def_cas and "-".join(p["value"].split(".")[0].split("-")[2:]) == _def_cas
+    ]
     # page intro
     introduction_content = html.Div(
         [
@@ -1651,29 +1709,19 @@ def index_page() -> html.Div:
         style={"width": "300px"},  # NOTE same as text-area
     )
     # cas protein dropdown
-    cas_protein_content = html.Div(
-        [
-            html.H4("Select Cas protein"),
-            html.Div(
-                dcc.Dropdown(
-                    options=get_available_CAS(),
-                    clearable=False,
-                    id="available-cas",
-                    style={"width": "300px"},
-                )
-            ),
-        ]
-    )
-    # PAM dropdown
+    # PAM dropdown. The Cas-protein selector was removed as redundant: the PAM value
+    # already encodes the enzyme (e.g. 20bp-NGG-SpCas9) and the label now shows it
+    # (e.g. "SpCas9 · NGG"), so a single self-describing PAM dropdown suffices.
     pam_content = html.Div(
         [
             html.H4("Select PAM"),
             html.Div(
                 dcc.Dropdown(
-                    options=[],
+                    options=get_available_PAM(),
+                    value=_def_pam,
                     clearable=False,
                     id="available-pam",
-                    style={"width": "300px"},
+                    style={"width": "300px", "margin": "0 auto"},
                 )
             ),
         ],
@@ -1683,11 +1731,11 @@ def index_page() -> html.Div:
             html.Br(),
             html.A(
                 html.Button(
-                    "Personal Data Management",
+                    "Settings / Data Manager",
                     id="add-genome",
                     style={"display": DISPLAY_OFFLINE},
                 ),
-                href=os.path.join(URL, "genome-dictionary-management"),
+                href=os.path.join(URL, "settings"),
                 target="",
                 style={"text-decoration": "none", "color": "#555"},
             ),
@@ -1700,42 +1748,21 @@ def index_page() -> html.Div:
             html.Div(
                 dcc.Dropdown(
                     options=get_available_genomes(),
+                    value=_def_genome,
                     clearable=False,
                     id="available-genome",
                 ),
                 style={"width": "300px"},
             ),
-            html.Div(
-                dcc.Checklist(
-                    options=[
-                        {
-                            "label": " plus 1000 Genomes Project variants",
-                            "value": "1000G",
-                            "disabled": True,
-                        },
-                        {
-                            "label": " plus HGDP variants",
-                            "value": "HGDP",
-                            "disabled": True,
-                        },
-                        {
-                            "label": " plus personal variants*",
-                            "value": "PV",
-                            "disabled": True,
-                        },
-                    ],
-                    id="checklist-variants",
-                    value=[],
-                )
-            ),
+            html.P("Variants", style={"margin": "8px 0 2px"}),
             html.Div(
                 dcc.Dropdown(
-                    options=[],
-                    id="vcf-dropdown",
-                    style={"width": "300px"},
-                    disabled=True,
+                    options=get_variant_dataset_options(_def_genome),
+                    value=_def_variants,
+                    clearable=False,
+                    id="variant-dataset",
+                    style={"width": "300px", "margin": "0 auto"},
                 ),
-                id="div-browse-PV",
             ),
         ]
     )
@@ -1743,44 +1770,111 @@ def index_page() -> html.Div:
     thresholds_content = html.Div(
         [
             html.H4("Select thresholds"),
-            html.Div(  # mismatches box
+            # PRIMARY control: a single "maximum total edits" slider (mismatches +
+            # bulges). This is the simple, non-expert knob; the per-type mismatch /
+            # bulge limits live under "Advanced" below and stay wide open by default
+            # so the slider is the governing constraint (CRISPRme issue #107).
+            html.Div(
                 [
-                    html.P("Mismatches"),
-                    dcc.Dropdown(
-                        options=AV_MISMATCHES,
-                        clearable=False,
-                        id="mms",
-                        style={"width": "60px"},
+                    html.P(
+                        "Maximum edits (mismatches + bulges)",
+                        style={"margin-bottom": "2px", "font-weight": "600"},
+                    ),
+                    dcc.Slider(
+                        id="max-edits-slider",
+                        min=0,
+                        max=5,
+                        step=1,
+                        value=3,
+                        marks={i: str(i) for i in range(6)},
+                        tooltip={"placement": "bottom", "always_visible": False},
+                    ),
+                    html.P(
+                        "Total number of differences (mismatches + DNA/RNA bulges) "
+                        "allowed between a guide and an off-target. 3 is recommended (raise for a deeper, slower search).",
+                        style={"font-size": "0.8rem", "color": "#666"},
+                    ),
+                    html.P(
+                        "Note: this limit is applied during the search against the "
+                        "variant-enriched genome. A variant off-target can therefore "
+                        "appear with a slightly higher mismatch+bulge count in the "
+                        "results (its count is reported against the reference); "
+                        "reference off-targets always stay within the limit.",
+                        style={"font-size": "0.75rem", "color": "#888", "font-style": "italic"},
                     ),
                 ],
-                style={"display": "inline-block", "margin-right": "20px"},
+                style={"max-width": "420px", "margin-bottom": "12px"},
             ),
-            html.Div(  # DNA bulges box
-                [
-                    html.P(["DNA", html.Br(), "Bulges"]),
-                    dcc.Dropdown(
-                        options=AV_BULGES,
-                        clearable=False,
-                        id="dna",
-                        style={"width": "60px"},
-                    ),
-                ],
-                style={"display": "inline-block", "margin-right": "20px"},
+            # ADVANCED: per-type mismatch / bulge caps, hidden by default.
+            dbc.Button(
+                "Advanced options ▾",
+                id="advanced-thresholds-toggle",
+                color="link",
+                n_clicks=0,
+                style={"padding": "0", "font-size": "0.9rem"},
             ),
-            html.Div(  # RNA bulges box
-                [
-                    html.P(["RNA", html.Br(), "Bulges"]),
-                    dcc.Dropdown(
-                        options=AV_BULGES,
-                        clearable=False,
-                        id="rna",
-                        style={"width": "60px"},
-                    ),
-                ],
-                style={"display": "inline-block"},
+            dbc.Collapse(
+                html.Div(
+                    [
+                        html.P(
+                            "Per-type caps. Left at their maxima the slider above "
+                            "governs; lower them to further restrict a single type.",
+                            style={"font-size": "0.8rem", "color": "#666"},
+                        ),
+                        html.Div(  # mismatches box
+                            [
+                                html.P("Mismatches"),
+                                dcc.Dropdown(
+                                    options=AV_MISMATCHES,
+                                    value=6,
+                                    clearable=False,
+                                    id="mms",
+                                    style={"width": "60px"},
+                                ),
+                            ],
+                            style={"display": "inline-block", "margin-right": "20px"},
+                        ),
+                        html.Div(  # DNA bulges box
+                            [
+                                html.P(["DNA", html.Br(), "Bulges"]),
+                                dcc.Dropdown(
+                                    options=AV_BULGES,
+                                    value=2,
+                                    clearable=False,
+                                    id="dna",
+                                    style={"width": "60px"},
+                                ),
+                            ],
+                            style={"display": "inline-block", "margin-right": "20px"},
+                        ),
+                        html.Div(  # RNA bulges box
+                            [
+                                html.P(["RNA", html.Br(), "Bulges"]),
+                                dcc.Dropdown(
+                                    options=AV_BULGES,
+                                    value=2,
+                                    clearable=False,
+                                    id="rna",
+                                    style={"width": "60px"},
+                                ),
+                            ],
+                            style={"display": "inline-block"},
+                        ),
+                        html.Div(
+                            id="bulge-guard-note",
+                            style={
+                                "font-size": "0.8rem",
+                                "color": "#666",
+                                "margin-top": "6px",
+                            },
+                        ),
+                    ],
+                    style={"margin-top": "8px"},
+                ),
+                id="advanced-thresholds-collapse",
+                is_open=False,
             ),
         ],
-        style={"margin-top": "10%"},
     )
     # base editing boxes
     base_editing_content = html.Div(
@@ -1849,34 +1943,20 @@ def index_page() -> html.Div:
                 style={"display": "none"},
             ),
         ],
-        style={"margin-top": "10%"},
+        style={"margin-top": "16px", "border-top": "1px solid #eef2f4", "padding-top": "12px"},
     )
     # annotations dropdown
     annotation_content = html.Div(
         [
             html.H4("Select annotation"),
             html.Div(
-                dcc.Checklist(
-                    options=[
-                        {"label": " ENCODE cCREs + GENCODE genes", "value": "EN"},
-                        {
-                            "label": " Personal annotations*",
-                            "value": "MA",
-                            "disabled": ONLINE,
-                        },
-                    ],
-                    id="checklist-annotations",
-                    value=["EN"],
-                )
-            ),
-            html.Div(
                 dcc.Dropdown(
-                    options=[i for i in get_custom_annotations()],
-                    id="annotation-dropdown",
-                    style={"width": "300px"},
-                    disabled=True,
+                    options=get_annotation_options(_def_genome),
+                    value=_def_annotation,
+                    clearable=False,
+                    id="annotation-dataset",
+                    style={"width": "300px", "margin": "0 auto"},
                 ),
-                id="div-browse-annotation",
             ),
         ]
     )
@@ -1894,7 +1974,7 @@ def index_page() -> html.Div:
                 id="checklist-mail",
                 value=[],
             ),
-            dbc.FormGroup(
+            html.Div(
                 dbc.Input(
                     type="email",
                     id="example-email",
@@ -1916,7 +1996,7 @@ def index_page() -> html.Div:
                 id="checklist-job-name",
                 value=[],
             ),
-            dbc.FormGroup(
+            html.Div(
                 dbc.Input(
                     type="text",
                     id="job-name",
@@ -1967,49 +2047,69 @@ def index_page() -> html.Div:
     # add other content
     final_list.append(
         html.Div(
-            [
-                dbc.Row(
+            [modal]
+            + [
+                # one numbered step-card per stage: a single centered column that
+                # reads top-to-bottom (Guide -> Genome+variants -> PAM -> Thresholds
+                # -> Annotation -> Run). Content blocks are reused verbatim, so all
+                # component ids / callbacks are unchanged.
+                html.Div(
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                html.Div(
+                                    str(_n),
+                                    style={
+                                        "width": "34px",
+                                        "height": "34px",
+                                        "borderRadius": "50%",
+                                        "backgroundColor": "#388396",
+                                        "color": "white",
+                                        "fontWeight": "700",
+                                        "fontSize": "1.1rem",
+                                        "display": "flex",
+                                        "alignItems": "center",
+                                        "justifyContent": "center",
+                                    },
+                                ),
+                                width="auto",
+                            ),
+                            dbc.Col(_content),
+                        ],
+                        align="start",
+                    ),
+                    style={
+                        "backgroundColor": "white",
+                        "border": "1px solid #e2e8ec",
+                        "borderRadius": "10px",
+                        "padding": "16px 22px",
+                        "marginBottom": "14px",
+                        "boxShadow": "0 1px 4px rgba(0,0,0,0.05)",
+                    },
+                )
+                for _n, _content in enumerate(
                     [
-                        dbc.Col(  # first column of the box
+                        tab_guides_content,
+                        genome_content,
+                        pam_content,
+                        html.Div([thresholds_content, base_editing_content]),
+                        annotation_content,
+                        html.Div(
                             [
-                                modal,
-                                dbc.Row(dbc.Col(tab_guides_content)),
-                                dbc.Row(dbc.Col(cas_protein_content)),
-                                dbc.Row(dbc.Col(pam_content)),
-                            ],
-                            width="auto",
-                        ),
-                        dbc.Col(  # second column of the box
-                            [
-                                dbc.Row(dbc.Col(genome_content)),
-                                dbc.Row(dbc.Col(thresholds_content)),
-                                dbc.Row(dbc.Col(base_editing_content)),
+                                mail_content,
+                                job_name_content,
                                 html.Br(),
-                                dbc.Row(dbc.Col(example_content)),
-                            ],
-                            width="auto",
-                        ),
-                        dbc.Col(  # third column of the box
-                            [
-                                dbc.Row(annotation_content),
-                                dbc.Row(mail_content),
-                                dbc.Row(job_name_content),
+                                submit_content,
                                 html.Br(),
-                                dbc.Row(dbc.Col(submit_content)),
-                                dbc.Row(terms_and_conditions_content),
-                            ],
-                            width="auto",
+                                example_content,
+                                terms_and_conditions_content,
+                            ]
                         ),
                     ],
-                    justify="center",
-                    style={"margin-bottom": "1%"},
+                    start=1,
                 )
             ],
-            style={
-                "background-color": "rgba(157, 195, 230, 0.39)",
-                "border-radius": "5px",
-                "border": "1px solid black",
-            },
+            style={"width": "100%"},
             id="steps-background",
         )
     )
@@ -2026,7 +2126,12 @@ def index_page() -> html.Div:
             )
         )
     )
-    index_page = html.Div(final_list, style={"margin": "1%"})
+    # constrain the whole page to the same centered width as the step-cards so the
+    # intro text and footer line up with the submitting form
+    index_page = html.Div(
+        final_list,
+        style={"maxWidth": "680px", "margin": "0 auto", "padding": "24px 12px"},
+    )
     return index_page
 
 
@@ -2051,6 +2156,26 @@ def update_visibility_base_editor_dropdowns(radio_value: str) -> Dict:
         return {"display": ""}
     else:
         return {"display": "none"}
+
+
+@app.callback(
+    [
+        Output("advanced-thresholds-collapse", "is_open"),
+        Output("max-edits-slider", "disabled"),
+        Output("advanced-thresholds-toggle", "children"),
+    ],
+    [Input("advanced-thresholds-toggle", "n_clicks")],
+    [State("advanced-thresholds-collapse", "is_open")],
+    prevent_initial_call=True,
+)
+def toggle_advanced_thresholds(n_clicks: int, is_open: bool) -> Tuple:
+    """Toggle the Advanced (per-type mismatch/bulge) panel. Opening it switches to
+    the explicit per-type mode and GRAYS OUT the max-edits slider to make clear the
+    total-edits cap no longer governs; closing it restores the simple slider mode."""
+    new_open = not is_open
+    label = "Advanced options ▴" if new_open else "Advanced options ▾"
+    # slider disabled (grayed out) exactly when the advanced panel is open
+    return new_open, new_open, label
 
 
 @app.callback(

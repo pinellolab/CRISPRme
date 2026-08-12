@@ -72,6 +72,16 @@ cicd_test=${23}
 
 # Comma-separated VCF FILTER values to treat as passing (default "PASS,.")
 vcf_filter_pass_values="${24:-PASS,.}"
+# Optional user-supplied prebuilt reference-index library (complete-search
+# --index-path). When set, the reference index is looked up here (e.g. a
+# staged or downloaded genome_library) instead of being built under the
+# working directory; a missing index is a hard error rather than a silent
+# rebuild. "_" (or empty) means "not provided".
+index_path="${25:-_}"
+# Optional cap on total edits (mismatches + bulges) per reported alignment
+# (complete-search --max-total-edits). Raw targets exceeding it are dropped
+# right after the search. "-1" (or unset) means no cap.
+max_total_edits="${26:-5}"  # default cap on total edits (mm+bulges); pruned in-search (#107)
 
 # log files
 log="$output_folder/log.txt"
@@ -247,10 +257,23 @@ while read vcf_f; do
 	cd "$current_working_directory/"
 
 	# START STEP 2.1 Reference genome indexing
+	# reference-index library base: a user-supplied --index-path (prebuilt or
+	# downloaded index) when provided, otherwise the working-directory library
+	if [ "$index_path" != "_" ] && [ -n "$index_path" ]; then
+		ref_lib="$(realpath "$index_path")"
+	else
+		ref_lib="${current_working_directory}/genome_library"
+	fi
 	# candidate index folders, ordered by priority
-	idx_folder1="${current_working_directory}/genome_library/${true_pam}_${bMax}_${ref_name}"  # index for requested number of bulges
-	idx_folder2="${current_working_directory}/genome_library/${true_pam}_${bMax_}_${ref_name}"  # index for requested number of bulges + 1 (superset for required index)
-	idx_folder3="${current_working_directory}/genome_library/${true_pam}_1_${ref_name}"  # index for number of bulges = 1 (used also for 0 bulges)
+	idx_folder1="${ref_lib}/${true_pam}_${bMax}_${ref_name}"  # index for requested number of bulges
+	idx_folder2="${ref_lib}/${true_pam}_${bMax_}_${ref_name}"  # index for requested number of bulges + 1 (superset for required index)
+	idx_folder3="${ref_lib}/${true_pam}_1_${ref_name}"  # index for number of bulges = 1 (used also for 0 bulges)
+	# pamless (NNN) fallback: a degenerate NNN index contains all candidate sites,
+	# so it works for ANY PAM (the requested PAM is enforced by the post-search PAM
+	# filter, and applied for real in post-analysis). Used when no PAM-specific
+	# index exists, letting one index cover many PAMs.
+	idx_folder_nnn="${ref_lib}/NNN_${bMax}_${ref_name}"
+	idx_folder_nnn_="${ref_lib}/NNN_${bMax_}_${ref_name}"
 
 	# try to use an existing index
 	if [ -d "$idx_folder1" ]; then
@@ -265,6 +288,21 @@ while read vcf_f; do
 		echo "Reference Index already present"
 		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
 		idx_ref="$idx_folder3"
+	elif [ -d "$idx_folder_nnn" ]; then
+		echo "Using pamless (NNN) reference index"
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
+		idx_ref="$idx_folder_nnn"
+	elif [ -d "$idx_folder_nnn_" ]; then
+		echo "Using pamless (NNN) reference index (superset)"
+		echo -e 'Index-genome Reference\tEnd\t'$(date) >>"$log"
+		idx_ref="$idx_folder_nnn_"
+	elif [ "$index_path" != "_" ] && [ -n "$index_path" ]; then
+		# an index location was explicitly provided but no matching index was
+		# found there: fail loudly instead of silently rebuilding elsewhere
+		printf "ERROR: no matching reference index under --index-path '%s'\n" "$ref_lib" >&2
+		printf "       expected one of: %s\n" "$(basename "$idx_folder1"), $(basename "$idx_folder2"), $(basename "$idx_folder3")" >&2
+		printf "       build it first with 'crisprme.py build-index-only' (same --genome/--pam/--bDNA/--bRNA), or omit --index-path to build automatically.\n" >&2
+		exit 1
 	else
 		# no valid index found, compute it; use mkdir lock to prevent concurrent builds
 		_lock="${idx_folder1}.lock"
@@ -296,6 +334,12 @@ while read vcf_f; do
 		idx_folder1="${basedir}/${true_pam}_${bMax}_${ref_name}+${vcf_name}"
 		idx_folder2="${basedir}/${true_pam}_${bMax_}_${ref_name}+${vcf_name}"
 		idx_folder3="${basedir}/${true_pam}_1_${ref_name}+${vcf_name}"
+		# pamless (NNN) variant-index fallback (see the reference-index note): a
+		# single NNN variant index built on the enriched genome serves any PAM,
+		# with the requested PAM enforced by the post-search PAM filter and
+		# variant-created PAMs preserved (IUPAC-aware) for the creation analysis.
+		idx_folder_nnn="${basedir}/NNN_${bMax}_${ref_name}+${vcf_name}"
+		idx_folder_nnn_="${basedir}/NNN_${bMax_}_${ref_name}+${vcf_name}"
 
 		# try existing indexes in priority order
 		if [ -d "$idx_folder1" ]; then
@@ -310,6 +354,14 @@ while read vcf_f; do
 			echo "Variant Index already present"
 			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
 			idx_var="$idx_folder3"
+		elif [ -d "$idx_folder_nnn" ]; then
+			echo "Using pamless (NNN) variant index"
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder_nnn"
+		elif [ -d "$idx_folder_nnn_" ]; then
+			echo "Using pamless (NNN) variant index (superset)"
+			echo -e 'Index-genome Variant\tEnd\t'$(date) >>"$log"
+			idx_var="$idx_folder_nnn_"
 		else
 			# no index found, compute it; use mkdir lock to prevent concurrent builds
 			_lock="${idx_folder1}.lock"
@@ -380,6 +432,70 @@ while read vcf_f; do
 	fi
 	# END STEP 2 - genome indexing
 
+	# --- RAM safety guard on the search thread count ---------------------------
+	# A CRISPRitz search holds ~per-thread alignment state in RAM; a pamless
+	# (all-N PAM, e.g. NNN) genome-wide search is far heavier (empirically ~5GB
+	# base + ~2.1GB/thread; 96 threads peaked at ~208GB) because every position is
+	# a candidate. On a machine with less RAM than the requested threads imply,
+	# that OOM-kills the search. Cap $ncpus to what available memory supports so a
+	# user can't accidentally request more threads than they have memory for.
+	# Escape hatches: CRISPRME_MAX_SEARCH_THREADS=<n> forces a ceiling;
+	# CRISPRME_NO_THREAD_GUARD=1 disables the guard entirely.
+	if [ "${CRISPRME_NO_THREAD_GUARD:-0}" != "1" ] && [ -r /proc/meminfo ]; then
+		avail_mb=$(awk '/MemAvailable/{printf "%d", $2/1024}' /proc/meminfo)
+		if ! [ "${avail_mb:-0}" -gt 0 ] 2>/dev/null; then
+			# no MemAvailable field (old kernels / some containers): we can't size a
+			# safe cap, so DON'T mis-cap to 1 thread -- skip the guard, run as asked.
+			echo -e "Thread guard\tskipped (MemAvailable unreadable); running at requested $ncpus thread(s)" >>$log
+		else
+			# detect a pamless PAM: the PAM portion of the motif is all N
+			pam_line=$(head -1 "$pam_file")
+			pam_seq=$(echo "$pam_line" | awk '{print $1}')
+			pam_pos=$(echo "$pam_line" | awk '{print $2}')
+			if [ "$pam_pos" -lt 0 ]; then
+				n=$((-pam_pos)); motif=${pam_seq:0:n}
+			else
+				motif=${pam_seq: -pam_pos}
+			fi
+			case "$motif" in
+				*[!Nn]*) pamless=0 ;;   # has a real PAM base -> constrained search
+				*)       pamless=1 ;;   # all-N PAM -> pamless (memory-heavy)
+			esac
+			# per-thread + fixed (index-load) footprint estimates (MB)
+			if [ "$pamless" -eq 1 ]; then
+				per_thread_mb=2200; base_mb=12000
+			else
+				per_thread_mb=800;  base_mb=4000
+			fi
+			# ref + variant searches run in PARALLEL, each loading its own index, so
+			# count the fixed footprint once per concurrent search (2x for a variant
+			# search, 1x for reference-only).
+			base_total=$base_mb
+			[ "$vcf_name" != "_" ] && base_total=$((base_mb * 2))
+			reserve_mb=4000  # headroom for the OS + downstream post-analysis
+			budget_mb=$((avail_mb - reserve_mb - base_total))
+			if [ "$budget_mb" -lt "$per_thread_mb" ]; then
+				safe_ncpus=1
+			else
+				safe_ncpus=$((budget_mb / per_thread_mb))
+			fi
+			[ "$safe_ncpus" -lt 1 ] && safe_ncpus=1
+			if [ "$safe_ncpus" -lt "$ncpus" ]; then
+				kind="standard"; [ "$pamless" -eq 1 ] && kind="pamless (memory-heavy)"
+				echo -e "Thread guard\tCapping search threads $ncpus -> $safe_ncpus to fit available memory (~$((avail_mb/1024))GB free, $kind PAM)" >>$log
+				echo "NOTE: capping search threads $ncpus -> $safe_ncpus to fit ~$((avail_mb/1024))GB free RAM ($kind PAM). Override with CRISPRME_MAX_SEARCH_THREADS / CRISPRME_NO_THREAD_GUARD=1."
+				ncpus=$safe_ncpus
+			fi
+		fi
+	fi
+	# hard user-supplied ceiling (applies with or without the RAM guard)
+	if [ -n "${CRISPRME_MAX_SEARCH_THREADS:-}" ] && [ "$CRISPRME_MAX_SEARCH_THREADS" -ge 1 ] 2>/dev/null; then
+		if [ "$CRISPRME_MAX_SEARCH_THREADS" -lt "$ncpus" ]; then
+			echo "NOTE: capping search threads $ncpus -> $CRISPRME_MAX_SEARCH_THREADS (CRISPRME_MAX_SEARCH_THREADS)."
+			ncpus=$CRISPRME_MAX_SEARCH_THREADS
+		fi
+	fi
+
 	#ceil npcus to use 1/2 of cpus per search
 	ceiling_result=$((($ncpus) / 2))
 	#if ceiling is 0, set ceiling to 1
@@ -396,7 +512,7 @@ while read vcf_f; do
 	if ! [ -f "$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 		echo -e 'Search Reference Start'  # off-targets search on reference genome
 		if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulges 
-			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result &
+			crispritz.py search $idx_ref "$pam_file" "$guide_file" "${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result --max-edits $max_total_edits &
 			pid_search_ref=$!
 			pids+=("$pid_search_ref")  # add reference search pid
 			names+=("Reference")  # add pid identifier
@@ -416,7 +532,7 @@ while read vcf_f; do
 		if ! [ -f "$output_folder/crispritz_targets/${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" ]; then
 			echo -e 'Search Variant Start'  # search off-targets on alternative genomes (snps only)
 			if [ "$bDNA" -ne 0 ] || [ "$bRNA" -ne 0 ]; then  # no bulge
-				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var &
+				crispritz.py search "$idx_var" "$pam_file" "$guide_file" "${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}" -index -mm $mm -bDNA $bDNA -bRNA $bRNA -t -th $ceiling_result -var --max-edits $max_total_edits &
 				pid_search_var=$!
 				pids+=("$pid_search_var")  # add variants search pid
 				names+=("Variant")  # add pid identifier
@@ -435,7 +551,7 @@ while read vcf_f; do
 			echo -e "Search INDELs Start"
 			cd $starting_dir
 			# TODO: REMOVE POOL SCRIPT FROM PROCESSING
-			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus"
+			./pool_search_indels.py "$ref_folder" "$vcf_folder" "$vcf_name" "$guide_file" "$pam_file" $bMax $mm $bDNA $bRNA "$output_folder" $true_pam "$current_working_directory/" "$ncpus" "$max_total_edits"
 			awk '($3 !~ "n") {print $0}' "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt" >"$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp"
 			mv "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt.tmp" "$output_folder/indels_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
 		else
@@ -466,6 +582,29 @@ while read vcf_f; do
 	# move all targets into targets directory
 	if [ -d "${output_folder}/crispritz_targets" ]; then
 		mv $output_folder/*.targets.txt $output_folder/crispritz_targets &>/dev/null
+	fi
+	# PAM filter: keep only raw targets whose PAM region can satisfy the requested
+	# PAM (IUPAC-aware, so variant-created PAMs survive for the creation analysis).
+	# Correct for any index -- essential when a pamless (NNN) index is reused for a
+	# specific PAM; a no-op for PAM-specific and direct (-r) searches.
+	if [ -d "${output_folder}/crispritz_targets" ]; then
+		for _tgt in "${output_folder}"/crispritz_targets/*.targets.txt; do
+			[ -f "$_tgt" ] || continue
+			python "$starting_dir/pam_filter.py" "$_tgt" "$pam_file"
+		done
+		echo -e "Applied PAM filter to raw targets" >>$log
+	fi
+	# optional --max-total-edits cap (issue #107): drop raw targets whose TOTAL
+	# edits (column 10 = Mismatches + Bulge_Size) exceed the cap, BEFORE the
+	# expensive integration/scoring/post-analysis. The raw CRISPRitz targets have
+	# no header, so a plain numeric comparison on $10 is safe. -1 = disabled.
+	if [ "$max_total_edits" != "-1" ] && [ -d "${output_folder}/crispritz_targets" ]; then
+		for _tgt in "${output_folder}"/crispritz_targets/*.targets.txt; do
+			[ -f "$_tgt" ] || continue
+			awk -v m="$max_total_edits" 'NF < 10 || $10 <= m' "$_tgt" >"${_tgt}.capped" \
+				&& mv "${_tgt}.capped" "$_tgt"
+		done
+		echo -e "Applied --max-total-edits cap ($max_total_edits) to raw targets" >>$log
 	fi
 	# move profiles into profile folder
 	if ! [ -d "$output_folder/crispritz_prof" ]; then
@@ -528,11 +667,22 @@ while read vcf_f; do
 		if ! [ -f "$final_res_alt" ]; then  # mock required to avoid crashes 
 			touch "$final_res_alt"
 		fi
-		./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
-		if [ -s $logerror ]; then
-			printf "ERROR: off-targets post-analysis (reference) failed\n" >&2
-			rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
-			exit 1
+		# Skip the reference SNP post-analysis when the search produced no targets
+		# (zero hits). Otherwise pool_post_analisi_snp.py reads a reference
+		# targets file that a zero-hit search never wrote; the resulting "No such
+		# file" on stderr makes the [ -s $logerror ] check abort the whole run.
+		# The INDELs stage already guards this way; the concatenation below uses a
+		# touch-first pattern, so it safely yields an empty (but valid) result.
+		ref_targets_file="$output_folder/crispritz_targets/${ref_name}_${pam_name}_${guide_name}_${mm}_${bDNA}_${bRNA}.targets.txt"
+		if [ -s "$ref_targets_file" ]; then
+			./pool_post_analisi_snp.py $output_folder $ref_folder "_" $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "_" $final_res $final_res_alt $ncpus
+			if [ -s $logerror ]; then
+				printf "ERROR: off-targets post-analysis (reference) failed\n" >&2
+				rm -r $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt  # delete results folder
+				exit 1
+			fi
+		else
+			echo "No reference off-targets found; producing an empty result set"
 		fi
 		#CONCATENATE REF&VAR RESULTS
 		for key in "${real_chroms[@]}"; do
@@ -641,6 +791,19 @@ if [  -s $logerror ]; then
 	printf "ERROR: failed adding headers to alternative results files\n" >&2
 	rm $output_folder/*.bestCFD.txt $output_folder/*.bestmmblg.txt $output_folder/*.bestCRISTA.txt $output_folder/*.bestMerge.txt $output_folder/*.altMerge.txt
 	exit 1
+fi
+
+# ZERO-HIT SHORT-CIRCUIT: if the assembled best-result files contain only their
+# header (the search found no off-targets for any guide, e.g. a very stringent
+# guide/parameter combination), the downstream merge / annotation / scoring /
+# integration steps each assume at least one data row and would fail in turn.
+# Finish successfully with an empty-but-valid result instead of aborting.
+if [ -z "$(tail -n +2 "$final_res.bestCFD.txt" 2>/dev/null | head -c 1)" ]; then
+	echo "No off-targets found for the provided guide(s) with the given parameters."
+	echo "The search completed successfully; the result set is empty."
+	# leave the header-only best/alt files in place as the (empty) result
+	echo -e 'Job\tEnd\t'"$(date)" >>"$log"
+	exit 0
 fi
 
 # START STEP 5 - targets merge
@@ -875,22 +1038,29 @@ if [ $gene_proximity != "_" ]; then
 	genome_version=$(echo ${ref_name} | sed 's/_ref//' | sed -e 's/\n//') #${output_folder}/Params.txt | awk '{print $2}' | sed 's/_ref//' | sed -e 's/\n//')
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).bestMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	if [ -s $logerror ]; then
-		printf  "ERROR: targets integration failed on primary results\n" >&2
-		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		# issue #143: a post-search integration failure must NOT delete the run's
+		# completed output. Preserve the merged/annotated results; only set aside a
+		# partially written integrated file so it is not mistaken for complete.
+		printf  "ERROR: results integration failed on primary results. The completed search/merge output in %s is PRESERVED (issue #143); any partial integrated file was renamed to *.partial.\n" "$output_folder" >&2
+		for _tsv in "$output_folder"/*.integrated_results.tsv; do [ -f "$_tsv" ] && mv -f "$_tsv" "$_tsv.partial"; done
 		exit 1
 	fi
 	bash $starting_dir/post_process.sh "${output_folder}/$(basename ${output_folder}).altMerge.txt" "${gene_proximity}" "${output_folder}/dummy.txt" "${guide_file}" $genome_version "${output_folder}" "vuota" $starting_dir/ $base_check_start $base_check_end $base_check_set
 	if [ -s $logerror ]; then
-		printf  "ERROR: targets integration failed on primary results\n" >&2
-		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		# issue #143: a post-search integration failure must NOT delete the run's
+		# completed output. Preserve the merged/annotated results; only set aside a
+		# partially written integrated file so it is not mistaken for complete.
+		printf  "ERROR: results integration failed on primary results. The completed search/merge output in %s is PRESERVED (issue #143); any partial integrated file was renamed to *.partial.\n" "$output_folder" >&2
+		for _tsv in "$output_folder"/*.integrated_results.tsv; do [ -f "$_tsv" ] && mv -f "$_tsv" "$_tsv.partial"; done
 		exit 1
 	fi
 	rm "${output_folder}/dummy.txt"
 	python $starting_dir/CRISPRme_plots.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/imgs/" &>"${output_folder}/warnings.txt"
 	if [ -s $logerror ]; then
-		printf  "ERROR: score plots generation failed\n" >&2
-		rm -r "${output_folder}/imgs"
-		rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+		# issue #143: plots are supplementary and the integrated results are already
+		# complete at this point; preserve them and drop only the incomplete imgs/.
+		printf  "ERROR: score plots generation failed — results are PRESERVED (issue #143); removing only the incomplete imgs/.\n" >&2
+		rm -rf "${output_folder}/imgs"
 		exit 1
 	fi
 	rm -f "${output_folder}/warnings.txt" # delete warnings file
@@ -911,8 +1081,9 @@ if [ -f "${output_folder}/$(basename ${output_folder}).db" ]; then
 fi
 python $starting_dir/db_creation.py "${output_folder}/$(basename ${output_folder}).bestMerge.txt.integrated_results.tsv" "${output_folder}/.$(basename ${output_folder})"
 if [ -s $logerror ]; then
-	printf "ERROR: database creation failed\n" >&2 
-	rm $final_res* $final_res_alt* $output_folder/*.altMerge.txt $output_folder/*.bestMerge.txt $output_folder/*_CFD.txt $output_folder/*_fewest.txt $output_folder/*_CRISTA.txt $output_folder/.*_CFD.txt $output_folder/.*_fewest.txt $output_folder/.*_CRISTA.txt $output_folder/*.tsv
+	# issue #143: database creation is the last step and the integrated results
+	# are already complete; preserve them (a failed .db must not delete output).
+	printf "ERROR: database creation failed — results are PRESERVED (issue #143).\n" >&2
 	exit 1
 fi
 echo -e 'Creating database\tEnd\t'$(date) >>$log
@@ -940,13 +1111,16 @@ if [ "$email" != "_" ]; then
 	python $starting_dir/../pages/send_mail.py $output_folder
 fi
 
-# restore unzipped annotation files
+# restore an unzipped copy of the annotation files, but KEEP the .gz (-k): the
+# pipeline entry + input validation require the bgzipped .bed.gz, so consuming it
+# here (plain `gunzip -f` removes the .gz) broke every re-run that referenced the
+# same .bed.gz ("--annotation does not exist"). Keep both.
 if [ "$annotation_file" != "vuoto.txt" ]; then
-    gunzip -f "$annotation_file"
+    gunzip -kf "$annotation_file"
 fi
 
 if [ "$gene_proximity" != "vuoto.txt" ]; then
-	gunzip -f "$gene_proximity"
+	gunzip -kf "$gene_proximity"
 fi
 
 # keep log_error but no block visualization

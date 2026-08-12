@@ -28,7 +28,16 @@ warnings.filterwarnings("ignore")
 matplotlib.use("Agg")
 
 
-plt.style.use("seaborn-poster")
+# py3.11-readiness: the "seaborn-poster" style was renamed to
+# "seaborn-v0_8-poster" in matplotlib 3.6 and the old alias removed in 3.8.
+# Pick whichever exists so the same code works on old and new matplotlib.
+# No-op on the current image (resolves to "seaborn-poster").
+_POSTER_STYLE = (
+    "seaborn-v0_8-poster"
+    if "seaborn-v0_8-poster" in plt.style.available
+    else "seaborn-poster"
+)
+plt.style.use(_POSTER_STYLE)
 matplotlib.rcParams["pdf.fonttype"] = 42
 matplotlib.rcParams["ps.fonttype"] = 42
 

@@ -47,6 +47,61 @@ jobs:
           # (validate_inputs.py, assembly_reconcile.py) so they import + run.
           echo "BRANCH_MOUNT=-v ${GITHUB_WORKSPACE}:/branch:ro" >> "$GITHUB_ENV"
 
+      - name: Smoke — new subcommands dispatch + HF/index unit tests (full env)
+        run: |
+          docker run --rm $BRANCH_MOUNT "$IMG" bash -c '
+            set -e
+            cp /branch/crisprme.py /opt/conda/bin/crisprme.py
+            cp -rf /branch/PostProcess/* /opt/conda/opt/crisprme/PostProcess/
+            # the new subcommands must be recognized (their --help prints a
+            # description then exits 1 by design, so check the OUTPUT, not the
+            # exit code). Use `if` blocks, not `grep && {...}`, so a not-found
+            # grep does not trip `set -e`.
+            for c in build-index-only download publish-index; do
+              out="$(crisprme.py "$c" --help 2>&1 || true)"
+              if ! echo "$out" | grep -qi "functionality"; then
+                echo "FAIL: $c --help"; echo "$out" | tail -3; exit 1
+              fi
+              if echo "$out" | grep -qi "not an allowed command"; then
+                echo "FAIL: $c not dispatched"; exit 1
+              fi
+            done
+            cs="$(crisprme.py complete-search --help 2>&1 || true)"
+            if ! echo "$cs" | grep -q -- "--index-path"; then echo "FAIL: --index-path missing"; exit 1; fi
+            if ! echo "$cs" | grep -q -- "--max-total-edits"; then echo "FAIL: --max-total-edits missing"; exit 1; fi
+            # HF + index unit tests inside the full env
+            cd /opt/conda/opt/crisprme/PostProcess
+            python -m unittest test_crisprme_hf test_hf_downloads.TestHfFetchFallbackContract
+            echo "smoke OK"
+          '
+
+      - name: Zero-hit regression — empty result must exit 0, not crash
+        run: |
+          # A search that finds no off-targets must finish cleanly with an empty
+          # result (regression guard for the zero-hit post-analysis cascade fix).
+          # Uses a synthetic genome with no GG dinucleotide -> no NGG PAM sites ->
+          # guaranteed zero hits, so the test is deterministic and needs no
+          # download. `set -e` turns the pre-fix non-zero exit into a CI failure.
+          mkdir -p zhwork
+          docker run --rm $BRANCH_MOUNT -v "${PWD}/zhwork:/DATA" -w /DATA "$IMG" bash -c '
+            set -e
+            cp /branch/crisprme.py /opt/conda/bin/crisprme.py
+            cp -rf /branch/PostProcess/* /opt/conda/opt/crisprme/PostProcess/
+            mkdir -p Genomes/synth PAMs
+            python -c "open(\"Genomes/synth/chrS.fa\",\"w\").write(\">chrS\n\"+(\"AC\"*3000)+\"\n\")"
+            printf "NNNNNNNNNNNNNNNNNNNNNGG 3\n" > PAMs/20bp-NGG-SpCas9.txt
+            printf "GGGGGGGGGGGGGGGGGGGGNNN\n" > guide.txt
+            crisprme.py complete-search --genome Genomes/synth --pam PAMs/20bp-NGG-SpCas9.txt \
+              --guide guide.txt --mm 0 --bDNA 0 --bRNA 0 --output zh
+            if ! grep -qi "No off-targets found" Results/zh/log_verbose.txt; then
+              echo "FAIL: empty-result message missing"; exit 1
+            fi
+            if [ -s Results/zh/log_error.txt ]; then
+              echo "FAIL: log_error is non-empty"; cat Results/zh/log_error.txt; exit 1
+            fi
+            echo "zero-hit regression PASS"
+          '
+
       - name: complete-test (chr22, 1000G) for all registered benchmarks
         run: |
           mkdir -p work

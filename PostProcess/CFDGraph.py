@@ -22,7 +22,7 @@ import plotly.graph_objects as go  # or plotly.express as px
 
 import pandas as pd
 import dash_bootstrap_components as dbc
-from dash.dependencies import Input, Output, State
+from dash import Input, Output, State
 from dash.exceptions import PreventUpdate
 import sys
 
@@ -62,8 +62,8 @@ def createGraph(cfd_distribution, showLog):
 
 
 import dash
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 
 
 def CFDGraph(CFD_total_path):

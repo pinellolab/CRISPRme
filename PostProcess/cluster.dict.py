@@ -32,7 +32,12 @@
 # Ottengo così i cluster ordinati per chr, ma non ordinati tra di loro (eg un cluster con total 5 può apparire prima di uno con tot
 
 # NOTE with new search, cluster position is already present, so code for that column is commented
-# NOTE 06/03 PAM  -> removed PAM Disruption calculation
+# NOTE 06/03 PAM  -> removed PAM Disruption calculation. This is intentional and
+#   documented: CRISPRme reports PAM *creation* (variants that add an off-target)
+#   but not PAM *disruption* (variants that remove a reference PAM for carriers),
+#   because disruption lowers rather than raises predicted off-target risk and
+#   would need sample-specific, non-scorable semantics. See "Variant-driven PAM
+#   creation and disruption" in docs/INPUT_FORMATS.md for the full rationale.
 # NOTE 11/03 Removed TOTAL column (already present in search phase)
 import time
 import sys

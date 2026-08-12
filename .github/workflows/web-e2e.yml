@@ -1,0 +1,58 @@
+name: web e2e (playwright)
+
+# Interactive browser validation of the Dash 2.x web interface (the 2.2.0
+# migration off Dash 1.x). The migration's regressions all showed up as blank
+# pages, so this builds the Python-3.11 image, serves the app, and drives a real
+# Chromium via Playwright asserting every routed page renders non-blank with the
+# navbar and no uncaught JS errors (test/web/test_web_e2e.py).
+#
+# Runs on web-affecting changes (and on demand). It builds the image from source
+# because the app requires the PR's Dash-2.x code AND a Dash-2.x runtime — the
+# released bioconda image still ships Dash 1.x, so overlaying code onto it would
+# not exercise the migration.
+
+on:
+  pull_request:
+    paths:
+      - "pages/**"
+      - "app.py"
+      - "index.py"
+      - "assets/**"
+      - "crisprme.py"
+      - "Dockerfile"
+      - "test/web/**"
+      - ".github/workflows/web-e2e.yml"
+  workflow_dispatch:
+
+jobs:
+  web-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Python-3.11 image (linux/amd64)
+        run: docker build -t crisprme:web .
+
+      - name: Start the web interface
+        run: |
+          docker run -d --name web -p 8090:8080 crisprme:web crisprme.py web-interface
+          echo "waiting for the app to serve..."
+          for i in $(seq 1 40); do
+            code="$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8090/index || true)"
+            if [ "$code" = "200" ]; then echo "web up (HTTP 200) after ${i} tries"; ok=1; break; fi
+            sleep 3
+          done
+          if [ "${ok:-0}" != "1" ]; then echo "web app did not come up"; docker logs web || true; exit 1; fi
+
+      - name: Playwright E2E (Chromium)
+        run: |
+          docker run --rm --network host \
+            -v "${GITHUB_WORKSPACE}/test/web:/t" \
+            -e CRISPRME_WEB_URL=http://localhost:8090 \
+            mcr.microsoft.com/playwright/python:v1.47.0-jammy \
+            bash -c 'pip install -q playwright==1.47.0 && python /t/test_web_e2e.py'
+
+      - name: Web app logs on failure
+        if: failure()
+        run: docker logs web || true

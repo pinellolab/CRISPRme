@@ -35,6 +35,8 @@ before running the analysis.
 from utils import (
     check_crisprme_directory_tree,
     download,
+    hf_fetch,
+    HF_DATA_REPO,
     gunzip,
     untar,
     rename,
@@ -169,8 +171,21 @@ def download_genome_data(chrom: str, dest: str) -> str:
         genome_dir = rename(chromsdir, genome_dir)
         assert os.path.isdir(genome_dir)  # was asserting the pre-rename path
     else:
-        chromgz = download(dest, http_url=f"{HG38URL}/chromosomes/{chrom}.fa.gz")
         os.makedirs(genome_dir, exist_ok=True)  # create Genomes/hg38_{chrom}
+        chromfa = os.path.join(genome_dir, f"{chrom}.fa")
+        # fast path: fetch the extracted FASTA from HuggingFace; on any failure
+        # (repo/file missing, no network, huggingface_hub absent) fall back to
+        # the original UCSC source transparently
+        try:
+            hf_fetch(f"genomes/hg38/{chrom}.fa", chromfa)
+            sys.stderr.write(f"Fetched {chrom}.fa from HuggingFace ({HF_DATA_REPO})\n")
+            assert os.path.isfile(chromfa)
+            return os.path.abspath(genome_dir)
+        except Exception as e:
+            sys.stderr.write(
+                f"HuggingFace fetch failed for {chrom}.fa ({e}); falling back to UCSC\n"
+            )
+        chromgz = download(dest, http_url=f"{HG38URL}/chromosomes/{chrom}.fa.gz")
         chromfa = gunzip(
             chromgz,
             os.path.join(genome_dir, os.path.splitext(os.path.basename(chromgz))[0]),
@@ -247,6 +262,21 @@ def download_vcf_data(chrom: str, dest: str, dataset: str) -> None:
                     f"{expected_fname} already present and verified; skipping\n"
                 )
                 continue
+            # fast path: fetch the bgzipped VCF from HuggingFace and MD5-verify it;
+            # on any failure fall through to the original FTP/HTTPS source below
+            try:
+                hf_fetch(f"vcfs/{ds}/{expected_fname}", dest_path)
+                if md5data.get(expected_fname) == compute_md5(dest_path):
+                    sys.stderr.write(
+                        f"Fetched {expected_fname} from HuggingFace ({HF_DATA_REPO})\n"
+                    )
+                    continue
+                raise ValueError("MD5 mismatch after HuggingFace fetch")
+            except Exception as e:
+                sys.stderr.write(
+                    f"HuggingFace fetch failed for {expected_fname} ({e}); "
+                    "falling back to original source\n"
+                )
             # Retry on checksum mismatch (e.g. a truncated transfer from a slow or
             # flaky host) instead of aborting the whole run on the first failure.
             attempts = 3
@@ -322,6 +352,21 @@ def download_samples_ids_data(dataset: str) -> None:
         samplesid_fname = (
             "samplesIDs.1000G.txt" if ds == "1000G" else "samplesIDs.HGDP.txt"
         )
+        # fast path: HuggingFace, then fall back to the original source
+        dest_path = os.path.join(samplesids_dir, samplesid_fname)
+        try:
+            hf_fetch(f"samplesIDs/{samplesid_fname}", dest_path)
+            if MD5SAMPLES.get(samplesid_fname) == compute_md5(dest_path):
+                sys.stderr.write(
+                    f"Fetched {samplesid_fname} from HuggingFace ({HF_DATA_REPO})\n"
+                )
+                continue
+            raise ValueError("MD5 mismatch after HuggingFace fetch")
+        except Exception as e:
+            sys.stderr.write(
+                f"HuggingFace fetch failed for {samplesid_fname} ({e}); "
+                "falling back to original source\n"
+            )
         samplesids = download(
             samplesids_dir, http_url=f"{TESTDATAURL}/samplesIDs/{samplesid_fname}"
         )

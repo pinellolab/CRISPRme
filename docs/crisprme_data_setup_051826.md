@@ -77,6 +77,30 @@ By default, each asset is checked with an MD5 digest before downloading. Simply 
 - **`bgzip` not found**: ensure the `crisprme` environment is active (`mamba activate crisprme`).
 - **Disk full**: check available space with `df -h .` before starting; the full bundle needs ~410 GB.
 
+### 2c. What the setup command produces
+
+When `setup` finishes, your working directory holds everything a search needs — `Genomes/hg38/`, `Annotations/`, `PAMs/`, the per-dataset variant folders `VCFs/hg38_1000G/` and `VCFs/hg38_HGDP/`, `samplesIDs/`, and two **combined config files that are generated for you and already span both default datasets**:
+
+- `vcf.config.txt` — lists the variant folders to search; after the default setup it contains **both** `hg38_1000G` and `hg38_HGDP` (one per line), so a single `complete-search --vcf vcf.config.txt` searches 1000G **and** HGDP together and combines their results.
+- `samplesIDs.config.txt` — the matching per-dataset sample-ID files, in the same order.
+
+You never have to merge these by hand — that is what "combine everything" means here. To search only one dataset, point `--vcf`/`--samplesID` at a config listing just that folder (see Section 4, Step 3).
+
+### 2d. Faster downloads via HuggingFace (optional)
+
+`setup` pulls the genome and variants from their original UCSC/FTP sources, which can be slow. When the data has been published to a HuggingFace dataset repository, you can instead fetch it over HF's CDN with the `download` command — typically much faster, and resumable:
+
+```bash
+# reference bundle in one shot: genome + annotations + PAMs + sample-ID files
+crisprme.py download --what all --path "$CRISPRME_DIR"
+
+# add a variant dataset (delivered bgzipped, ready to search)
+crisprme.py download --what vcf --dataset 1000G --path "$CRISPRME_DIR"
+crisprme.py download --what vcf --dataset HGDP  --path "$CRISPRME_DIR"
+```
+
+The default repository is `lucapinello/crisprme-data`; override it with `--hf-repo <org/name>` or the `CRISPRME_HF_REPO` environment variable. FASTA is decompressed automatically after download; VCFs stay bgzipped. You can freely mix sources — e.g. `download` the genome but `setup` the variants, or vice versa.
+
 ---
 
 ## Section 3. Run a search
@@ -225,11 +249,58 @@ my_crisprme_run/
 
 ---
 
+## Section 3.5. Prebuild, reuse, and share the reference index
+
+Bulge-enabled searches need a CRISPRitz **index** of the reference genome. By default `complete-search` builds it on the first run — into `genome_library/<PAM>_<bulges+1>_<genome>` — and silently reuses it on later runs from the same working directory (that is why "Run another search" in Section 3d is fast: *no re-index*). Three commands let you control this explicitly, which matters for batch jobs, shared clusters, and skipping the build entirely.
+
+### Build the index once, ahead of time
+
+`build-index-only` builds exactly that index **without** running a search — handy on a large machine, or before launching a batch of jobs:
+
+```bash
+crisprme.py build-index-only \
+  --genome Genomes/hg38 \
+  --pam PAMs/20bp-NGG-SpCas9.txt \
+  --bDNA 1 --bRNA 1 \
+  --thread 16 \
+  --path "$CRISPRME_DIR"
+```
+
+Pass the **same** `--genome`, `--pam`, `--bDNA`, `--bRNA` you will use in `complete-search`, so the folder name matches and the search reuses it. (Zero-bulge searches need no index and this command will say so.)
+
+### Point a search at a prebuilt (or shared) index
+
+`--index-path` tells `complete-search` to look for the reference index in a specific library instead of building one under the working directory. If a matching index isn't there, the run **fails fast with a clear message** (rather than silently rebuilding) — which is what you want on a read-only shared mount:
+
+```bash
+crisprme.py complete-search \
+  ... \
+  --index-path /shared/crisprme/genome_library
+```
+
+### Share indexes via HuggingFace
+
+Publish a locally built index so other machines (or collaborators) can skip the build entirely:
+
+```bash
+# upload — needs an HF write token: export HF_TOKEN=...  (never commit it)
+crisprme.py publish-index --index genome_library/NGG_2_hg38
+
+# elsewhere: download it straight into genome_library/
+crisprme.py download --what index --index-name NGG_2_hg38 --path "$CRISPRME_DIR"
+```
+
+Then run the search with `--index-path "$CRISPRME_DIR/genome_library"` (or simply from `$CRISPRME_DIR`) and it reuses the downloaded index. The index folder name encodes the PAM, bulge count and genome, so an index is only valid for a matching `--genome`/`--pam`/`--bDNA`/`--bRNA`.
+
+---
+
 ## Section 4. Add a new VCF dataset
 
 *Use this section whenever you want to run searches against a cohort not included in the default setup. Adding any new dataset follows the same four steps every time. The 1000 Genomes 2021 high-coverage dataset (3,202 samples, phased, GRCh38/hg38) is used as a worked example throughout.*
 
 Adding a new dataset requires four things: the per-chromosome VCF files, a samplesIDs metadata file, and two short config files that tell CRISPRme where to find them.
+
+**Prerequisite.** This section assumes you have already set up the reference genome and annotations (Section 2, or `crisprme.py download --what all`). A new VCF dataset is searched *against* that existing `Genomes/hg38/` reference — you do not re-download the genome to add a cohort.
 
 **File naming requirement.** CRISPRme identifies the chromosome of each VCF by splitting the filename on `.` and looking for a segment that starts with `chr`. Your filenames must follow this pattern — the chromosome label must be its own dot-separated segment, e.g. `MyCohort.chr1.vcf.gz` or `ALL.chr1.filtered.vcf.gz`. A filename like `MyCohort_chr1.vcf.gz` (chromosome embedded inside an underscore-delimited prefix) will not work.
 
@@ -420,7 +491,11 @@ Example for SpCas9 (20 bp spacer, NGG PAM):
 printf 'NNNNNNNNNNNNNNNNNNNNNGG 3\n' > PAMs/20bp-NGG-SpCas9.txt
 ```
 
-The 20 leading `N`s define the spacer length; `NGG` is the PAM; `3` is the PAM length in bp. For 5' PAM nucleases (e.g. Cas12a), the PAM bases come first and the position index is negative (e.g. `TTTV` + 20 `N`s with index `-4`). Consult the CRISPRme documentation or the team for the correct format for your nuclease.
+The 20 leading `N`s define the spacer length; `NGG` is the PAM; `3` is the PAM length in bp. For 5' PAM nucleases (e.g. Cas12a), the PAM bases come first and the position index is negative (e.g. `TTTV` + 20 `N`s with index `-4`). See `docs/INPUT_FORMATS.md` for the full PAM-file specification, including the filename convention (`<length>-<motif>-<Cas>.txt`) and the one-motif-per-file rule.
+
+> **Note (bulges + partially-degenerate odd-length PAMs).** A partially-degenerate IUPAC motif of **odd** length (e.g. `WTN`) combined with bulges can trigger a crash in older CRISPRitz engines. CRISPRme prints a non-fatal warning in this case; even-length degenerate motifs such as `TTTV` (Cas12a) are unaffected. The underlying issue is fixed in CRISPRitz ≥ 2.7.1 (bundled with current CRISPRme), so it is a caution rather than a blocker — but if you hit an odd-length degenerate PAM with bulges on an older stack, either add one base to make the motif even-length or reduce bulges to 0.
+
+Once the reference index for a new PAM does not yet exist, the first search with it builds one automatically (see Section 3.5); you can also pre-build it with `crisprme.py build-index-only`.
 
 ### 5b. Run the search
 

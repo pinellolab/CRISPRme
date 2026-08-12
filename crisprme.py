@@ -11,7 +11,7 @@ import os
 import re
 
 
-version = "2.1.13"  #  CRISPRme version; TODO: update when required
+version = "2.2.0"  #  CRISPRme version; TODO: update when required
 __version__ = version
 
 script_path = os.path.dirname(os.path.abspath(__file__))
@@ -55,6 +55,13 @@ except Exception:  # pragma: no cover - defensive; memory check is optional
 
 sys.path.insert(0, script_path)
 from validate_inputs import run_lightweight, run_full, resolve_vcf_dataset_dirs  # noqa: E402
+from crisprme_hf import (  # noqa: E402  (huggingface_hub imported lazily inside)
+    download_component,
+    publish_index,
+    resolve_repo,
+    DEFAULT_HF_REPO,
+)
+from utils import download_reference_genome  # noqa: E402
 from assembly_reconcile import reconcile_haplotypes, check_liftover_available, haplotype_search_complete, clean_incomplete_haplotype_output, haplotype_params_match  # noqa: E402
 
 cicd_test = False
@@ -318,6 +325,20 @@ def print_help_complete_search() -> None:
         "\t--output, specify the output folder name; results will be saved in "
         "Results/<name> [REQUIRED]\n"
         "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--index-path, use a prebuilt reference-index library at this path "
+        "(e.g. one made with 'build-index-only' or downloaded ahead of time) "
+        "instead of building the index under the working directory; a missing "
+        "matching index is a hard error [OPTIONAL]\n"
+        "\t--max-total-edits, cap the TOTAL edits (mismatches + bulges) per "
+        "reported alignment, pruned INSIDE the TST search so excess alignments "
+        "are never generated (much faster + smaller intermediates). E.g. with "
+        "--mm 6 --bDNA 2 --bRNA 2 --max-total-edits 6, a 4mm+1+1 alignment is "
+        "kept but a 6mm+2+2 (=10) one is skipped. Default 5; set it >= "
+        "mm+bDNA+bRNA to effectively disable. NOTE: the cap is on the alignment "
+        "against the searched (possibly variant-enriched) genome; a variant that "
+        "matches the guide lowers the searched edit count, so a VARIANT off-target's "
+        "REF-based mismatches+bulges reported in the results can exceed the cap "
+        "(reference off-targets are always <= the cap) [OPTIONAL]\n"
         "\t--full_input_validate, also run a full per-VCF-record scan (chromosome "
         "coverage, AF/FILTER consistency, POS bounds, multiallelic/breakend/"
         "duplicate/phasing survey) before launching the search; slower than the "
@@ -336,6 +357,51 @@ def error(msg: str) -> NoReturn:
     """
     sys.stderr.write(f"Error: {msg}\n")
     sys.exit(1)
+
+
+def summarize_pipeline_failure(outputfolder: str) -> str:
+    """Build a concise, actionable summary of a failed pipeline run.
+
+    The search pipeline writes per-stage Start/End markers to ``log.txt`` and
+    all subprocess stderr to ``log_error.txt``. On failure the user otherwise
+    just sees "run failed"; this reads those two files to report WHICH stage
+    failed (the last stage that started but never ended) and WHAT the actual
+    error was (the tail of the error log), so a non-expert doesn't have to open
+    and interpret the log files by hand.
+    """
+    lines = []
+    log_txt = os.path.join(outputfolder, "log.txt")
+    log_err = os.path.join(outputfolder, "log_error.txt")
+    # the failing stage = the last one that started but has no matching End
+    failing_stage = None
+    try:
+        started, ended = [], set()
+        with open(log_txt) as fh:
+            for ln in fh:
+                parts = ln.rstrip("\n").split("\t")
+                if len(parts) >= 2 and parts[1] == "Start":
+                    started.append(parts[0])
+                elif len(parts) >= 2 and parts[1] == "End":
+                    ended.add(parts[0])
+        for stage in reversed(started):
+            if stage not in ended:
+                failing_stage = stage
+                break
+    except OSError:
+        pass
+    if failing_stage:
+        lines.append(f"  Failed during stage: {failing_stage}")
+    try:
+        with open(log_err) as fh:
+            errlines = [ln.rstrip("\n") for ln in fh if ln.strip()]
+        if errlines:
+            lines.append("  Last lines of the error log:")
+            lines.extend(f"      {ln}" for ln in errlines[-15:])
+    except OSError:
+        pass
+    lines.append(f"  Full error log: {log_err}")
+    return "\n".join(lines)
+
 
 def _check_mandatory_args(args: List[str]) -> None:
     if "--genome" not in args:
@@ -1205,6 +1271,37 @@ def complete_search() -> None:
             raise ValueError("Missing input for --vcf-filter-pass-values") from e
     full_input_validate = "--full_input_validate" in args
 
+    # optional prebuilt/staged reference-index library (--index-path). When
+    # given, the reference index is looked up here (e.g. an index made with
+    # build-index-only, or one downloaded ahead of time) rather than built under
+    # the working directory; a missing index becomes a hard error downstream.
+    index_path = "_"
+    if "--index-path" in args:
+        try:
+            index_path = args[args.index("--index-path") + 1]
+            if index_path.startswith("--"):
+                raise ValueError("Please input a value for flag --index-path")
+        except IndexError as e:
+            raise ValueError("Missing input for --index-path") from e
+        index_path = os.path.abspath(index_path)
+        if not os.path.isdir(index_path):
+            error(f"The index path {index_path} does not exist or is not a directory")
+
+    # cap on TOTAL edits per alignment (--max-total-edits, issue #107): prevents
+    # combined-edit alignments (e.g. 6mm+2+2 bulges = 10) from bloating the
+    # intermediate files, scoring and post-analysis. Enforced INSIDE the TST
+    # search (pruned before generation, --max-edits) with a post-search awk drop
+    # as a backstop for the -r/brute-force path. Default 5 (a real off-target
+    # rarely stacks many mismatches AND several bulges); -1 disables it.
+    max_total_edits = 5
+    if "--max-total-edits" in args:
+        try:
+            max_total_edits = int(args[args.index("--max-total-edits") + 1])
+        except (IndexError, ValueError):
+            error("Please provide a non-negative integer for --max-total-edits")
+        if max_total_edits < 0:
+            error("--max-total-edits must be a non-negative integer")
+
     # extract pam seq from file
     pam_len = 0
     total_pam_len = 0
@@ -1424,12 +1521,18 @@ def complete_search() -> None:
                 f"{merge_t} {outputfolder} {script_path} {thread} {current_working_directory} "
                 f"{gene_annotation} {void_mail} {base_start} {base_end} {base_set} "
                 f"{sorting_criteria_scoring} {sorting_criteria} {cicd_test} "
-                f"{vcf_filter_pass_values}"
+                f"{vcf_filter_pass_values} {index_path} {max_total_edits}"
             )
             code = subprocess.call(
                 crisprme_run, shell=True, stderr=log_error, stdout=log_verbose
             )
             if code != 0:
+                # surface WHERE it failed + the actual error, not just "failed"
+                sys.stderr.write(
+                    "\nCRISPRme run failed.\n"
+                    + summarize_pipeline_failure(outputfolder)
+                    + "\n"
+                )
                 raise OSError(
                     f"\nCRISPRme run failed! See {os.path.join(outputfolder, 'log_error.txt')} for details\n"
                 )
@@ -1443,6 +1546,404 @@ def complete_search() -> None:
     # change name of guide and param files to hidden
     os.system(f"mv {outputfolder}/guides.txt {outputfolder}/.guides.txt")
     os.system(f"mv {outputfolder}/Params.txt {outputfolder}/.Params.txt")
+
+
+def print_help_build_index() -> None:
+    """Prints detailed help information for the build-index-only functionality.
+
+    Outputs a description of the index-build step and lists all available
+    command-line options to stderr, then exits the program.
+    """
+    sys.stderr.write(
+        "The build-index-only functionality pre-builds the CRISPRitz reference "
+        "genome index that bulge-enabled searches rely on, WITHOUT running a "
+        "search. The index is written under <path>/genome_library/ and is then "
+        "reused automatically by any later 'complete-search' run (launched from "
+        "the same working directory, or pointed at it with --index-path) that "
+        "uses the same genome, PAM and bulge settings. Building the index once "
+        "and reusing it avoids repeating the single most expensive step across "
+        "many searches, and lets an index be staged (or downloaded) ahead of "
+        "time on a large machine.\n"
+    )
+    sys.stderr.write(
+        "Options:\n"
+        "\t--genome, specify the reference genome folder [REQUIRED]\n"
+        "\t--pam, specify a file containing the PAM sequence [REQUIRED]\n"
+        "\t--bDNA, number of DNA bulges the index must support [OPTIONAL, "
+        "default 0]\n"
+        "\t--bRNA, number of RNA bulges the index must support [OPTIONAL, "
+        "default 0]\n"
+        "\t--thread, set number of threads to use [default: 8]\n"
+        "\t--vcf, a VCF dataset directory (e.g. VCFs/1000G). When given, also "
+        "pre-builds the variant-aware index: enriches the genome with the VCF "
+        "and indexes the enriched (SNP) and indels genomes, so the first "
+        "variant-aware search does not pay the enrichment/indexing cost "
+        "[OPTIONAL]\n"
+        "\t--path, working directory under which genome_library/ is created "
+        "[OPTIONAL, default: current directory]\n"
+        "\t--name, human-friendly label for the finished index, written to a "
+        "'.display_label' sidecar so the web index list / search form show it "
+        "instead of the auto <motif>_<N>_<genome> name (falls back to the "
+        "convention when omitted) [OPTIONAL]\n"
+    )
+    sys.exit(1)
+
+
+def _write_display_label(index_dir: str, label: "str | None") -> None:
+    """Persists an optional human-friendly label for a built index.
+
+    Writes ``<index_dir>/.display_label`` when a non-empty ``label`` is given so
+    the web index list / search form (pages_utils.get_available_indexes) shows it
+    instead of the auto <motif>_<N>_<genome> convention. A no-op for a blank/None
+    label, so the convention-based fallback stays the default. Publishing bundles
+    the sidecar into the HF tarball (crisprme_hf.publish_index).
+    """
+    if not label or not label.strip():
+        return
+    if not os.path.isdir(index_dir):
+        return
+    try:
+        with open(os.path.join(index_dir, ".display_label"), "w") as fd:
+            fd.write(label.strip() + "\n")
+    except OSError as exc:  # non-fatal: the index is built, only the label failed
+        sys.stderr.write(f"Warning: could not write index display label: {exc}\n")
+
+
+def _write_pam_build(index_dir: str, pamfile: str) -> None:
+    """Records the PAM an index was built with, into ``<index_dir>/.pam_build``.
+
+    A CRISPRitz index is built over k-mers of an exact length + PAM orientation, so
+    it can only search PAMs of matching geometry. Persisting the source PAM's name
+    and geometry (``<pam_name> <seq_len> <pam_pos>``) lets the web PAM selector
+    (pages_utils.get_pam_options / index_build_pam) offer only compatible PAMs —
+    critical for pamless (NNN) indexes, which otherwise look like they serve every
+    PAM. The sidecar lives inside the index dir, so it travels in the publish
+    tarball and download automatically. Non-fatal on any error.
+    """
+    if not os.path.isdir(index_dir):
+        return
+    try:
+        with open(pamfile) as fh:
+            parts = fh.readline().split()
+        seq, pos = parts[0], int(parts[1])
+        name = os.path.splitext(os.path.basename(pamfile))[0]
+        with open(os.path.join(index_dir, ".pam_build"), "w") as fd:
+            fd.write(f"{name} {len(seq)} {pos}\n")
+    except (OSError, ValueError, IndexError) as exc:
+        sys.stderr.write(f"Warning: could not write index PAM provenance: {exc}\n")
+
+
+def build_index_only() -> None:
+    """Pre-builds the CRISPRitz reference index for a genome+PAM+bulge combo.
+
+    Exposes the index-build step that ``complete-search`` otherwise performs
+    implicitly, so an index can be constructed once (e.g. on a large machine)
+    and reused across many searches. The produced directory
+    (``genome_library/<PAM>_<bMax+1>_<genome>``) is byte-for-byte the same one
+    ``complete-search`` looks for, so no extra bookkeeping is required: a later
+    search with matching --genome/--pam/--bDNA/--bRNA finds and reuses it.
+    """
+    args = input_args[2:]  # retrieve build-index-only input arguments
+    if "--help" in args:
+        print_help_build_index()
+    genomedir = _check_genome(args)  # reference genome folder
+    pamfile = _check_pam(args)  # PAM file
+    thread = _check_threads(args, "--thread" in args)  # number of threads
+    bDNA = _check_bdna(args, "--bDNA" in args)  # DNA bulges
+    bRNA = _check_brna(args, "--bRNA" in args)  # RNA bulges
+    bMax = max(bDNA, bRNA)  # maximum number of bulges
+    # optional human-friendly label for the finished index; written to a
+    # .display_label sidecar so the web index list / search form shows it
+    # instead of the auto <motif>_<N>_<genome> convention (falls back to the
+    # convention when absent — see pages_utils._friendly_index_label).
+    display_name = None
+    if "--name" in args:
+        display_name = args[args.index("--name") + 1].strip()
+    if bMax == 0:
+        sys.stderr.write(
+            "Nothing to do: a genome index is only required for bulge-enabled "
+            "searches (--bDNA/--bRNA > 0). Zero-bulge searches run directly on "
+            "the FASTA with no index.\n"
+        )
+        sys.exit(0)
+    # working directory under which genome_library/ is created (mirrors the
+    # current_working_directory complete-search uses to locate genome_library/)
+    workdir = os.getcwd()
+    if "--path" in args:
+        workdir = os.path.abspath(args[args.index("--path") + 1])
+        if not os.path.isdir(workdir):
+            error(f"The working directory {workdir} does not exist")
+    # derive the true PAM string exactly as complete-search does (see the PAM
+    # parsing block in complete_search), so the index folder name matches the
+    # one a later search will look for
+    with open(pamfile, "r") as pf:
+        pam_char = pf.readline()
+        idx_val = int(pam_char.split(" ")[-1])
+        end_idx = abs(idx_val)
+        if idx_val < 0:  # 5' PAM (e.g. Cas12a)
+            pam_char = pam_char.split(" ")[0][0:end_idx]
+        else:  # 3' PAM (e.g. SpCas9)
+            pam_char = pam_char.split(" ")[0][end_idx * (-1):]
+    genome_ref = os.path.basename(genomedir)
+    # complete-search indexes with bMax+1 ("for alignments starting with gaps")
+    index_name = f"{pam_char}_{bMax + 1}_{genome_ref}"
+    idx_folder = os.path.join(workdir, "genome_library", index_name)
+    vcf_given = "--vcf" in args
+    # ---- reference index ------------------------------------------------------
+    if os.path.isdir(idx_folder):
+        print(f"Reference index already present: {idx_folder}", flush=True)
+    else:
+        os.makedirs(os.path.join(workdir, "genome_library"), exist_ok=True)
+        print(
+            f"Building reference index {index_name} (bMax {bMax + 1}, "
+            f"{thread} thread(s))...",
+            flush=True,
+        )
+        # exactly the invocation complete-search uses, run from workdir so the
+        # index lands in <workdir>/genome_library/ under the expected name
+        index_cmd = (
+            f"crispritz.py index-genome {genome_ref} {genomedir}/ {pamfile} "
+            f"-bMax {bMax + 1} -th {thread}"
+        )
+        code = subprocess.call(index_cmd, shell=True, cwd=workdir)
+        if code != 0 or not os.path.isdir(idx_folder):
+            error(f"Reference genome indexing failed (expected {idx_folder})")
+        print(f"Index built: {idx_folder}", flush=True)
+    _write_pam_build(idx_folder, pamfile)
+    if not vcf_given:
+        _write_display_label(idx_folder, display_name)
+        print(
+            "It will be reused automatically by complete-search runs launched from "
+            "this working directory (or pointed here with --index-path) that use the "
+            "same genome, PAM and bulge settings.",
+            flush=True,
+        )
+        return
+    # ---- variant (enriched SNP + indels) index --------------------------------
+    # Pre-build the variant-aware index so the first variant search does not pay
+    # the (slow) enrichment + indexing cost. This mirrors STEP 1-2 of the search
+    # pipeline (submit_job_automated_new_multiple_vcfs.sh) exactly, producing the
+    # same folder names a later search looks for.
+    import shutil
+    import tempfile
+    from glob import glob as _glob
+
+    vcfdir = os.path.abspath(args[args.index("--vcf") + 1])
+    if not os.path.isdir(vcfdir):
+        error(f"The VCF dataset directory {vcfdir} does not exist")
+    vcf_name = os.path.basename(vcfdir.rstrip("/"))
+    enriched = os.path.join(workdir, "Genomes", f"{genome_ref}+{vcf_name}")
+    indels_out = os.path.join(workdir, "Genomes", f"{genome_ref}+{vcf_name}_INDELS")
+    dict_folder = os.path.join(workdir, "Dictionaries", f"dictionaries_{vcf_name}")
+    indel_dict = os.path.join(workdir, "Dictionaries", f"log_indels_{vcf_name}")
+    snp_idx = os.path.join(
+        workdir, "genome_library", f"{pam_char}_{bMax + 1}_{genome_ref}+{vcf_name}"
+    )
+    indels_idx = snp_idx + "_INDELS"
+    # STEP 1: enrich the genome with the VCF (crispritz add-variants). add-variants
+    # writes a fixed-name variants_genome/ in its cwd, so run it in a throwaway
+    # temp dir to avoid collisions, then move the outputs into place.
+    if not os.path.isdir(enriched):
+        print(f"Enriching {genome_ref} with {vcf_name} (add-variants)...", flush=True)
+        tmp = tempfile.mkdtemp(prefix="run_", dir=os.path.join(workdir, "Genomes"))
+        variants_tmp = os.path.join(tmp, "variants_genome")
+        code = subprocess.call(
+            f"crispritz.py add-variants {vcfdir}/ {genomedir}/ true",
+            shell=True,
+            cwd=tmp,
+        )
+        if code != 0:
+            shutil.rmtree(tmp, ignore_errors=True)
+            error(f"Genome enrichment (add-variants) failed on {vcf_name}")
+        # This block only runs on a FRESH enrichment (enriched was absent), so any
+        # pre-existing dataset-specific output dirs are stale/partial from a prior
+        # aborted build. Clear them first, else shutil.move onto an existing
+        # fake_chrN / dict raises "Destination path already exists" (issue #54).
+        for _d in (indels_out, dict_folder, indel_dict):
+            if os.path.isdir(_d):
+                shutil.rmtree(_d)
+        os.makedirs(indels_out, exist_ok=True)
+        shutil.move(
+            os.path.join(variants_tmp, "SNPs_genome", f"{genome_ref}_enriched"),
+            enriched,
+        )
+        for f in _glob(os.path.join(variants_tmp, "fake*")):
+            shutil.move(f, indels_out)
+        os.makedirs(dict_folder, exist_ok=True)
+        os.makedirs(indel_dict, exist_ok=True)
+        for f in _glob(os.path.join(variants_tmp, "SNPs_genome", "*.json")):
+            shutil.move(f, dict_folder)
+        for f in _glob(os.path.join(variants_tmp, "SNPs_genome", "log*.txt")):
+            shutil.move(f, indel_dict)
+        shutil.rmtree(tmp, ignore_errors=True)
+    else:
+        print(f"Enriched genome already present: {enriched}", flush=True)
+    # STEP 2: index the enriched (SNP) genome
+    if not os.path.isdir(snp_idx):
+        print(f"Building variant index {os.path.basename(snp_idx)}...", flush=True)
+        code = subprocess.call(
+            f"crispritz.py index-genome {genome_ref}+{vcf_name} {enriched}/ "
+            f"{pamfile} -bMax {bMax + 1} -th {thread}",
+            shell=True,
+            cwd=workdir,
+        )
+        if code != 0 or not os.path.isdir(snp_idx):
+            error(f"Variant genome indexing failed (expected {snp_idx})")
+    else:
+        print(f"Variant index already present: {snp_idx}", flush=True)
+    # STEP 3: index the indels genome (pool_index_indels.py, as the pipeline does)
+    if not os.path.isdir(indels_idx):
+        print(f"Building indels index {os.path.basename(indels_idx)}...", flush=True)
+        pool = os.path.join(script_path, "pool_index_indels.py")
+        code = subprocess.call(
+            [
+                sys.executable,
+                pool,
+                f"{indels_out}/",
+                pamfile,
+                pam_char,
+                genome_ref,
+                vcf_name,
+                str(bMax + 1),
+                str(thread),
+            ],
+            cwd=workdir,
+        )
+        if code != 0 or not os.path.isdir(indels_idx):
+            error(f"Indels indexing failed (expected {indels_idx})")
+    else:
+        print(f"Indels index already present: {indels_idx}", flush=True)
+    _write_pam_build(snp_idx, pamfile)
+    _write_display_label(snp_idx, display_name)
+    print(
+        f"Variant index ready: {os.path.basename(snp_idx)} (+ _INDELS). A later "
+        f"variant-aware search on {genome_ref} with {vcf_name} reuses it.",
+        flush=True,
+    )
+
+
+def print_help_download() -> None:
+    """Prints detailed help information for the download functionality."""
+    sys.stderr.write(
+        "The download functionality fetches CRISPRme reference data from a "
+        "HuggingFace dataset repository over HF's CDN — typically much faster and "
+        "more reliable than the original UCSC/FTP sources — and places it in the "
+        "canonical CRISPRme directory layout (Genomes/, Annotations/, PAMs/, "
+        "samplesIDs/, VCFs/, genome_library/). FASTA is decompressed after "
+        f"download; VCFs are kept bgzipped. Default repo: {DEFAULT_HF_REPO} "
+        "(override with --hf-repo or the CRISPRME_HF_REPO environment "
+        "variable).\n"
+    )
+    sys.stderr.write(
+        "Options:\n"
+        "\t--what, component to fetch: genome | annotations | pams | samples | "
+        "vcf | index | all (all = genome+annotations+pams+samples) [REQUIRED]\n"
+        "\t--ref, reference genome name for --what genome/index [default: hg38]\n"
+        "\t--dataset, variant dataset name for --what vcf (e.g. 1000G, HGDP) "
+        "[REQUIRED for --what vcf]\n"
+        "\t--index-name, precomputed index directory name for --what index "
+        "(e.g. NGG_2_hg38) [REQUIRED for --what index]\n"
+        "\t--hf-repo, HuggingFace dataset repo id to fetch from [OPTIONAL]\n"
+        "\t--source, for --what genome: hf (HuggingFace, default) | ucsc "
+        "(UCSC goldenPath by assembly name, e.g. --ref susScr11) | url "
+        "(explicit --url link) [OPTIONAL]\n"
+        "\t--url, explicit genome download URL when --source url [OPTIONAL]\n"
+        "\t--path, working directory the CRISPRme dir-tree lives under "
+        "[OPTIONAL, default: current directory]\n"
+    )
+    sys.exit(1)
+
+
+def download_data() -> None:
+    """Fetches CRISPRme reference components from a HuggingFace dataset repo.
+
+    A fast-CDN alternative to the FTP/UCSC downloads performed by ``setup``:
+    genome, annotations, PAMs, sample-ID files, variant VCFs and precomputed
+    indexes are pulled from a HuggingFace dataset into the canonical CRISPRme
+    layout under the working directory.
+    """
+    args = input_args[2:]  # retrieve download input arguments
+    if "--help" in args or "--what" not in args:
+        print_help_download()
+    what = args[args.index("--what") + 1]
+    repo = args[args.index("--hf-repo") + 1] if "--hf-repo" in args else None
+    ref = args[args.index("--ref") + 1] if "--ref" in args else "hg38"
+    dataset = args[args.index("--dataset") + 1] if "--dataset" in args else None
+    index_name = args[args.index("--index-name") + 1] if "--index-name" in args else None
+    # genome source: 'hf' (HuggingFace, default), 'ucsc' (goldenPath by assembly),
+    # or 'url' (explicit download link). Only meaningful for --what genome.
+    source = args[args.index("--source") + 1] if "--source" in args else "hf"
+    url = args[args.index("--url") + 1] if "--url" in args else None
+    workdir = os.getcwd()
+    if "--path" in args:
+        workdir = os.path.abspath(args[args.index("--path") + 1])
+        if not os.path.isdir(workdir):
+            error(f"The working directory {workdir} does not exist")
+    # "all" fetches the always-needed reference bundle (variant VCFs and indexes
+    # are dataset/index specific, so they are requested explicitly)
+    if what == "all":
+        components = ["genome", "annotations", "pams", "samples"]
+    else:
+        components = [what]
+    for comp in components:
+        try:
+            if comp == "genome" and source in ("ucsc", "url"):
+                # non-HuggingFace reference genome (e.g. a UCSC assembly such as
+                # the pig susScr11) -> download straight into Genomes/<ref>/
+                dest = download_reference_genome(
+                    ref, os.path.join(workdir, "Genomes"), source=source, url=url
+                )
+            else:
+                dest = download_component(
+                    comp,
+                    workdir,
+                    repo=repo,
+                    ref=ref,
+                    dataset=dataset,
+                    index_name=index_name,
+                )
+        except (ValueError, ImportError, RuntimeError) as e:
+            error(str(e))
+        print(f"Downloaded {comp} -> {dest}", flush=True)
+
+
+def print_help_publish_index() -> None:
+    """Prints detailed help information for the publish-index functionality."""
+    sys.stderr.write(
+        "The publish-index functionality uploads a locally built CRISPRitz "
+        "reference index (a genome_library/<name> directory, e.g. from "
+        "build-index-only) to a HuggingFace dataset repository as a single "
+        "compressed archive, so it can later be fetched with "
+        "'crisprme.py download --what index'. An HF write token is required "
+        "(provide --token or set HF_TOKEN; never commit it).\n"
+    )
+    sys.stderr.write(
+        "Options:\n"
+        "\t--index, path to the genome_library/<name> index directory to publish "
+        "[REQUIRED]\n"
+        "\t--hf-repo, HuggingFace dataset repo id to upload to [OPTIONAL]\n"
+        "\t--token, HuggingFace write token [OPTIONAL if HF_TOKEN is set]\n"
+        "\t--name, optional human-friendly display name for the index (else a "
+        "clear convention label is derived from the folder name) [OPTIONAL]\n"
+    )
+    sys.exit(1)
+
+
+def publish_index_cmd() -> None:
+    """Uploads a locally built reference index to a HuggingFace dataset repo."""
+    args = input_args[2:]  # retrieve publish-index input arguments
+    if "--help" in args or "--index" not in args:
+        print_help_publish_index()
+    index_dir = os.path.abspath(args[args.index("--index") + 1])
+    repo = args[args.index("--hf-repo") + 1] if "--hf-repo" in args else None
+    token = args[args.index("--token") + 1] if "--token" in args else None
+    # optional human-friendly display name (else the UI parses a convention label)
+    name = args[args.index("--name") + 1] if "--name" in args else None
+    try:
+        remote_path = publish_index(index_dir, repo=repo, token=token, display_name=name)
+    except (ValueError, ImportError) as e:
+        error(str(e))
+    print(f"Published index to {resolve_repo(repo)}:{remote_path}", flush=True)
 
 
 def print_help_assembly_search() -> None:
@@ -2197,7 +2698,9 @@ def validate_test():
             sys.exit(1)
     # begin crisprme test
     script_validation = os.path.join(script_path, "validate.py")
-    code = subprocess.call(f"python {script_validation} {chrom}", shell=True)
+    code = subprocess.call(
+        f"{sys.executable} {script_validation} {chrom}", shell=True
+    )
     if code != 0:
         raise OSError("CRISPRme off-target sites validation encountered an Error!")
     
@@ -2267,7 +2770,9 @@ def setup_database():
     # begin crisprme test
     script_setup = os.path.join(script_path, "setup_legacy_database.py")
     try:
-        subprocess.run(["python", script_setup, chrom, working_dir, str(force)], check=True)
+        subprocess.run(
+            [sys.executable, script_setup, chrom, working_dir, str(force)], check=True
+        )
     except subprocess.CalledProcessError as e:
         sys.stderr.write(
                 f"Legacy database setup exited with error code {e.returncode}"
@@ -2295,6 +2800,15 @@ def crisprme_help() -> None:
         "crisprme.py complete-test\n"
         "\tTest the complete CRISPRme pipeline on single chromosomes or complete "
         "genomes\n\n"
+        "crisprme.py build-index-only\n"
+        "\tPre-builds the reusable CRISPRitz reference index for bulge-enabled "
+        "searches (genome + PAM + bulges) without running a search\n\n"
+        "crisprme.py download\n"
+        "\tFast-downloads reference data (genome, annotations, PAMs, samples, "
+        "VCFs, precomputed indexes) from a HuggingFace dataset repository\n\n"
+        "crisprme.py publish-index\n"
+        "\tUploads a locally built reference index to a HuggingFace dataset "
+        "repository for later reuse via 'download --what index'\n\n"
         "crisprme.py assembly-search\n"
         "\tSearches a personal diploid genome assembly (two haplotypes, no VCF) "
         "and reconciles off-target predictions across both, mapped to hg38\n\n"
@@ -2333,6 +2847,12 @@ elif sys.argv[1] == "complete-test":  # run complete test
     complete_test_crisprme()
 elif sys.argv[1] == "assembly-search":  # run diploid assembly search
     assembly_search()
+elif sys.argv[1] == "build-index-only":  # pre-build reusable reference index
+    build_index_only()
+elif sys.argv[1] == "download":  # fast HuggingFace download of reference data
+    download_data()
+elif sys.argv[1] == "publish-index":  # upload a prebuilt index to HuggingFace
+    publish_index_cmd()
 elif sys.argv[1] == "validate-test":  # run validate complete-test
     validate_test()
 elif sys.argv[1] == "targets-integration":  # run targets integration

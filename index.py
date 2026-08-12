@@ -25,15 +25,16 @@ from pages import (
     history_page,
     help_page,
     contacts_page,
+    settings_page,
 )
 
 from dash import Dash
-from dash.dependencies import Input, Output, State
+from dash import Input, Output, State
 from dash.exceptions import PreventUpdate
 from typing import Tuple
 
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 
 import sys
 import os
@@ -51,6 +52,7 @@ CRISPRME_DIRS = [
     "Annotations",
     "PAMs",
     "samplesIDs",
+    "Settings",
 ]  # crisprme directory tree
 
 
@@ -90,6 +92,12 @@ app.layout = html.Div(
         dcc.Location(id="url", refresh=False),
         html.Div(id="page-content"),
         html.P(id="signal", style={"visibility": "hidden"}),
+        # Persistent hidden placeholder for the change_page multi-output target.
+        # The visible job-link element lives inside the /load page content, which
+        # is only rendered on that route; without this always-present placeholder
+        # Dash 2.x rejects the entire change_page callback (its Output target does
+        # not exist in the base layout), leaving every page blank.
+        html.Div(id="job-link", style={"display": "none"}),
     ]
 )
 
@@ -125,10 +133,24 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
     if hash_guide is None:  # dash can pass none for hash on initial load
         hash_guide = ""
     if path == "/load":  # show loading page
+        # recover the job id from ?job=... (guard against a bare /load visit)
+        job_id = ""
+        if search and "job=" in search:
+            job_id = search.split("job=")[-1].split("&")[0].strip()
+        # a bare or malformed /load with no real job -> friendly empty state
+        # instead of a misleading "Job submitted" status page
+        if not job_id or not os.path.isdir(
+            os.path.join(current_working_directory, "Results", job_id)
+        ):
+            return (load_page.load_page_no_job(), "/index")
         # define url to display on load page to check on job status
         # if online show the webaddress, show the ip address otherwise
         job_loading_url = WEBADDRESS if ONLINE else IPADDRESS
-        return (load_page.load_page(), f"{job_loading_url}/load{search}")
+        job_link = f"{job_loading_url}/load{search}"
+        # render the copyable link inline on the load page; the second return
+        # value keeps feeding the persistent hidden job-link placeholder in the
+        # base layout so the multi-output callback target always exists
+        return (load_page.load_page(job_link), job_link)
     if path == "/result":  # display results page
         job_id = search.split("=")[-1]  # recover job id from url
         if not hash_guide or hash_guide is None:
@@ -156,12 +178,25 @@ def change_page(href: str, path: str, search: str, hash_guide: str) -> Tuple:
         return contacts_page.contact_page(), os.path.join(URL, "load", search)
     if path == "/history":  # display results history page
         return history_page.history_page(), os.path.join(URL, "load", search)
+    if path == "/settings":  # display settings / data-manager page
+        return settings_page.settings_page(), os.path.join(URL, "load", search)
     return main_page.index_page(), "/index"  # display main page
 
 
 def run_server(app: Dash, host: str, port: str, debug: bool) -> None:
+    # Dash 2.x's app.run() lets the HOST/PORT environment variables take
+    # precedence over the host/port arguments passed here. A from-source install
+    # bundles a conda compiler (cxx-compiler, needed to build CRISPRitz) whose
+    # activation sets HOST to the build triple (e.g. x86_64-conda-linux-gnu),
+    # which is not a bindable address and crashes the server with "Temporary
+    # failure in name resolution". Drop those env vars so the explicit host/port
+    # below are honored (Docker is unaffected, but this is safe everywhere).
+    os.environ["HOST"] = host  # force: Dash's os.getenv("HOST", host) must not win
+    os.environ["PORT"] = str(port)
+    sys.stderr.write(f"[crisprme] starting web server on {host}:{port}\n")
+    sys.stderr.flush()
     try:
-        app.run_server(
+        app.run(
             host=host,
             port=port,
             debug=debug,

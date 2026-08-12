@@ -12,12 +12,12 @@ are automatically deleted and could not be accessed anymore.
 from app import app, current_working_directory, URL
 from .pages_utils import RESULTS_DIR, GUIDES_FILE, LOG_FILE, PARAMS_FILE
 
-from dash.dependencies import Input, Output, State
+from dash import Input, Output, State
 from dash.exceptions import PreventUpdate
 from typing import List, Tuple
 
-import dash_core_components as dcc
-import dash_html_components as html
+from dash import dcc
+from dash import html
 import dash_bootstrap_components as dbc
 
 import subprocess
@@ -125,22 +125,22 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                             done += 1
                         elif "Index-genome Variant\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Enriched Genome... Step [4/4]",
+                                "Preparing enriched-genome index... [4/4]",
                                 style={"color": "orange"},
                             )
                         elif "Index-genome Reference\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Reference Genome... Step [3/4]",
+                                "Preparing reference-genome index... [3/4]",
                                 style={"color": "orange"},
                             )
                         elif "Indexing Indels\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Indels Genome... Step [2/4]",
+                                "Preparing indel-genome index... [2/4]",
                                 style={"color": "orange"},
                             )
                         elif "Add-variants\tStart" in current_log:
                             index_status = html.P(
-                                "Adding variants... Step [1/4]",
+                                "Enriching genome with variants... [1/4]",
                                 style={"color": "orange"},
                             )
                         elif "Search Reference\tStart" in current_log:
@@ -152,7 +152,7 @@ def refresh_search(n: int, dir_name: str) -> Tuple:
                             done += 1
                         elif "Index-genome Reference\tStart" in current_log:
                             index_status = html.P(
-                                "Indexing Reference Genome... Step [1/1]",
+                                "Preparing reference-genome index... [1/1]",
                                 style={"color": "orange"},
                             )
                         elif "Search Reference\tStart" in current_log:
@@ -373,7 +373,53 @@ def remove_result(n: int, dir_name: str) -> html.P:
 
 
 # Load Page
-def load_page() -> List:
+def load_page_no_job() -> List:
+    """Empty-state shown when /load is opened without a valid job id.
+
+    A bare visit to ``/load`` (e.g. a stale bookmark, or clicking the nav link
+    directly) previously rendered a misleading "Job submitted" status box for a
+    job that does not exist. Instead, tell the user plainly and point them back
+    to the search page.
+
+    Returns
+    -------
+    List
+        Empty-state load page layout
+    """
+
+    return [
+        html.Div(
+            html.Div(
+                [
+                    html.H3("No job to display"),
+                    html.P(
+                        str(
+                            "This page shows the status and results of a specific "
+                            "CRISPRme job. Open it from the link you were given when "
+                            "you submitted a search, or start a new search."
+                        )
+                    ),
+                    dcc.Link(
+                        html.Button(
+                            "Start a new search",
+                            style={
+                                "font-size": "large",
+                                "margin-top": "0.75rem",
+                                "border-radius": "5px",
+                                "border": "2px solid",
+                            },
+                        ),
+                        href="/",
+                    ),
+                ],
+                style={"display": "inline-block", "width": "70%"},
+            ),
+            style={"text-align": "center", "margin-top": "3rem"},
+        )
+    ]
+
+
+def load_page(job_link: str = "link") -> List:
     """Construct the layout of the results load page. The page is displayed
     while CRISPRme analysis is running, and show the user the status of each
     analysis step.
@@ -382,7 +428,11 @@ def load_page() -> List:
 
     Parameters
     ----------
-    None
+    job_link : str
+        URL the user can copy to check the job status/results. Rendered inline
+        so the load page no longer needs its own ``job-link`` component (which
+        would duplicate the persistent ``job-link`` placeholder in the base
+        layout and break the page in the browser).
 
     Returns
     -------
@@ -406,8 +456,7 @@ def load_page() -> List:
                         ),
                         html.Div(
                             html.P(
-                                "link",
-                                id="job-link",
+                                job_link,
                                 style={"margin-top": "0.75rem", "font-size": "large"},
                             ),
                             style={
@@ -460,10 +509,10 @@ def load_page() -> List:
                         html.Div(
                             html.Ul(
                                 [
-                                    html.Li("Indexing genome(s)"),
-                                    html.Li("Searching spacer"),
+                                    html.Li("Preparing genome index (instant when precomputed)"),
+                                    html.Li("Searching off-targets"),
                                     html.Li("Post processing"),
-                                    html.Li("Merge targets"),
+                                    html.Li("Merging targets"),
                                     html.Li("Annotating and generating images"),
                                     html.Li("Integrating results"),
                                     html.Li("Populating database"),

@@ -1,10 +1,17 @@
+@font-face {
+  font-family: 'Outfit';
+  src: url('fonts/Outfit-variable.woff2') format('woff2');
+  font-weight: 300 800;
+  font-display: swap;
+}
+
 :root {
   --fg: #1f2328;
   --muted: #57606a;
   --bg: #f6f8fa;
   --card: #ffffff;
   --border: #d0d7de;
-  --accent: #0969da;
+  --accent: #388396;
   --accent-fg: #ffffff;
   --notice-bg: #dafbe1;
   --notice-border: #2da44e;
@@ -19,7 +26,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   padding: 2rem 1rem 3rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
   font-size: 16px;
   line-height: 1.6;
@@ -46,7 +53,7 @@ h1 {
 
 .logo {
   display: block;
-  max-width: 280px;
+  max-width: 440px;
   width: 100%;
   height: auto;
 }
@@ -220,7 +227,7 @@ footer {
 @media (max-width: 480px) {
   body { padding: 1.25rem 0.75rem 2rem; }
   h1 { font-size: 1.6rem; }
-  .logo { max-width: 220px; }
+  .logo { max-width: 300px; }
   section { padding: 0.85rem 0.9rem; }
   .cta-row { flex-direction: column; align-items: flex-start; }
   .button { width: 100%; text-align: center; }
