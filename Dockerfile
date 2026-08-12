@@ -6,7 +6,10 @@ LABEL org.opencontainers.image.authors="ManuelTgn, lucapinello"
 
 # Set the variables for version control during installation
 ARG crispritz_version=2.7.1
-ARG crisprme_version=2.1.14
+# 2.1.14 is a source-only DEPRECATION release (dev moved to CRISPRme+); no new
+# Bioconda/Docker artifact is published for it, so this image tracks the last
+# published Bioconda release (2.1.13).
+ARG crisprme_version=2.1.13
 
 # set the shell to bash
 ENV SHELL bash
