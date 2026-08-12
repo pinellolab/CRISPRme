@@ -1,15 +1,26 @@
+@font-face {
+  font-family: 'Outfit';
+  src: url('fonts/Outfit-variable.woff2') format('woff2');
+  font-weight: 300 800;
+  font-display: swap;
+}
+
 :root {
   --fg: #1f2328;
   --muted: #57606a;
   --bg: #f6f8fa;
   --card: #ffffff;
   --border: #d0d7de;
-  --accent: #0969da;
+  --accent: #388396;
+  --accent-dark: #2c6a78;
   --accent-fg: #ffffff;
   --notice-bg: #dafbe1;
   --notice-border: #2da44e;
   --notice-heading: #116329;
   --code-bg: #f0f3f6;
+  --alpha-bg: #fff3cd;
+  --alpha-border: #ffe08a;
+  --alpha-fg: #7a5b00;
 }
 
 * { box-sizing: border-box; }
@@ -19,7 +30,7 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   padding: 2rem 1rem 3rem;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
                Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
   font-size: 16px;
   line-height: 1.6;
@@ -37,22 +48,43 @@ header {
   text-align: left;
 }
 
-h1 {
-  margin: 0 0 0.25rem;
-  font-size: 2rem;
-  letter-spacing: -0.01em;
-  line-height: 1;
+.brand {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.5rem;
 }
 
 .logo {
   display: block;
-  max-width: 280px;
+  max-width: 360px;
   width: 100%;
   height: auto;
 }
 
+.plus {
+  font-size: 2.8rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  margin-left: -0.35rem;
+}
+
+.alpha-pill {
+  align-self: center;
+  background: var(--alpha-bg);
+  border: 1px solid var(--alpha-border);
+  color: var(--alpha-fg);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .tagline {
-  margin: 0;
+  margin: 0.35rem 0 0;
   color: var(--muted);
   font-size: 1.05rem;
 }
@@ -105,12 +137,20 @@ section {
   border-bottom-color: var(--notice-border);
 }
 
-.notice .options {
-  margin: 0.5rem 0 0.25rem;
+.alpha-banner {
+  background: var(--alpha-bg);
+  border: 1px solid var(--alpha-border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.reqs {
+  margin: 0.5rem 0;
   padding-left: 1.25rem;
 }
 
-.notice .options li { margin: 0.2rem 0; }
+.reqs li { margin: 0.4rem 0; }
 
 .cta-row {
   margin-top: 1rem;
@@ -130,7 +170,7 @@ section {
   font-weight: 600;
 }
 
-.button:hover { background: #0550ae; }
+.button:hover { background: var(--accent-dark); }
 
 .secondary { font-weight: 500; }
 
@@ -156,6 +196,8 @@ pre code { display: block; white-space: pre; }
   font-size: 0.95rem;
 }
 
+.warn { color: #b00; }
+
 .tabs {
   display: flex;
   gap: 0.25rem;
@@ -179,6 +221,8 @@ pre code { display: block; white-space: pre; }
 
 .tab:hover { color: var(--fg); }
 
+.tab .rec { font-weight: 500; font-size: 0.82rem; opacity: 0.85; }
+
 .tab[aria-selected="true"] {
   color: var(--accent);
   background: var(--card);
@@ -192,11 +236,39 @@ pre code { display: block; white-space: pre; }
   border-radius: 6px;
 }
 
-.tab-panel {
-  padding-top: 0.25rem;
-}
+.tab-panel { padding-top: 0.25rem; }
 
 .tab-panel[hidden] { display: none; }
+
+.advanced {
+  margin-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.advanced[open] summary { margin-bottom: 0.5rem; }
+
+.resource-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-top: 0.75rem;
+}
+
+.resource-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg);
+}
+
+.resource-card h3 { margin-top: 0; }
 
 ul.links {
   margin: 0.5rem 0;
@@ -205,9 +277,7 @@ ul.links {
 
 ul.links li { margin: 0.15rem 0; }
 
-.citation {
-  font-size: 0.95rem;
-}
+.citation { font-size: 0.95rem; }
 
 footer {
   margin-top: 2rem;
@@ -219,9 +289,10 @@ footer {
 
 @media (max-width: 480px) {
   body { padding: 1.25rem 0.75rem 2rem; }
-  h1 { font-size: 1.6rem; }
-  .logo { max-width: 220px; }
+  .logo { max-width: 260px; }
+  .plus { font-size: 2.2rem; }
   section { padding: 0.85rem 0.9rem; }
+  .resource-grid { grid-template-columns: 1fr; }
   .cta-row { flex-direction: column; align-items: flex-start; }
   .button { width: 100%; text-align: center; }
 }
