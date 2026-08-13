@@ -99,16 +99,25 @@
 
       <!-- ============ Docker (default) ============ -->
       <div class="tab-panel" id="panel-docker" role="tabpanel" aria-labelledby="tab-docker">
-        <h3>1 &mdash; Install Docker</h3>
+        <h3>1 &mdash; Install Docker &amp; get the CRISPRme+ image</h3>
         <p>
           Install Docker for
           <a href="https://docs.docker.com/desktop/install/mac-install/">macOS</a>,
           <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
           or <a href="https://docs.docker.com/engine/install/">Linux</a>, and give it at
           least <strong>16&nbsp;GB</strong> of memory (Docker Desktop &rarr; Settings
-          &rarr; Resources). Then check it works:
+          &rarr; Resources). Then check it works and pull the CRISPRme+ image:
         </p>
-        <pre><code>docker run --rm hello-world</code></pre>
+        <pre><code>docker run --rm hello-world
+
+# Pull the current CRISPRme+ alpha (multi-arch: Apple Silicon + Intel/Linux).
+docker pull pinellolab/crisprme</code></pre>
+        <p class="note">
+          <strong>Already have an older image?</strong> Docker won't refresh a tag you
+          already have &mdash; run <code>docker pull pinellolab/crisprme</code> again to
+          update. (If you skip this, an old image will error with
+          <code>download is not an allowed command</code>.)
+        </p>
 
         <h3>2 &mdash; Download the data and the ready-made index (batteries included)</h3>
         <p>
