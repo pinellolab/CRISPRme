@@ -62,10 +62,15 @@
           conda and no compiling needed.
         </li>
         <li>
-          <strong>Memory:</strong> <strong>16&nbsp;GB RAM recommended</strong> (on Docker
-          Desktop, allocate it under <em>Settings &rarr; Resources</em>). 8&nbsp;GB is
-          enough for small guide sets and a first test run; genome-wide or many-guide
-          variant searches go faster with more.
+          <strong>Memory:</strong> allocate it under <em>Docker Desktop &rarr; Settings
+          &rarr; Resources &rarr; Memory</em> (on Linux/Docker&nbsp;Engine the container
+          uses host memory directly). <strong>16&nbsp;GB</strong> is enough for a first
+          test run and reference-only or small/targeted searches. The default
+          <strong>genome-wide 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP variant search is
+          memory-intensive</strong> &mdash; give Docker <strong>at least
+          32&nbsp;GB</strong>, and <strong>64&nbsp;GB is recommended</strong>. Peak usage
+          is in results post-processing (can exceed 32&nbsp;GB); if a search dies with no
+          error or an out-of-memory message, raise this limit.
         </li>
         <li>
           <strong>Disk:</strong> <strong>&asymp;&nbsp;20&nbsp;GB free</strong> for the
@@ -104,11 +109,14 @@
           Install Docker for
           <a href="https://docs.docker.com/desktop/install/mac-install/">macOS</a>,
           <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
-          or <a href="https://docs.docker.com/engine/install/">Linux</a>, and give it at
-          least <strong>16&nbsp;GB</strong> of memory (Docker Desktop &rarr; Settings
-          &rarr; Resources). Then check Docker works, pull the CRISPRme+ image
-          (multi-arch: Apple Silicon + Intel/Linux), and confirm CRISPRme+ runs (the
-          last line should print a version such as <code>v2.2.0</code>):
+          or <a href="https://docs.docker.com/engine/install/">Linux</a>, and give it
+          enough memory under <strong>Docker Desktop &rarr; Settings &rarr; Resources
+          &rarr; Memory</strong>: <strong>16&nbsp;GB</strong> to get started, but
+          <strong>32&nbsp;GB (64&nbsp;GB recommended)</strong> for the default genome-wide
+          1000G&nbsp;+&nbsp;HGDP variant search (see Requirements above). Then check Docker
+          works, pull the CRISPRme+ image (multi-arch: Apple Silicon + Intel/Linux), and
+          confirm CRISPRme+ runs (the last line should print a version such as
+          <code>v2.2.0</code>):
         </p>
         <pre><code>docker run --rm hello-world
 docker pull pinellolab/crisprme
