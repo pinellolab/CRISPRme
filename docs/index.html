@@ -121,32 +121,23 @@ docker pull pinellolab/crisprme</code></pre>
 
         <h3>2 &mdash; Download the data <em>and</em> a precomputed index (both required)</h3>
         <p>
-          <strong>Two commands, both needed.</strong> First the reference data, then a
-          <strong>precomputed index</strong> so a search never has to build one (a
-          whole-genome index build is very slow). The batteries-included index is the
-          variant-aware SpCas9 index over hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
-          (~4.7&nbsp;GB) &mdash; use it for the recommended variant-aware search.
+          <strong>Full batteries, one block &mdash; select all, copy, paste.</strong>
+          Every line is a complete command (no line breaks or comments to trip up a
+          paste), so you can run the whole box at once. It downloads the reference data
+          <em>and</em> <strong>both</strong> precomputed SpCas9 (NGG) indexes &mdash; the
+          reference index and the variant-aware hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
+          index (~8&nbsp;GB total) &mdash; so a search never has to build one.
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
-
-# 1) reference genome, annotations, PAMs and sample lists
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
-  crisprme.py download --what all --path /DATA
-
-# 2) batteries included: the variant-aware SpCas9 (NGG) index,
-#    precomputed over hg38 + 1000 Genomes + HGDP  (~4.7 GB)
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
-  crisprme.py download --what index \
-  --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
+docker pull pinellolab/crisprme
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what all --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
-          <strong>Prefer a reference-only search</strong> (no variants)? That uses a
-          different index &mdash; the reference SpCas9 index <code>NGG_3_hg38</code>
-          (~3.7&nbsp;GB). Download it the same way with
-          <code>&hellip; --what index --index-name NGG_3_hg38 &hellip;</code>.
-          <strong>If you skip the index download</strong>, CRISPRme <em>builds</em> one
-          on your first search &mdash; for the whole genome that can take a long time
-          (you'll see it sit at <em>&ldquo;Preparing reference-genome index&rdquo;</em>).
-          Download the matching index instead to avoid the wait.
+          Downloads run once and resume if interrupted. The variant-aware
+          <code>1000G+HGDP</code> index is the default for searches; the reference index
+          covers reference-only searches &mdash; both are fetched above so neither has to
+          be built.
         </p>
         <p class="note">
           The container image is <code>pinellolab/crisprme</code> (multi-arch
@@ -155,9 +146,8 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
         </p>
 
         <h3>3 &mdash; Launch the web interface</h3>
-        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it \
-  pinellolab/crisprme crisprme.py web-interface</code></pre>
-        <p>Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with <strong>Ctrl+C</strong>.</p>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme crisprme.py web-interface</code></pre>
+        <p>Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with <strong>Ctrl+C</strong>. In the browser, the <strong>1000G+HGDP</strong> variant index is pre-selected &mdash; just paste a guide and Submit.</p>
       </div>
 
       <!-- ============ Singularity / Apptainer ============ -->
