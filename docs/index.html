@@ -119,11 +119,13 @@ docker pull pinellolab/crisprme</code></pre>
           <code>download is not an allowed command</code>.)
         </p>
 
-        <h3>2 &mdash; Download the data and the ready-made index (batteries included)</h3>
+        <h3>2 &mdash; Download the data <em>and</em> a precomputed index (both required)</h3>
         <p>
-          Two commands: the reference data, then the variant-aware SpCas9 index built
-          over hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP (~4.7&nbsp;GB). This
-          skips the long index build entirely.
+          <strong>Two commands, both needed.</strong> First the reference data, then a
+          <strong>precomputed index</strong> so a search never has to build one (a
+          whole-genome index build is very slow). The batteries-included index is the
+          variant-aware SpCas9 index over hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
+          (~4.7&nbsp;GB) &mdash; use it for the recommended variant-aware search.
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
 
@@ -136,6 +138,16 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme \
   crisprme.py download --what index \
   --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
+        <p class="note">
+          <strong>Prefer a reference-only search</strong> (no variants)? That uses a
+          different index &mdash; the reference SpCas9 index <code>NGG_3_hg38</code>
+          (~3.7&nbsp;GB). Download it the same way with
+          <code>&hellip; --what index --index-name NGG_3_hg38 &hellip;</code>.
+          <strong>If you skip the index download</strong>, CRISPRme <em>builds</em> one
+          on your first search &mdash; for the whole genome that can take a long time
+          (you'll see it sit at <em>&ldquo;Preparing reference-genome index&rdquo;</em>).
+          Download the matching index instead to avoid the wait.
+        </p>
         <p class="note">
           The container image is <code>pinellolab/crisprme</code> (multi-arch
           amd64&nbsp;+&nbsp;arm64); pin this exact alpha with
