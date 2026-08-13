@@ -106,12 +106,13 @@
           <a href="https://docs.docker.com/desktop/install/windows-install/">Windows</a>,
           or <a href="https://docs.docker.com/engine/install/">Linux</a>, and give it at
           least <strong>16&nbsp;GB</strong> of memory (Docker Desktop &rarr; Settings
-          &rarr; Resources). Then check it works and pull the CRISPRme+ image:
+          &rarr; Resources). Then check Docker works, pull the CRISPRme+ image
+          (multi-arch: Apple Silicon + Intel/Linux), and confirm CRISPRme+ runs (the
+          last line should print a version such as <code>v2.2.0</code>):
         </p>
         <pre><code>docker run --rm hello-world
-
-# Pull the current CRISPRme+ alpha (multi-arch: Apple Silicon + Intel/Linux).
-docker pull pinellolab/crisprme</code></pre>
+docker pull pinellolab/crisprme
+docker run --rm pinellolab/crisprme crisprme.py --version</code></pre>
         <p class="note">
           <strong>Already have an older image?</strong> Docker won't refresh a tag you
           already have &mdash; run <code>docker pull pinellolab/crisprme</code> again to
@@ -134,10 +135,13 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py downl
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
-          Downloads run once and resume if interrupted. The variant-aware
-          <code>1000G+HGDP</code> index is the default for searches; the reference index
-          covers reference-only searches &mdash; both are fetched above so neither has to
-          be built.
+          Everything lands in <code>~/crisprme</code> on your computer (that is what the
+          <code>-v "${PWD}:/DATA"</code> bind-mount does) and <strong>persists</strong>,
+          even though each container is <code>--rm</code>. Downloads run once and resume
+          if interrupted &mdash; if one stops, just re-run the same command. The
+          variant-aware <code>1000G+HGDP</code> index is the default for searches; the
+          reference index covers reference-only searches &mdash; both are fetched above so
+          neither has to be built.
         </p>
         <p class="note">
           The container image is <code>pinellolab/crisprme</code> (multi-arch
@@ -174,10 +178,12 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
-          Downloads run once and resume if interrupted. The variant-aware
-          <code>1000G+HGDP</code> index is the default for searches; the reference index
-          covers reference-only searches &mdash; both are fetched above so neither has to
-          be built.
+          Everything lands in <code>~/crisprme</code> on your computer (the
+          <code>--bind "${PWD}:/DATA"</code> mount) and <strong>persists</strong> across
+          runs. Downloads run once and resume if interrupted &mdash; if one stops, just
+          re-run the same command. The variant-aware <code>1000G+HGDP</code> index is the
+          default for searches; the reference index covers reference-only searches
+          &mdash; both are fetched above so neither has to be built.
         </p>
 
         <h3>3 &mdash; Launch the web interface</h3>
@@ -202,13 +208,16 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
         under <code>~/crisprme/Results/</code>.
       </p>
       <p class="note">
-        <strong>Nothing in the dropdowns?</strong> You skipped step&nbsp;2 &mdash; run the two
+        <strong>Nothing in the dropdowns?</strong> You skipped step&nbsp;2 &mdash; run the
         <code>download</code> commands first.
         <strong>Need a different nuclease</strong> (e.g. Cas12a) or the full sample-level
         variant tables? Download other indexes and the 1000G/HGDP VCFs the same way
         (<code>&hellip; download --what index --index-name &lt;name&gt;</code> /
-        <code>--what vcf --dataset 1000G</code>); anything not yet published is built
-        automatically on first use.
+        <code>--what vcf --dataset 1000G</code>), using a published name from the
+        <code>indexes/</code> folder of the <code>lucapinello/crisprme-data</code> repo.
+        If an index isn't published, the web app will <em>not</em> build it on the fly
+        &mdash; it tells you none is installed; pre-build it once with
+        <code>crisprme.py build-index-only</code>.
       </p>
 
       <p class="cta-row">
