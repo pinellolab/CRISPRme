@@ -73,11 +73,15 @@
           error or an out-of-memory message, raise this limit.
         </li>
         <li>
-          <strong>Disk:</strong> <strong>&asymp;&nbsp;20&nbsp;GB free</strong> for the
-          batteries-included quickstart below (reference data + the ~4.7&nbsp;GB combined
-          SpCas9 index). Adding the full 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP VCFs, or
-          building the whole database from source, needs substantially more (up to
-          <strong>~410&nbsp;GB</strong>).
+          <strong>Disk:</strong> the batteries-included quickstart needs
+          <strong>&asymp;&nbsp;250&nbsp;GB free</strong>. The download is
+          <strong>~44&nbsp;GB</strong>, but the combined 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
+          variant index <strong>expands to ~190&nbsp;GB installed</strong> &mdash; its
+          per-sample variant dictionaries (which power the population / per-sample
+          annotation) are ~170&nbsp;GB uncompressed. A <strong>reference-only</strong>
+          setup is far smaller (~15&nbsp;GB). Adding the full raw
+          1000&nbsp;Genomes&nbsp;+&nbsp;HGDP VCFs, or building the whole database from
+          source, needs substantially more (up to <strong>~410&nbsp;GB</strong>).
         </li>
         <li>
           <strong>CPU:</strong> any modern x86-64 or Apple-Silicon / ARM machine — the
@@ -128,14 +132,17 @@ docker run --rm pinellolab/crisprme:v2.2.0-alpha.6 crisprme.py --version</code><
           <code>download is not an allowed command</code>.)
         </p>
 
-        <h3>2 &mdash; Download the data <em>and</em> a precomputed index (both required)</h3>
+        <h3>2 &mdash; Download the data <em>and</em> a precomputed index (both fetched below)</h3>
         <p>
           <strong>Full batteries, one block &mdash; select all, copy, paste.</strong>
           Every line is a complete command (no line breaks or comments to trip up a
           paste), so you can run the whole box at once. It downloads the reference data
           <em>and</em> <strong>both</strong> precomputed SpCas9 (NGG) indexes &mdash; the
-          reference index and the variant-aware hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
-          index (~8&nbsp;GB total) &mdash; so a search never has to build one.
+          reference index (~4&nbsp;GB download) and the variant-aware
+          hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index (a
+          <strong>~38&nbsp;GB download that expands to ~180&nbsp;GB on disk</strong>, its
+          per-sample dictionaries included) &mdash; so a search never has to build one.
+          If you only need reference-only searches, skip the last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
 docker pull pinellolab/crisprme:v2.2.0-alpha.6
@@ -174,14 +181,17 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.6 cr
         <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.2.0-alpha.6</code></pre>
         <p class="note">On older systems the command is <code>singularity</code> instead of <code>apptainer</code>; they are interchangeable.</p>
 
-        <h3>2 &mdash; Download the data <em>and</em> the precomputed indexes (both required)</h3>
+        <h3>2 &mdash; Download the data <em>and</em> the precomputed indexes (both fetched below)</h3>
         <p>
           <strong>Full batteries, one block &mdash; select all, copy, paste.</strong>
           Every line is a complete command (no line breaks or comments to trip up a
           paste), so you can run the whole box at once. It downloads the reference data
           <em>and</em> <strong>both</strong> precomputed SpCas9 (NGG) indexes &mdash; the
-          reference index and the variant-aware hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
-          index (~8&nbsp;GB total) &mdash; so a search never has to build one.
+          reference index (~4&nbsp;GB download) and the variant-aware
+          hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index (a
+          <strong>~38&nbsp;GB download that expands to ~180&nbsp;GB on disk</strong>, its
+          per-sample dictionaries included) &mdash; so a search never has to build one.
+          If you only need reference-only searches, skip the last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what all --path /DATA
