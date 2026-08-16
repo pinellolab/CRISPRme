@@ -73,11 +73,12 @@
         </li>
         <li>
           <strong>Disk:</strong> the batteries-included quickstart needs
-          <strong>&asymp;&nbsp;250&nbsp;GB free</strong>. The download is
-          <strong>~44&nbsp;GB</strong>, but the combined 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
-          variant index <strong>expands to ~190&nbsp;GB installed</strong> &mdash; its
+          <strong>&asymp;&nbsp;100&nbsp;GB free</strong>. The download is
+          <strong>~55&nbsp;GB</strong>, and the combined 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
+          variant index <strong>expands to ~53&nbsp;GB installed</strong> &mdash; its
           per-sample variant dictionaries (which power the population / per-sample
-          annotation) are ~170&nbsp;GB uncompressed. A <strong>reference-only</strong>
+          annotation) are <strong>shipped gzipped (~31&nbsp;GB) and read on the fly</strong>,
+          so they are no longer decompressed to ~170&nbsp;GB on disk. A <strong>reference-only</strong>
           setup is far smaller (~15&nbsp;GB). Adding the full raw
           1000&nbsp;Genomes&nbsp;+&nbsp;HGDP VCFs, or building the whole database from
           source, needs substantially more (up to <strong>~410&nbsp;GB</strong>).
@@ -122,11 +123,11 @@
           <code>v2.2.0</code>):
         </p>
         <pre><code>docker run --rm hello-world
-docker pull pinellolab/crisprme:v2.2.0-alpha.25
-docker run --rm pinellolab/crisprme:v2.2.0-alpha.25 crisprme.py --version</code></pre>
+docker pull pinellolab/crisprme:v2.2.0-alpha.28
+docker run --rm pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py --version</code></pre>
         <p class="note">
           <strong>Already have an older image?</strong> Docker won't refresh a tag you
-          already have &mdash; run <code>docker pull pinellolab/crisprme:v2.2.0-alpha.25</code> again to
+          already have &mdash; run <code>docker pull pinellolab/crisprme:v2.2.0-alpha.28</code> again to
           update. (If you skip this, an old image will error with
           <code>download is not an allowed command</code>.)
         </p>
@@ -136,18 +137,18 @@ docker run --rm pinellolab/crisprme:v2.2.0-alpha.25 crisprme.py --version</code>
           <strong>Full batteries, one block &mdash; select all, copy, paste.</strong>
           Every line is a complete command (no line breaks or comments to trip up a
           paste), so you can run the whole box at once. It downloads the reference data
-          <em>and</em> <strong>both</strong> precomputed SpCas9 (NGG) indexes &mdash; the
+          <em>and</em> <strong>both</strong> precomputed SpCas9 (NRG, i.e. NGG + NAG) indexes &mdash; the
           reference index (~4&nbsp;GB download) and the variant-aware
           hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index (a
-          <strong>~38&nbsp;GB download that expands to ~180&nbsp;GB on disk</strong>, its
-          per-sample dictionaries included) &mdash; so a search never has to build one.
+          <strong>~43&nbsp;GB download that expands to ~53&nbsp;GB on disk</strong>, its
+          per-sample dictionaries included, shipped gzipped) &mdash; so a search never has to build one.
           If you only need reference-only searches, skip the last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
-docker pull pinellolab/crisprme:v2.2.0-alpha.25
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.25 crisprme.py download --what all --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.25 crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.25 crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
+docker pull pinellolab/crisprme:v2.2.0-alpha.28
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py download --what all --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
           Everything lands in <code>~/crisprme</code> on your computer (that is what the
           <code>-v "${PWD}:/DATA"</code> bind-mount does) and <strong>persists</strong>,
@@ -159,14 +160,14 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.25 c
         </p>
         <p class="note">
           The commands above <strong>pin the exact alpha</strong>
-          (<code>pinellolab/crisprme:v2.2.0-alpha.25</code>, multi-arch amd64&nbsp;+&nbsp;arm64)
+          (<code>pinellolab/crisprme:v2.2.0-alpha.28</code>, multi-arch amd64&nbsp;+&nbsp;arm64)
           for reproducible installs. The unpinned <code>pinellolab/crisprme</code>
           (<code>latest</code>) tracks the newest alpha but can change under you between
           pulls &mdash; prefer the pinned tag for a stable, repeatable setup.
         </p>
 
         <h3>3 &mdash; Launch the web interface</h3>
-        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.2.0-alpha.25 crisprme.py web-interface</code></pre>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py web-interface</code></pre>
         <p>Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with <strong>Ctrl+C</strong>. In the browser, the <strong>1000G+HGDP</strong> variant index is pre-selected &mdash; just paste a guide and Submit.</p>
       </div>
 
@@ -177,7 +178,7 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.25 c
           Most clusters already have Apptainer/Singularity. Convert the CRISPRme image
           to a <code>.sif</code> file (no root needed):
         </p>
-        <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.2.0-alpha.25</code></pre>
+        <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.2.0-alpha.28</code></pre>
         <p class="note">On older systems the command is <code>singularity</code> instead of <code>apptainer</code>; they are interchangeable.</p>
 
         <h3>2 &mdash; Download the data <em>and</em> the precomputed indexes (both fetched below)</h3>
@@ -185,17 +186,17 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.25 c
           <strong>Full batteries, one block &mdash; select all, copy, paste.</strong>
           Every line is a complete command (no line breaks or comments to trip up a
           paste), so you can run the whole box at once. It downloads the reference data
-          <em>and</em> <strong>both</strong> precomputed SpCas9 (NGG) indexes &mdash; the
+          <em>and</em> <strong>both</strong> precomputed SpCas9 (NRG, i.e. NGG + NAG) indexes &mdash; the
           reference index (~4&nbsp;GB download) and the variant-aware
           hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index (a
-          <strong>~38&nbsp;GB download that expands to ~180&nbsp;GB on disk</strong>, its
-          per-sample dictionaries included) &mdash; so a search never has to build one.
+          <strong>~43&nbsp;GB download that expands to ~53&nbsp;GB on disk</strong>, its
+          per-sample dictionaries included, shipped gzipped) &mdash; so a search never has to build one.
           If you only need reference-only searches, skip the last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what all --path /DATA
-apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
-apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
           Everything lands in <code>~/crisprme</code> on your computer (the
           <code>--bind "${PWD}:/DATA"</code> mount) and <strong>persists</strong> across
@@ -220,7 +221,7 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
       </div>
 
       <p>
-        In the browser: enter a guide sequence, keep the pre-loaded SpCas9 (NGG) index
+        In the browser: enter a guide sequence, keep the pre-loaded SpCas9 (NRG) index
         and hg38 genome, leave the default <strong>Maximum edits</strong> (3), or open
         <strong>Advanced options</strong> for per-type caps, and click <strong>Submit</strong>.
         Because the index already includes 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP variants,
@@ -271,11 +272,11 @@ crisprme.py --version</code></pre>
           above is recommended for most users.
         </p>
         <pre><code># Docker
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.25 \
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.28 \
   crisprme.py setup --path /DATA
 
 # ...or test on a single chromosome first
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.25 \
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.28 \
   crisprme.py setup --chrom chr22 --path /DATA</code></pre>
       </details>
     </section>
