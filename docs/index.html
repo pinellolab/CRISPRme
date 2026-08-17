@@ -148,6 +148,15 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 c
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
+          <strong>Want the classic strict SpCas9 (NGG-only) index too?</strong> The default
+          NRG index above already covers NGG&nbsp;+&nbsp;NAG; if you specifically need
+          <strong>NGG-only</strong> searches, also fetch the NGG index (reference + variant,
+          same ~43&nbsp;GB download / ~53&nbsp;GB-on-disk profile as NRG) &mdash; alongside
+          NRG or on its own:
+        </p>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
+        <p class="note">
           Everything lands in <code>~/crisprme</code> on your computer (that is what the
           <code>-v "${PWD}:/DATA"</code> bind-mount does) and <strong>persists</strong>,
           even though each container is <code>--rm</code>. Downloads run once and resume
@@ -195,6 +204,14 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 c
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what all --path /DATA
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
+        <p class="note">
+          <strong>Want the classic strict SpCas9 (NGG-only) index too?</strong> The default
+          NRG index above already covers NGG&nbsp;+&nbsp;NAG; if you specifically need
+          <strong>NGG-only</strong> searches, also fetch the NGG index (reference + variant,
+          same size profile as NRG) &mdash; alongside NRG or on its own:
+        </p>
+        <pre><code>apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
           Everything lands in <code>~/crisprme</code> on your computer (the
           <code>--bind "${PWD}:/DATA"</code> mount) and <strong>persists</strong> across
