@@ -123,11 +123,11 @@
           <code>v2.2.0</code>):
         </p>
         <pre><code>docker run --rm hello-world
-docker pull pinellolab/crisprme:v2.2.0-alpha.28
-docker run --rm pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py --version</code></pre>
+docker pull pinellolab/crisprme:v2.2.0-alpha.29
+docker run --rm pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py --version</code></pre>
         <p class="note">
           <strong>Already have an older image?</strong> Docker won't refresh a tag you
-          already have &mdash; run <code>docker pull pinellolab/crisprme:v2.2.0-alpha.28</code> again to
+          already have &mdash; run <code>docker pull pinellolab/crisprme:v2.2.0-alpha.29</code> again to
           update. (If you skip this, an old image will error with
           <code>download is not an allowed command</code>.)
         </p>
@@ -145,10 +145,10 @@ docker run --rm pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py --version</code>
           If you only need reference-only searches, skip the last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
-docker pull pinellolab/crisprme:v2.2.0-alpha.28
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py download --what all --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
+docker pull pinellolab/crisprme:v2.2.0-alpha.29
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py download --what all --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
         <p class="note">
           Everything lands in <code>~/crisprme</code> on your computer (that is what the
           <code>-v "${PWD}:/DATA"</code> bind-mount does) and <strong>persists</strong>,
@@ -160,14 +160,14 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 c
         </p>
         <p class="note">
           The commands above <strong>pin the exact alpha</strong>
-          (<code>pinellolab/crisprme:v2.2.0-alpha.28</code>, multi-arch amd64&nbsp;+&nbsp;arm64)
+          (<code>pinellolab/crisprme:v2.2.0-alpha.29</code>, multi-arch amd64&nbsp;+&nbsp;arm64)
           for reproducible installs. The unpinned <code>pinellolab/crisprme</code>
           (<code>latest</code>) tracks the newest alpha but can change under you between
           pulls &mdash; prefer the pinned tag for a stable, repeatable setup.
         </p>
 
         <h3>3 &mdash; Launch the web interface</h3>
-        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.2.0-alpha.28 crisprme.py web-interface</code></pre>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.2.0-alpha.29 crisprme.py web-interface</code></pre>
         <p>Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with <strong>Ctrl+C</strong>. In the browser, the <strong>1000G+HGDP</strong> variant index is pre-selected &mdash; just paste a guide and Submit.</p>
       </div>
 
@@ -178,7 +178,7 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.2.0-alpha.28 c
           Most clusters already have Apptainer/Singularity. Convert the CRISPRme image
           to a <code>.sif</code> file (no root needed):
         </p>
-        <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.2.0-alpha.28</code></pre>
+        <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.2.0-alpha.29</code></pre>
         <p class="note">On older systems the command is <code>singularity</code> instead of <code>apptainer</code>; they are interchangeable.</p>
 
         <h3>2 &mdash; Download the data <em>and</em> the precomputed indexes (both fetched below)</h3>
@@ -272,11 +272,11 @@ crisprme.py --version</code></pre>
           above is recommended for most users.
         </p>
         <pre><code># Docker
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.28 \
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.29 \
   crisprme.py setup --path /DATA
 
 # ...or test on a single chromosome first
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.28 \
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.2.0-alpha.29 \
   crisprme.py setup --chrom chr22 --path /DATA</code></pre>
       </details>
     </section>
