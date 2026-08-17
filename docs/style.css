@@ -35,7 +35,17 @@ body {
   font-size: 16px;
   line-height: 1.6;
   color: var(--fg);
-  background: var(--bg);
+  /* Same tiled background as the CRISPRme+ web app (assets/crisprme_bg_tile.png):
+     a translucent white veil over a fixed, repeating 600px tile, so content stays
+     readable while the page shares the app's look. */
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.78)),
+    url("crisprme_bg_tile.png");
+  background-size: auto, 600px;
+  background-repeat: repeat, repeat;
+  background-position: center, center;
+  background-attachment: fixed, fixed;
 }
 
 header, main, footer {
