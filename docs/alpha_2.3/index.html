@@ -123,18 +123,27 @@
       <p>
         Pull the pinned CRISPRme+ 2.3 image, then fetch <code>--what all</code>
         <strong>first</strong> (genome, PAMs, annotations, samplesID scaffolding),
-        <strong>then</strong> the published dict-less variant index. The download strips
-        the <code>-dictless</code> marker and installs the index under its canonical name
-        (<code>genome_library/NRG_3_hg38+hg38_1000G_HGDP/</code>), pulls the Tier-1
-        genotype companion automatically, and installs the bundled samplesID lists
+        <strong>then</strong> both published indexes: the <strong>reference</strong> index
+        (<code>NRG_3_hg38</code>) and the dict-less <strong>variant</strong> index. The
+        variant download strips the <code>-dictless</code> marker and installs under its
+        canonical name (<code>genome_library/NRG_3_hg38+hg38_1000G_HGDP/</code>), pulls the
+        Tier-1 genotype companion automatically, and installs the bundled samplesID lists
         &mdash; so no separate <code>--what samples</code> is needed.
       </p>
-      <pre><code>docker pull pinellolab/crisprme:v2.3.2
+      <pre><code>docker pull pinellolab/crisprme:v2.3.3
 mkdir -p ~/crisprme-2.3 &amp;&amp; cd ~/crisprme-2.3
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py download --what all --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP --path /DATA</code></pre>
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.3.3 crisprme.py download --what all --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.3.3 crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.3.3 crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP --path /DATA</code></pre>
+      <p class="note">
+        Downloading the <strong>reference</strong> index (<code>NRG_3_hg38</code>,
+        ~8.9&nbsp;GB) is recommended: the default 2-bulge search needs it, and having it
+        on disk lets CRISPRme <strong>reuse</strong> it instead of building it on demand
+        (a one-time, ~40-minute step the first time you run a bulge search). Both indexes
+        install side by side under <code>genome_library/</code>.
+      </p>
       <p>Then launch the web interface:</p>
-      <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.3.2 crisprme.py web-interface</code></pre>
+      <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.3.3 crisprme.py web-interface</code></pre>
       <p>
         Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with
         <strong>Ctrl+C</strong>. Everything lands in <code>~/crisprme-2.3</code> on your
@@ -154,9 +163,10 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.3.2 crisprme.p
         interchangeable. Convert the pinned image to a local <code>.sif</code> file (one
         time), then download the same data and dict-less index:
       </p>
-      <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.3.2
+      <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.3.3
 mkdir -p ~/crisprme-2.3 &amp;&amp; cd ~/crisprme-2.3
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what all --path /DATA
+apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
 apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP --path /DATA</code></pre>
       <p>Then launch the web interface:</p>
       <pre><code>apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py web-interface</code></pre>
@@ -178,9 +188,11 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
         <li>Paste the <strong>CPS1 guide</strong>: <code>CTAACAGTTGCTTTTATCAC</code>. The
           UI <strong>auto-pads</strong> the guide, so <em>no</em> <code>NNN</code> PAM
           placeholder is needed.</li>
-        <li>Set <strong>4 mismatches</strong>, <strong>1 DNA bulge</strong>, and
-          <strong>1 RNA bulge</strong> (or open <strong>Advanced options</strong> for
-          per-type caps), then click <strong>Submit</strong>.</li>
+        <li>Leave the defaults as-is &mdash; <strong>6 mismatches</strong>,
+          <strong>2 DNA bulges</strong>, <strong>2 RNA bulges</strong>, capped at
+          <strong>4 total edits</strong> &mdash; then click <strong>Submit</strong>.
+          (Open <strong>Advanced options</strong> to adjust the per-type caps; the bulge
+          dropdowns offer up to 2 of each, matching the downloaded index.)</li>
       </ul>
       <p>
         When the job finishes you land on the results page. You should get the CPS1
@@ -208,7 +220,7 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
       </p>
 
       <h3>3.1 &mdash; Pull the image</h3>
-      <pre><code>docker pull pinellolab/crisprme:v2.3.2</code></pre>
+      <pre><code>docker pull pinellolab/crisprme:v2.3.3</code></pre>
       <p class="note">
         You can also use the unpinned <code>pinellolab/crisprme:latest</code>, but prefer
         the pinned tag for a reproducible test.
@@ -217,15 +229,23 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
       <h3>3.2 &mdash; Download the reference data, then the dict-less index</h3>
       <p>
         Fetch <code>--what all</code> <strong>first</strong> (genome, PAMs, annotations,
-        samplesID scaffolding), <strong>then</strong> the published dict-less variant
-        index. The download strips the <code>-dictless</code> marker and installs the
-        index under its canonical name (<code>genome_library/NRG_3_hg38+hg38_1000G_HGDP/</code>),
-        pulls the Tier-1 genotype companion automatically, and installs the bundled
-        samplesID lists &mdash; so no separate <code>--what samples</code> is needed.
+        samplesID scaffolding), <strong>then</strong> both the <strong>reference</strong>
+        index (<code>NRG_3_hg38</code>) and the dict-less <strong>variant</strong> index.
+        The variant download strips the <code>-dictless</code> marker and installs under
+        its canonical name (<code>genome_library/NRG_3_hg38+hg38_1000G_HGDP/</code>), pulls
+        the Tier-1 genotype companion automatically, and installs the bundled samplesID
+        lists &mdash; so no separate <code>--what samples</code> is needed.
       </p>
       <pre><code>mkdir -p ~/crisprme-2.3 &amp;&amp; cd ~/crisprme-2.3
-docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py download --what all
-docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP</code></pre>
+docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.3 crisprme.py download --what all
+docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.3 crisprme.py download --what index --index-name NRG_3_hg38
+docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.3 crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP</code></pre>
+      <p class="note">
+        Downloading the <strong>reference</strong> index (<code>NRG_3_hg38</code>,
+        ~8.9&nbsp;GB) lets the 2-bulge search below <strong>reuse</strong> it
+        (<em>&ldquo;Reference index present (NRG_3_hg38)&rdquo;</em> in the log) instead of
+        a one-time, ~40-minute on-demand build.
+      </p>
       <p class="note">
         Downloads resume if interrupted &mdash; if one stops, just re-run the same
         command. To skip the big genotype companion (detection-only), add
@@ -251,10 +271,10 @@ printf 'hg38_1000G_HGDP.samplesID.txt\n' &gt; samples_list.txt</code></pre>
       <h3>3.4 &mdash; Run the search</h3>
       <p>
         Use the NRG SpCas9 PAM (NAG&nbsp;+&nbsp;NGG) so the variant-created NAG CPS1
-        off-target is in scope, with 4 mismatches, one DNA and one RNA bulge, and a total
-        edit cap of 4:
+        off-target is in scope, with the defaults &mdash; 6 mismatches, 2 DNA and 2 RNA
+        bulges, capped at 4 total edits:
       </p>
-      <pre><code>docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py complete-search \
+      <pre><code>docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.3 crisprme.py complete-search \
   --genome Genomes/hg38 \
   --vcf vcf_list.txt \
   --samplesID samples_list.txt \
@@ -262,11 +282,15 @@ printf 'hg38_1000G_HGDP.samplesID.txt\n' &gt; samples_list.txt</code></pre>
   --pam PAMs/20bp-NRG-SpCas9.txt \
   --annotation Annotations/dhs+encode+gencode.hg38.bed.gz \
   --gene_annotation Annotations/gencode.protein_coding.bed.gz \
-  --mm 4 --bDNA 1 --bRNA 1 --max-total-edits 4 \
+  --mm 6 --bDNA 2 --bRNA 2 --max-total-edits 4 \
   --output cps1_test</code></pre>
       <p class="note">
-        Because the dict-less index is prebuilt (with its tiers and samplesID lists), the
-        search finds it and skips the index build and variant enrichment entirely.
+        Because both indexes are already on disk &mdash; the reference index
+        (<code>NRG_3_hg38</code>) and the prebuilt dict-less variant index (with its tiers
+        and samplesID lists) &mdash; the search reuses them and skips the reference-index
+        build and variant enrichment entirely. The log shows
+        <em>&ldquo;Reference index present&rdquo;</em> and
+        <em>&ldquo;Variant index present&rdquo;</em> rather than an indexing step.
       </p>
     </section>
 
