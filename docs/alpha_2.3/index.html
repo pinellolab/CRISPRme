@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Step-by-step guide to test the CRISPRme+ 2.3 dict-less line: pull the image, download the published dict-less variant index, run the CPS1 walkthrough, and verify the compact Tier-0 registry + Tier-1 genotype store that replace the ~152 GB per-sample SNP dictionaries.">
+  <title>CRISPRme+ 2.3 (dict-less) — step-by-step guide</title>
+  <link rel="icon" type="image/svg+xml" href="../crisprme-icon.svg">
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="../favicon-16x16.png">
+  <link rel="icon" href="../favicon.ico">
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="../crisprme-logo.svg" alt="CRISPRme+" class="logo">
+      <span class="alpha-pill">2.3 dict-less &middot; alpha</span>
+    </div>
+    <p class="tagline">Variant-aware CRISPR off-target nomination &mdash; dict-less line</p>
+    <p class="note"><a href="../">&larr; Back to the CRISPRme+ landing page</a></p>
+  </header>
+
+  <main>
+    <section class="notice" aria-labelledby="intro-heading">
+      <p class="alpha-banner">
+        <strong>&#129514; Alpha preview.</strong> This is a maintainer-facing walkthrough
+        to test the <strong>CRISPRme+ 2.3 dict-less</strong> line end to end. The
+        classic dict-based indexes (<code>NRG_3</code> / <code>NGG_3</code>) remain the
+        <strong>default</strong>; the dict-less index is <strong>opt-in</strong> until a
+        later flip. Backward-compatible with existing searches.
+      </p>
+      <h2 id="intro-heading">Test the CRISPRme+ 2.3 dict-less flow</h2>
+      <p>
+        Follow this page top to bottom. Every command is copy-pasteable and uses the
+        standard Docker bind-mount (<code>-v "$PWD":/DATA -w /DATA</code>) so everything
+        lands in your current directory and persists. The main walkthrough downloads the
+        published dict-less variant index and reproduces the CPS1 off-target from the
+        CRISPRme paper.
+      </p>
+      <p class="cta-row">
+        <a class="button" href="#walkthrough-heading">Jump to the walkthrough &darr;</a>
+        <a class="secondary" href="https://github.com/pinellolab/crisprme-plus">View on GitHub &rarr;</a>
+      </p>
+    </section>
+
+    <!-- ============ 1. What's new ============ -->
+    <section aria-labelledby="whatsnew-heading">
+      <h2 id="whatsnew-heading">1 &mdash; What&rsquo;s new in 2.3 (dict-less)</h2>
+      <p>
+        A dict-less variant-aware index replaces the classic <strong>~152&nbsp;GB
+        per-sample SNP dictionaries</strong> (<code>Dictionaries/dictionaries_&lt;vcf&gt;/</code>)
+        with two additive, much smaller tiers:
+      </p>
+      <ul class="reqs">
+        <li>
+          <strong>Tier&nbsp;0 &mdash; registry</strong>
+          (<code>Dictionaries/registry_&lt;vcf&gt;/</code>): a compact registry that gives
+          <strong>out-of-the-box off-target detection</strong> with
+          <strong>corrected allele frequencies</strong> and rsIDs, no source VCFs
+          required.
+        </li>
+        <li>
+          <strong>Tier&nbsp;1 &mdash; genotype store</strong>
+          (<code>Dictionaries/genotypes_&lt;vcf&gt;/</code>): the larger per-sample store
+          that reconstructs the <strong>Samples</strong> column at post-analysis time. It
+          rides along as a separate companion tarball and is fetched automatically on
+          download (skip it with <code>--no-genotypes</code> for detection-only).
+        </li>
+      </ul>
+      <p>
+        The dict-less index also adds a <strong><code>population_summary</code>
+        companion</strong> (per-database / super-population / global frequencies) and
+        keeps the <strong>indel logs</strong> (<code>Dictionaries/log_indels_&lt;vcf&gt;/</code>)
+        that indel post-analysis still needs &mdash; the tiers are SNP-only. Together the
+        registry&nbsp;+&nbsp;genotype tiers stand in for the old per-sample dictionaries,
+        so a downloaded variant index is <strong>self-complete</strong> and dramatically
+        smaller on disk. Everything is <strong>backward-compatible</strong>: existing
+        dict-based searches are unchanged.
+      </p>
+    </section>
+
+    <!-- ============ 2. Main walkthrough ============ -->
+    <section aria-labelledby="walkthrough-heading">
+      <h2 id="walkthrough-heading">2 &mdash; Test the published dict-less index (main walkthrough)</h2>
+      <p>
+        This is the exact, verified flow. Work in an <strong>empty directory</strong>;
+        everything is written there and persists between the <code>--rm</code>
+        containers.
+      </p>
+
+      <h3>2.1 &mdash; Pull the image</h3>
+      <pre><code>docker pull pinellolab/crisprme:v2.3.2</code></pre>
+      <p class="note">
+        You can also use the unpinned <code>pinellolab/crisprme:latest</code>, but prefer
+        the pinned tag for a reproducible test.
+      </p>
+
+      <h3>2.2 &mdash; Download the reference data, then the dict-less index</h3>
+      <p>
+        Fetch <code>--what all</code> <strong>first</strong> (genome, PAMs, annotations,
+        samplesID scaffolding), <strong>then</strong> the published dict-less variant
+        index. The download strips the <code>-dictless</code> marker and installs the
+        index under its canonical name (<code>genome_library/NRG_3_hg38+hg38_1000G_HGDP/</code>),
+        pulls the Tier-1 genotype companion automatically, and installs the bundled
+        samplesID lists &mdash; so no separate <code>--what samples</code> is needed.
+      </p>
+      <pre><code>mkdir -p ~/crisprme-2.3 &amp;&amp; cd ~/crisprme-2.3
+docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py download --what all
+docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP</code></pre>
+      <p class="note">
+        Downloads resume if interrupted &mdash; if one stops, just re-run the same
+        command. To skip the big genotype companion (detection-only), add
+        <code>--no-genotypes</code> to the index download; per-sample
+        <code>Samples</code> are then degraded until the store is present.
+      </p>
+
+      <h3>2.3 &mdash; Create the three tiny config files</h3>
+      <p>
+        The search takes the guide, the VCF listing, and the samplesID listing as small
+        text files. Create them in the same directory:
+      </p>
+      <pre><code>printf 'CTAACAGTTGCTTTTATCACNNN\n' &gt; cps1_guide.txt
+printf 'hg38_1000G_HGDP\n'          &gt; vcf_list.txt
+printf 'hg38_1000G_HGDP.samplesID.txt\n' &gt; samples_list.txt</code></pre>
+      <p class="note">
+        The guide (<code>CTAACAGTTGCTTTTATCACNNN</code>) is the CPS1 spacer with the
+        <code>NNN</code> PAM placeholder; <code>vcf_list.txt</code> names the combined
+        1000G&nbsp;+&nbsp;HGDP dataset; <code>samples_list.txt</code> points at the
+        combined samplesID file that ships inside the index.
+      </p>
+
+      <h3>2.4 &mdash; Run the search</h3>
+      <p>
+        Use the NRG SpCas9 PAM (NAG&nbsp;+&nbsp;NGG) so the variant-created NAG CPS1
+        off-target is in scope, with 4 mismatches, one DNA and one RNA bulge, and a total
+        edit cap of 4:
+      </p>
+      <pre><code>docker run --rm -v "$PWD":/DATA -w /DATA pinellolab/crisprme:v2.3.2 crisprme.py complete-search \
+  --genome Genomes/hg38 \
+  --vcf vcf_list.txt \
+  --samplesID samples_list.txt \
+  --guide cps1_guide.txt \
+  --pam PAMs/20bp-NRG-SpCas9.txt \
+  --annotation Annotations/dhs+encode+gencode.hg38.bed.gz \
+  --gene_annotation Annotations/gencode.protein_coding.bed.gz \
+  --mm 4 --bDNA 1 --bRNA 1 --max-total-edits 4 \
+  --output cps1_test</code></pre>
+      <p class="note">
+        Because the dict-less index is prebuilt (with its tiers and samplesID lists), the
+        search finds it and skips the index build and variant enrichment entirely.
+      </p>
+    </section>
+
+    <!-- ============ 3. What to expect ============ -->
+    <section aria-labelledby="expect-heading">
+      <h2 id="expect-heading">3 &mdash; What to expect (how to know it worked)</h2>
+      <p><strong>On disk &mdash; the tiers, not the giant dictionaries.</strong> Check the install:</p>
+      <pre><code>ls Dictionaries/</code></pre>
+      <p>You should see the dict-less tiers and <em>no</em> ~152&nbsp;GB dictionaries folder:</p>
+      <ul class="reqs">
+        <li><code>registry_hg38_1000G_HGDP/</code> &mdash; the Tier-0 registry (detection + corrected AF/rsID)</li>
+        <li><code>genotypes_hg38_1000G_HGDP/</code> &mdash; the Tier-1 genotype store (per-sample <code>Samples</code>)</li>
+        <li><code>log_indels_hg38_1000G_HGDP/</code> &mdash; the indel logs (kept; indel post-analysis needs them)</li>
+        <li><strong>NO</strong> <code>dictionaries_hg38_1000G_HGDP/</code> &mdash; the big ~152&nbsp;GB per-sample SNP dicts are gone</li>
+      </ul>
+
+      <p><strong>In the results &mdash; the CPS1 off-target.</strong> The integrated results table should contain the CPS1 off-target from the CRISPRme paper:</p>
+      <pre><code>ls Results/cps1_test/*integrated_results.tsv</code></pre>
+      <ul class="reqs">
+        <li>Off-target at <strong>chr2:210,530,658</strong></li>
+        <li><strong>CFD 0.947</strong></li>
+        <li><strong>rsID rs114518452</strong>, gene <strong>CPS1</strong></li>
+        <li>a <strong>non-empty <code>Samples</code> column</strong>, reconstructed from the Tier-1 genotype store (this is the proof the dict-less genotype tier works)</li>
+      </ul>
+      <p>
+        You should also find a <strong><code>*.population_summary.tsv</code></strong>
+        companion under <code>Results/cps1_test/</code> with per-database,
+        per-super-population, and global allele frequencies.
+      </p>
+      <p class="note">
+        If detection works (the chr2:210,530,658 row is present with the right CFD/rsID)
+        but the <code>Samples</code> column is empty, you likely downloaded with
+        <code>--no-genotypes</code> &mdash; the Tier-1 store was skipped. Re-run the index
+        download without that flag.
+      </p>
+    </section>
+
+    <!-- ============ 4. Build your own ============ -->
+    <section aria-labelledby="build-heading">
+      <h2 id="build-heading">4 &mdash; Build your own dict-less index (optional)</h2>
+      <p>
+        To build a dict-less variant-aware index for your own cohort, build with
+        <code>--vcf</code> <strong>and</strong> <code>--samplesID</code> (the
+        <code>--samplesID</code> listing is <strong>required</strong> to emit the tiers;
+        without it you silently get a dicts-only index with no Tier-0 registry, no Tier-1
+        genotype store, and &mdash; for a merged panel &mdash; no combined samplesID
+        list), then publish with <code>--dictless</code>:
+      </p>
+      <pre><code># Build the variant-aware index (tiers emitted because --samplesID is passed)
+crisprme.py build-index-only \
+  --genome Genomes/hg38 --pam PAMs/20bp-NRG-SpCas9.txt \
+  --bDNA 2 --bRNA 2 --thread 16 \
+  --vcf VCFs/hg38_1000G_HGDP --samplesID samplesIDs.config.txt \
+  --path "$CRISPRME_DIR"
+# -> genome_library/NRG_3_hg38+hg38_1000G_HGDP/  (+ _INDELS)
+#    Dictionaries/registry_hg38_1000G_HGDP/      (Tier-0)
+#    Dictionaries/genotypes_hg38_1000G_HGDP/     (Tier-1)
+#    samplesIDs/hg38_1000G_HGDP.samplesID.txt    (combined, emitted by the build)
+
+# Publish: --dictless drops the ~152 GB per-sample SNP dicts (tiers replace them),
+# keeps the indel logs, and uploads a separate genotypes_&lt;vcf&gt;.tar.gz companion.
+export HF_TOKEN=hf_...        # your write token, in the shell only
+crisprme.py publish-index --index genome_library/NRG_3_hg38+hg38_1000G_HGDP --dictless</code></pre>
+      <p class="note">
+        <code>--samplesID</code> is a listing file (one samplesID filename per line,
+        resolved under <code>samplesIDs/</code>); a combined 1000G&nbsp;+&nbsp;HGDP panel
+        lists both <code>hg38_1000G.samplesID.txt</code> and
+        <code>hg38_HGDP.samplesID.txt</code>. See the full build/publish/download
+        reference for details:
+      </p>
+      <p class="cta-row">
+        <a class="button" href="https://github.com/pinellolab/crisprme-plus/blob/main/docs/PRECOMPUTED_INDEXES.md">Full PRECOMPUTED_INDEXES.md &rarr;</a>
+      </p>
+    </section>
+
+    <!-- ============ 5. Notes ============ -->
+    <section aria-labelledby="notes-heading">
+      <h2 id="notes-heading">5 &mdash; Notes</h2>
+      <ul class="reqs">
+        <li>
+          <strong>Dict-based stays the default.</strong> The dict-based
+          <code>NRG_3</code> / <code>NGG_3</code> indexes remain the default; the
+          dict-less index is <strong>opt-in</strong> (fetched by its explicit
+          <code>-dictless</code> name) until a later flip.
+        </li>
+        <li>
+          <strong>Order matters.</strong> Run <code>download --what all</code>
+          <strong>before</strong> <code>download --what index</code> &mdash; the index
+          download relies on the reference data and samplesID scaffolding being in place.
+        </li>
+        <li>
+          <strong>Genotype companion is optional.</strong> Off-target
+          <strong>detection</strong> works from the Tier-0 registry alone; the Tier-1
+          genotype store (fetched by default, skippable with <code>--no-genotypes</code>)
+          is what reconstructs the per-sample <code>Samples</code> column.
+        </li>
+        <li>
+          <strong>Alpha status.</strong> This line is under active testing. Please
+          <a href="https://github.com/pinellolab/crisprme-plus/issues/new/choose">open an issue</a>
+          with anything that looks off.
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      <a href="../">&larr; Back to the CRISPRme+ landing page</a>
+    </p>
+    <p>
+      CRISPRme is licensed under
+      <a href="https://github.com/pinellolab/crisprme-plus/blob/main/LICENSE">AGPL-3.0</a>
+      for academic use. Commercial or for-profit use requires a separate
+      license; please contact
+      <a href="mailto:lpinello@mgh.harvard.edu">Luca Pinello</a>.
+    </p>
+  </footer>
+</body>
+</html>
