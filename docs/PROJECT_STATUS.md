@@ -13,7 +13,7 @@ _Last updated: 2026-08-03._
 |---|---|---|
 | CRISPRme released | `main` | 2.1.12 (shipped: GitHub tag + Bioconda + multi-arch Docker) |
 | CRISPRme 2.1.13 | `2.1.13-dev` | patch: robustness + memory cap |
-| CRISPRme+ 2.2.0 | `2.2.0-dev` | major: Ann's search, Python 3.11 + Dash 2.x |
+| CRISPRme+ v2.4.0 | `main` | current stable: Ann's search, Python 3.11 + Dash 2.x; dict-less 1000G+HGDP variant index is the **default** distribution; shareable report, COSMIC annotation, high-variant-density flagging |
 | CRISPRitz released | `master` | 2.7.1 |
 | CRISPRitz 2.8.0 | `2.8.0-dev` | major: Python 3.11, C++ enricher, parallelism |
 
