@@ -267,6 +267,62 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
         <a class="secondary" href="https://github.com/pinellolab/crisprme-plus/blob/main/docs/crisprme_web_interface_user_guide.md">Web interface user guide &rarr;</a>
       </p>
 
+      <h3 id="cli-heading" style="margin-top:2.2rem;">Prefer the command line? Run a search without the browser</h3>
+      <p>
+        The same batteries install runs a search straight from the command line
+        &mdash; handy for scripting or a headless server, and it gives the same
+        results as the web interface. Put your 20&nbsp;nt spacer(s) in a file (one
+        per line; CRISPRme auto-pads them to the PAM, so no trailing
+        <code>N</code>s needed), then run <code>complete-search</code> against the
+        pre-installed dict-less 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index. From your
+        <code>~/crisprme</code> folder:
+      </p>
+      <pre><code>printf '%s\n' ACTGAAATCTGTAAGCAGGC &gt; my_guide.txt
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.4.0 \
+  crisprme.py complete-search \
+    --genome Genomes/hg38 --pam PAMs/20bp-NRG-SpCas9.txt \
+    --guide my_guide.txt \
+    --vcf list_vcf.txt --samplesID list_samplesID.txt \
+    --annotation Annotations/dhs+encode_screenv4+gencode+cosmic.hg38.bed.gz \
+    --gene_annotation Annotations/gencode.protein_coding.bed.gz \
+    --mm 4 --bDNA 1 --bRNA 1 --output my_search --thread 4</code></pre>
+      <p class="note">
+        <code>--mm</code> is mismatches; <code>--bDNA</code> / <code>--bRNA</code>
+        are DNA / RNA bulges (this example allows up to 4 mismatches and 1 bulge of
+        each type). Raise <code>--thread</code> to use more cores. Because the index
+        already includes 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP variants, the search is
+        variant-aware out of the box &mdash; combined allele frequencies and COSMIC
+        annotation included. Results land under
+        <code>~/crisprme/Results/my_search/</code> on your own machine.
+      </p>
+      <p>
+        Then build the same one-file shareable report the web "Download report"
+        button produces (a self-contained <code>report.html</code> inside a ZIP):
+      </p>
+      <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.4.0 \
+  crisprme.py generate-report --result-dir Results/my_search</code></pre>
+      <p class="note">
+        <strong>Singularity / Apptainer</strong> &mdash; identical arguments, run
+        from <code>~/crisprme</code> after building <code>crisprme.sif</code>
+        (step&nbsp;1 of the Singularity tab above):
+      </p>
+      <pre><code>apptainer exec --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif \
+  crisprme.py complete-search \
+    --genome Genomes/hg38 --pam PAMs/20bp-NRG-SpCas9.txt \
+    --guide my_guide.txt \
+    --vcf list_vcf.txt --samplesID list_samplesID.txt \
+    --annotation Annotations/dhs+encode_screenv4+gencode+cosmic.hg38.bed.gz \
+    --gene_annotation Annotations/gencode.protein_coding.bed.gz \
+    --mm 4 --bDNA 1 --bRNA 1 --output my_search --thread 4</code></pre>
+      <p class="note">
+        Want a wider search? Raise the edits, e.g. <code>--mm 5 --bDNA 2 --bRNA 2
+        --max-total-edits 5</code> (equivalent to setting <strong>Maximum edits =
+        5</strong> in the web form; <code>--max-total-edits</code> caps total
+        mismatches&nbsp;+&nbsp;bulges). See the
+        <a href="https://github.com/pinellolab/crisprme-plus/blob/main/docs/crisprme_data_setup_051826.md">CLI guide</a>
+        for every argument.
+      </p>
+
       <details class="advanced">
         <summary><strong>Other ways to install</strong> (Conda/Mamba, or build everything from scratch)</summary>
 
