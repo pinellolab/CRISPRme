@@ -68,15 +68,20 @@
         </li>
         <li>
           <strong>Disk:</strong> the batteries-included quickstart needs
-          <strong>&asymp;&nbsp;100&nbsp;GB free</strong>. The download is
-          <strong>~55&nbsp;GB</strong>, and the combined 1000&nbsp;Genomes&nbsp;+&nbsp;HGDP
-          variant index <strong>expands to ~53&nbsp;GB installed</strong> &mdash; its
-          per-sample variant dictionaries (which power the population / per-sample
-          annotation) are <strong>shipped gzipped (~31&nbsp;GB) and read on the fly</strong>,
-          so they are no longer decompressed to ~170&nbsp;GB on disk. A <strong>reference-only</strong>
-          setup is far smaller (~15&nbsp;GB). Adding the full raw
-          1000&nbsp;Genomes&nbsp;+&nbsp;HGDP VCFs, or building the whole database from
-          source, needs substantially more (up to <strong>~410&nbsp;GB</strong>).
+          <strong>&asymp;&nbsp;100&nbsp;GB free</strong> (headroom for the download plus
+          unpacking). The download is about <strong>~35&nbsp;GB</strong> and expands to
+          roughly <strong>~70&nbsp;GB installed</strong>. As of v2.4.0 the default index
+          is <strong>dict-less</strong>: the combined
+          1000&nbsp;Genomes&nbsp;+&nbsp;HGDP variant index is a
+          <strong>~17&nbsp;GB download</strong> (~22&nbsp;GB installed) with
+          <strong>no ~152&nbsp;GB per-sample dictionaries</strong> &mdash; population
+          allele frequencies come from a compact registry (~2&nbsp;GB), and per-sample
+          attribution from a separate <strong>genotype store</strong> (~5&nbsp;GB
+          download, ~26&nbsp;GB installed) that is fetched automatically; add
+          <code>--no-genotypes</code> to skip it for a lighter, detection-only setup.
+          A <strong>reference-only</strong> setup is far smaller (~20&nbsp;GB). Building
+          the whole database from the original sources needs substantially more (up to
+          <strong>~410&nbsp;GB</strong>).
         </li>
         <li>
           <strong>CPU:</strong> any modern x86-64 or Apple-Silicon / ARM machine — the
@@ -133,11 +138,13 @@ docker run --rm pinellolab/crisprme:v2.4.0 crisprme.py --version</code></pre>
           Every line is a complete command (no line breaks or comments to trip up a
           paste), so you can run the whole box at once. It downloads the reference data
           <em>and</em> <strong>both</strong> precomputed SpCas9 (NRG, i.e. NGG + NAG) indexes &mdash; the
-          reference index (~4&nbsp;GB download) and the variant-aware
-          hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index (a
-          <strong>~43&nbsp;GB download that expands to ~53&nbsp;GB on disk</strong>, its
-          per-sample dictionaries included, shipped gzipped) &mdash; so a search never has to build one.
-          If you only need reference-only searches, skip the last command (the big one).
+          reference index (~9&nbsp;GB download) and the default variant-aware
+          hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index, which is now
+          <strong>dict-less: a ~17&nbsp;GB download</strong> (plus a ~5&nbsp;GB genotype
+          store for per-sample results, fetched automatically) with
+          <strong>no ~152&nbsp;GB per-sample dictionaries</strong> &mdash; so a search
+          never has to build one. If you only need reference-only searches, skip the
+          last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
 docker pull pinellolab/crisprme:v2.4.0
@@ -147,9 +154,9 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.4.0 crisprme.p
         <p class="note">
           <strong>Want the classic strict SpCas9 (NGG-only) index too?</strong> The default
           NRG index above already covers NGG&nbsp;+&nbsp;NAG; if you specifically need
-          <strong>NGG-only</strong> searches, also fetch the NGG index (reference + variant,
-          same ~43&nbsp;GB download / ~53&nbsp;GB-on-disk profile as NRG) &mdash; alongside
-          NRG or on its own:
+          <strong>NGG-only</strong> searches, also fetch the NGG index (reference +
+          variant; the NGG variant index is the larger, older <strong>dict-based</strong>
+          build &mdash; a ~37&nbsp;GB download) &mdash; alongside NRG or on its own:
         </p>
         <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.4.0 crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
 docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.4.0 crisprme.py download --what index --index-name NGG_3_hg38+hg38_1000G_HGDP --path /DATA</code></pre>
@@ -191,10 +198,12 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.4.0 crisprme.p
           Every line is a complete command (no line breaks or comments to trip up a
           paste), so you can run the whole box at once. It downloads the reference data
           <em>and</em> <strong>both</strong> precomputed SpCas9 (NRG, i.e. NGG + NAG) indexes &mdash; the
-          reference index (~4&nbsp;GB download) and the variant-aware
-          hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index (a
-          <strong>~43&nbsp;GB download that expands to ~53&nbsp;GB on disk</strong>, its
-          per-sample dictionaries included, shipped gzipped) &mdash; so a search never has to build one.
+          reference index (~9&nbsp;GB download) and the default variant-aware
+          hg38&nbsp;+&nbsp;1000&nbsp;Genomes&nbsp;+&nbsp;HGDP index, which is now
+          <strong>dict-less: a ~17&nbsp;GB download</strong> (plus a ~5&nbsp;GB genotype
+          store for per-sample results, fetched automatically) with
+          <strong>no ~152&nbsp;GB per-sample dictionaries</strong> &mdash; so a search
+          never has to build one.
           If you only need reference-only searches, skip the last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
