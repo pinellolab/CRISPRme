@@ -75,9 +75,26 @@ on dockerPath()
   return "docker"
 end dockerPath
 
-on dockerUp()
-  return (do shell script "command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && echo yes || echo no") is "yes"
-end dockerUp
+on dockerRunning(dk)
+  return (do shell script (quoted form of dk) & " info >/dev/null 2>&1 && echo yes || echo no") is "yes"
+end dockerRunning
+
+-- start Docker Desktop for the user and wait for the daemon (up to ~90s)
+on ensureDocker(dk)
+  if dockerRunning(dk) then return true
+  try
+    do shell script "open -a Docker"
+  on error
+    display dialog "Docker Desktop does not seem to be installed. Install it from" & return & "https://www.docker.com/products/docker-desktop/" & return & "then open CRISPRme again." buttons {"OK"} default button "OK" with icon caution
+    return false
+  end try
+  repeat 30 times
+    delay 3
+    if dockerRunning(dk) then return true
+  end repeat
+  display dialog "Docker Desktop is still starting up. Give it a few more seconds, then click 'Open CRISPRme' again." buttons {"OK"} default button "OK" with icon caution
+  return false
+end ensureDocker
 
 on hasData()
   return (do shell script "ls " & quoted form of (dataDir & "/crisprme-data/Genomes") & " >/dev/null 2>&1 && echo yes || echo no") is "yes"
@@ -99,15 +116,15 @@ on run
     set action to item 1 of pick
 
     if action starts with "Open CRISPRme" then
-      if not dockerUp() then
-        display dialog "Docker Desktop is not running. Please open Docker Desktop, wait for it to start, then try again." buttons {"OK"} default button "OK" with icon caution
-      else if not hasData() then
-        display dialog "No reference data yet. Choose 'Download reference data' first (one time)." buttons {"OK"} default button "OK" with icon caution
-      else
-        do shell script dk & " compose -f " & quoted form of (dataDir & "/docker-compose.yml") & " up -d"
-        delay 3
-        do shell script "open http://localhost:8080"
-        display dialog "CRISPRme is starting — your browser is opening http://localhost:8080. First load can take a few seconds." buttons {"OK"} default button "OK" giving up after 6
+      if ensureDocker(dk) then
+        if not hasData() then
+          display dialog "No reference data yet. Choose 'Download reference data' first (one time)." buttons {"OK"} default button "OK" with icon caution
+        else
+          do shell script dk & " compose -f " & quoted form of (dataDir & "/docker-compose.yml") & " up -d"
+          delay 3
+          do shell script "open http://localhost:8080"
+          display dialog "CRISPRme is starting — your browser is opening http://localhost:8080. First load can take a few seconds." buttons {"OK"} default button "OK" giving up after 6
+        end if
       end if
 
     else if action starts with "Download reference data" then
