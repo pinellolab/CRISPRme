@@ -97,9 +97,44 @@
     <section aria-labelledby="run-heading">
       <h2 id="run-heading">Quickstart &mdash; the web interface (batteries included)</h2>
       <p>
-        Run CRISPRme+ in a container: <strong>Docker</strong> on a laptop or desktop, or
+        Two ways in. If you just want to click and go, use the <strong>one-line
+        install</strong> below &mdash; it sets up a clickable app and you never touch
+        the terminal again. If you prefer to drive the container yourself (or you are
+        on an HPC cluster), skip to <a href="#byo-runtime">Or run the container
+        yourself</a>.
+      </p>
+
+      <h3 id="easiest-heading">Easiest &mdash; one line, then a clickable app</h3>
+      <p>
+        One command installs a clickable <strong>CRISPRme</strong> app (into
+        Applications on macOS, or the Desktop / Start&nbsp;Menu on Windows) that manages
+        Docker, downloads the data on first launch, and opens the web interface &mdash;
+        so after this you never need the terminal again. Requires
+        <a href="https://www.docker.com/products/docker-desktop/">Docker&nbsp;Desktop</a>
+        (the installer guides you if it is missing).
+      </p>
+      <p><strong>macOS / Linux</strong> &mdash; in Terminal, once:</p>
+      <pre><code>curl -fsSL https://pinellolab.github.io/CRISPRme/install.sh | bash</code></pre>
+      <p><strong>Windows</strong> &mdash; in PowerShell, once:</p>
+      <pre><code>irm https://pinellolab.github.io/CRISPRme/install.ps1 | iex</code></pre>
+      <p class="note">
+        Then open <strong>CRISPRme</strong> (Applications on macOS; Desktop / Start&nbsp;Menu
+        on Windows) &mdash; a small window with three big buttons:
+        <strong>Start</strong>, <strong>Update</strong>, <strong>Stop</strong>. Click
+        <strong>Start</strong>: the first time it downloads the reference&nbsp;+&nbsp;variant
+        data automatically (~85&nbsp;GB, once), then opens
+        <strong>http://localhost:8080</strong>; every Start after that is instant. Manage
+        additional datasets from the web app's own <strong>Settings</strong>. For the
+        genome-wide variant search give Docker <strong>64&nbsp;GB</strong> of memory
+        (reference-only fits 16&nbsp;GB).
+      </p>
+
+      <h3 id="byo-runtime" style="margin-top:2.2rem;">Or run the container yourself</h3>
+      <p>
+        Prefer to drive the container directly? Run CRISPRme+ with
+        <strong>Docker</strong> on a laptop or desktop, or
         <strong>Singularity / Apptainer</strong> on an HPC cluster (no root, no daemon).
-        Either way it is a few commands. Pick your runtime below.
+        Either way it is a few commands &mdash; pick your runtime below.
       </p>
 
       <div class="tabs" role="tablist" aria-label="Container runtime">
