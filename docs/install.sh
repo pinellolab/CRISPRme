@@ -2,10 +2,12 @@
 # CRISPRme+ one-line installer (macOS / Linux).
 #   curl -fsSL https://pinellolab.github.io/CRISPRme/install.sh | bash
 #
-# Installs a clickable "CRISPRme" app that manages the Docker container, downloads
-# reference data, and opens the web interface — so after this one command the user
-# never needs the terminal again. No build toolchain: the macOS app is generated
-# with osacompile (built in). Docker Desktop is required (guided if missing).
+# Installs a clickable "CRISPRme" app (3 buttons: Start / Update / Stop) that
+# manages the Docker container and opens the web interface. On the FIRST Start it
+# downloads the reference + variant data automatically, then opens the browser —
+# so after this one command the user never needs the terminal again. No build
+# toolchain: the macOS app is generated with osacompile (built in). Docker Desktop
+# is required (guided if missing).
 set -euo pipefail
 
 IMAGE="pinellolab/crisprme:v2.4.0"
@@ -63,9 +65,9 @@ if [ "$OS" = "Darwin" ]; then
   rm -rf "$APP"
   SRC="$(mktemp -t crisprme_app).applescript"
   cat > "$SRC" <<'OSA'
--- CRISPRme+ launcher (clickable app window). Manages Docker + browser.
+-- CRISPRme+ launcher. Three actions: Start / Update / Stop.
+property img : "pinellolab/crisprme:v2.4.0"
 property dataDir : ""
-property dockerBin : "/usr/local/bin/docker"
 
 on dockerPath()
   set candidates to {"/usr/local/bin/docker", "/opt/homebrew/bin/docker", "/Applications/Docker.app/Contents/Resources/bin/docker"}
@@ -92,7 +94,7 @@ on ensureDocker(dk)
     delay 3
     if dockerRunning(dk) then return true
   end repeat
-  display dialog "Docker Desktop is still starting up. Give it a few more seconds, then click 'Open CRISPRme' again." buttons {"OK"} default button "OK" with icon caution
+  display dialog "Docker Desktop is still starting up. Give it a few more seconds, then open CRISPRme again." buttons {"OK"} default button "OK" with icon caution
   return false
 end ensureDocker
 
@@ -100,60 +102,50 @@ on hasData()
   return (do shell script "ls " & quoted form of (dataDir & "/crisprme-data/Genomes") & " >/dev/null 2>&1 && echo yes || echo no") is "yes"
 end hasData
 
-on run
-  set dataDir to (POSIX path of (path to home folder)) & "CRISPRme"
-  set dk to dockerPath()
-  repeat
-    set runningNote to ""
-    try
-      if (do shell script dk & " compose -f " & quoted form of (dataDir & "/docker-compose.yml") & " ps --status running -q 2>/dev/null | head -1 | wc -l | tr -d ' '") is not "0" then set runningNote to " (running)"
-    end try
-    set dataNote to "reference data: MISSING — download it first"
-    if hasData() then set dataNote to "reference data: ready"
-    set choices to {"Open CRISPRme (start + browser)", "Download reference data", "Download variant index (advanced, 64 GB RAM)", "Update CRISPRme", "Stop CRISPRme", "Quit"}
-    set pick to (choose from list choices with title "CRISPRme+" with prompt ("CRISPRme+" & runningNote & return & dataNote & return & return & "Choose an action:") default items {"Open CRISPRme (start + browser)"} OK button name "Go" cancel button name "Close")
-    if pick is false then return
-    set action to item 1 of pick
-
-    if action starts with "Open CRISPRme" then
-      if ensureDocker(dk) then
-        if not hasData() then
-          display dialog "No reference data yet. Choose 'Download reference data' first (one time)." buttons {"OK"} default button "OK" with icon caution
-        else
-          do shell script dk & " compose -f " & quoted form of (dataDir & "/docker-compose.yml") & " up -d"
-          delay 3
-          do shell script "open http://localhost:8080"
-          display dialog "CRISPRme is starting — your browser is opening http://localhost:8080. First load can take a few seconds." buttons {"OK"} default button "OK" giving up after 6
-        end if
-      end if
-
-    else if action starts with "Download reference data" then
-      runInTerminal(dk & " run --rm -v " & quoted form of (dataDir & "/crisprme-data") & ":/DATA -w /DATA pinellolab/crisprme:v2.4.0 crisprme.py download --what all --path /DATA", "Downloading reference data (~25 GB, one time)")
-
-    else if action starts with "Download variant index" then
-      runInTerminal(dk & " run --rm -v " & quoted form of (dataDir & "/crisprme-data") & ":/DATA -w /DATA pinellolab/crisprme:v2.4.0 crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP --path /DATA", "Downloading variant index (needs 64 GB RAM in Docker Desktop)")
-
-    else if action starts with "Update CRISPRme" then
-      runInTerminal(dk & " pull pinellolab/crisprme:v2.4.0", "Updating CRISPRme engine")
-
-    else if action starts with "Stop CRISPRme" then
-      try
-        do shell script dk & " compose -f " & quoted form of (dataDir & "/docker-compose.yml") & " down"
-      end try
-      display dialog "CRISPRme stopped." buttons {"OK"} default button "OK" giving up after 3
-
-    else if action is "Quit" then
-      return
-    end if
-  end repeat
-end run
-
 on runInTerminal(cmd, title)
   tell application "Terminal"
     activate
-    do script "clear; echo '== " & title & " =='; echo 'You can close this window when it finishes.'; echo; " & cmd & "; echo; echo 'DONE — you can close this window.'"
+    do script "clear; echo '== " & title & " =='; " & cmd
   end tell
 end runInTerminal
+
+on run
+  set dataDir to (POSIX path of (path to home folder)) & "CRISPRme"
+  set dk to dockerPath()
+  set compose to (quoted form of dk) & " compose -f " & quoted form of (dataDir & "/docker-compose.yml") & " "
+  set dmount to "-v " & quoted form of (dataDir & "/crisprme-data") & ":/DATA -w /DATA " & img
+  set dlRef to (quoted form of dk) & " run --rm " & dmount & " crisprme.py download --what all --path /DATA"
+  set dlVar to (quoted form of dk) & " run --rm " & dmount & " crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP --path /DATA"
+
+  set action to button returned of (display dialog "CRISPRme+  —  CRISPR off-target analysis" & return & return & "Start   —  open the web app (sets everything up the first time)" & return & "Update  —  get the latest CRISPRme" & return & "Stop    —  shut CRISPRme down" buttons {"Stop", "Update", "Start"} default button "Start" with title "CRISPRme+")
+
+  if action is "Start" then
+    if not ensureDocker(dk) then return
+    if hasData() then
+      -- data already downloaded: just start + open the browser
+      do shell script compose & "up -d"
+      delay 3
+      do shell script "open http://localhost:8080"
+      display dialog "CRISPRme is starting — your browser is opening http://localhost:8080." buttons {"OK"} default button "OK" giving up after 6
+    else
+      -- first run: download reference + variant data, then start + open browser
+      set r to button returned of (display dialog "First run: CRISPRme will download the reference genome + the 1000G/HGDP variant data (~85 GB) so everything is ready to go. You only do this once. A Terminal window shows the progress, then your browser opens automatically." buttons {"Not now", "Download & Start"} default button "Download & Start" with title "CRISPRme+ — first-time setup")
+      if r is "Download & Start" then
+        runInTerminal(dlRef & " && " & dlVar & " && " & compose & "up -d && sleep 3 && open http://localhost:8080 && echo && echo 'DONE — CRISPRme is running and your browser is open. You can close this window.'", "First-time setup — downloading ~85 GB, then starting CRISPRme")
+      end if
+    end if
+
+  else if action is "Update" then
+    if not ensureDocker(dk) then return
+    runInTerminal((quoted form of dk) & " pull " & img, "Updating CRISPRme")
+
+  else if action is "Stop" then
+    try
+      do shell script compose & "down"
+    end try
+    display dialog "CRISPRme stopped." buttons {"OK"} default button "OK" giving up after 3
+  end if
+end run
 OSA
   osacompile -o "$APP" "$SRC" 2>/dev/null
   rm -f "$SRC"
@@ -161,11 +153,11 @@ OSA
   xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
   say "${GRN}Installed:${NC} ${APP}"
   say ""
-  say "${BLUE}Done!${NC} Open ${GRN}${APP_NAME}${NC} from your Applications (Spotlight: type 'CRISPRme')."
-  say "First time: choose ${GRN}Download reference data${NC}, then ${GRN}Open CRISPRme${NC}."
+  say "${BLUE}Done!${NC} Open ${GRN}${APP_NAME}${NC} from your Applications (Spotlight: type 'CRISPRme') and click ${GRN}Start${NC}."
+  say "The first Start downloads the data (once) and opens the web app; after that Start is instant."
   open "$APPS" 2>/dev/null || true
 else
-  # Linux: a .desktop launcher that runs the same actions via zenity if present
+  # Linux: minimal — run the web interface via compose directly
   say "${YEL}Linux clickable-app support is minimal in this MVP.${NC}"
   say "Use: cd ${DATA_DIR} && docker compose up   (then open http://localhost:8080)"
 fi

@@ -1,9 +1,10 @@
 # CRISPRme+ one-line installer (Windows).
 #   irm https://pinellolab.github.io/CRISPRme/install.ps1 | iex
 #
-# Installs a clickable "CRISPRme" app (a small window with buttons) that manages the
-# Docker container, downloads reference data, and opens the web interface — so after
-# this one command the user never needs the terminal again. Docker Desktop required.
+# Installs a clickable "CRISPRme" app (3 big buttons: Start / Update / Stop). The
+# first Start downloads the reference + variant data automatically, then opens the
+# web interface — so after this one command the user never needs the terminal
+# again. Docker Desktop required.
 $ErrorActionPreference = 'Stop'
 $Image   = 'pinellolab/crisprme:v2.4.0'
 $DataDir = Join-Path $env:USERPROFILE 'CRISPRme'
@@ -40,7 +41,7 @@ services:
 "@ | Set-Content -Encoding ascii (Join-Path $DataDir 'docker-compose.yml')
 Write-Host "Data folder ready: $DataDir" -ForegroundColor Green
 
-# ---- 3. Write the clickable app (a WinForms window) ------------------------
+# ---- 3. Write the clickable app (3 big buttons) ---------------------------
 New-Item -ItemType Directory -Force -Path $AppDir | Out-Null
 $AppScript = Join-Path $AppDir 'CRISPRme.ps1'
 @'
@@ -49,45 +50,50 @@ Add-Type -AssemblyName System.Drawing
 $DataDir = Join-Path $env:USERPROFILE 'CRISPRme'
 $Compose = Join-Path $DataDir 'docker-compose.yml'
 $Image   = 'pinellolab/crisprme:v2.4.0'
+$Mount   = "-v `"$DataDir\crisprme-data:/DATA`" -w /DATA $Image"
 
 function Has-Data { Test-Path (Join-Path $DataDir 'crisprme-data\Genomes') }
-function Docker-Up { try { docker info *> $null; return $true } catch { return $false } }
+function Docker-Running { try { docker info *> $null; return $true } catch { return $false } }
+function Ensure-Docker {
+  if (Docker-Running) { return $true }
+  $dd = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
+  if (Test-Path $dd) { Start-Process $dd } else { [System.Windows.Forms.MessageBox]::Show('Docker Desktop does not seem to be installed. Install it from https://www.docker.com/products/docker-desktop/ then try again.'); return $false }
+  for ($i=0; $i -lt 30; $i++) { Start-Sleep 3; if (Docker-Running) { return $true } }
+  [System.Windows.Forms.MessageBox]::Show('Docker Desktop is still starting. Give it a few more seconds, then click Start again.'); return $false
+}
 function Run-InConsole($title, $cmd) {
   Start-Process powershell -ArgumentList @('-NoExit','-Command',
-    "Write-Host '== $title =='; Write-Host 'You can close this window when it finishes.'; $cmd; Write-Host ''; Write-Host 'DONE - you can close this window.'")
+    "Write-Host '== $title =='; $cmd; Write-Host ''; Write-Host 'DONE - you can close this window.'")
 }
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'CRISPRme+'
-$form.Size = New-Object System.Drawing.Size(430,340)
-$form.StartPosition = 'CenterScreen'
-$form.FormBorderStyle = 'FixedSingle'; $form.MaximizeBox = $false
-
+$form.Size = New-Object System.Drawing.Size(440,320)
+$form.StartPosition = 'CenterScreen'; $form.FormBorderStyle = 'FixedSingle'; $form.MaximizeBox = $false
 $status = New-Object System.Windows.Forms.Label
-$status.SetBounds(20,15,390,40); $status.Text = 'CRISPRme+ off-target analysis'
-$form.Controls.Add($status)
+$status.SetBounds(20,12,400,24); $form.Controls.Add($status)
+$big = New-Object System.Drawing.Font('Segoe UI',15,[System.Drawing.FontStyle]::Bold)
 
 function Mk($text,$y,$action) {
   $b = New-Object System.Windows.Forms.Button
-  $b.SetBounds(20,$y,390,38); $b.Text = $text; $b.Add_Click($action)
-  $form.Controls.Add($b); return $b
+  $b.SetBounds(30,$y,380,64); $b.Text = $text; $b.Font = $big; $b.Add_Click($action)
+  $form.Controls.Add($b)
 }
-Mk 'Open CRISPRme (start + browser)' 60 {
-  if (-not (Docker-Up)) { [System.Windows.Forms.MessageBox]::Show('Docker Desktop is not running. Open it, wait, then try again.'); return }
-  if (-not (Has-Data))  { [System.Windows.Forms.MessageBox]::Show('No reference data yet. Choose "Download reference data" first.'); return }
-  docker compose -f $Compose up -d
-  Start-Sleep -Seconds 3; Start-Process 'http://localhost:8080'
-} | Out-Null
-Mk 'Download reference data (~25 GB, once)' 104 {
-  Run-InConsole 'Downloading reference data' "docker run --rm -v `"${DataDir}\crisprme-data:/DATA`" -w /DATA $Image crisprme.py download --what all --path /DATA"
-} | Out-Null
-Mk 'Download variant index (advanced, 64 GB RAM)' 148 {
-  Run-InConsole 'Downloading variant index' "docker run --rm -v `"${DataDir}\crisprme-data:/DATA`" -w /DATA $Image crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP --path /DATA"
-} | Out-Null
-Mk 'Update CRISPRme' 192 { Run-InConsole 'Updating CRISPRme' "docker pull $Image" } | Out-Null
-Mk 'Stop CRISPRme' 236 { try { docker compose -f $Compose down } catch {}; [System.Windows.Forms.MessageBox]::Show('CRISPRme stopped.') } | Out-Null
+Mk 'Start' 44 {
+  if (-not (Ensure-Docker)) { return }
+  if (Has-Data) {
+    docker compose -f $Compose up -d; Start-Sleep 3; Start-Process 'http://localhost:8080'
+  } else {
+    $r = [System.Windows.Forms.MessageBox]::Show("First run: CRISPRme will download the reference genome + 1000G/HGDP variant data (~85 GB), once. A window shows progress, then your browser opens automatically.","CRISPRme+ - first-time setup",'OKCancel')
+    if ($r -eq 'OK') {
+      Run-InConsole 'First-time setup - downloading ~85 GB, then starting CRISPRme' "docker run --rm $Mount crisprme.py download --what all --path /DATA; docker run --rm $Mount crisprme.py download --what index --index-name NRG_3_hg38-dictless+hg38_1000G_HGDP --path /DATA; docker compose -f `"$Compose`" up -d; Start-Sleep 3; Start-Process 'http://localhost:8080'"
+    }
+  }
+}
+Mk 'Update' 120 { if (Ensure-Docker) { Run-InConsole 'Updating CRISPRme' "docker pull $Image" } }
+Mk 'Stop' 196 { try { docker compose -f $Compose down } catch {}; [System.Windows.Forms.MessageBox]::Show('CRISPRme stopped.') }
 
-if (Has-Data) { $status.Text = 'CRISPRme+  -  reference data: ready' } else { $status.Text = 'CRISPRme+  -  reference data: MISSING (download it first)' }
+if (Has-Data) { $status.Text = 'Ready. Click Start to open CRISPRme.' } else { $status.Text = 'First run: Start will set everything up (~85 GB, once).' }
 [void]$form.ShowDialog()
 '@ | Set-Content -Encoding UTF8 $AppScript
 
@@ -104,5 +110,5 @@ foreach ($dir in @([Environment]::GetFolderPath('Desktop'),
 }
 
 Write-Host ""
-Write-Host "Done! Open 'CRISPRme' from your Desktop or Start Menu." -ForegroundColor Green
-Write-Host "First time: click 'Download reference data', then 'Open CRISPRme'."
+Write-Host "Done! Open 'CRISPRme' from your Desktop or Start Menu and click Start." -ForegroundColor Green
+Write-Host "The first Start downloads the data (once) and opens the web app."
