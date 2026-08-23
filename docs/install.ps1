@@ -22,6 +22,11 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 Write-Host "Docker found." -ForegroundColor Green
 
+# ---- 1b. Pre-pull the engine image (best-effort, visible progress) --------
+# Front-load the ~800 MB image now (with progress here) so the app's first Start
+# doesn't appear to hang while it pulls. Skipped if the daemon isn't up yet.
+try { docker info *> $null; if ($LASTEXITCODE -eq 0) { Write-Host "Fetching the CRISPRme engine image (~800 MB, one time)..." -ForegroundColor Cyan; docker pull $Image } } catch {}
+
 # ---- 2. Working dir + compose file ----------------------------------------
 New-Item -ItemType Directory -Force -Path (Join-Path $DataDir 'crisprme-data') | Out-Null
 @"
@@ -53,13 +58,22 @@ $Image   = 'pinellolab/crisprme:v2.4.0'
 $Mount   = "-v `"$DataDir\crisprme-data:/DATA`" -w /DATA $Image"
 
 function Has-Data { Test-Path (Join-Path $DataDir 'crisprme-data\Genomes') }
-function Docker-Running { try { docker info *> $null; return $true } catch { return $false } }
+function Docker-Running { try { docker info *> $null; return ($LASTEXITCODE -eq 0) } catch { return $false } }
+# a bind mount actually works (freshly-started Docker can report info OK while its
+# file-sharing is still initializing -> the download's makedirs fails with ENOENT)
+function Mount-Ready {
+  try { docker run --rm -v "$DataDir\crisprme-data:/DATA" $Image bash -c 'touch /DATA/.probe && rm -f /DATA/.probe' *> $null; return ($LASTEXITCODE -eq 0) } catch { return $false }
+}
 function Ensure-Docker {
-  if (Docker-Running) { return $true }
-  $dd = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
-  if (Test-Path $dd) { Start-Process $dd } else { [System.Windows.Forms.MessageBox]::Show('Docker Desktop does not seem to be installed. Install it from https://www.docker.com/products/docker-desktop/ then try again.'); return $false }
-  for ($i=0; $i -lt 30; $i++) { Start-Sleep 3; if (Docker-Running) { return $true } }
-  [System.Windows.Forms.MessageBox]::Show('Docker Desktop is still starting. Give it a few more seconds, then click Start again.'); return $false
+  if (-not (Docker-Running)) {
+    $dd = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
+    if (Test-Path $dd) { Start-Process $dd } else { [System.Windows.Forms.MessageBox]::Show('Docker Desktop does not seem to be installed. Install it from https://www.docker.com/products/docker-desktop/ then try again.'); return $false }
+    $up = $false
+    for ($i=0; $i -lt 30; $i++) { Start-Sleep 3; if (Docker-Running) { $up = $true; break } }
+    if (-not $up) { [System.Windows.Forms.MessageBox]::Show('Docker Desktop is still starting. Give it a few more seconds, then click Start again.'); return $false }
+  }
+  for ($i=0; $i -lt 20; $i++) { if (Mount-Ready) { return $true }; Start-Sleep 2 }
+  return $true
 }
 function Run-InConsole($title, $cmd) {
   Start-Process powershell -ArgumentList @('-NoExit','-Command',

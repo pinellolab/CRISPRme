@@ -39,6 +39,16 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 say "${GRN}Docker found.${NC}"
 
+# ---- 1b. Pre-pull the engine image (best-effort, visible progress) --------
+# Front-load the ~800 MB image now — with progress here in the terminal — so the
+# app's first Start (which probes a bind mount using this image) doesn't appear to
+# hang while it pulls. Skipped silently if the daemon isn't up yet; the app pulls
+# it on demand in that case.
+if docker info >/dev/null 2>&1; then
+  say "Fetching the CRISPRme engine image (~800 MB, one time)…"
+  docker pull "$IMAGE" || true
+fi
+
 # ---- 2. Working dir + compose file ----------------------------------------
 mkdir -p "${DATA_DIR}/crisprme-data"
 cat > "${DATA_DIR}/docker-compose.yml" <<YML
@@ -81,21 +91,41 @@ on dockerRunning(dk)
   return (do shell script (quoted form of dk) & " info >/dev/null 2>&1 && echo yes || echo no") is "yes"
 end dockerRunning
 
--- start Docker Desktop for the user and wait for the daemon (up to ~90s)
+-- a bind mount actually works (a freshly-started Docker can report 'info' OK while
+-- its file-sharing subsystem is still initializing, which makes the download's
+-- makedirs fail with 'No such file or directory')
+on mountReady(dk)
+  return (do shell script (quoted form of dk) & " run --rm -v " & quoted form of (dataDir & "/crisprme-data") & ":/DATA " & img & " bash -c 'touch /DATA/.probe && rm -f /DATA/.probe' >/dev/null 2>&1 && echo yes || echo no") is "yes"
+end mountReady
+
+-- start Docker Desktop for the user and wait for the daemon AND the bind mount
 on ensureDocker(dk)
-  if dockerRunning(dk) then return true
-  try
-    do shell script "open -a Docker"
-  on error
-    display dialog "Docker Desktop does not seem to be installed. Install it from" & return & "https://www.docker.com/products/docker-desktop/" & return & "then open CRISPRme again." buttons {"OK"} default button "OK" with icon caution
-    return false
-  end try
-  repeat 30 times
-    delay 3
-    if dockerRunning(dk) then return true
+  if not dockerRunning(dk) then
+    try
+      do shell script "open -a Docker"
+    on error
+      display dialog "Docker Desktop does not seem to be installed. Install it from" & return & "https://www.docker.com/products/docker-desktop/" & return & "then open CRISPRme again." buttons {"OK"} default button "OK" with icon caution
+      return false
+    end try
+    set ok to false
+    repeat 30 times
+      delay 3
+      if dockerRunning(dk) then
+        set ok to true
+        exit repeat
+      end if
+    end repeat
+    if not ok then
+      display dialog "Docker Desktop is still starting up. Give it a few more seconds, then open CRISPRme again." buttons {"OK"} default button "OK" with icon caution
+      return false
+    end if
+  end if
+  -- daemon is up; now wait for the bind-mount / file-sharing subsystem
+  repeat 20 times
+    if mountReady(dk) then return true
+    delay 2
   end repeat
-  display dialog "Docker Desktop is still starting up. Give it a few more seconds, then open CRISPRme again." buttons {"OK"} default button "OK" with icon caution
-  return false
+  return true
 end ensureDocker
 
 on hasData()
