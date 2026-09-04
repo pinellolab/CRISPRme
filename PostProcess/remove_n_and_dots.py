@@ -12,6 +12,7 @@ import pandas as pd
 
 import subprocess
 import warnings
+import shutil
 import sys
 import os
 
@@ -50,15 +51,24 @@ def polish_report(report_chunks: TextFileReader, report_fname: str) -> None:
         None
     """
     header = True  # only for first iteration
+    processed_any = False
     for chunk in report_chunks:
-        assert "rsID" in chunk.columns.tolist()
-        chunk: pd.DataFrame = chunk.replace({"n": "NA"})  # replace ns with NAs
-        # replace . in rsids with NAs
-        chunk["rsID"] = chunk["rsID"].str.replace(".", "NA", regex=False)  
+        processed_any = True
+        # A zero-hit search yields a header-only report with no data rows to
+        # clean; only clean when the rsID column is actually present, otherwise
+        # pass the chunk through unchanged (never abort the whole run on it).
+        if "rsID" in chunk.columns.tolist():
+            chunk: pd.DataFrame = chunk.replace({"n": "NA"})  # replace ns with NAs
+            # replace . in rsids with NAs
+            chunk["rsID"] = chunk["rsID"].str.replace(".", "NA", regex=False)
         chunk.to_csv(
             f"{report_fname}.tmp", header=header, mode="a", sep="\t", index=False
         )
         header = False  # not required anymore
+    if not processed_any:
+        # header-only / empty report (e.g. a zero-hit search): nothing to clean,
+        # so preserve the file verbatim as the "polished" output
+        shutil.copyfile(report_fname, f"{report_fname}.tmp")
 
 
 def remove_n_dots() -> None:
