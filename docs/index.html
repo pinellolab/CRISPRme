@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CRISPRme+ is the next major version of CRISPRme, a variant-aware CRISPR off-target nomination tool. Now stable (v2.5.4): run the web interface locally in minutes with Docker, batteries included (a ready-made 1000 Genomes + HGDP SpCas9 index).">
-  <title>CRISPRme+ — variant-aware CRISPR off-target nomination (v2.5.4)</title>
+  <meta name="description" content="CRISPRme+ is the next major version of CRISPRme, a variant-aware CRISPR off-target nomination tool. Now stable (v2.5.5): run the web interface locally in minutes with Docker, batteries included (a ready-made 1000 Genomes + HGDP SpCas9 index).">
+  <title>CRISPRme+ — variant-aware CRISPR off-target nomination (v2.5.5)</title>
   <link rel="icon" type="image/svg+xml" href="crisprme-icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -36,11 +36,11 @@
         real off-target search immediately, with no index build and no giant download.
       </p>
       <p>
-        <strong>New in v2.5.4:</strong> <strong>population-level</strong> analysis by
-        default (add <strong><code>--per-sample</code></strong> for confirmed per-sample
-        carriers), <strong>IntOGen</strong> cancer-driver annotation on by default (COSMIC
-        under its licence), and a second all-source <strong>&ldquo;mega&rdquo; index</strong>
-        &mdash; see the
+        <strong>New in v2.5.5:</strong> a new <strong>HPRC pangenome</strong> index (232
+        phased assembly-derived genomes) joins the genotyped <strong>1000G&nbsp;+&nbsp;HGDP</strong>
+        and the five-source sites-only <strong>&ldquo;mega&rdquo;</strong> index &mdash; three
+        prebuilt variant indexes &mdash; plus a website for <strong>personal diploid
+        assembly search</strong>. See the
         <a href="https://github.com/pinellolab/crisprme-plus/blob/main/CHANGELOG.md">CHANGELOG</a>
         for the full list.
       </p>
@@ -72,7 +72,7 @@
           <strong>Disk:</strong> the batteries-included quickstart needs
           <strong>&asymp;&nbsp;100&nbsp;GB free</strong> (headroom for the download plus
           unpacking). The download is about <strong>~35&nbsp;GB</strong> and expands to
-          roughly <strong>~70&nbsp;GB installed</strong>. As of v2.5.4 the default index
+          roughly <strong>~70&nbsp;GB installed</strong>. As of v2.5.5 the default index
           is <strong>dict-less</strong>: the combined
           1000&nbsp;Genomes&nbsp;+&nbsp;HGDP variant index is a
           <strong>~17&nbsp;GB download</strong> (~22&nbsp;GB installed) with
@@ -157,14 +157,14 @@
           1000G&nbsp;+&nbsp;HGDP variant search (see Requirements above). Then check Docker
           works, pull the CRISPRme+ image (multi-arch: Apple Silicon + Intel/Linux), and
           confirm CRISPRme+ runs (the last line should print a version such as
-          <code>v2.5.4</code>):
+          <code>v2.5.5</code>):
         </p>
         <pre><code>docker run --rm hello-world
-docker pull pinellolab/crisprme:v2.5.4
-docker run --rm pinellolab/crisprme:v2.5.4 crisprme.py --version</code></pre>
+docker pull pinellolab/crisprme:v2.5.5
+docker run --rm pinellolab/crisprme:v2.5.5 crisprme.py --version</code></pre>
         <p class="note">
           <strong>Already have an older image?</strong> Docker won't refresh a tag you
-          already have &mdash; run <code>docker pull pinellolab/crisprme:v2.5.4</code> again to
+          already have &mdash; run <code>docker pull pinellolab/crisprme:v2.5.5</code> again to
           update. (If you skip this, an old image will error with
           <code>download is not an allowed command</code>.)
         </p>
@@ -184,10 +184,20 @@ docker run --rm pinellolab/crisprme:v2.5.4 crisprme.py --version</code></pre>
           last command (the big one).
         </p>
         <pre><code>mkdir -p ~/crisprme &amp;&amp; cd ~/crisprme
-docker pull pinellolab/crisprme:v2.5.4
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.py download --what all --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G2021_HGDP --path /DATA</code></pre>
+docker pull pinellolab/crisprme:v2.5.5
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.py download --what all --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.py download --what index --index-name NRG_3_hg38 --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G2021_HGDP --path /DATA</code></pre>
+        <p class="note">
+          <strong>Two more prebuilt variant indexes</strong> are available &mdash; the
+          <strong>HPRC pangenome</strong> (<code>NRG_3_hg38+hg38_HPRC</code>: 232 phased
+          assembly-derived genomes, confirmed cis + named carriers, pangenome-specific
+          variation) and the five-source sites-only <strong>mega</strong>
+          (<code>NRG_3_hg38+hg38_mega</code>: + gnomAD&nbsp;v4.1&nbsp;/&nbsp;TOPMed&nbsp;/&nbsp;All-of-Us
+          allele-frequency provenance). Swap the <code>--index-name</code> above:
+        </p>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.py download --what index --index-name NRG_3_hg38+hg38_HPRC --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.py download --what index --index-name NRG_3_hg38+hg38_mega --path /DATA</code></pre>
         <p class="note">
           <strong>Want the classic strict SpCas9 (NGG-only) index too?</strong> The default
           NRG index above already covers NGG&nbsp;+&nbsp;NAG; if you specifically need
@@ -195,8 +205,8 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.p
           variant; the NGG variant index is the larger, older <strong>dict-based</strong>
           build &mdash; a ~37&nbsp;GB download) &mdash; alongside NRG or on its own:
         </p>
-        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G2021_HGDP --path /DATA</code></pre>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.py download --what index --index-name NGG_3_hg38 --path /DATA
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G2021_HGDP --path /DATA</code></pre>
         <p class="note">
           Everything lands in <code>~/crisprme</code> on your computer (that is what the
           <code>-v "${PWD}:/DATA"</code> bind-mount does) and <strong>persists</strong>,
@@ -208,14 +218,14 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.p
         </p>
         <p class="note">
           The commands above <strong>pin the exact release</strong>
-          (<code>pinellolab/crisprme:v2.5.4</code>, multi-arch amd64&nbsp;+&nbsp;arm64)
+          (<code>pinellolab/crisprme:v2.5.5</code>, multi-arch amd64&nbsp;+&nbsp;arm64)
           for reproducible installs. The unpinned <code>pinellolab/crisprme</code>
           (<code>latest</code>) tracks the newest release but can change under you between
           pulls &mdash; prefer the pinned tag for a stable, repeatable setup.
         </p>
 
         <h3>3 &mdash; Launch the web interface</h3>
-        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.5.4 crisprme.py web-interface</code></pre>
+        <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:v2.5.5 crisprme.py web-interface</code></pre>
         <p>Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with <strong>Ctrl+C</strong>. In the browser, the <strong>1000G+HGDP</strong> variant index is pre-selected &mdash; just paste a guide and Submit.</p>
       </div>
 
@@ -226,7 +236,7 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 crisprme.p
           Most clusters already have Apptainer/Singularity. Convert the CRISPRme image
           to a <code>.sif</code> file (no root needed):
         </p>
-        <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.5.4</code></pre>
+        <pre><code>apptainer pull crisprme.sif docker://pinellolab/crisprme:v2.5.5</code></pre>
         <p class="note">On older systems the command is <code>singularity</code> instead of <code>apptainer</code>; they are interchangeable.</p>
 
         <h3>2 &mdash; Download the data <em>and</em> the precomputed indexes (both fetched below)</h3>
@@ -315,7 +325,7 @@ apptainer run --bind "${PWD}:/DATA" --pwd /DATA crisprme.sif crisprme.py downloa
         <code>~/crisprme</code> folder:
       </p>
       <pre><code>printf '%s\n' ACTGAAATCTGTAAGCAGGC &gt; my_guide.txt
-docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 \
+docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 \
   crisprme.py complete-search \
     --genome Genomes/hg38 --pam PAMs/20bp-NRG-SpCas9.txt \
     --guide my_guide.txt \
@@ -337,7 +347,7 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 \
         Then build the same one-file shareable report the web "Download report"
         button produces (a self-contained <code>report.html</code> inside a ZIP):
       </p>
-      <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 \
+      <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 \
   crisprme.py generate-report --result-dir Results/my_search</code></pre>
       <p class="note">
         <strong>Singularity / Apptainer</strong> &mdash; identical arguments, run
@@ -367,7 +377,7 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.4 \
         <h3>Install with Conda / Mamba</h3>
         <p class="warn"><strong>Note:</strong> Bioconda currently installs the previous
         CRISPRme line (2.1.x, Python&nbsp;3.8), <strong>not</strong> this
-        CRISPRme+ v2.5.4 release. For v2.5.4, use the Docker quickstart above, or build
+        CRISPRme+ v2.5.5 release. For v2.5.5, use the Docker quickstart above, or build
         from source (Python&nbsp;3.11) per the
         <a href="https://github.com/pinellolab/crisprme-plus#1-installation">crisprme-plus README</a>.</p>
         <pre><code># Stable line (2.1.x) via Bioconda
@@ -387,11 +397,11 @@ crisprme.py --version</code></pre>
           above is recommended for most users.
         </p>
         <pre><code># Docker
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.5.4 \
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.5.5 \
   crisprme.py setup --path /DATA
 
 # ...or test on a single chromosome first
-docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.5.4 \
+docker run -v ${PWD}:/DATA -w /DATA -i pinellolab/crisprme:v2.5.5 \
   crisprme.py setup --chrom chr22 --path /DATA</code></pre>
       </details>
     </section>
