@@ -193,22 +193,38 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:v2.5.5 crisprme.p
           Two more prebuilt variant indexes are available, so there are
           <strong>three variant indexes</strong> in total (download whichever you need):
         </p>
-        <ul class="note">
-          <li><strong>1000G-2021 + HGDP</strong> (<code>NRG_3_hg38+hg38_1000G2021_HGDP</code>,
-            downloaded above) &mdash; the default: sample-level genotypes with observed /
-            confirmed haplotypes and named per-sample carriers.</li>
-          <li><strong>HPRC pangenome</strong> (<code>NRG_3_hg38+hg38_HPRC</code>) &mdash; 232
-            phased assembly-derived genomes (incl. the CHM13 assembly), confirmed cis + named
-            carriers, capturing pangenome-specific variation.</li>
-          <li><strong>&ldquo;mega&rdquo;</strong> (<code>NRG_3_hg38+hg38_mega</code>) &mdash; a
-            sites-only union of <strong>five</strong> databases:
-            <strong>1000&nbsp;Genomes&nbsp;2021</strong>, <strong>HGDP</strong>,
-            <strong>gnomAD&nbsp;v4.1</strong>, <strong>TOPMed</strong>, and
-            <strong>All&nbsp;of&nbsp;Us</strong>. It keeps only common variants
-            (<strong>MAF&nbsp;&gt;&nbsp;0.001</strong>) and reports each source's allele
-            frequency separately (per-dataset <code>AF</code> plus a global <code>AF_max</code>) &mdash;
-            widest frequency provenance, but no per-sample carriers.</li>
-        </ul>
+        <table class="note" style="border-collapse:collapse;width:100%;font-size:0.9em;margin:0.6em 0;">
+          <thead>
+            <tr style="text-align:left;border-bottom:2px solid #ccc;">
+              <th style="padding:6px 10px;">Index (<code>--index-name</code>)</th>
+              <th style="padding:6px 10px;">Variant sources</th>
+              <th style="padding:6px 10px;">Resolution</th>
+              <th style="padding:6px 10px;">Best for</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid #eee;">
+              <td style="padding:6px 10px;"><strong>1000G-2021&nbsp;+&nbsp;HGDP</strong><br><code>NRG_3_hg38+hg38_1000G2021_HGDP</code> <em>(default)</em></td>
+              <td style="padding:6px 10px;">1000&nbsp;Genomes&nbsp;2021 (3202) + HGDP (929), genotyped</td>
+              <td style="padding:6px 10px;">phased &rarr; <strong>CONFIRMED cis</strong> + named per-sample carriers</td>
+              <td style="padding:6px 10px;">most use cases; the web default</td>
+            </tr>
+            <tr style="border-bottom:1px solid #eee;">
+              <td style="padding:6px 10px;"><strong>HPRC pangenome</strong><br><code>NRG_3_hg38+hg38_HPRC</code></td>
+              <td style="padding:6px 10px;">HPRC Minigraph-Cactus &mdash; 232 assembly-derived genomes incl. CHM13, phased</td>
+              <td style="padding:6px 10px;">CONFIRMED cis + named carriers; captures <strong>pangenome-specific</strong> variation</td>
+              <td style="padding:6px 10px;">assembly-derived / pangenome variation</td>
+            </tr>
+            <tr>
+              <td style="padding:6px 10px;"><strong>&ldquo;mega&rdquo; (sites-only)</strong><br><code>NRG_3_hg38+hg38_mega</code></td>
+              <td style="padding:6px 10px;">1000G-2021 + HGDP + <strong>gnomAD&nbsp;v4.1</strong> + <strong>TOPMed</strong> + <strong>All&nbsp;of&nbsp;Us</strong> (aggregate, <strong>MAF&nbsp;&gt;&nbsp;0.001</strong>; per-dataset <code>AF</code> + global <code>AF_max</code>)</td>
+              <td style="padding:6px 10px;">population-level, <strong>PUTATIVE</strong> haplotypes with min-AF bounds (no per-sample)</td>
+              <td style="padding:6px 10px;">widest allele-frequency provenance across 5 databases</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note">All three are SpCas9 <strong>NRG</strong> (NAG+NGG) indexes with searchable
+          indels genome-wide and SNP+SNP / SNP+indel co-occurrence.</p>
         <p class="note">
           The 1000G-2021&nbsp;+&nbsp;HGDP index is fetched by the quick-start above; to add
           the HPRC or mega index, swap the <code>--index-name</code>:
