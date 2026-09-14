@@ -143,7 +143,13 @@ def annotate_offtargets(
             header = infile.readline().strip()  # preserve header in annotated report
             outfile.write(f"{header}\n")
             for offtarget in infile:  # read offtargets
-                fields = offtarget.split()  # split offtarget individual fields
+                # explicit tab-split (not the default whitespace-collapsing
+                # .split()): a genuinely empty column (e.g. a blank AF value)
+                # sits between two tabs and must survive as its own "" field,
+                # not be silently dropped, which would shift every later
+                # column left by one and break the fixed-index readers
+                # downstream (add_risk_score.py, resultIntegrator.py).
+                fields = offtarget.rstrip("\n").split("\t")
                 # annotate current off-target using input annotation datasets
                 fields[14] = (
                     "n" if annotation is None else annotate_target(
