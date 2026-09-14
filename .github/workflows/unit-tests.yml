@@ -1,0 +1,34 @@
+name: unit tests
+
+# Fast, hermetic Python checks that run on every PR touching the pipeline:
+# byte-compile PostProcess (syntax) and run the network-free PostProcess unit
+# tests. No Docker build and no genome download, so this gives quick signal
+# independent of the heavier validate-benchmarks (chr22) workflow.
+
+on:
+  pull_request:
+    paths:
+      - "crisprme.py"
+      - "PostProcess/**"
+      - ".github/workflows/unit-tests.yml"
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install light deps
+        run: python -m pip install --upgrade pip
+
+      - name: Indel per-chrom subset matches fakechrom (issue #172 silent-drop)
+        working-directory: PostProcess
+        run: python -m unittest test_indel_chrom_subset -v
