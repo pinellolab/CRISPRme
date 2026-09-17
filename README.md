@@ -11,7 +11,7 @@
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/crisprme/README.html)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/pinellolab/crisprme)
 ![Conda](https://img.shields.io/conda/dn/bioconda/crisprme)
-![license](https://img.shields.io/badge/license-AGPL--3.0-lightgrey)
+![license](https://img.shields.io/badge/license-MGBOA%201.0-lightgrey)
 
 <p align="center">
   <img src="https://github.com/pinellolab/CRISPRme/blob/main/assets/readme/crisprme-logo.png" alt="crisprme-logo.png", width=700/>
@@ -1638,8 +1638,9 @@ Epub 2022 Dec 15. PMID: 36522432; PMCID: PMC10272994.
 
 ## 6 License
 
-CRISPRme is licensed under the **AGPL-3.0** license, which permits its use for 
-**academic research purposes only**.
+CRISPRme is licensed under the **MGB Open Access License 1.0 (MGBOA 1.0)**
+([full terms](LICENSE)), which permits its use **only for non-commercial,
+non-revenue-generating, academic purposes**.
 
 For any commercial or for-profit use, a separate license must be obtained. For 
 further information regarding licensing for commercial purposes, please contact 
