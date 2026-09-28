@@ -6,7 +6,7 @@
 # web interface — so after this one command the user never needs the terminal
 # again. Docker Desktop required.
 $ErrorActionPreference = 'Stop'
-$Image   = 'pinellolab/crisprme:v2.5.5'
+$Image   = 'pinellolab/crisprme:latest'
 $DataDir = Join-Path $env:USERPROFILE 'CRISPRme'
 $AppDir  = Join-Path $env:LOCALAPPDATA 'CRISPRme'
 
@@ -42,7 +42,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 $ConfigDir = Join-Path $env:USERPROFILE 'CRISPRme'
 $LocFile   = Join-Path $ConfigDir '.data_location'
-$Image     = 'pinellolab/crisprme:v2.5.5'
+$Image     = 'pinellolab/crisprme:latest'
 
 # Data (~45 GB) lives in a user-chosen folder, remembered across launches in
 # .data_location (so a low-space home disk can point the data at another drive).
@@ -111,7 +111,7 @@ Mk 'Start' 44 {
     $r = [System.Windows.Forms.MessageBox]::Show("First run: CRISPRme will download the reference genome + 1000G/HGDP variant data (~45 GB) into:`n$Data`n`nOnce only. A window shows progress, then your browser opens automatically.","CRISPRme+ - first-time setup",'OKCancel')
     if ($r -eq 'OK') {
       $mnt = "-v `"${Data}:/DATA`" -w /DATA $Image"
-      Run-InConsole 'First-time setup - downloading ~45 GB, then starting CRISPRme' "docker run --rm $mnt crisprme.py download --what all --path /DATA; docker run --rm $mnt crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G2021_HGDP --path /DATA; $run; Start-Sleep 3; Start-Process 'http://localhost:8080'"
+      Run-InConsole 'First-time setup - downloading ~75 GB, then starting CRISPRme' "docker run --rm $mnt crisprme.py download --what all --path /DATA; docker run --rm $mnt crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G2021 --path /DATA; $run; Start-Sleep 3; Start-Process 'http://localhost:8080'"
     }
   }
 }
