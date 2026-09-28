@@ -371,6 +371,12 @@ the entire search. For each guide RNA submitted, the table shows:
   as the number of mismatches increases, the score declines non-linearly. Comparisons
   between searches that used different mismatch or bulge thresholds, or different
   variant datasets, should therefore be made with caution.
+- **CRISPR-Bulge score** — a deep-learning off-target activity score (Yaish &
+  Orenstein, *NAR* 2024; a TensorFlow GRU model) reported alongside CFD as a
+  complementary, bulge-aware prediction. It uses its own interpretation thresholds
+  (0.5 / 0.2 / 0.1). CRISPR-Bulge was trained on off-targets with at most a single
+  bulge, so any off-target that requires **two or more bulges** is out-of-domain and
+  its CRISPR-Bulge score is shown as "-" (N/A); use the CFD score for those sites.
 - **Off-Targets Reference (0–n Mismatches + Bulges)** — the number of potential
   off-target sites identified in the reference genome, tabulated per mismatch and
   bulge count combination.
