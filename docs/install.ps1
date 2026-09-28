@@ -28,7 +28,7 @@ Write-Host "Docker found." -ForegroundColor Green
 try { docker info *> $null; if ($LASTEXITCODE -eq 0) { Write-Host "Fetching the CRISPRme engine image (~800 MB, one time)..." -ForegroundColor Cyan; docker pull $Image } } catch {}
 
 # ---- 2. Config dir --------------------------------------------------------
-# The app stores its data (~45 GB) in a folder the user picks on first run and
+# The app stores its data (~75 GB) in a folder the user picks on first run and
 # remembers in $DataDir\.data_location (so a low-space home disk can point the
 # data at another drive). $DataDir itself only holds that tiny pointer file.
 New-Item -ItemType Directory -Force -Path $DataDir | Out-Null
@@ -44,18 +44,18 @@ $ConfigDir = Join-Path $env:USERPROFILE 'CRISPRme'
 $LocFile   = Join-Path $ConfigDir '.data_location'
 $Image     = 'pinellolab/crisprme:latest'
 
-# Data (~45 GB) lives in a user-chosen folder, remembered across launches in
+# Data (~75 GB) lives in a user-chosen folder, remembered across launches in
 # .data_location (so a low-space home disk can point the data at another drive).
 function Get-DataDir { if (Test-Path $LocFile) { (Get-Content -Raw $LocFile).Trim() } else { Join-Path $ConfigDir 'crisprme-data' } }
 function Set-DataDir($p) { New-Item -ItemType Directory -Force -Path $ConfigDir | Out-Null; Set-Content -NoNewline -Encoding ascii -Path $LocFile -Value $p }
 function Has-Stored { Test-Path $LocFile }
-# first run: let the user choose where the ~45 GB lives (e.g. a big external drive)
+# first run: let the user choose where the ~75 GB lives (e.g. a big external drive)
 function Pick-DataDir {
   $def = Join-Path $ConfigDir 'crisprme-data'
-  $r = [System.Windows.Forms.MessageBox]::Show("Where should CRISPRme store its data (~45 GB, downloaded once)?`n`nDefault: $def`n`nClick Yes to choose another drive/folder (if your home disk is low on space), or No to use the default.","CRISPRme+ - data location",'YesNo')
+  $r = [System.Windows.Forms.MessageBox]::Show("Where should CRISPRme store its data (~75 GB, downloaded once)?`n`nDefault: $def`n`nClick Yes to choose another drive/folder (if your home disk is low on space), or No to use the default.","CRISPRme+ - data location",'YesNo')
   if ($r -eq 'Yes') {
     $fb = New-Object System.Windows.Forms.FolderBrowserDialog
-    $fb.Description = 'Select a folder where CRISPRme will store ~45 GB of data'
+    $fb.Description = 'Select a folder where CRISPRme will store ~75 GB of data'
     if ($fb.ShowDialog() -eq 'OK' -and $fb.SelectedPath) { $p = Join-Path $fb.SelectedPath 'crisprme-data' } else { $p = $def }
   } else { $p = $def }
   New-Item -ItemType Directory -Force -Path $p | Out-Null
@@ -108,7 +108,7 @@ Mk 'Start' 44 {
   if (Has-Data) {
     Invoke-Expression $run; Start-Sleep 3; Start-Process 'http://localhost:8080'
   } else {
-    $r = [System.Windows.Forms.MessageBox]::Show("First run: CRISPRme will download the reference genome + 1000G/HGDP variant data (~45 GB) into:`n$Data`n`nOnce only. A window shows progress, then your browser opens automatically.","CRISPRme+ - first-time setup",'OKCancel')
+    $r = [System.Windows.Forms.MessageBox]::Show("First run: CRISPRme will download the reference genome + 1000G-2021 variant data (~75 GB) into:`n$Data`n`nOnce only. A window shows progress, then your browser opens automatically.","CRISPRme+ - first-time setup",'OKCancel')
     if ($r -eq 'OK') {
       $mnt = "-v `"${Data}:/DATA`" -w /DATA $Image"
       Run-InConsole 'First-time setup - downloading ~75 GB, then starting CRISPRme' "docker run --rm $mnt crisprme.py download --what all --path /DATA; docker run --rm $mnt crisprme.py download --what index --index-name NRG_3_hg38+hg38_1000G2021 --path /DATA; $run; Start-Sleep 3; Start-Process 'http://localhost:8080'"
@@ -118,7 +118,7 @@ Mk 'Start' 44 {
 Mk 'Update' 120 { if (Ensure-Docker) { Run-InConsole 'Updating CRISPRme' "docker pull $Image" } }
 Mk 'Stop' 196 { try { docker rm -f crisprme } catch {}; [System.Windows.Forms.MessageBox]::Show('CRISPRme stopped.') }
 
-if (Has-Data) { $status.Text = 'Ready. Click Start to open CRISPRme.' } else { $status.Text = 'First run: Start will set everything up (~45 GB, once).' }
+if (Has-Data) { $status.Text = 'Ready. Click Start to open CRISPRme.' } else { $status.Text = 'First run: Start will set everything up (~75 GB, once).' }
 [void]$form.ShowDialog()
 '@ | Set-Content -Encoding UTF8 $AppScript
 
