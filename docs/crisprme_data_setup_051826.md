@@ -223,6 +223,10 @@ my_crisprme_run/
 └── vcf.config.txt
 ```
 
+### Scoring backend (CPU / GPU)
+
+Every off-target is scored with **CFD** plus the **CRISPR-Bulge** machine-learning model (Yaish & Orenstein, *NAR* 2024). Pass `--compute-backend {cpu,cuda,metal}` to `complete-search` to select where CRISPR-Bulge runs (`cpu` is the default; `cuda` uses an NVIDIA GPU, `metal` an Apple-Silicon GPU; `gpu`/`auto` are accepted as aliases). CRISPR-Bulge runs in a dedicated **`cbulge` conda environment** that is provisioned automatically on first use; manage it explicitly with `crisprme.py scorer-env` (e.g. `crisprme.py scorer-env create`, `crisprme.py scorer-env check`, `crisprme.py scorer-env doctor`).
+
 ---
 
 ## Section 4. Add a new VCF dataset
