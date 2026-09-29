@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CRISPRme+ is the next major version of CRISPRme, a variant-aware CRISPR off-target nomination tool. Now stable (v2.6.1): run the web interface locally in minutes with Docker, batteries included (a ready-made 1000 Genomes 2021 SpCas9 index).">
-  <title>CRISPRme+ — variant-aware CRISPR off-target nomination (v2.6.1)</title>
+  <meta name="description" content="CRISPRme+ is the next major version of CRISPRme, a variant-aware CRISPR off-target nomination tool. Now stable (v2.6.2): run the web interface locally in minutes with Docker, batteries included (a ready-made 1000 Genomes 2021 SpCas9 index).">
+  <title>CRISPRme+ — variant-aware CRISPR off-target nomination (v2.6.2)</title>
   <link rel="icon" type="image/svg+xml" href="crisprme-icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -21,6 +21,19 @@
   </header>
 
   <main>
+    <section class="intro">
+      <p>
+        <strong>CRISPRme</strong> predicts and prioritizes CRISPR off-target sites and
+        &mdash; uniquely &mdash; accounts for individual and population <strong>genetic
+        variants</strong> (SNVs and indels), flagging off-targets that exist only on certain
+        haplotypes. It suits both population-wide and personal-genome analyses. To search you
+        download a prebuilt <strong>index</strong> (a ready-made search database for a genome +
+        PAM) &mdash; a <strong>reference</strong> index for a basic scan, or a
+        <strong>variant-aware</strong> one (e.g. 1000&nbsp;Genomes-2021, or&nbsp;+&nbsp;HGDP)
+        to catch variant-created off-targets; the quickstart below downloads one for you.
+      </p>
+    </section>
+
     <section class="notice" aria-labelledby="notice-heading">
       <h2 id="notice-heading">Run CRISPRme+ on your own machine</h2>
       <p>
@@ -36,7 +49,7 @@
         real off-target search immediately, with no index build and no giant download.
       </p>
       <p>
-        <strong>New in v2.6.1:</strong> the default image
+        <strong>New in the 2.6 line:</strong> the default image
         <code>pinellolab/crisprme:latest</code> is now <strong>GPU-capable</strong> &mdash;
         on an NVIDIA host it can accelerate the <strong>CRISPR-Bulge</strong> deep-learning
         scorer, with automatic CPU fallback. Reports also gain a new
