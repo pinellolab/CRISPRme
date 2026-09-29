@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="CRISPRme+ is the next major version of CRISPRme, a variant-aware CRISPR off-target nomination tool. Now stable (v2.6.0): run the web interface locally in minutes with Docker, batteries included (a ready-made 1000 Genomes 2021 SpCas9 index).">
-  <title>CRISPRme+ — variant-aware CRISPR off-target nomination (v2.6.0)</title>
+  <meta name="description" content="CRISPRme+ is the next major version of CRISPRme, a variant-aware CRISPR off-target nomination tool. Now stable (v2.6.1): run the web interface locally in minutes with Docker, batteries included (a ready-made 1000 Genomes 2021 SpCas9 index).">
+  <title>CRISPRme+ — variant-aware CRISPR off-target nomination (v2.6.1)</title>
   <link rel="icon" type="image/svg+xml" href="crisprme-icon.svg">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
@@ -36,12 +36,24 @@
         real off-target search immediately, with no index build and no giant download.
       </p>
       <p>
-        <strong>New in v2.6.0:</strong> the <strong>CRISPR-Bulge</strong> deep-learning
-        off-target scorer (Yaish &amp; Orenstein, <em>NAR</em> 2024) now reports alongside
-        <strong>CFD</strong>, replacing the legacy RandomForest model. On the data side, four
-        prebuilt variant indexes are available &mdash; the recommended single-source
-        <strong>1000G-2021</strong>, the broader <strong>1000G-2021&nbsp;+&nbsp;HGDP</strong>,
-        the <strong>HPRC pangenome</strong> (232 phased assembly-derived genomes), and the
+        <strong>New in v2.6.1:</strong> the default image
+        <code>pinellolab/crisprme:latest</code> is now <strong>GPU-capable</strong> &mdash;
+        on an NVIDIA host it can accelerate the <strong>CRISPR-Bulge</strong> deep-learning
+        scorer, with automatic CPU fallback. Reports also gain a new
+        <strong><code>Gene_region</code></strong> column &mdash; where each off-target sits
+        relative to the nearest protein-coding gene (<code>CDS</code>, <code>5'UTR</code>,
+        <code>3'UTR</code>, <code>exon</code>, <code>intron</code>, or
+        <code>intergenic</code>), coherent with <code>Gene_distance_kb</code>
+        (<code>intergenic</code> iff distance&nbsp;&gt;&nbsp;0). It appears in the curated
+        report table, all download TSVs, and the raw <code>integrated_results.tsv</code>.
+      </p>
+      <p>
+        The <strong>CRISPR-Bulge</strong> deep-learning off-target scorer (Yaish &amp;
+        Orenstein, <em>NAR</em> 2024) reports alongside <strong>CFD</strong>, replacing the
+        legacy RandomForest model. On the data side, four prebuilt variant indexes are
+        available &mdash; the recommended single-source <strong>1000G-2021</strong>, the
+        broader <strong>1000G-2021&nbsp;+&nbsp;HGDP</strong>, the
+        <strong>HPRC pangenome</strong> (232 phased assembly-derived genomes), and the
         five-source sites-only <strong>&ldquo;mega&rdquo;</strong> &mdash; plus a website for
         <a href="https://github.com/pinellolab/crisprme-plus/blob/main/docs/crisprme_web_interface_user_guide.md#searching-a-personal-assembly-genome-assembly-search"><strong>personal diploid
         assembly search</strong></a> (search an assembled diploid genome directly). See the
@@ -76,7 +88,7 @@
           <strong>Disk:</strong> the batteries-included quickstart needs
           <strong>&asymp;&nbsp;100&nbsp;GB free</strong> (headroom for the download plus
           unpacking). The download is about <strong>~45&nbsp;GB</strong> and expands to
-          roughly <strong>~85&nbsp;GB installed</strong>. As of v2.6.0 the default index
+          roughly <strong>~85&nbsp;GB installed</strong>. As of v2.6.1 the default index
           is <strong>dict-less</strong>: the combined
           1000&nbsp;Genomes&nbsp;+&nbsp;HGDP variant index is a
           <strong>~29&nbsp;GB download</strong> (plus a ~6&nbsp;GB genotype companion) with
@@ -93,6 +105,17 @@
           <strong>CPU:</strong> any modern x86-64 or Apple-Silicon / ARM machine — the
           image is multi-arch. Searches are multi-threaded, so more cores means faster
           runs.
+        </li>
+        <li>
+          <strong>GPU (optional):</strong> the default image
+          <code>pinellolab/crisprme:latest</code> is GPU-capable: on an NVIDIA host, add
+          <code>--gpus all</code> to <code>docker run</code> and pass
+          <code>--compute-backend cuda</code> to run the CRISPR-Bulge scorer on the GPU; it
+          falls back to CPU automatically when no GPU is present. The <strong>amd64</strong>
+          image bundles CUDA; <strong>arm64</strong> (Apple Silicon) and Docker-on-Mac are
+          always CPU. The clickable installers auto-add <code>--gpus all</code> when Docker
+          exposes a GPU. (GPU pays off on large/dense searches; a tiny single-guide run is
+          often faster on CPU due to init overhead.)
         </li>
       </ul>
     </section>
@@ -161,7 +184,7 @@
           1000G&nbsp;+&nbsp;HGDP variant search (see Requirements above). Then check Docker
           works, pull the CRISPRme+ image (multi-arch: Apple Silicon + Intel/Linux), and
           confirm CRISPRme+ runs (the last line should print a version such as
-          <code>v2.6.0</code>):
+          <code>v2.6.1</code>):
         </p>
         <pre><code>docker run --rm hello-world
 docker pull pinellolab/crisprme:latest
@@ -253,16 +276,23 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:latest crisprme.p
           neither has to be built.
         </p>
         <p class="note">
-          The commands above <strong>pin the exact release</strong>
-          (<code>pinellolab/crisprme:latest</code>, multi-arch amd64&nbsp;+&nbsp;arm64)
-          for reproducible installs. The unpinned <code>pinellolab/crisprme</code>
-          (<code>latest</code>) tracks the newest release but can change under you between
-          pulls &mdash; prefer the pinned tag for a stable, repeatable setup.
+          The commands above use <code>pinellolab/crisprme:latest</code> (multi-arch
+          amd64&nbsp;+&nbsp;arm64), which auto-updates to the newest release and is the
+          GPU-capable default. For a stable, repeatable setup pin an exact tag instead
+          &mdash; e.g. <code>pinellolab/crisprme:v2.6.1</code> &mdash; so the image can't
+          change under you between pulls.
         </p>
 
         <h3>3 &mdash; Launch the web interface</h3>
         <pre><code>docker run --rm -v "${PWD}:/DATA" -w /DATA -p 8080:8080 -it pinellolab/crisprme:latest crisprme.py web-interface</code></pre>
         <p>Leave it running and open <strong>http://127.0.0.1:8080</strong>. Stop with <strong>Ctrl+C</strong>. In the browser, the <strong>1000G+HGDP</strong> variant index is pre-selected &mdash; just paste a guide and Submit.</p>
+        <p class="note">
+          <strong>GPU (optional, NVIDIA hosts):</strong> the default image
+          <code>pinellolab/crisprme:latest</code> is GPU-capable &mdash; add
+          <code>--gpus all</code> to <code>docker run</code> and the CRISPR-Bulge scorer
+          runs on the GPU (it falls back to CPU automatically when no GPU is present). The
+          amd64 image bundles CUDA; arm64 (Apple Silicon) and Docker-on-Mac are always CPU.
+        </p>
       </div>
 
       <!-- ============ Singularity / Apptainer ============ -->
@@ -382,6 +412,16 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:latest \
         <code>crisprme.py cosmic-license enable</code>). Results land under
         <code>~/crisprme/Results/my_search/</code> on your own machine.
       </p>
+      <p class="note">
+        <strong>GPU (optional, NVIDIA hosts):</strong> the default image
+        <code>pinellolab/crisprme:latest</code> is GPU-capable &mdash; add
+        <code>--gpus all</code> to the <code>docker run</code> above and pass
+        <code>--compute-backend cuda</code> to <code>complete-search</code> to run the
+        CRISPR-Bulge scorer on the GPU; it falls back to CPU automatically when no GPU is
+        present. The amd64 image bundles CUDA; arm64 (Apple Silicon) and Docker-on-Mac are
+        always CPU. GPU pays off on large/dense searches &mdash; a tiny single-guide run is
+        often faster on CPU due to init overhead.
+      </p>
       <p>
         Then build the same one-file shareable report the web "Download report"
         button produces (a self-contained <code>report.html</code> inside a ZIP):
@@ -416,7 +456,7 @@ docker run --rm -v "${PWD}:/DATA" -w /DATA pinellolab/crisprme:latest \
         <h3>Install with Conda / Mamba</h3>
         <p class="warn"><strong>Note:</strong> Bioconda currently installs the previous
         CRISPRme line (2.1.x, Python&nbsp;3.8), <strong>not</strong> this
-        CRISPRme+ v2.6.0 release. For v2.6.0, use the Docker quickstart above, or build
+        CRISPRme+ v2.6.1 release. For v2.6.1, use the Docker quickstart above, or build
         from source (Python&nbsp;3.11) per the
         <a href="https://github.com/pinellolab/crisprme-plus#1-installation">crisprme-plus README</a>.</p>
         <pre><code># Stable line (2.1.x) via Bioconda
