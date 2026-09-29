@@ -227,6 +227,8 @@ my_crisprme_run/
 
 Every off-target is scored with **CFD** plus the **CRISPR-Bulge** machine-learning model (Yaish & Orenstein, *NAR* 2024). Pass `--compute-backend {cpu,cuda,metal}` to `complete-search` to select where CRISPR-Bulge runs (`cpu` is the default; `cuda` uses an NVIDIA GPU, `metal` an Apple-Silicon GPU; `gpu`/`auto` are accepted as aliases). CRISPR-Bulge runs in a dedicated **`cbulge` conda environment** that is provisioned automatically on first use; manage it explicitly with `crisprme.py scorer-env` (e.g. `crisprme.py scorer-env create`, `crisprme.py scorer-env check`, `crisprme.py scorer-env doctor`).
 
+The default image `pinellolab/crisprme:latest` is GPU-capable: on an NVIDIA host, add `--gpus all` to `docker run` and pass `--compute-backend cuda` to run the CRISPR-Bulge scorer on the GPU; it falls back to CPU automatically when no GPU is present. The amd64 image bundles CUDA; arm64 (Apple Silicon) and Docker-on-Mac are always CPU. The clickable installers auto-add `--gpus all` when Docker exposes a GPU. (GPU pays off on large/dense searches; a tiny single-guide run is often faster on CPU due to init overhead.) See the [web interface user guide](crisprme_web_interface_user_guide.md#2c-start-the-local-server) for the `docker run` launch section.
+
 ---
 
 ## Section 4. Add a new VCF dataset
