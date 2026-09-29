@@ -104,7 +104,12 @@ Mk 'Start' 44 {
   # first run with no data AND no remembered location: let the user pick the folder
   if ((-not (Has-Data)) -and (-not (Has-Stored))) { $script:Data = Pick-DataDir }
   if (-not (Ensure-Docker)) { return }
-  $run = "docker rm -f crisprme 2>`$null; docker run -d --name crisprme -v `"${Data}:/DATA`" -w /DATA -p 8080:8080 $Image crisprme.py web-interface"
+  # Auto-use an NVIDIA GPU when Docker can expose one (no-op on CPU-only hosts): probe
+  # '--gpus all' and, if it works, run the scorer on the GPU (cuda backend). The
+  # CRISPR-Bulge scorer still CPU-falls-back internally if the GPU turns out unusable.
+  $gpu = ''
+  try { docker run --rm --gpus all $Image true *> $null; if ($LASTEXITCODE -eq 0) { $gpu = '--gpus all -e CRISPRME_COMPUTE_BACKEND=cuda ' } } catch {}
+  $run = "docker rm -f crisprme 2>`$null; docker run -d --name crisprme ${gpu}-v `"${Data}:/DATA`" -w /DATA -p 8080:8080 $Image crisprme.py web-interface"
   if (Has-Data) {
     Invoke-Expression $run; Start-Sleep 3; Start-Process 'http://localhost:8080'
   } else {
