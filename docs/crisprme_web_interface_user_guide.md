@@ -108,6 +108,19 @@ docker run -v ${PWD}:/DATA -w /DATA -p 8080:8080 \
 The `-p 8080:8080` flag maps port 8080 inside the container to port 8080 on your
 host machine.
 
+> **GPU acceleration (optional):** The default image `pinellolab/crisprme:latest`
+> is GPU-capable. On an NVIDIA host, add `--gpus all` to `docker run` and pass
+> `--compute-backend cuda` to run the CRISPR-Bulge scorer on the GPU; it falls back
+> to CPU automatically when no GPU is present. The amd64 image bundles CUDA; the
+> arm64 (Apple Silicon) image and Docker-on-Mac are always CPU. The clickable
+> installers auto-add `--gpus all` when Docker exposes a GPU. GPU acceleration pays
+> off on large or dense searches; a tiny single-guide run is often faster on CPU due
+> to initialisation overhead. For example:
+> ```bash
+> docker run --gpus all -v ${PWD}:/DATA -w /DATA -p 8080:8080 \
+>   pinellolab/crisprme:latest crisprme.py web-interface
+> ```
+
 ### 2d. Open the interface in a browser
 
 Once the server is running, open one of the following supported browsers and navigate
@@ -312,6 +325,12 @@ The default installation provides two annotation tracks:
   chromatin regions).
 - **GENCODE** — protein-coding genes, untranslated regions, and introns.
 
+The gene annotation additionally populates a **`Gene_region`** column in the results
+tables, recording where each off-target sits relative to the nearest protein-coding
+gene: `CDS`, `5'UTR`, `3'UTR`, `exon`, `intron`, or `intergenic`. This value is
+coherent with `Gene_distance_kb` — a site is labelled `intergenic` if and only if its
+distance to the nearest gene is greater than 0.
+
 In the local offline version, custom cell-type-specific annotations or
 experimentally identified off-target sites can be integrated by uploading BED files
 through the interface.
@@ -386,6 +405,13 @@ the entire search. For each guide RNA submitted, the table shows:
 
 Use the **Download General Table** button in the top-left corner to export this
 summary as a plain text file.
+
+> **Gene region annotation:** When a gene annotation is supplied (Step 3), the
+> detailed target tables — the curated report table, all download TSVs, and the raw
+> `integrated_results.tsv` — include a **`Gene_region`** column recording where the
+> off-target sits relative to the nearest protein-coding gene: `CDS`, `5'UTR`,
+> `3'UTR`, `exon`, `intron`, or `intergenic`. It is coherent with `Gene_distance_kb`
+> (`intergenic` if and only if the distance is greater than 0).
 
 ### 5b. Tab 1 — Custom Ranking
 
