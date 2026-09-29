@@ -224,4 +224,5 @@ else
   say "${YEL}Linux clickable-app support is minimal in this MVP.${NC}"
   say "Use: docker run --rm -v <data-folder>:/DATA -w /DATA -p 8080:8080 ${IMAGE} crisprme.py web-interface"
   say "(then open http://localhost:8080; <data-folder> is any folder with ~75 GB free)"
+  say "${YEL}NVIDIA GPU?${NC} add '--gpus all -e CRISPRME_COMPUTE_BACKEND=cuda' to the docker run to use it (auto CPU-fallback if unavailable)."
 fi
