@@ -34,10 +34,34 @@ targets_tsv_alt="${output_folder}/crispritz_targets/indels_${ref_name}+${vcf_nam
 echo "Processing INDELs results for $key, starting post-analysis"
 
 # extract chrom-specific reference and alternative targets
+#
+# The indel search runs on the per-chromosome FAKE genome (see
+# pool_search_indels.py), so every target row's Chromosome column is named
+# "fake${chrom}" (e.g. "fakechr22"), NOT "${chrom}". We therefore MUST match on
+# "$fakechrom". Matching on "$chrom" (as a broken refactor did) can never hit
+# "fakechr22" with -w because the left word boundary fails ("chr22" is preceded
+# by the word character "e"), so the subset comes back empty and every indel
+# off-target is silently dropped with a clean exit (GitHub issue #172). -w still
+# safely prevents "fakechr2" from matching "fakechr22" because the right
+# boundary there is a digit.
 targets_tsv_ref_chrom="${targets_tsv_ref}.${chrom}"
 targets_tsv_alt_chrom="${targets_tsv_alt}.${chrom}"
-LC_ALL=C grep -F -w $chrom "$targets_tsv_ref" > "$targets_tsv_ref_chrom"
-LC_ALL=C grep -F -w $chrom "$targets_tsv_alt" > "$targets_tsv_alt_chrom"
+LC_ALL=C grep -F -w "$fakechrom" "$targets_tsv_ref" > "$targets_tsv_ref_chrom"
+LC_ALL=C grep -F -w "$fakechrom" "$targets_tsv_alt" > "$targets_tsv_alt_chrom"
+
+# drop malformed lines, if any (a well-formed CRISPRitz target row has at least
+# 10 tab-separated columns: Bulge_type..Total)
+awk -F'\t' 'NF >= 10' "$targets_tsv_ref_chrom" > "${targets_tsv_ref_chrom}.tmp"
+mv "${targets_tsv_ref_chrom}.tmp" "$targets_tsv_ref_chrom"
+awk -F'\t' 'NF >= 10' "$targets_tsv_alt_chrom" > "${targets_tsv_alt_chrom}.tmp"
+mv "${targets_tsv_alt_chrom}.tmp" "$targets_tsv_alt_chrom"
+
+# Visible-but-safe guard: if a per-chrom subset is empty, warn loudly on STDOUT
+# (never stderr: this pipeline treats any stderr write as fatal via
+# `[ -s $logerror ]`). This is exactly the failure mode of issue #172.
+if [ ! -s "$targets_tsv_alt_chrom" ]; then
+    echo "WARNING: no indel targets matched '$fakechrom' in $targets_tsv_alt -- the per-chromosome indel subset for $chrom is EMPTY (see GitHub issue #172 if unexpected)."
+fi
 
 # adjust targets header
 header=$(head -1 "$targets_tsv_alt")
