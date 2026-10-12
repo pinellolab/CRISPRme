@@ -35,6 +35,13 @@ guide_name=$(basename $3)
 pam_name=$(basename $4)
 annotation_name=$(basename $5)
 
+# CRISPRme data root: Genomes/, VCFs/ and Dictionaries/ all live here. The genome
+# dir is <cwd>/Genomes/<ref>, so its grandparent is the data root. The SNP/indel
+# dictionaries must be read from <cwd>/Dictionaries/ (where the search pipeline
+# created them) — NOT from $output_folder, which never holds them (fixes the
+# post-analysis-only rerun path; see submit_job lines ~193-194).
+current_working_directory=$(dirname "$(dirname "$ref_folder")")
+
 if [ "$vcf_name" != "_" ]; then
 	log="log_post_analysis_only_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.txt"
 else
@@ -102,7 +109,7 @@ if ! [ -f "$output_folder/crispritz_targets/indels_${ref_name}+${vcf_name}_${pam
 fi
 
 if [ "$vcf_name" != "_" ]; then
-	dict_folder="$output_folder/dictionaries_$vcf_name/"
+	dict_folder="$current_working_directory/Dictionaries/dictionaries_$vcf_name/"
 	echo "Post-analysis SNPs Start: "$(date +%F-%T) >>$output_folder/$log
 	final_res="$output_folder/final_results_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt"
 	final_res_alt="$output_folder/final_results_${ref_name}+${vcf_name}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.altMerge.txt"
@@ -119,7 +126,7 @@ if [ "$vcf_name" != "_" ]; then
 		exit
 	fi
 
-	./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID $dict_folder $final_res $final_res_alt $ncpus
+	./pool_post_analisi_snp.py $output_folder $ref_folder $vcf_name $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $dict_folder $final_res $final_res_alt $ncpus
 
 	echo "Post-analysis SNPs End: "$(date +%F-%T) >>$output_folder/$log
 
@@ -172,7 +179,7 @@ if [ "$vcf_name" != "_" ]; then
 	cd "$starting_dir"
 
 	echo "Post-analysis INDELs Start: "$(date +%F-%T) >>$output_folder/$log
-	./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file $sampleID "$output_folder/log_indels_$vcf_name" $final_res $final_res_alt $ncpus
+	./pool_post_analisi_indel.py $output_folder $ref_folder $vcf_folder $guide_file $mm $bDNA $bRNA $annotation_file $pam_file "$current_working_directory/Dictionaries/" $final_res $final_res_alt $ncpus
 	echo "Post-analysis INDELs End: "$(date +%F-%T) >>$output_folder/$log
 	for key in "${array_fake_chroms[@]}"; do
 		tail -n +2 "$output_folder/${key}_${pam_name}_${guide_name}_${annotation_name}_${mm}_${bDNA}_${bRNA}.bestMerge.txt" >>"$final_res" #"$output_folder/${fake_chr}_${guide_name}_${mm}_${bDNA}_${bRNA}.bestCFD.txt.tmp"
